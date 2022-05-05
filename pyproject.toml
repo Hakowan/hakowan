@@ -1,0 +1,14 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "hakowan"
+authors = [{name = "Qingnan Zhou", email = "qnzhou@gmail.com"}]
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: Apache Software License"]
+dynamic = ["description", "version"]
+dependencies=[
+    "pytest",
+    "numpy",
+    "mshio@git+https://github.com/qnzhou/MshIO.git"]
