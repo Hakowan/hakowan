@@ -12,3 +12,4 @@ dependencies=[
     "pytest",
     "numpy",
     "mshio@git+https://github.com/qnzhou/MshIO.git"]
+

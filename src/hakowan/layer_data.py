@@ -41,7 +41,7 @@ class Attribute:
 
 
 @dataclass
-class Channel:
+class Channel: # Rename to Encoding
     """Settings of a single visual channel."""
 
     source: Any = None
@@ -51,7 +51,7 @@ class Channel:
     the same name.  Otherwise, `source` is assumed to contain a constant value.
     """
 
-    mapping: str = "identity"
+    mapping: Any = "identity"
     """ Mapping between raw data and channel specific values.
 
     If `mapping` is a name (i.e. string), a predefined mapping of the same name
@@ -68,7 +68,7 @@ class Channel:
 
 
 @dataclass
-class Channels:
+class Channels: # Rename to Encodings
     """A set of channels"""
 
     position: Channel = None

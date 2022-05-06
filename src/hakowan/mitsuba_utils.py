@@ -7,7 +7,11 @@ import numpy as np
 from .layer import Layer
 from .layer_data import LayerData, Mark
 from .exception import InvalidSetting
-from .render_utils import process_position_channel, process_color_channel
+from .render_utils import (
+    process_position_channel,
+    process_color_channel,
+    process_size_channel,
+)
 
 
 def generate_float(xml_doc, name, val):
@@ -83,9 +87,45 @@ def generate_sphere(xml_doc, center, radius):
     return shape_xml
 
 
+def get_accesser(values, size):
+    """Convert raw value into accesser lamdbas.
+
+    If `values` have length equals to `size`, ith value is defined by
+    `values[i]`.  Otherwise, we assume `values` encodes a constant value at
+    `values[0]`.
+    """
+    if len(values) == size:
+        return lambda i: values[i]
+
+    assert len(values) == 1
+    return lambda i: values[0]
+
+
 def __generate_point_view(layer_data: LayerData, xml_doc: minidom.Document):
     positions = process_position_channel(layer_data)
     colors = process_color_channel(layer_data)
+    sizes = process_size_channel(layer_data)
+
+    get_color = get_accesser(colors, len(positions))
+    get_size = get_accesser(sizes, len(positions))
+
+    transform_xml = generate_transform(xml_doc, "to_world", layer_data.transform)
+
+    num_positions = len(positions)
+    points_xml = []
+    for i in range(num_positions):
+        p = positions[i]
+        c = get_color(i)
+        r = get_size(i)
+        sphere_xml = generate_sphere(xml_doc, p, r)
+        bsdf_xml = generate_bsdf_plastic(xml_doc, diffuse_reflectance=c)
+
+        sphere_xml.appendChild(bsdf_xml)
+        sphere_xml.appendCild(transform_xml)
+
+        points_xml.append(sphere_xml)
+
+    return points_xml
 
 
 def __generate_mitsuba_config(
@@ -97,22 +137,23 @@ def __generate_mitsuba_config(
         layer_data = data_stack[-1]
     layer_data = layer_data | node.layer_data
 
+    configs = []
     if len(node.children) == 0:
-        if layer_data.mark == Mark.Point:
+        if layer_data.mark == Mark.POINT:
+            configs += __generate_point_view(layer_data, xml_doc)
+        elif layer_data.mark == Mark.CURVE:
             pass
-        elif layer_data.mark == Mark.Curve:
-            pass
-        elif layer_data.mark == Mark.Surface:
+        elif layer_data.mark == Mark.SURFACE:
             pass
         else:
             raise InvalidSetting(f"Unsupported mark: {layer_data.mark}")
     else:
-        configs = []
         for child in node.children:
             data_stack.append(layer_data)
-            configs += generate_mitsuba_config(node.children)
+            configs += __generate_mitsuba_config(child, data_stack, xml_doc)
             data_stack.pop()
-        return configs
+
+    return configs
 
 
 def generate_mitsuba_config(root: Layer):

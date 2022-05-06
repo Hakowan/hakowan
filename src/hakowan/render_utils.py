@@ -34,10 +34,38 @@ def process_position_channel(layer_data: LayerData):
     return pts
 
 
+def extract_channel_values(channel: Channel, attr: Attribute):
+    """Convert raw values stored in `attr` to channel values"""
+    values = attr.values
+
+    if channel.normalize:
+        min_value = np.amin(values)
+        max_value = np.amax(values)
+        scale = max_value - min_value
+        if scale < 1e-12:
+            scale = 1
+        values = (values - min_value) / scale
+
+    if channel.mapping != "identity":
+        if callable(channel.mapping):
+            values = [channel.mappping(c) for c in values]
+        else:
+            raise InvalidSetting(f"Invalid channel mapping: {channel.mapping}")
+
+    return values
+
+
 def default_color_channel():
     """Get the default color channel"""
     channel = Channel()
     channel.source = "#FFEDB6"  # TODO: move this to config file.
+    return channel
+
+
+def default_size_channel():
+    """Get the default size channel"""
+    channel = Channel()
+    channel.source = 1.0  # TODO: move to config file
     return channel
 
 
@@ -50,29 +78,23 @@ def process_color_channel(layer_data: LayerData):
     attr = layer_data.data.get(channel.source, None)
     if attr is None:
         # Constant color.
-        color = channel.source
+        colors = [channel.source]
     else:
-        values = attr.values
-        if values.ndim == 2:
-            values = norm(values, axis=1)
-        elif values.ndim != 1:
-            raise InvalidSetting(
-                f"Invalid dimension in color source channel: {values.shape}"
-            )
+        colors = extract_channel_values(channel, attr)
+    return colors
 
-        if channel.normalize:
-            min_value = np.amin(values)
-            max_value = np.amax(values)
-            scale = max_value - min_value
-            if scale < 1e-12:
-                scale = 1
-            values = (values - min_value) / scale
 
-        if channel.mapping != "identity":
-            if callable(channel.mapping):
-                color = [channel.mappping(c) for c in values]
-            else:
-                raise InvalidSetting(
-                    f"Invalid color channel mapping: {channel.mapping}"
-                )
-    return color
+def process_size_channel(layer_data: LayerData):
+    """Compute size/radius from layer setting"""
+    channel = layer_data.channels.size
+    if channel is None:
+        channel = default_size_channel()
+
+    attr = layer_data.data.get(channel.source, None)
+    if attr is None:
+        # Constant size.
+        sizes = [channel.source]
+    else:
+        sizes = extract_channel_values(channel, attr)
+
+    return sizes
