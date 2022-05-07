@@ -1,28 +1,28 @@
 import numpy as np
 import pytest
 
-import hakowan
+from hakowan.grammar.layer_data import Mark, ChannelSetting, Transform, LayerData
 
 from .test_utils import triangle_data_frame
 
 
 @pytest.fixture
 def d0(triangle_data_frame):
-    return hakowan.LayerData(mark=hakowan.Mark.POINT, data=triangle_data_frame)
+    return LayerData(mark=Mark.POINT, data=triangle_data_frame)
 
 
 @pytest.fixture
 def d1():
-    return hakowan.LayerData(
-        mark=hakowan.Mark.SURFACE,
-        channel_setting=hakowan.layer_data.ChannelSetting(position="geometry"),
+    return LayerData(
+        mark=Mark.SURFACE,
+        channel_setting=ChannelSetting(position="geometry"),
     )
 
 
 class TestLayerData:
     def test_construction(self, d0, d1):
         assert d0 != d1
-        assert d0.mark == hakowan.Mark.POINT
+        assert d0.mark == Mark.POINT
         assert d0.data is not None
         assert d0.channel_setting is None
         assert d0.transform is None
@@ -34,10 +34,10 @@ class TestLayerData:
     def test_combine(self, d0, d1):
         matrix = np.identity(4)
         matrix[0, 3] = 1
-        d0.transform = hakowan.Transform(matrix)
+        d0.transform = Transform(matrix)
         d2 = d0 | d1
 
-        assert d2.mark == hakowan.Mark.SURFACE
+        assert d2.mark == Mark.SURFACE
         assert d2.channel_setting is not None
         assert d2.channel_setting.position == "geometry"
         assert d2.data is not None
@@ -59,9 +59,9 @@ class TestLayerData:
         ey = np.array([0, 1, 0, 1])
         ez = np.array([0, 0, 1, 1])
 
-        d0.transform = hakowan.Transform()
+        d0.transform = Transform()
         d0.transform.translation = translate
-        d1.transform = hakowan.Transform()
+        d1.transform = Transform()
         d1.transform.rotation = rotate
         assert np.all(d0.transform.translation == translate)
         assert np.any(d1.transform.translation != translate)

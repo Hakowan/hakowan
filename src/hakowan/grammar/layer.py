@@ -3,7 +3,8 @@
 from __future__ import annotations  # To allow type hint of the enclosing class.
 from typing import Any
 from textwrap import indent
-from .layer_data import LayerData, DataFrame, Mark, ChannelSetting
+import numpy as np
+from .layer_data import LayerData, DataFrame, Mark, ChannelSetting, Transform
 
 
 class Layer:
@@ -15,7 +16,7 @@ class Layer:
         data: DataFrame = None,
         channel_setting: dict[str, Any] = None,
         mark: Mark = None,
-        transform: Transform = None,
+        transform: np.ndarray = None,
     ):
         """Construct a `Layer` object.
 
@@ -37,7 +38,7 @@ class Layer:
             self.layer_data.mark = mark
 
         if transform is not None:
-            self.layer_data.transform = transform
+            self.layer_data.transform = Transform(transform)
 
     def data(self, data_frame: DataFrame):
         """Specify data sources."""
@@ -58,9 +59,9 @@ class Layer:
         parent.children.append(self)
         return parent
 
-    def transform(self, value: Transform):
+    def transform(self, value: np.ndarray, overwrite: bool = False):
         """Specify layer transform."""
-        parent = Layer(transform=value)
+        parent = Layer(transform=Transform(value, overwrite))
         parent.children.append(self)
         return parent
 
