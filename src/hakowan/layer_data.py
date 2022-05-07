@@ -1,23 +1,11 @@
 """ Layer data module
 """
 from __future__ import annotations  # To allow type hint of the enclosing class.
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from enum import Enum
-from typing import Any
+from typing import Callable, Union
 import numpy as np
-
-
-class AttributeProperty(Enum):
-    """Attribute Property enums."""
-
-    INTRINSIC = 1
-    """ Intrinsic properties are coordinate independent.  Thus, its value will
-    not be affected by coordinate transformations. """
-
-    EXTRINSIC = 2
-    """ Extrinsic properties are coordiantes dependent.  Thus, its value will be
-    affected by coordinate transformtions.
-    """
+from csscolor.color import Color
 
 
 class Mark(Enum):
@@ -30,71 +18,116 @@ class Mark(Enum):
 
 @dataclass
 class Attribute:
-    """An attribute is a mapping from geometry to values.  Its values are an
-    list of raw values, and its indices defines how values are mapped to each
-    node in each element.
-    """
+    """An attribute defines a mapping from geometry to values."""
 
-    property: AttributeProperty = None
     values: np.ndarray = None
+    """ An array of scalar or vectors """
+
     indices: np.ndarray = None
-
-
-@dataclass
-class Channel: # Rename to Encoding
-    """Settings of a single visual channel."""
-
-    source: Any = None
-    """ Raw data field name or value
-
-    If `source` is a valid name, the raw data will be the attribute with
-    the same name.  Otherwise, `source` is assumed to contain a constant value.
-    """
-
-    mapping: Any = "identity"
-    """ Mapping between raw data and channel specific values.
-
-    If `mapping` is a name (i.e. string), a predefined mapping of the same name
-    is used.  Otherwise, `mapping` is assumed to be a callable that convert each
-    raw data item into a channel value or `None` (i.e. dropped).
-
-    Default mapping is the identity map.
-    """
-
-    normalize: bool = False
-    """ Whether raw data should be normalized to [0, 1] range before applying
-    the mapping.  Default is NO.
+    """ An array of elements, where each element is defined by a set of indices
+    into the `values` array.
     """
 
 
 @dataclass
-class Channels: # Rename to Encodings
-    """A set of channels"""
+class ChannelSetting:
+    """Visualization channel settings"""
 
-    position: Channel = None
-    color: Channel = None
-    alpha: Channel = None
-    size: Channel = None
+    # Channal source data.
+    position: str = None
+    color: str = None
+    size: Union[str, float] = None
+    alpha: Union[str, float] = None
 
-    def __or__(self, other: Channels):
-        """Combine current channels with other channels.
+    # Channel-specific mapping.
+    position_map: Union[str, Callable[..., np.ndarray]] = None
+    color_map: Union[str, Callable[..., Color]] = None
+    size_map: Union[str, Callable[..., float]] = None
+    alpha_map: Union[str, Callable[..., float]] = None
 
-        If a channel is defined by both, use the channel defined by `other`.
+    # Material
+    material: str = None
+
+    def __or__(self, other: ChannelSetting):
+        """Merge settings defined in `self` and `other`.
+
+        If both defines the same setting, use the one from `other`.
 
         Args:
-            other (Channels): The other channels to be mserged.
+            other (ChannelSetting): The other channel setting.
 
         Returns:
-            Channels: The merged channels.
+            ChannelSetting: The merged channel setting.
         """
-        result = Channels()
-        for name in vars(self).keys:
-            if name.startswith("_"):
-                continue
-            if getattr(other, name) is None:
-                setattr(result, name, getattr(self, name))
+
+        result = ChannelSetting()
+
+        for field in fields(result):
+            if getattr(other, field.name) is None:
+                setattr(result, field.name, getattr(self, field.name))
             else:
-                setattr(result, name, getattr(other, name))
+                setattr(result, field.name, getattr(other, field.name))
+
+
+@dataclass
+class DataFrame:
+    """3D geometry data frame."""
+
+    geometry: Attribute = None
+    attributes: dict[str, Attribute] = None
+
+
+@dataclass
+class Transform:
+    """3D rigid body transform matrix."""
+
+    matrix: np.ndarray = None
+    overwrite: bool = False
+
+    def __post_init__(self):
+        if self.matrix is None:
+            self.matrix = np.identity(4, dtype=float)
+        elif self.matrix.shape == (3, 3):
+            matrix = np.identity(4)
+            matrix[:3, :3] = self.matrix
+            self.matrix = matrix
+        else:
+            assert self.matrix.shape == (4, 4)
+
+    @property
+    def rotation(self):
+        return self.matrix[:3, :3]
+
+    @property
+    def translation(self):
+        return self.matrix[:3, 3]
+
+    @rotation.setter
+    def rotation(self, matrix: np.ndarray):
+        assert matrix.shape == (3, 3)
+        self.matrix[:3, :3] = matrix
+
+    @translation.setter
+    def translation(self, vector: np.ndarray):
+        self.matrix[:3, 3] = vector
+
+    def __or__(self, other: Transform):
+        """Combine `matrix` from self with `matrix` from `other`.
+
+        If `other.overwrite` is True, use the transform from other.
+        Otherwise, the output matrix is `other.matrix * self.matrix`, i.e. other
+        is left-multiplied to self.
+
+        Args:
+            other (Transform): The other transformation.
+        """
+        result = Transform()
+        if other.overwrite:
+            result.matrix = other.matrix
+            result.overwrite = True
+        else:
+            result.matrix = np.dot(other.matrix, self.matrix)
+            result.overwrite = self.overwrite
         return result
 
 
@@ -103,9 +136,17 @@ class LayerData:
     """Data and settings associated with each layer."""
 
     mark: Mark = None
-    channels: Channels = None
-    data: dict[str, Attribute] = None
-    transform: np.ndarray = None
+    """ The base type of visualization to use """
+
+    channel_setting: ChannelSetting = None
+    """ Channel setting specificiations."""
+
+    data: DataFrame = None
+    """ A set of named data attributes, each attribute encodes a 3D geometric
+    variable."""
+
+    transform: Transform = None
+    """ Coordinate system transformation associated with this layer """
 
     def __or__(self, other: LayerData):
         """Combine layer data in self with other.
@@ -126,13 +167,13 @@ class LayerData:
         elif self.mark is not None:
             result.mark = self.mark
 
-        # Channels (policy: merge, and overwrite when necessary)
-        if self.channels is None:
-            result.channels = other.channels
-        elif other.channels is None:
-            result.channels = self.channels
+        # channel_setting (policy: merge, and overwrite when necessary)
+        if self.channel_setting is None:
+            result.channel_setting = other.channel_setting
+        elif other.channel_setting is None:
+            result.channel_setting = self.channel_setting
         else:
-            result.channels = self.channels | other.channels
+            result.channel_setting = self.channel_setting | other.channel_setting
 
         # Data (policy: merge, and overwrite when necessary)
         if self.data is None:
@@ -142,11 +183,13 @@ class LayerData:
         else:
             result.data = self.data | other.data
 
-        # Transform (policy: right multiply)
-        result.transform = np.identity(4)
-        if self.transform is not None:
-            result.transform = np.dot(result.transform, self.transform)
-        if other.transform is not None:
-            result.transform = np.dot(result.transform, other.transform)
+        # Transform (policy: left multiply if not overwrite)
+        result.transform = None
+        if self.transform is None:
+            result.transform = other.transform
+        elif other.transform is None:
+            result.transform = self.transform
+        else:
+            result.transform = self.transform | other.transform
 
         return result

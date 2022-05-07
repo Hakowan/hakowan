@@ -10,7 +10,7 @@ from .exception import InvalidSetting
 
 def process_position_channel(layer_data: LayerData):
     """Compute positions from raw data."""
-    channel = layer_data.channels.position
+    channel = layer_data.channels.get("position", None)
     if channel is None:
         raise InvalidSetting("Position channel is not defined!")
 
@@ -22,9 +22,6 @@ def process_position_channel(layer_data: LayerData):
     if len(pts) == 0:
         warnings.warn("Position channel contains 0 records!")
         return pts
-
-    if channel.normalize:
-        warnings.warn("Normalization of the position channel is not not supported!")
 
     if channel.mapping != "identity":
         if callable(channel.mapping):
@@ -71,7 +68,7 @@ def default_size_channel():
 
 def process_color_channel(layer_data: LayerData):
     """Compute colors from raw data."""
-    channel = layer_data.channels.color
+    channel = layer_data.channels..get("color", None)
     if channel is None:
         channel = default_color_channel()
 
@@ -86,7 +83,7 @@ def process_color_channel(layer_data: LayerData):
 
 def process_size_channel(layer_data: LayerData):
     """Compute size/radius from layer setting"""
-    channel = layer_data.channels.size
+    channel = layer_data.channels.get("size", None)
     if channel is None:
         channel = default_size_channel()
 

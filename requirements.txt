@@ -1,3 +1,0 @@
-pytest
-numpy
-git+https://github.com/qnzhou/MshIO.git@main#mshio

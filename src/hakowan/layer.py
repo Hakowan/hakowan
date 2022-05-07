@@ -1,57 +1,80 @@
 """ Visualization Layer """
 
 from __future__ import annotations  # To allow type hint of the enclosing class.
-from .layer_data import LayerData, Attribute, Mark
+from typing import Any
+from textwrap import indent
+from .layer_data import LayerData, DataFrame, Mark, ChannelSetting
 
 
 class Layer:
     """A layer represent a node in the visualization layer tree."""
 
-    layer_data = LayerData()
-    children = []
-    parent = None
+    def __init__(
+        self,
+        *,
+        data: DataFrame = None,
+        channel_setting: dict[str, Any] = None,
+        mark: Mark = None,
+        transform: Transform = None,
+    ):
+        """Construct a `Layer` object.
 
-    def data(self, attributes: dict[str, Attribute]):
+        Args:
+            data (DataFrame): The 3D data frame to use.
+            channel_setting (dict[str, Any]): A dict of channel settings.
+            mark (Mark): The type of visualization.
+        """
+        self.layer_data = LayerData()
+        self.children = []
+
+        if data is not None:
+            self.layer_data.data = data
+
+        if channel_setting is not None:
+            self.layer_data.channel_setting = ChannelSetting(**channel_setting)
+
+        if mark is not None:
+            self.layer_data.mark = mark
+
+        if transform is not None:
+            self.layer_data.transform = transform
+
+    def data(self, data_frame: DataFrame):
         """Specify data sources."""
-        parent = Layer()
-        parent.layer_data.data = attributes
+
+        parent = Layer(data=data_frame)
         parent.children.append(self)
-        self.parent = parent
         return parent
 
     def channel(self, **kwargs):
         """Specify visualization channels."""
-        parent = Layer()
-        for key, val in kwargs:
-            parent.update_channel(key, val)
+        parent = Layer(channel_setting=kwargs)
         parent.children.append(self)
-        self.parent = parent
         return parent
 
     def mark(self, value: Mark):
         """Specify marks."""
-        parent = Layer()
-        parent.layer_data.mark = value
+        parent = Layer(mark=value)
         parent.children.append(self)
-        self.parent = parent
+        return parent
+
+    def transform(self, value: Transform):
+        """Specify layer transform."""
+        parent = Layer(transform=value)
+        parent.children.append(self)
         return parent
 
     def __add__(self, other: Layer):
         """Combine two layers together"""
         parent = Layer()
         parent.children = [self, other]
-        self.parent = parent
-        other.parent = parent
         return parent
 
     def __repr__(self):
-        return (
-            f"layer_data: {repr(self.layer_data)}\nnum children: {len(self.children)}"
-        )
-
-    def update_channel(self, key, val):
-        """Update channel specified by `key` to be `val`."""
-        if hasattr(self.layer_data.channels, key):
-            setattr(self.layer_data.channels, key, val)
+        if len(self.children) > 0:
+            children = "".join([indent(repr(c), "| ") for c in self.children])
+            children_str = f"{len(self.children)} children:\n{children}"
         else:
-            raise NotImplementedError(f"Unsupported channel: {key}")
+            children_str = ""
+
+        return f"{repr(self.layer_data)}\n{children_str}"
