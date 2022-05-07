@@ -1,4 +1,4 @@
-""" Visualization Layer """
+""" Layer module """
 
 from __future__ import annotations  # To allow type hint of the enclosing class.
 from typing import Any
@@ -7,7 +7,7 @@ from .layer_data import LayerData, DataFrame, Mark, ChannelSetting
 
 
 class Layer:
-    """A layer represent a node in the visualization layer tree."""
+    """A layer represent a node in the visualization layer graph."""
 
     def __init__(
         self,

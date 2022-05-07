@@ -1,5 +1,5 @@
-""" Layer data module
-"""
+""" Layer data module """
+
 from __future__ import annotations  # To allow type hint of the enclosing class.
 from dataclasses import dataclass, fields
 from enum import Enum
@@ -73,8 +73,58 @@ class ChannelSetting:
 class DataFrame:
     """3D geometry data frame."""
 
-    geometry: Attribute = None
     attributes: dict[str, Attribute] = None
+
+    def __post_init__(self):
+        # Initialize to default dict to avoid attributes being shared by
+        # multiple data frames.
+        if self.attributes is None:
+            self.attributes = {}
+
+    def __or__(self, other: DataFrame):
+        """ Merge two data frames.
+
+        If a field is defined by both, use the one from `other`.
+
+        Args:
+            other (DataFrame): The other data frame.
+
+        Returns:
+            DataFrame: The combined data frame.
+        """
+        result = DataFrame()
+        result.attributes = self.attributes | other.attributes
+        return result
+
+    # The following are some of the common attributes with reserved attribute
+    # names.
+
+    @property
+    def geometry(self):
+        """Indexed vertex positions."""
+        return self.attributes.get("@geometry", None)
+
+    @property
+    def uv(self):
+        """Indexed UV coordinates. (optional)"""
+        return self.attributes.get("@uv", None)
+
+    @property
+    def normal(self):
+        """Indexed normal attribute. (optional)"""
+        return self.attributes.get("@normal", None)
+
+    @geometry.setter
+    def geometry(self, attr: Attribute):
+        self.attributes["@geometry"] = attr
+
+    @uv.setter
+    def uv(self, attr: Attribute):
+        self.attributes["@uv"] = attr
+
+    @normal.setter
+    def normal(self, attr: Attribute):
+        self.attributes["@normal"] = attr
 
 
 @dataclass
