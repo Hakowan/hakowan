@@ -15,7 +15,7 @@ def d0(triangle_data_frame):
 def d1():
     return hakowan.LayerData(
         mark=hakowan.Mark.SURFACE,
-        channel_setting=hakowan.ChannelSetting(position="geometry"),
+        channel_setting=hakowan.layer_data.ChannelSetting(position="geometry"),
     )
 
 

@@ -1,9 +1,10 @@
 """ Hakowan: A 3D data visualization grammer """
-import logging
+#import logging
 
-from .layer import *
-from .layer_data import *
-#from .render import render
+from .layer import Layer
+from .layer_data import Mark, Attribute, Transform, DataFrame, LayerData
 
-logger = logging.getLogger(__name__)
+# from .render import render
+
+#logger = logging.getLogger(__name__)
 __version__ = "0.0.1"
