@@ -35,12 +35,16 @@ class ChannelSetting:
 
     # Channal source data.
     position: str = None
+    normal: str = None
+    uv: str = None
     color: str = None
     size: Union[str, float] = None
     alpha: Union[str, float] = None
 
     # Channel-specific mapping.
     position_map: Union[str, Callable[..., np.ndarray]] = None
+    normal_map: Union[str, Callable[..., np.ndarray]] = None
+    uv_map: Union[str, Callable[..., np.ndarray]] = None
     color_map: Union[str, Callable[..., Color]] = None
     size_map: Union[str, Callable[..., float]] = None
     alpha_map: Union[str, Callable[..., float]] = None
