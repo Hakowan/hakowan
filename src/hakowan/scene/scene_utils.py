@@ -6,7 +6,7 @@ from ..common.named_colors import css_colors
 from ..common.colormap.named_colormaps import named_colormaps
 from ..common.exception import InvalidSetting
 from ..grammar.layer import Layer
-from ..grammar.layer_data import LayerData, Mark, ChannelSetting
+from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
 
 
@@ -22,13 +22,18 @@ def extract_position_channel(layer_data: LayerData):
     Returns:
         (np.ndarray, np.ndarray): The position encoded as nodes and elements.
     """
+    assert layer_data.data is not None
+
     data = layer_data.data
 
     position_name = layer_data.channel_setting.position
     if position_name is None:
         position_name = "@geometry"  # TODO: document default name somewhere.
     position_attr = data.attributes.get(position_name, None)
+
     assert position_attr is not None
+    assert position_attr.values is not None
+    assert position_attr.indices is not None
 
     nodes = position_attr.values
     elements = position_attr.indices
@@ -51,6 +56,8 @@ def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
     Returns:
         (np.ndarray, np.ndarray): The encoded color and color indices.
     """
+
+    assert layer_data.data is not None
 
     data = layer_data.data
 
@@ -81,7 +88,9 @@ def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
                 raise InvalidSetting(f"Unknown colormap: {colormap}")
             colormap = named_colormaps[colormap]
 
-        attr = data.attribues[attr_name]
+        attr = data.attributes[attr_name]
+        assert attr.values is not None
+        assert attr.indices is not None
         color_values = np.array([colormap(v).data for v in attr.values])
         color_indices = attr.indices
         return color_values, color_indices
@@ -168,8 +177,6 @@ def update_scene(layer_data: LayerData, scene: Scene):
     """
     assert layer_data.mark is not None
     assert layer_data.data is not None
-    if layer_data.channel_setting is None:
-        layer_data.channel_setting = ChannelSetting()
 
     if layer_data.mark == Mark.POINT:
         update_points(layer_data, scene)

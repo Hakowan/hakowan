@@ -21,10 +21,10 @@ class Mark(Enum):
 class Attribute:
     """An attribute defines a mapping from geometry to values."""
 
-    values: Optional[np.ndarray] = None
+    values: np.ndarray
     """ An array of scalar or vectors """
 
-    indices: Optional[np.ndarray] = None
+    indices: np.ndarray
     """ An array of elements, where each element is defined by a set of indices
     into the `values` array.
     """
@@ -53,7 +53,7 @@ class ChannelSetting:
     # Material
     material: Optional[str] = None
 
-    def __or__(self, other: ChannelSetting):
+    def __or__(self, other: ChannelSetting) -> ChannelSetting:
         """Merge settings defined in `self` and `other`.
 
         If both defines the same setting, use the one from `other`.
@@ -73,6 +73,8 @@ class ChannelSetting:
             else:
                 setattr(result, field.name, getattr(other, field.name))
 
+        return result
+
 
 @dataclass
 class DataFrame:
@@ -80,7 +82,7 @@ class DataFrame:
 
     attributes: dict[str, Attribute] = field(default_factory=dict)
 
-    def __or__(self, other: DataFrame):
+    def __or__(self, other: DataFrame) -> DataFrame:
         """Merge two data frames.
 
         If a field is defined by both, use the one from `other`.
@@ -158,7 +160,7 @@ class Transform:
     def translation(self, vector: np.ndarray):
         self.matrix[:3, 3] = vector
 
-    def __or__(self, other: Transform):
+    def __or__(self, other: Transform) -> Transform:
         """Combine `matrix` from self with `matrix` from `other`.
 
         If `other.overwrite` is True, use the transform from other.
@@ -185,7 +187,7 @@ class LayerData:
     mark: Optional[Mark] = None
     """ The base type of visualization to use """
 
-    channel_setting: Optional[ChannelSetting] = None
+    channel_setting: ChannelSetting = field(default_factory=ChannelSetting)
     """ Channel setting specificiations."""
 
     data: Optional[DataFrame] = None
@@ -195,7 +197,7 @@ class LayerData:
     transform: Optional[Transform] = None
     """ Coordinate system transformation associated with this layer """
 
-    def __or__(self, other: LayerData):
+    def __or__(self, other: LayerData) -> LayerData:
         """Combine layer data in self with other.
 
         If a field is defined by both layers, use the one from `other`.
@@ -215,12 +217,7 @@ class LayerData:
             result.mark = self.mark
 
         # channel_setting (policy: merge, and overwrite when necessary)
-        if self.channel_setting is None:
-            result.channel_setting = other.channel_setting
-        elif other.channel_setting is None:
-            result.channel_setting = self.channel_setting
-        else:
-            result.channel_setting = self.channel_setting | other.channel_setting
+        result.channel_setting = self.channel_setting | other.channel_setting
 
         # Data (policy: merge, and overwrite when necessary)
         if self.data is None:

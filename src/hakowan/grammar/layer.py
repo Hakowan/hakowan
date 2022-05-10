@@ -40,33 +40,33 @@ class Layer:
         if transform is not None:
             self.layer_data.transform = Transform(transform)
 
-    def data(self, data_frame: DataFrame):
+    def data(self, data_frame: DataFrame) -> Layer:
         """Specify data sources."""
 
         parent = Layer(data=data_frame)
         parent.children.append(self)
         return parent
 
-    def channel(self, **kwargs):
+    def channel(self, **kwargs) -> Layer:
         """Specify visualization channels."""
         parent = Layer(channel_setting=kwargs)
         parent.children.append(self)
         return parent
 
-    def mark(self, value: Mark):
+    def mark(self, value: Mark) -> Layer:
         """Specify marks."""
         parent = Layer(mark=value)
         parent.children.append(self)
         return parent
 
-    def transform(self, value: np.ndarray, overwrite: bool = False):
+    def transform(self, value: np.ndarray, overwrite: bool = False) -> Layer:
         """Specify layer transform."""
         parent = Layer()
         parent.layer_data.transform = Transform(value, overwrite)
         parent.children.append(self)
         return parent
 
-    def __add__(self, other: Layer):
+    def __add__(self, other: Layer) -> Layer:
         """Combine two layers together"""
         parent = Layer()
         parent.children = [self, other]

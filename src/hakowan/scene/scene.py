@@ -1,50 +1,47 @@
 """Scene module"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 import numpy as np
 
 
 @dataclass
-class Shape:
-    """The `Shape` class represents something that can be rendred."""
-
-    material: str = None
-
-
-@dataclass
-class Point(Shape):
+class Point:
     """A Point with radius and color."""
 
-    center: np.ndarray = None
-    radius: float = None
-    color: np.ndarray = None
+    center: np.ndarray
+    radius: float
+    color: Optional[np.ndarray] = None
+    material: str = "diffuse"
 
 
 @dataclass
-class Segment(Shape):
+class Segment:
     """A line segment with radius and color."""
 
-    p0: np.ndarray = None
-    p1: np.ndarray = None
-    radius: float = None
-    color: np.ndarray = None
+    p0: np.ndarray
+    p1: np.ndarray
+    radius: float
+    color: Optional[np.ndarray] = None
+    material: str = "diffuse"
 
 
 @dataclass
-class Surface(Shape):
+class Surface:
     """Generic surface represented by triangle mesh."""
 
-    vertices: np.ndarray = None
-    triangles: np.ndarray = None
-    normals: np.ndarray = None
-    uvs: np.ndarray = None
-    colors: np.ndarray = None
+    vertices: np.ndarray
+    triangles: np.ndarray
+    normals: Optional[np.ndarray] = None
+    uvs: Optional[np.ndarray] = None
+    colors: Optional[np.ndarray] = None
+    material: str = "diffuse"
 
 
 @dataclass
 class Scene:
     """A scene consists of a list of points, segments and surfaces."""
 
-    points: list[Point] = None
-    segments: list[Segment] = None
-    surfaces: list[Surface] = None
+    points: list[Point] = field(default_factory=list)
+    segments: list[Segment] = field(default_factory=list)
+    surfaces: list[Surface] = field(default_factory=list)

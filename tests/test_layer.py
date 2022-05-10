@@ -27,8 +27,8 @@ class TestLayer:
         assert l1.layer_data.mark == hakowan.CURVE
         assert l2.layer_data.mark is None
 
-        assert l0.layer_data.channel_setting == None
-        assert l1.layer_data.channel_setting == None
+        assert l0.layer_data.channel_setting.color == None
+        assert l1.layer_data.channel_setting.color == None
         assert l2.layer_data.channel_setting.color == "red"
 
     def test_simple(self, base_surface, base_point):

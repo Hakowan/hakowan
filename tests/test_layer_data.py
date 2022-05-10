@@ -24,7 +24,8 @@ class TestLayerData:
         assert d0 != d1
         assert d0.mark == Mark.POINT
         assert d0.data is not None
-        assert d0.channel_setting is None
+        assert d0.channel_setting.position is None
+        assert d0.channel_setting.color is None
         assert d0.transform is None
         assert d1.data is None
         assert d1.channel_setting.position is not None
@@ -38,8 +39,8 @@ class TestLayerData:
         d2 = d0 | d1
 
         assert d2.mark == Mark.SURFACE
-        assert d2.channel_setting is not None
         assert d2.channel_setting.position == "geometry"
+        assert d2.channel_setting.color is None
         assert d2.data is not None
         assert d2.data.geometry.values.shape == (3, 3)
         assert d2.data.geometry.indices.shape == (1, 3)
