@@ -1,11 +1,12 @@
 """ Layer data module """
 
 from __future__ import annotations  # To allow type hint of the enclosing class.
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from enum import Enum
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 import numpy as np
-from csscolor.color import Color
+
+from ..common.color import Color
 
 
 class Mark(Enum):
@@ -20,10 +21,10 @@ class Mark(Enum):
 class Attribute:
     """An attribute defines a mapping from geometry to values."""
 
-    values: np.ndarray = None
+    values: Optional[np.ndarray] = None
     """ An array of scalar or vectors """
 
-    indices: np.ndarray = None
+    indices: Optional[np.ndarray] = None
     """ An array of elements, where each element is defined by a set of indices
     into the `values` array.
     """
@@ -34,23 +35,23 @@ class ChannelSetting:
     """Visualization channel settings"""
 
     # Channal source data.
-    position: str = None
-    normal: str = None
-    uv: str = None
-    color: str = None
-    size: Union[str, float] = None
-    alpha: Union[str, float] = None
+    position: Optional[str] = None
+    normal: Optional[str] = None
+    uv: Optional[str] = None
+    color: Optional[str] = None
+    size: Union[str, float, None] = None
+    alpha: Union[str, float, None] = None
 
     # Channel-specific mapping.
-    position_map: Union[str, Callable[..., np.ndarray]] = None
-    normal_map: Union[str, Callable[..., np.ndarray]] = None
-    uv_map: Union[str, Callable[..., np.ndarray]] = None
-    color_map: Union[str, Callable[..., Color]] = None
-    size_map: Union[str, Callable[..., float]] = None
-    alpha_map: Union[str, Callable[..., float]] = None
+    position_map: Union[str, Callable[..., np.ndarray], None] = None
+    normal_map: Union[str, Callable[..., np.ndarray], None] = None
+    uv_map: Union[str, Callable[..., np.ndarray], None] = None
+    color_map: Union[str, Callable[..., Color], None] = None
+    size_map: Union[str, Callable[..., float], None] = None
+    alpha_map: Union[str, Callable[..., float], None] = None
 
     # Material
-    material: str = None
+    material: Optional[str] = None
 
     def __or__(self, other: ChannelSetting):
         """Merge settings defined in `self` and `other`.
@@ -77,16 +78,10 @@ class ChannelSetting:
 class DataFrame:
     """3D geometry data frame."""
 
-    attributes: dict[str, Attribute] = None
-
-    def __post_init__(self):
-        # Initialize to default dict to avoid attributes being shared by
-        # multiple data frames.
-        if self.attributes is None:
-            self.attributes = {}
+    attributes: dict[str, Attribute] = field(default_factory=dict)
 
     def __or__(self, other: DataFrame):
-        """ Merge two data frames.
+        """Merge two data frames.
 
         If a field is defined by both, use the one from `other`.
 
@@ -108,23 +103,23 @@ class DataFrame:
         """Indexed vertex positions."""
         return self.attributes.get("@geometry", None)
 
+    @geometry.setter
+    def geometry(self, attr: Attribute):
+        self.attributes["@geometry"] = attr
+
     @property
     def uv(self):
         """Indexed UV coordinates. (optional)"""
         return self.attributes.get("@uv", None)
 
+    @uv.setter
+    def uv(self, attr: Attribute):
+        self.attributes["@uv"] = attr
+
     @property
     def normal(self):
         """Indexed normal attribute. (optional)"""
         return self.attributes.get("@normal", None)
-
-    @geometry.setter
-    def geometry(self, attr: Attribute):
-        self.attributes["@geometry"] = attr
-
-    @uv.setter
-    def uv(self, attr: Attribute):
-        self.attributes["@uv"] = attr
 
     @normal.setter
     def normal(self, attr: Attribute):
@@ -135,13 +130,11 @@ class DataFrame:
 class Transform:
     """3D rigid body transform matrix."""
 
-    matrix: np.ndarray = None
+    matrix: np.ndarray = field(default_factory=lambda: np.identity(4))
     overwrite: bool = False
 
     def __post_init__(self):
-        if self.matrix is None:
-            self.matrix = np.identity(4, dtype=float)
-        elif self.matrix.shape == (3, 3):
+        if self.matrix.shape == (3, 3):
             matrix = np.identity(4)
             matrix[:3, :3] = self.matrix
             self.matrix = matrix
@@ -152,14 +145,14 @@ class Transform:
     def rotation(self):
         return self.matrix[:3, :3]
 
-    @property
-    def translation(self):
-        return self.matrix[:3, 3]
-
     @rotation.setter
     def rotation(self, matrix: np.ndarray):
         assert matrix.shape == (3, 3)
         self.matrix[:3, :3] = matrix
+
+    @property
+    def translation(self):
+        return self.matrix[:3, 3]
 
     @translation.setter
     def translation(self, vector: np.ndarray):
@@ -189,17 +182,17 @@ class Transform:
 class LayerData:
     """Data and settings associated with each layer."""
 
-    mark: Mark = None
+    mark: Optional[Mark] = None
     """ The base type of visualization to use """
 
-    channel_setting: ChannelSetting = None
+    channel_setting: Optional[ChannelSetting] = None
     """ Channel setting specificiations."""
 
-    data: DataFrame = None
+    data: Optional[DataFrame] = None
     """ A set of named data attributes, each attribute encodes a 3D geometric
     variable."""
 
-    transform: Transform = None
+    transform: Optional[Transform] = None
     """ Coordinate system transformation associated with this layer """
 
     def __or__(self, other: LayerData):

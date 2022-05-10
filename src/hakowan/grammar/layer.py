@@ -1,7 +1,7 @@
 """ Layer module """
 
 from __future__ import annotations  # To allow type hint of the enclosing class.
-from typing import Any
+from typing import Any, Optional
 from textwrap import indent
 import numpy as np
 from .layer_data import LayerData, DataFrame, Mark, ChannelSetting, Transform
@@ -13,10 +13,10 @@ class Layer:
     def __init__(
         self,
         *,
-        data: DataFrame = None,
-        channel_setting: dict[str, Any] = None,
-        mark: Mark = None,
-        transform: np.ndarray = None,
+        data: Optional[DataFrame] = None,
+        channel_setting: Optional[dict[str, Any]] = None,
+        mark: Optional[Mark] = None,
+        transform: Optional[np.ndarray] = None,
     ):
         """Construct a `Layer` object.
 
@@ -26,7 +26,7 @@ class Layer:
             mark (Mark): The type of visualization.
         """
         self.layer_data = LayerData()
-        self.children = []
+        self.children: list[Layer] = []
 
         if data is not None:
             self.layer_data.data = data
@@ -61,7 +61,8 @@ class Layer:
 
     def transform(self, value: np.ndarray, overwrite: bool = False):
         """Specify layer transform."""
-        parent = Layer(transform=Transform(value, overwrite))
+        parent = Layer()
+        parent.layer_data.transform = Transform(value, overwrite)
         parent.children.append(self)
         return parent
 

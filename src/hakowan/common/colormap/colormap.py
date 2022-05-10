@@ -21,7 +21,7 @@ class ColorMap:
         i0 = math.floor(n * value)
         i1 = math.ceil(n * value)
 
-        t = n * values - i0
+        t = n * value - i0
         c0 = self.samples[i0]
         c1 = self.samples[i1]
 

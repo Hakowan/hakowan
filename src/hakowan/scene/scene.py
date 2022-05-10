@@ -1,4 +1,4 @@
-"""Flattened scene module"""
+"""Scene module"""
 
 from dataclasses import dataclass
 import numpy as np
@@ -6,35 +6,45 @@ import numpy as np
 
 @dataclass
 class Shape:
+    """The `Shape` class represents something that can be rendred."""
+
     material: str = None
 
 
 @dataclass
 class Point(Shape):
-    center: np.ndarray
-    radius: float
+    """A Point with radius and color."""
+
+    center: np.ndarray = None
+    radius: float = None
     color: np.ndarray = None
 
 
 @dataclass
-class Edge(Shape):
-    p0: np.ndarray
-    p1: np.ndarray
-    radius: float
+class Segment(Shape):
+    """A line segment with radius and color."""
+
+    p0: np.ndarray = None
+    p1: np.ndarray = None
+    radius: float = None
     color: np.ndarray = None
 
 
 @dataclass
 class Surface(Shape):
-    vertices: np.ndarray
-    triangles: np.ndarray
-    normal: np.ndarray = None
-    uv: np.ndarray = None
-    color: np.ndarray = None
+    """Generic surface represented by triangle mesh."""
+
+    vertices: np.ndarray = None
+    triangles: np.ndarray = None
+    normals: np.ndarray = None
+    uvs: np.ndarray = None
+    colors: np.ndarray = None
 
 
 @dataclass
 class Scene:
-    points: list[Point]
-    edges: list[Edge]
-    surfaces: list[Surface]
+    """A scene consists of a list of points, segments and surfaces."""
+
+    points: list[Point] = None
+    segments: list[Segment] = None
+    surfaces: list[Surface] = None
