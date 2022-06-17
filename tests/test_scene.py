@@ -42,3 +42,14 @@ class TestScene:
         assert len(scene.surfaces[1].vertices) == 6
         assert np.all(scene.surfaces[0].colors[0] == [0, 0, 0])
         assert np.all(scene.surfaces[1].colors[0] == [1, 1, 1])
+
+    def test_points(self, triangle_data_frame):
+        base = hakowan.layer(data = triangle_data_frame)
+        l0 = base.mark(hakowan.POINT)
+        scene = generate_scene(l0)
+
+        assert len(scene.points) == 3
+        assert len(scene.surfaces) == 0
+
+        for p in scene.points:
+            assert p.radius == hakowan.common.default.DEFAULT_SIZE

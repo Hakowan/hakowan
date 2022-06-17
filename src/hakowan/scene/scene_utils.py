@@ -9,11 +9,7 @@ from ..common.exception import InvalidSetting
 from ..grammar.layer import Layer
 from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
-
-
-default_color = css_colors["ivory"]
-default_size = 1
-
+from ..common.default import DEFAULT_COLOR, DEFAULT_SIZE, DEFAULT_POSITION
 
 def extract_position_channel(layer_data: LayerData):
     """Extract position channel from layer data.
@@ -30,7 +26,7 @@ def extract_position_channel(layer_data: LayerData):
 
     position_name = layer_data.channel_setting.position
     if position_name is None:
-        position_name = "@geometry"  # TODO: document default name somewhere.
+        position_name = DEFAULT_POSITION
     position_attr = data.attributes.get(position_name, None)
 
     assert position_attr is not None
@@ -66,7 +62,7 @@ def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
     attr_name = layer_data.channel_setting.color
     if attr_name is None:
         # Use default color.
-        c = default_color
+        c = css_colors[DEFAULT_COLOR]
         color_values = np.array([[c[0], c[1], c[2]]])
         return color_values, np.zeros(shape, dtype=int)
     if attr_name.startswith("#"):
@@ -116,7 +112,7 @@ def extract_size_channel(layer_data: LayerData, shape: tuple[int, int]):
     attr_name = layer_data.channel_setting.size
     if attr_name is None:
         # Default size.
-        sizes = np.array([default_size])
+        sizes = np.array([DEFAULT_SIZE])
         return sizes, np.zeros(shape, dtype=int)
     if isinstance(attr_name, numbers.Number):
         # Constant size.

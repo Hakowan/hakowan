@@ -7,6 +7,11 @@ from typing import Callable, Union, Optional
 import numpy as np
 
 from ..common.color import Color
+from ..common.default import (
+    DEFAULT_POSITION,
+    DEFAULT_UV,
+    DEFAULT_NORMAL,
+)
 
 
 class Mark(Enum):
@@ -103,29 +108,29 @@ class DataFrame:
     @property
     def geometry(self):
         """Indexed vertex positions."""
-        return self.attributes.get("@geometry", None)
+        return self.attributes.get(DEFAULT_POSITION, None)
 
     @geometry.setter
     def geometry(self, attr: Attribute):
-        self.attributes["@geometry"] = attr
+        self.attributes[DEFAULT_POSITION] = attr
 
     @property
     def uv(self):
         """Indexed UV coordinates. (optional)"""
-        return self.attributes.get("@uv", None)
+        return self.attributes.get(DEFAULT_UV, None)
 
     @uv.setter
     def uv(self, attr: Attribute):
-        self.attributes["@uv"] = attr
+        self.attributes[DEFAULT_UV] = attr
 
     @property
     def normal(self):
         """Indexed normal attribute. (optional)"""
-        return self.attributes.get("@normal", None)
+        return self.attributes.get(DEFAULT_NORMAL, None)
 
     @normal.setter
     def normal(self, attr: Attribute):
-        self.attributes["@normal"] = attr
+        self.attributes[DEFAULT_NORMAL] = attr
 
 
 @dataclass
