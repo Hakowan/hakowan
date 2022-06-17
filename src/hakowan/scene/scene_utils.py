@@ -1,5 +1,6 @@
 """ Utility functions to generate scenes. """
 import numpy as np
+import numbers
 
 from ..common.color import Color
 from ..common.named_colors import css_colors
@@ -11,6 +12,7 @@ from .scene import Scene, Surface, Point, Segment
 
 
 default_color = css_colors["ivory"]
+default_size = 1
 
 
 def extract_position_channel(layer_data: LayerData):
@@ -98,7 +100,7 @@ def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
     raise InvalidSetting(f"Unable to interpret 'color' setting: {attr_name}")
 
 
-def extract_size_channel(layer_data: LayerData):
+def extract_size_channel(layer_data: LayerData, shape: tuple[int, int]):
     """Extract color channel from layer data.
 
     Args:
@@ -107,7 +109,38 @@ def extract_size_channel(layer_data: LayerData):
     Returns:
         (np.ndarray, np.ndarray): The encoded size and indices.
     """
-    raise NotImplementedError("Not supported yet")
+    assert layer_data.data is not None
+
+    data = layer_data.data
+
+    attr_name = layer_data.channel_setting.size
+    if attr_name is None:
+        # Default size.
+        sizes = np.array([default_size])
+        return sizes, np.zeros(shape, dtype=int)
+    if isinstance(attr_name, numbers.Number):
+        # Constant size.
+        sizes = np.array([attr_name])
+        return sizes, np.zeros(shape, dtype=int)
+    if isinstance(attr_name, str) and attr_name in data.attributes:
+        # Convert attribute to size field.
+        size_map = layer_data.channel_setting.size_map
+        if size_map is None:
+            size_map = lambda x: x
+        elif size_map == "identity":
+            size_map = lambda x: x
+        elif size_map == "normalized":
+            raise NotImplementedError("Not supported yet")
+        elif not callable(size_map):
+            raise InvalidSetting("Unsupported size_map!")
+        attr = data.attributes[attr_name]
+        assert attr.values is not None
+        assert attr.indices is not None
+        size_values = np.array([size_map(v) for v in attr.values])
+        size_indices = attr.indices
+        return size_values, size_indices
+
+    raise InvalidSetting(f"Unable to interpret 'size' setting: {attr_name}")
 
 
 def update_points(layer_data: LayerData, scene: Scene):
@@ -119,7 +152,18 @@ def update_points(layer_data: LayerData, scene: Scene):
     """
 
     nodes, _ = extract_position_channel(layer_data)
-    raise NotImplementedError("Not supported yet")
+    assert nodes.shape[1] == 3
+    num_nodes = len(nodes)
+    color_values, color_indices = extract_color_channel(layer_data, (num_nodes, 1))
+    size_values, size_indices = extract_size_channel(layer_data, (num_nodes, 1))
+
+    for i in range(num_nodes):
+        p = Point(
+            center=nodes[i],
+            radius=size_values[size_indices[i, 0]],
+            color=color_values[color_indices[i, 0]],
+        )
+        scene.points.append(p)
 
 
 def update_segments(layer_data: LayerData, scene: Scene):
