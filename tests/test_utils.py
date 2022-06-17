@@ -10,7 +10,9 @@ def triangle_data_frame():
     vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=float)
     facets = np.array([[0, 1, 2]], dtype=int)
     data = hakowan.grammar.layer_data.DataFrame()
-    data.geometry = hakowan.grammar.layer_data.Attribute(values=vertices, indices=facets)
+    data.geometry = hakowan.grammar.layer_data.Attribute(
+        values=vertices, indices=facets
+    )
     return data
 
 
@@ -20,5 +22,19 @@ def quad_data_frame():
     vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]], dtype=float)
     facets = np.array([[0, 1, 2], [2, 1, 3]], dtype=int)
     data = hakowan.grammar.layer_data.DataFrame()
-    data.geometry = hakowan.grammar.layer_data.Attribute(values=vertices, indices=facets)
+    data.geometry = hakowan.grammar.layer_data.Attribute(
+        values=vertices, indices=facets
+    )
+    return data
+
+
+@pytest.fixture
+def triangle_boundary_data_frame():
+    """Generate a data frame consists of the boundary edges of a triangle."""
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=float)
+    segments = np.array([[0, 1], [1, 2], [2, 0]], dtype=int)
+    data = hakowan.grammar.layer_data.DataFrame()
+    data.geometry = hakowan.grammar.layer_data.Attribute(
+        values=vertices, indices=segments
+    )
     return data

@@ -1,5 +1,6 @@
 """ Utility functions to generate scenes. """
 import numpy as np
+import numpy.typing as npt
 import numbers
 
 from ..common.color import Color
@@ -12,7 +13,7 @@ from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
 
 
-def extract_position_channel(layer_data: LayerData):
+def extract_position_channel(layer_data: LayerData) -> tuple[npt.NDArray, npt.NDArray]:
     """Extract position channel from layer data.
 
     Args:
@@ -45,7 +46,9 @@ def extract_position_channel(layer_data: LayerData):
     return nodes, elements
 
 
-def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
+def extract_color_channel(
+    layer_data: LayerData, shape: tuple[int, ...]
+) -> tuple[npt.NDArray, npt.NDArray]:
     """Extract color channel from layer data.
 
     Args:
@@ -97,7 +100,9 @@ def extract_color_channel(layer_data: LayerData, shape: tuple[int, int]):
     raise InvalidSetting(f"Unable to interpret 'color' setting: {attr_name}")
 
 
-def extract_size_channel(layer_data: LayerData, shape: tuple[int, int]):
+def extract_size_channel(
+    layer_data: LayerData, shape: tuple[int, ...]
+) -> tuple[npt.NDArray, npt.NDArray]:
     """Extract color channel from layer data.
 
     Args:
@@ -154,7 +159,7 @@ def update_points(layer_data: LayerData, scene: Scene):
     color_values, color_indices = extract_color_channel(layer_data, (num_nodes, 1))
     size_values, size_indices = extract_size_channel(layer_data, (num_nodes, 1))
 
-    assert color_indices.size == num_nodes 
+    assert color_indices.size == num_nodes
     color_indices = color_indices.ravel()
     assert size_indices.size == num_nodes
     size_indices = size_indices.ravel()
@@ -175,7 +180,23 @@ def update_segments(layer_data: LayerData, scene: Scene):
         layer_data (LayerData): The input layer data.
         scene (Scene): The output scene object.
     """
-    raise NotImplementedError("Not supported yet")
+    nodes, elements = extract_position_channel(layer_data)
+    assert nodes.shape[1] == 3
+    assert elements.shape[1] == 2
+
+    num_elements = len(elements)
+    color_values, color_indices = extract_color_channel(layer_data, elements.shape)
+    size_values, size_indices = extract_size_channel(layer_data, elements.shape)
+    assert color_indices.shape == elements.shape
+    assert size_indices.shape == elements.shape
+
+    for i in range(num_elements):
+        ei = elements[i]
+        si = size_indices[i]
+        ci = color_indices[i]
+
+        s = Segment(vertices=nodes[ei], radii=size_values[si], colors=color_values[ci])
+        scene.segments.append(s)
 
 
 def update_surfaces(layer_data: LayerData, scene: Scene):

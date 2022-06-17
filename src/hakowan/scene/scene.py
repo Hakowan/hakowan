@@ -3,15 +3,16 @@
 from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
+import numpy.typing as npt
 
 
 @dataclass
 class Point:
     """A Point with radius and color."""
 
-    center: np.ndarray
+    center: npt.ArrayLike
     radius: float
-    color: Optional[np.ndarray] = None
+    color: npt.ArrayLike
     material: str = "diffuse"
 
 
@@ -19,10 +20,9 @@ class Point:
 class Segment:
     """A line segment with radius and color."""
 
-    p0: np.ndarray
-    p1: np.ndarray
-    radius: float
-    color: Optional[np.ndarray] = None
+    vertices: npt.ArrayLike
+    radii: npt.ArrayLike
+    colors: npt.ArrayLike
     material: str = "diffuse"
 
 
@@ -30,11 +30,11 @@ class Segment:
 class Surface:
     """Generic surface represented by triangle mesh."""
 
-    vertices: np.ndarray
-    triangles: np.ndarray
-    normals: Optional[np.ndarray] = None
-    uvs: Optional[np.ndarray] = None
-    colors: Optional[np.ndarray] = None
+    vertices: npt.ArrayLike
+    triangles: npt.ArrayLike
+    normals: Optional[npt.ArrayLike] = None
+    uvs: Optional[npt.ArrayLike] = None
+    colors: Optional[npt.ArrayLike] = None
     material: str = "diffuse"
 
 

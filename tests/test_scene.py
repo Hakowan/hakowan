@@ -4,7 +4,11 @@ from hakowan.scene.scene import Scene
 from hakowan.scene.scene_utils import generate_scene
 from hakowan.grammar.layer_data import Attribute
 
-from .test_utils import triangle_data_frame, quad_data_frame
+from .test_utils import (
+    triangle_data_frame,
+    quad_data_frame,
+    triangle_boundary_data_frame,
+)
 
 
 class TestScene:
@@ -61,9 +65,37 @@ class TestScene:
             assert p.radius == 0.5
 
         triangle_data_frame.attributes["my_size"] = Attribute(
-                np.array([0, 1, 2], dtype=float), np.array([0, 1, 2]))
+            np.array([0, 1, 2], dtype=float), np.array([0, 1, 2])
+        )
         l2 = l0.channel(size="my_size", size_map=lambda x: x / 2)
         scene = generate_scene(l2)
         assert scene.points[0].radius == 0
         assert scene.points[1].radius == 0.5
         assert scene.points[2].radius == 1
+
+    def test_segments(self, triangle_boundary_data_frame):
+        base = hakowan.layer(data=triangle_boundary_data_frame)
+        l0 = base.mark(hakowan.CURVE)
+        scene = generate_scene(l0)
+        assert len(scene.points) == 0
+        assert len(scene.surfaces) == 0
+        assert len(scene.segments) == 3
+        assert np.all(scene.segments[0].radii == 1)
+        assert np.all(scene.segments[1].radii == 1)
+        assert np.all(scene.segments[2].radii == 1)
+
+        l1 = l0.channel(size=0.5)
+        scene = generate_scene(l1)
+        assert np.all(scene.segments[0].radii == 0.5)
+        assert np.all(scene.segments[1].radii == 0.5)
+        assert np.all(scene.segments[2].radii == 0.5)
+
+        triangle_boundary_data_frame.attributes["my_size"] = Attribute(
+            np.array([1, 2, 3], dtype=float),
+            np.array([[0, 0], [1, 1], [2, 2]], dtype=int),
+        )
+        l2 = l0.channel(size="my_size", size_map="identity")
+        scene = generate_scene(l2)
+        assert np.all(scene.segments[0].radii == 1)
+        assert np.all(scene.segments[1].radii == 2)
+        assert np.all(scene.segments[2].radii == 3)

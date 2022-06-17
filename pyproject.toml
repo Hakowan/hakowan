@@ -10,7 +10,9 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
     "pytest",
-    "numpy",
+    "numpy>=1.21",
     "mshio@git+https://github.com/qnzhou/MshIO.git",
     "csscolor@git+https://github.com/idmillington/csscolor.git"]
 
+[mypy]
+plugins = "numpy.typing.mypy_plugin"
