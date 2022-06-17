@@ -6,10 +6,11 @@ from ..common.color import Color
 from ..common.named_colors import css_colors
 from ..common.colormap.named_colormaps import named_colormaps
 from ..common.exception import InvalidSetting
+from ..common.default import DEFAULT_COLOR, DEFAULT_SIZE, DEFAULT_POSITION
 from ..grammar.layer import Layer
 from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
-from ..common.default import DEFAULT_COLOR, DEFAULT_SIZE, DEFAULT_POSITION
+
 
 def extract_position_channel(layer_data: LayerData):
     """Extract position channel from layer data.
@@ -153,11 +154,16 @@ def update_points(layer_data: LayerData, scene: Scene):
     color_values, color_indices = extract_color_channel(layer_data, (num_nodes, 1))
     size_values, size_indices = extract_size_channel(layer_data, (num_nodes, 1))
 
+    assert color_indices.size == num_nodes 
+    color_indices = color_indices.ravel()
+    assert size_indices.size == num_nodes
+    size_indices = size_indices.ravel()
+
     for i in range(num_nodes):
         p = Point(
             center=nodes[i],
-            radius=size_values[size_indices[i, 0]],
-            color=color_values[color_indices[i, 0]],
+            radius=size_values[size_indices[i]],
+            color=color_values[color_indices[i]],
         )
         scene.points.append(p)
 
