@@ -1,29 +1,30 @@
 """ Render functions for Hakowan """
 
-from .layer_data import LayerData, Attribute, Mark
-from .layer import Layer
+from ..common.exception import InvalidSetting
+from ..grammar.layer import Layer
+from ..scene.scene_utils import generate_scene
+from ..scene.scene import Scene
+from .mitsuba_utils import generate_mitsuba_config
+
+import pathlib
+import subprocess
 
 
-def get_consolidated_layer_data(node: Layer):
-    """Conslidate layer data from `node` all the way to the root.
+def render_mitsuba(scene: Scene, filename: str):
+    xml_doc = generate_mitsuba_config(scene)
+    xml_str = xml_doc.toxml()
 
-    Args:
-        node (Layer): The current (leaf) layer.
-
-    Returns:
-        LayerData: The combined layer data from `node` to the root.
-    """
-    data = LayerData()
-    data = data | node.layer_data
-
-    while node.parent is not None:
-        node = node.parent
-        data = data | node.layer_data
-
-    return data
+    filename = pathlib.Path(filename)
+    xml_file = filename.with_suffix(".scene")
+    with open(xml_file, "w") as fin:
+        xml_doc.writexml(fin, indent="", addindent="    ", newl="\n")
 
 
-def render(root: Layer):
+def render(root: Layer, backend: str, filename: str):
     """Render layer tree rooted at `root`."""
-    layer_stack = [root]
-    data_stack = [root.layer_data]
+    scene = generate_scene(root)
+
+    if backend == "mitsuba":
+        render_mitsuba(scene, filename)
+    else:
+        raise InvalidSetting(f"Unsupported rendering backend: {backend}")

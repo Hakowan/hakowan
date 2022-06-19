@@ -10,9 +10,9 @@ import numpy.typing as npt
 class Point:
     """A Point with radius and color."""
 
-    center: npt.ArrayLike
+    center: npt.NDArray
     radius: float
-    color: npt.ArrayLike
+    color: npt.NDArray
     material: str = "diffuse"
 
 
