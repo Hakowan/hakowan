@@ -6,4 +6,4 @@ DEFAULT_UV = "@uv"
 DEFAULT_NORMAL = "@normal"
 
 DEFAULT_COLOR = "ivory"
-DEFAULT_SIZE = 1
+DEFAULT_SIZE = 0.02

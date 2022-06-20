@@ -80,9 +80,9 @@ class TestScene:
         assert len(scene.points) == 0
         assert len(scene.surfaces) == 0
         assert len(scene.segments) == 3
-        assert np.all(scene.segments[0].radii == 1)
-        assert np.all(scene.segments[1].radii == 1)
-        assert np.all(scene.segments[2].radii == 1)
+        assert np.all(scene.segments[0].radii == hakowan.common.default.DEFAULT_SIZE)
+        assert np.all(scene.segments[1].radii == hakowan.common.default.DEFAULT_SIZE)
+        assert np.all(scene.segments[2].radii == hakowan.common.default.DEFAULT_SIZE)
 
         l1 = l0.channel(size=0.5)
         scene = generate_scene(l1)
