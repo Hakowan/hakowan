@@ -1,9 +1,5 @@
 import numpy as np
 import hakowan
-from hakowan.scene.scene import Scene
-from hakowan.scene.scene_utils import generate_scene
-from hakowan.grammar.layer_data import Attribute
-from hakowan.backend.render import render
 
 from .test_utils import (
     triangle_data_frame,
@@ -12,7 +8,16 @@ from .test_utils import (
 )
 
 class TestMitsuba:
-    def test_triangle(self, triangle_data_frame):
+    def test_points(self, triangle_data_frame):
         base = hakowan.layer(data=triangle_data_frame)
         l0 = base.mark(hakowan.POINT)
-        render(l0, "mitsuba", "tmp.png")
+        config = hakowan.RenderConfig()
+        config.filename = "point.png"
+        hakowan.render(l0, config)
+
+    def test_segments(self, triangle_boundary_data_frame):
+        base = hakowan.layer(data=triangle_boundary_data_frame)
+        l0 = base.mark(hakowan.CURVE)
+        config = hakowan.RenderConfig()
+        config.filename = "curve.png"
+        hakowan.render(l0, config)

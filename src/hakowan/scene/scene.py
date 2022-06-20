@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import Optional
+import math
 import numpy as np
 import numpy.typing as npt
 
@@ -20,9 +21,9 @@ class Point:
 class Segment:
     """A line segment with radius and color."""
 
-    vertices: npt.ArrayLike
-    radii: npt.ArrayLike
-    colors: npt.ArrayLike
+    vertices: npt.NDArray
+    radii: npt.NDArray
+    colors: npt.NDArray
     material: str = "diffuse"
 
 
@@ -30,11 +31,11 @@ class Segment:
 class Surface:
     """Generic surface represented by triangle mesh."""
 
-    vertices: npt.ArrayLike
-    triangles: npt.ArrayLike
-    normals: Optional[npt.ArrayLike] = None
-    uvs: Optional[npt.ArrayLike] = None
-    colors: Optional[npt.ArrayLike] = None
+    vertices: npt.NDArray
+    triangles: npt.NDArray
+    normals: Optional[npt.NDArray] = None
+    uvs: Optional[npt.NDArray] = None
+    colors: Optional[npt.NDArray] = None
     material: str = "diffuse"
 
 
@@ -45,3 +46,24 @@ class Scene:
     points: list[Point] = field(default_factory=list)
     segments: list[Segment] = field(default_factory=list)
     surfaces: list[Surface] = field(default_factory=list)
+
+    @property
+    def bbox(self):
+        """Compute the axis-aligned bounding box of the scene"""
+        assert len(self.points) > 0 or len(self.segments) > 0 or len(self.surfaces) > 0
+        bbox_min = np.array([math.inf, math.inf, math.inf])
+        bbox_max = np.array([-math.inf, -math.inf, -math.inf])
+
+        for p in self.points:
+            bbox_min = np.minimum(bbox_min, p.center)
+            bbox_max = np.minimum(bbox_max, p.center)
+
+        for s in self.segments:
+            bbox_min = np.minimum(bbox_min, np.amin(s.vertices, axis=0))
+            bbox_max = np.minimum(bbox_max, np.amax(s.vertices, axis=0))
+
+        for m in self.surfaces:
+            bbox_min = np.minimum(bbox_min, np.amin(m.vertices, axis=0))
+            bbox_max = np.minimum(bbox_max, np.amax(m.vertices, axis=0))
+
+        return bbox_min, bbox_max

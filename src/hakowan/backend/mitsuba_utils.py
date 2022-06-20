@@ -2,12 +2,12 @@
 
 from xml.dom import minidom
 
+import math
 import numpy as np
 import numpy.typing as npt
+from numpy.linalg import norm
 from typing import Union
 
-from ..grammar.layer import Layer
-from ..grammar.layer_data import LayerData, Mark
 from ..common.exception import InvalidSetting
 from ..scene.scene import Scene
 
@@ -60,9 +60,9 @@ def generate_matrix(xml_doc: minidom.Document, matrix: np.ndarray):
 
 def generate_lookat(
     xml_doc: minidom.Document,
-    target: npt.ArrayLike,
-    origin: npt.ArrayLike,
-    up: npt.ArrayLike,
+    target: npt.NDArray,
+    origin: npt.NDArray,
+    up: npt.NDArray,
 ):
     """Generate lookat settings."""
     lookat = xml_doc.createElement("lookat")
@@ -83,13 +83,62 @@ def generate_transform(xml_doc: minidom.Document, name, transform):
 def generate_transform_lookat(
     xml_doc: minidom.Document,
     name: str,
-    target: npt.ArrayLike,
-    origin: npt.ArrayLike,
-    up: npt.ArrayLike,
+    target: npt.NDArray,
+    origin: npt.NDArray,
+    up: npt.NDArray,
 ):
+    """Generate xml element <transform></transform> based on lookat transform."""
     transform_xml = xml_doc.createElement("transform")
     transform_xml.setAttribute("name", name)
     transform_xml.appendChild(generate_lookat(xml_doc, target, origin, up))
+    return transform_xml
+
+
+def generate_scale(xml_doc: minidom.Document, scales: npt.NDArray):
+    """Generate xml element <scale></scale>"""
+    scale_xml = xml_doc.createElement("scale")
+    scale_xml.setAttribute("value", ",".join([str(v) for v in scales]))
+    return scale_xml
+
+
+def generate_rotate_axis_angle(
+    xml_doc: minidom.Document, axis: npt.NDArray, angle: float
+):
+    """Generate xml element <rotate></rotate>"""
+    rotate_xml = xml_doc.createElement("rotate")
+    rotate_xml.setAttribute("value", ",".join([str(v) for v in axis]))
+    rotate_xml.setAttribute("angle", str(angle))
+    return rotate_xml
+
+
+def generate_translate(xml_doc: minidom.Document, offset: npt.NDArray):
+    """Generate xml element <translate></translate>"""
+    translate_xml = xml_doc.createElement("translate")
+    translate_xml.setAttribute("value", ",".join([str(v) for v in offset]))
+    return translate_xml
+
+
+def generate_cylinder_transform(
+    xml_doc: minidom.Document, p0: npt.NDArray, p1: npt.NDArray
+):
+    """Compute the transform needed to convert cononical cylinder to a cylinder
+    with end points p0 and p1."""
+    l = norm(p1 - p0)
+    z_axis = np.array([0, 0, 1])
+    c_axis = (p1 - p0) / l
+    r_axis = np.cross(z_axis, c_axis)
+    n = norm(r_axis)
+    if n < 1e-12:
+        r_axis = np.array([0, 1, 0], dtype=float)
+    else:
+        r_axis /= n
+    angle = math.degrees(math.atan2(n, np.dot(z_axis, c_axis)))
+
+    transform_xml = xml_doc.createElement("transform")
+    transform_xml.setAttribute("name", "to_world")
+    transform_xml.appendChild(generate_scale(xml_doc, np.array([1, 1, l])))
+    transform_xml.appendChild(generate_rotate_axis_angle(xml_doc, r_axis, angle))
+    transform_xml.appendChild(generate_translate(xml_doc, p0))
     return transform_xml
 
 
@@ -126,7 +175,9 @@ def generate_bsdf_plastic(
     return bsdf_xml
 
 
-def generate_sphere(xml_doc, center, radius):
+def generate_sphere(
+    xml_doc, center, radius, transform: Union[npt.NDArray, None] = None
+):
     """Generate xml element <shape type="sphere"></shape>"""
     shape_xml = xml_doc.createElement("shape")
     shape_xml.setAttribute("type", "sphere")
@@ -137,6 +188,34 @@ def generate_sphere(xml_doc, center, radius):
     shape_xml.appendChild(center_xml)
     shape_xml.appendChild(radius_xml)
 
+    if transform is not None:
+        shape_xml.appendChild(generate_transform(xml_doc, "to_world", transform))
+
+    return shape_xml
+
+
+def generate_cylinder(
+    xml_doc: minidom.Document,
+    p0: npt.NDArray,
+    p1: npt.NDArray,
+    radius: float,
+    transform: Union[npt.NDArray, None] = None,
+):
+    """Generate xml element <shape type="cylinder"></shape>"""
+    shape_xml = xml_doc.createElement("shape")
+    shape_xml.setAttribute("type", "cylinder")
+    shape_xml.appendChild(generate_float(xml_doc, "radius", radius))
+
+    if transform is None:
+        transform = np.identity(4)
+
+    p0 = np.dot(transform[:3, :3], p0) + transform[:3, 3]
+    p1 = np.dot(transform[:3, :3], p1) + transform[:3, 3]
+
+    if norm(p1 - p0) < 1e-6:
+        return
+
+    shape_xml.appendChild(generate_cylinder_transform(xml_doc, p0, p1))
     return shape_xml
 
 
@@ -167,7 +246,14 @@ def generate_film(xml_doc: minidom.Document, width: int, height: int):
     return film
 
 
-def generate_camera(xml_doc: minidom.Document, width: int = 2048, height: int = 1080):
+def generate_camera(
+    xml_doc: minidom.Document,
+    width: int,
+    height: int,
+    fov: float,
+    focus_distance: float,
+    num_samples: int,
+):
     """Generate camera setting"""
     sensor = xml_doc.createElement("sensor")
     sensor.setAttribute("type", "perspective")
@@ -176,10 +262,14 @@ def generate_camera(xml_doc: minidom.Document, width: int = 2048, height: int = 
     sensor.appendChild(generate_float(xml_doc, "fov", "28.8415"))
     sensor.appendChild(
         generate_transform_lookat(
-            xml_doc, "to_world", target=[0, 0, 0], origin=[0, 0, 3], up=[0, 1, 0]
+            xml_doc,
+            "to_world",
+            target=np.array([0, 0, 0]),
+            origin=np.array([0, 0, 3]),
+            up=np.array([0, 1, 0]),
         )
     )
-    sensor.appendChild(generate_sampler(xml_doc, 64))
+    sensor.appendChild(generate_sampler(xml_doc, num_samples))
     sensor.appendChild(generate_film(xml_doc, width, height))
     return sensor
 
@@ -236,26 +326,3 @@ def generate_integrator(xml_doc: minidom.Document, integrator_type):
     integrator = xml_doc.createElement("integrator")
     integrator.setAttribute("type", integrator_type)
     return integrator
-
-
-def generate_mitsuba_config(scene: Scene):
-    """Convert layer tree into mitsuba xml input."""
-    xml_doc = minidom.Document()
-    scene_xml = generate_scene(xml_doc)
-    scene_xml.appendChild(generate_integrator(xml_doc, "path"))
-
-    scene_xml.appendChild(generate_camera(xml_doc))
-    scene_xml.appendChild(generate_front_light(xml_doc))
-    scene_xml.appendChild(generate_side_light(xml_doc))
-    scene_xml.appendChild(generate_back_light(xml_doc))
-    scene_xml.appendChild(generate_fill_light(xml_doc))
-
-    # Gather points.
-    for p in scene.points:
-        sphere = generate_sphere(xml_doc, p.center, p.radius)
-        material = generate_bsdf_plastic(xml_doc, p.color)
-        sphere.appendChild(material)
-        scene_xml.appendChild(sphere)
-
-    xml_doc.appendChild(scene_xml)
-    return xml_doc

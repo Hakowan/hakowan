@@ -13,3 +13,6 @@ SURFACE = grammar.layer_data.Mark.SURFACE
 def layer(**kwargs):
     """Create a layer."""
     return grammar.layer.Layer(**kwargs)
+
+from .backend.render import render
+from .backend.render_config import RenderConfig
