@@ -15,6 +15,7 @@ from .render_config import RenderConfig
 from ..scene.scene import Scene
 
 import numpy as np
+from numpy.linalg import norm
 import pathlib
 import subprocess
 from xml.dom import minidom
@@ -43,17 +44,26 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
 
     # Compute global transform to [-1, 1]^3.
     bbox_min, bbox_max = scene.bbox
+    bbox_center = (bbox_min + bbox_max) / 2
+    bbox_radius = norm(bbox_max - bbox_min) / 2
+
+    translate_transform = np.identity(4)
+    translate_transform[:3,3] = -bbox_center
+    scale_transform = np.identity(4)
+    scale_transform[:3,:3] /= bbox_radius
+    global_transform = np.dot(np.dot(scale_transform, translate_transform),
+            config.transform)
 
     # Gather points.
     for p in scene.points:
-        sphere = generate_sphere(xml_doc, p.center, p.radius, config.transform)
+        sphere = generate_sphere(xml_doc, p.center, p.radius, global_transform)
         material = generate_bsdf_plastic(xml_doc, p.color)
         sphere.appendChild(material)
         scene_xml.appendChild(sphere)
 
     for s in scene.segments:
         segment = generate_cylinder(
-            xml_doc, s.vertices[0], s.vertices[1], np.mean(s.radii), config.transform
+            xml_doc, s.vertices[0], s.vertices[1], np.mean(s.radii), global_transform
         )
         material = generate_bsdf_plastic(xml_doc, np.mean(s.colors, axis=0))
         segment.appendChild(material)

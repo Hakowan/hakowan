@@ -22,6 +22,10 @@ class TestScene:
         assert len(scene.surfaces[0].vertices) == 3
         assert len(scene.surfaces[0].colors) == 3
 
+        bbox_min, bbox_max = scene.bbox
+        assert np.all(bbox_min == [0, 0, 0])
+        assert np.all(bbox_max == [1, 1, 0])
+
     def test_quad(self, quad_data_frame):
         base = hakowan.layer(data=quad_data_frame)
         l0 = base.mark(hakowan.SURFACE).transform(np.identity(4) * 2)
@@ -31,6 +35,10 @@ class TestScene:
         assert len(scene.surfaces[0].triangles) == 2
         assert len(scene.surfaces[0].vertices) == 6
         assert len(scene.surfaces[0].colors) == 6
+
+        bbox_min, bbox_max = scene.bbox
+        assert np.all(bbox_min == [0, 0, 0])
+        assert np.all(bbox_max == [1, 1, 0])
 
     def test_tri_quad_composite(self, triangle_data_frame, quad_data_frame):
         base = hakowan.layer(mark=hakowan.SURFACE)
@@ -47,6 +55,10 @@ class TestScene:
         assert len(scene.surfaces[1].vertices) == 6
         assert np.all(scene.surfaces[0].colors[0] == [0, 0, 0])
         assert np.all(scene.surfaces[1].colors[0] == [1, 1, 1])
+
+        bbox_min, bbox_max = scene.bbox
+        assert np.all(bbox_min == [0, 0, 0])
+        assert np.all(bbox_max == [1, 1, 0])
 
     def test_points(self, triangle_data_frame):
         base = hakowan.layer(data=triangle_data_frame)

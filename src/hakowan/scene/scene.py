@@ -56,14 +56,14 @@ class Scene:
 
         for p in self.points:
             bbox_min = np.minimum(bbox_min, p.center)
-            bbox_max = np.minimum(bbox_max, p.center)
+            bbox_max = np.maximum(bbox_max, p.center)
 
         for s in self.segments:
             bbox_min = np.minimum(bbox_min, np.amin(s.vertices, axis=0))
-            bbox_max = np.minimum(bbox_max, np.amax(s.vertices, axis=0))
+            bbox_max = np.maximum(bbox_max, np.amax(s.vertices, axis=0))
 
         for m in self.surfaces:
             bbox_min = np.minimum(bbox_min, np.amin(m.vertices, axis=0))
-            bbox_max = np.minimum(bbox_max, np.amax(m.vertices, axis=0))
+            bbox_max = np.maximum(bbox_max, np.amax(m.vertices, axis=0))
 
         return bbox_min, bbox_max
