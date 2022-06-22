@@ -7,7 +7,13 @@ from ..common.color import Color
 from ..common.named_colors import css_colors
 from ..common.colormap.named_colormaps import named_colormaps
 from ..common.exception import InvalidSetting
-from ..common.default import DEFAULT_COLOR, DEFAULT_SIZE, DEFAULT_POSITION
+from ..common.default import (
+    DEFAULT_COLOR,
+    DEFAULT_CURVE_COLOR,
+    DEFAULT_POINT_COLOR,
+    DEFAULT_SIZE,
+    DEFAULT_POSITION,
+)
 from ..grammar.layer import Layer
 from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
@@ -47,7 +53,7 @@ def extract_position_channel(layer_data: LayerData) -> tuple[npt.NDArray, npt.ND
 
 
 def extract_color_channel(
-    layer_data: LayerData, shape: tuple[int, ...]
+    layer_data: LayerData, shape: tuple[int, ...], default_color: str
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """Extract color channel from layer data.
 
@@ -66,7 +72,7 @@ def extract_color_channel(
     attr_name = layer_data.channel_setting.color
     if attr_name is None:
         # Use default color.
-        c = css_colors[DEFAULT_COLOR]
+        c = css_colors[default_color]
         color_values = np.array([[c[0], c[1], c[2]]])
         return color_values, np.zeros(shape, dtype=int)
     if attr_name.startswith("#"):
@@ -156,7 +162,9 @@ def update_points(layer_data: LayerData, scene: Scene):
     nodes, _ = extract_position_channel(layer_data)
     assert nodes.shape[1] == 3
     num_nodes = len(nodes)
-    color_values, color_indices = extract_color_channel(layer_data, (num_nodes, 1))
+    color_values, color_indices = extract_color_channel(
+        layer_data, (num_nodes, 1), DEFAULT_POINT_COLOR
+    )
     size_values, size_indices = extract_size_channel(layer_data, (num_nodes, 1))
 
     assert color_indices.size == num_nodes
@@ -185,7 +193,9 @@ def update_segments(layer_data: LayerData, scene: Scene):
     assert elements.shape[1] == 2
 
     num_elements = len(elements)
-    color_values, color_indices = extract_color_channel(layer_data, elements.shape)
+    color_values, color_indices = extract_color_channel(
+        layer_data, elements.shape, DEFAULT_CURVE_COLOR
+    )
     size_values, size_indices = extract_size_channel(layer_data, elements.shape)
     assert color_indices.shape == elements.shape
     assert size_indices.shape == elements.shape
@@ -214,7 +224,9 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
     assert nodes.shape[1] == 3
     assert elements.shape[1] == 3
 
-    color_values, color_indices = extract_color_channel(layer_data, elements.shape)
+    color_values, color_indices = extract_color_channel(
+        layer_data, elements.shape, DEFAULT_COLOR
+    )
     # TODO: normals, uvs
 
     # TODO: need unify index buffer capability.

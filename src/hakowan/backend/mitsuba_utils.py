@@ -1,6 +1,9 @@
 """ Mitsuba-related utility functions. """
 
 from xml.dom import minidom
+from pathlib import Path
+import tempfile
+import datetime
 
 import math
 import numpy as np
@@ -10,6 +13,7 @@ from typing import Union
 
 from ..common.exception import InvalidSetting
 from ..scene.scene import Scene
+from .serialization import serialize_mesh
 
 
 def generate_tag(xml_doc, tag, name, val):
@@ -175,6 +179,17 @@ def generate_bsdf_plastic(
     return bsdf_xml
 
 
+def generate_bsdf_diffuse(
+    xml_doc: minidom.Document, reflectance: Union[npt.NDArray, float] = 0.5
+):
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "diffuse")
+
+    bsdf_xml.appendChild(generate_rgb(xml_doc, "reflectance", reflectance))
+
+    return bsdf_xml
+
+
 def generate_sphere(
     xml_doc, center, radius, transform: Union[npt.NDArray, None] = None
 ):
@@ -216,6 +231,33 @@ def generate_cylinder(
         return
 
     shape_xml.appendChild(generate_cylinder_transform(xml_doc, p0, p1))
+    return shape_xml
+
+
+def generate_mesh(
+    xml_doc: minidom.Document,
+    vertices: npt.NDArray,
+    faces: npt.NDArray,
+    normals: Union[npt.NDArray, None] = None,
+    uvs: Union[npt.NDArray, None] = None,
+    colors: Union[npt.NDArray, None] = None,
+    transform: Union[npt.NDArray, None] = None,
+):
+    """Generate xml element <shape type="serialized"></shape>"""
+    data = serialize_mesh(vertices, faces, normals, colors, uvs)
+    timestamp = datetime.datetime.now().isoformat()
+    tmp_file = Path(tempfile.gettempdir()) / f"{timestamp}.scene"
+    with open(tmp_file, "wb") as fout:
+        fout.write(data)
+
+    shape_xml = xml_doc.createElement("shape")
+    shape_xml.setAttribute("type", "serialized")
+    shape_xml.appendChild(generate_string(xml_doc, "filename", str(tmp_file)))
+    shape_xml.appendChild(generate_boolean(xml_doc, "face_normals", False))
+
+    if transform is not None:
+        shape_xml.appendChild(generate_transform(xml_doc, "to_world", transform))
+
     return shape_xml
 
 

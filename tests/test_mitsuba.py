@@ -21,3 +21,16 @@ class TestMitsuba:
         config = hakowan.RenderConfig()
         config.filename = "curve.png"
         hakowan.render(l0, config)
+
+    def test_combined(self, triangle_data_frame, triangle_boundary_data_frame):
+        l0 = hakowan.layer(data=triangle_boundary_data_frame)\
+                .mark(hakowan.CURVE)
+        l1 = hakowan.layer(data = triangle_data_frame)
+        l2 = l1.mark(hakowan.POINT)
+        l3 = l1.mark(hakowan.SURFACE)
+
+        scene = l0 + l2 + l3
+
+        config = hakowan.RenderConfig()
+        config.filename = "combined.png"
+        hakowan.render(scene, config)

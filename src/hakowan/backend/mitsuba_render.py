@@ -8,7 +8,9 @@ from .mitsuba_utils import (
     generate_fill_light,
     generate_sphere,
     generate_bsdf_plastic,
+    generate_bsdf_diffuse,
     generate_cylinder,
+    generate_mesh,
 )
 
 from .render_config import RenderConfig
@@ -61,6 +63,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
         sphere.appendChild(material)
         scene_xml.appendChild(sphere)
 
+    # Gather segments.
     for s in scene.segments:
         segment = generate_cylinder(
             xml_doc, s.vertices[0], s.vertices[1], np.mean(s.radii), global_transform
@@ -68,6 +71,24 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
         material = generate_bsdf_plastic(xml_doc, np.mean(s.colors, axis=0))
         segment.appendChild(material)
         scene_xml.appendChild(segment)
+
+    # Gather surfaces.
+    for m in scene.surfaces:
+        if m.colors is None:
+            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
+                    None, global_transform)
+            material = generate_bsdf_diffuse(xml_doc)
+        elif len(m.colors) == 1:
+            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
+                    None, global_transform)
+            material = generate_bsdf_diffuse(xml_doc, m.colors[0])
+        else:
+            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
+                    m.colors, global_transform)
+            # TODO: update to use vertex color
+            material = generate_bsdf_diffuse(xml_doc, m.colors[0])
+        mesh.appendChild(material)
+        scene_xml.appendChild(mesh)
 
     xml_doc.appendChild(scene_xml)
     return xml_doc
