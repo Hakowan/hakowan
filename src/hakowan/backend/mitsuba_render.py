@@ -1,3 +1,9 @@
+import numpy as np
+from numpy.linalg import norm
+import pathlib
+import subprocess
+from xml.dom import minidom
+
 from .mitsuba_utils import (
     generate_scene,
     generate_integrator,
@@ -13,15 +19,8 @@ from .mitsuba_utils import (
     generate_cylinder,
     generate_mesh,
 )
-
 from .render_config import RenderConfig
 from ..scene.scene import Scene
-
-import numpy as np
-from numpy.linalg import norm
-import pathlib
-import subprocess
-from xml.dom import minidom
 
 
 def generate_mitsuba_config(scene: Scene, config: RenderConfig):
@@ -132,3 +131,6 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
     xml_file = filename.with_suffix(".xml")
     with open(xml_file, "w") as fin:
         xml_doc.writexml(fin, indent="", addindent="    ", newl="\n")
+
+    cmd = f"mitsuba {xml_file} -o {config.filename}"
+    subprocess.check_call(cmd.split())
