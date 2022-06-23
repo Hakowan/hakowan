@@ -9,6 +9,7 @@ from .mitsuba_utils import (
     generate_sphere,
     generate_bsdf_plastic,
     generate_bsdf_diffuse,
+    generate_bsdf_rough_plastic,
     generate_cylinder,
     generate_mesh,
 )
@@ -50,11 +51,12 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     bbox_radius = norm(bbox_max - bbox_min) / 2
 
     translate_transform = np.identity(4)
-    translate_transform[:3,3] = -bbox_center
+    translate_transform[:3, 3] = -bbox_center
     scale_transform = np.identity(4)
-    scale_transform[:3,:3] /= bbox_radius
-    global_transform = np.dot(np.dot(scale_transform, translate_transform),
-            config.transform)
+    scale_transform[:3, :3] /= bbox_radius
+    global_transform = np.dot(
+        config.transform, np.dot(scale_transform, translate_transform)
+    )
 
     # Gather points.
     for p in scene.points:
@@ -75,18 +77,43 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     # Gather surfaces.
     for m in scene.surfaces:
         if m.colors is None:
-            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
-                    None, global_transform)
-            material = generate_bsdf_diffuse(xml_doc)
+            mesh = generate_mesh(
+                xml_doc,
+                m.vertices,
+                m.triangles,
+                m.normals,
+                m.uvs,
+                None,
+                global_transform,
+            )
+            material = generate_bsdf_rough_plastic(xml_doc)
         elif len(m.colors) == 1:
-            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
-                    None, global_transform)
-            material = generate_bsdf_diffuse(xml_doc, m.colors[0])
+            mesh = generate_mesh(
+                xml_doc,
+                m.vertices,
+                m.triangles,
+                m.normals,
+                m.uvs,
+                None,
+                global_transform,
+            )
+            material = generate_bsdf_rough_plastic(
+                xml_doc, distribution="ggx", diffuse_reflectance=m.colors[0]
+            )
         else:
-            mesh = generate_mesh(xml_doc, m.vertices, m.triangles, m.normals, m.uvs,
-                    m.colors, global_transform)
+            mesh = generate_mesh(
+                xml_doc,
+                m.vertices,
+                m.triangles,
+                m.normals,
+                m.uvs,
+                m.colors,
+                global_transform,
+            )
             # TODO: update to use vertex color
-            material = generate_bsdf_diffuse(xml_doc, m.colors[0])
+            material = generate_bsdf_rough_plastic(
+                xml_doc, distribution="ggx", diffuse_reflectance=m.colors[0]
+            )
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 

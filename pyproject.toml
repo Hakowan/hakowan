@@ -11,7 +11,7 @@ dynamic = ["description", "version"]
 dependencies=[
     "pytest",
     "numpy>=1.21",
-    "mitsuba2",
+    "scipy>=1.8.0",
     "mshio@git+https://github.com/qnzhou/MshIO.git",
     "csscolor@git+https://github.com/idmillington/csscolor.git"]
 

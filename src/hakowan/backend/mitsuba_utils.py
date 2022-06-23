@@ -179,6 +179,25 @@ def generate_bsdf_plastic(
     return bsdf_xml
 
 
+def generate_bsdf_rough_plastic(
+    xml_doc: minidom.Document,
+    distribution: str = "beckmann",
+    diffuse_reflectance: Union[npt.NDArray, float] = 0.5,
+    int_ior: float = 1.5,
+):
+    """Generate bsdf for rough plastic."""
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "roughplastic")
+    bsdf_xml.appendChild(generate_string(xml_doc, "distribution", distribution))
+    bsdf_xml.appendChild(generate_float(xml_doc, "int_ior", int_ior))
+    bsdf_xml.appendChild(
+        generate_rgb(xml_doc, "diffuse_reflectance", diffuse_reflectance)
+    )
+    bsdf_xml.appendChild(generate_float(xml_doc, "alpha", 0.3))
+
+    return bsdf_xml
+
+
 def generate_bsdf_diffuse(
     xml_doc: minidom.Document, reflectance: Union[npt.NDArray, float] = 0.5
 ):
@@ -307,7 +326,7 @@ def generate_camera(
             xml_doc,
             "to_world",
             target=np.array([0, 0, 0]),
-            origin=np.array([0, 0, 3]),
+            origin=np.array([0, 0, 5]),
             up=np.array([0, 1, 0]),
         )
     )
