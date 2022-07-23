@@ -13,6 +13,7 @@ class TestMitsuba:
         l0 = base.mark(hakowan.POINT)
         config = hakowan.RenderConfig()
         config.filename = "point.png"
+        config.dry_run = True
         hakowan.render(l0, config)
 
     def test_segments(self, triangle_boundary_data_frame):
@@ -20,6 +21,7 @@ class TestMitsuba:
         l0 = base.mark(hakowan.CURVE)
         config = hakowan.RenderConfig()
         config.filename = "curve.png"
+        config.dry_run = True
         hakowan.render(l0, config)
 
     def test_combined(self, triangle_data_frame, triangle_boundary_data_frame):
@@ -33,4 +35,5 @@ class TestMitsuba:
 
         config = hakowan.RenderConfig()
         config.filename = "combined.png"
+        config.dry_run = True
         hakowan.render(scene, config)

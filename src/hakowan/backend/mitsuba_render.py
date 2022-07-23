@@ -133,4 +133,7 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
         xml_doc.writexml(fin, indent="", addindent="    ", newl="\n")
 
     cmd = f"mitsuba {xml_file} -o {config.filename}"
-    subprocess.check_call(cmd.split())
+    if config.dry_run:
+        print(cmd)
+    else:
+        subprocess.check_call(cmd.split())

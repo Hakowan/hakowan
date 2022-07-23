@@ -17,6 +17,7 @@ class RenderConfig:
     focus_distance: float = 3.0
     num_samples: int = 64
     transform: npt.NDArray = np.identity(4)
+    dry_run = False
 
 
     def __post_init__(self):
