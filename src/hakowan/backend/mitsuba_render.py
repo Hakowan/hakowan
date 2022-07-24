@@ -1,8 +1,8 @@
 import numpy as np
 from numpy.linalg import norm
 import pathlib
-import subprocess
 from xml.dom import minidom
+import mitsuba as mi
 
 from .mitsuba_utils import (
     generate_scene,
@@ -136,4 +136,8 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
     if config.dry_run:
         print(cmd)
     else:
-        subprocess.check_call(cmd.split())
+        mi.set_variant("scalar_spectral")
+        mi_scene = mi.load_file(str(xml_file))
+        image = mi.render(mi_scene)
+        mi.Bitmap(image).write(str(config.filename))
+        # mi.util.write_bitmap(config.filename, image)

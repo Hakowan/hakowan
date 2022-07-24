@@ -378,7 +378,7 @@ def generate_fill_light(xml_doc: minidom.Document):
 def generate_scene(xml_doc: minidom.Document):
     """Generate xml element <scene></scene>"""
     scene_xml = xml_doc.createElement("scene")
-    scene_xml.setAttribute("version", "2.2.1")
+    scene_xml.setAttribute("version", "3.0.0")
     return scene_xml
 
 

@@ -20,6 +20,8 @@ def parse_args():
         nargs=3,
         help="Transformation defined in Euler angles",
     )
+    parser.add_argument("-H", "--height", help="Output image height", default=800)
+    parser.add_argument("-W", "--width", help="Output image width", default=1024)
     return parser.parse_args()
 
 
@@ -73,6 +75,8 @@ def main():
     config = hakowan.RenderConfig()
     config.filename = args.output_image
     config.transform = transform
+    config.width = args.width
+    config.height = args.height
 
     hakowan.render(surface_view, config)
 
