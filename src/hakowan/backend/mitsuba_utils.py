@@ -386,4 +386,5 @@ def generate_integrator(xml_doc: minidom.Document, integrator_type):
     """Generate xml element <integrator></integrator>"""
     integrator = xml_doc.createElement("integrator")
     integrator.setAttribute("type", integrator_type)
+    integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "true"))
     return integrator
