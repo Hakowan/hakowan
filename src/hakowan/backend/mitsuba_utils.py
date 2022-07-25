@@ -162,10 +162,9 @@ def generate_rgb(
 def generate_bsdf_plastic(
     xml_doc: minidom.Document,
     diffuse_reflectance: Union[npt.NDArray, float] = 0.5,
-    # specular_reflectance=1.0,
     int_ior: float = 1.49,
-    # ext_ior=1.000277,
-    # nonlinear=False,
+    ext_ior: float = 1.000277,
+    nonlinear: bool = False,
 ):
     """Generate xml element <bsdf></bsdf>"""
     bsdf_xml = xml_doc.createElement("bsdf")
@@ -175,6 +174,8 @@ def generate_bsdf_plastic(
         generate_rgb(xml_doc, "diffuse_reflectance", diffuse_reflectance)
     )
     bsdf_xml.appendChild(generate_float(xml_doc, "int_ior", int_ior))
+    bsdf_xml.appendChild(generate_float(xml_doc, "ext_ior", ext_ior))
+    bsdf_xml.appendChild(generate_boolean(xml_doc, "nonlinear", nonlinear))
 
     return bsdf_xml
 
@@ -184,16 +185,31 @@ def generate_bsdf_rough_plastic(
     distribution: str = "beckmann",
     diffuse_reflectance: Union[npt.NDArray, float] = 0.5,
     int_ior: float = 1.5,
+    ext_ior: float = 1.000277,
+    alpha: float = 0.3,
+    nonlinear: bool = False,
 ):
     """Generate bsdf for rough plastic."""
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "roughplastic")
     bsdf_xml.appendChild(generate_string(xml_doc, "distribution", distribution))
     bsdf_xml.appendChild(generate_float(xml_doc, "int_ior", int_ior))
+    bsdf_xml.appendChild(generate_float(xml_doc, "ext_ior", ext_ior))
     bsdf_xml.appendChild(
         generate_rgb(xml_doc, "diffuse_reflectance", diffuse_reflectance)
     )
-    bsdf_xml.appendChild(generate_float(xml_doc, "alpha", 0.3))
+    bsdf_xml.appendChild(generate_float(xml_doc, "alpha", alpha))
+    bsdf_xml.appendChild(generate_boolean(xml_doc, "nonlinear", nonlinear))
+
+    return bsdf_xml
+
+
+def generate_bsdf_rough_conductor(xml_doc: minidom.Document):
+    """Generate bsdf for rough conductor."""
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "roughconductor")
+    bsdf_xml.appendChild(generate_string(xml_doc, "material", "Al"))
+    bsdf_xml.appendChild(generate_string(xml_doc, "distribution", "ggx"))
 
     return bsdf_xml
 
@@ -283,7 +299,7 @@ def generate_mesh(
 def generate_sampler(xml_doc: minidom.Document, sample_count: int):
     """Generate xml element <sampler></sampler>"""
     sampler = xml_doc.createElement("sampler")
-    sampler.setAttribute("type", "ldsampler")
+    sampler.setAttribute("type", "independent")
     sampler.appendChild(generate_integer(xml_doc, "sample_count", sample_count))
     return sampler
 
@@ -292,6 +308,7 @@ def generate_rfilter(xml_doc: minidom.Document, filter_type: str):
     """Generate xml element <rfilter></rfilter>"""
     rfilter = xml_doc.createElement("rfilter")
     rfilter.setAttribute("type", filter_type)
+    # rfilter.appendChild(generate_float(xml_doc, "stddev", 0.25))
     return rfilter
 
 
@@ -302,7 +319,7 @@ def generate_film(xml_doc: minidom.Document, width: int, height: int):
     film.appendChild(generate_integer(xml_doc, "width", width))
     film.appendChild(generate_integer(xml_doc, "height", height))
     film.appendChild(generate_string(xml_doc, "pixel_format", "rgba"))
-    film.appendChild(generate_boolean(xml_doc, "banner", "false"))
+    # film.appendChild(generate_boolean(xml_doc, "banner", "false"))
     film.appendChild(generate_rfilter(xml_doc, "gaussian"))
     return film
 
@@ -312,14 +329,13 @@ def generate_camera(
     width: int,
     height: int,
     fov: float,
-    focus_distance: float,
     num_samples: int,
 ):
     """Generate camera setting"""
     sensor = xml_doc.createElement("sensor")
     sensor.setAttribute("type", "perspective")
     sensor.appendChild(generate_string(xml_doc, "fov_axis", "smaller"))
-    sensor.appendChild(generate_float(xml_doc, "focus_distance", "3.0"))
+    # sensor.appendChild(generate_float(xml_doc, "focus_distance", "3.0"))
     sensor.appendChild(generate_float(xml_doc, "fov", "28.8415"))
     sensor.appendChild(
         generate_transform_lookat(
@@ -344,18 +360,18 @@ def generate_emitter(xml_doc: minidom.Document, emitter_type: str):
 
 def generate_front_light(xml_doc: minidom.Document):
     """Generate front light."""
-    light = generate_sphere(xml_doc, [-1, 1, 3], 0.5)
+    light = generate_sphere(xml_doc, [-2, 6, 6], 0.5)
     emitter = generate_emitter(xml_doc, "area")
-    emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 50))
+    emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 250))
     light.appendChild(emitter)
     return light
 
 
 def generate_side_light(xml_doc: minidom.Document):
     """Generate side light."""
-    light = generate_sphere(xml_doc, [3, 0, 0], 0.2)
+    light = generate_sphere(xml_doc, [6, 0, 0], 0.2)
     emitter = generate_emitter(xml_doc, "area")
-    emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 15))
+    emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 30))
     light.appendChild(emitter)
     return light
 
@@ -364,7 +380,7 @@ def generate_back_light(xml_doc: minidom.Document):
     """Generate back light."""
     emitter = generate_emitter(xml_doc, "point")
     emitter.appendChild(generate_tag(xml_doc, "spectrum", "intensity", 10))
-    emitter.appendChild(generate_point(xml_doc, "position", [0, 0, -3]))
+    emitter.appendChild(generate_point(xml_doc, "position", [0, 0, -6]))
     return emitter
 
 
@@ -386,5 +402,6 @@ def generate_integrator(xml_doc: minidom.Document, integrator_type):
     """Generate xml element <integrator></integrator>"""
     integrator = xml_doc.createElement("integrator")
     integrator.setAttribute("type", integrator_type)
-    integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "true"))
+    # integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "true"))
+    # integrator.appendChild(generate_integer(xml_doc, "rr_depth", 100))
     return integrator

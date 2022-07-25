@@ -16,6 +16,7 @@ from .mitsuba_utils import (
     generate_bsdf_plastic,
     generate_bsdf_diffuse,
     generate_bsdf_rough_plastic,
+    generate_bsdf_rough_conductor,
     generate_cylinder,
     generate_mesh,
 )
@@ -35,14 +36,13 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
             config.width,
             config.height,
             config.fov,
-            config.focus_distance,
             config.num_samples,
         )
     )
     scene_xml.appendChild(generate_front_light(xml_doc))
-    scene_xml.appendChild(generate_side_light(xml_doc))
-    scene_xml.appendChild(generate_back_light(xml_doc))
-    scene_xml.appendChild(generate_fill_light(xml_doc))
+    # scene_xml.appendChild(generate_side_light(xml_doc))
+    # scene_xml.appendChild(generate_back_light(xml_doc))
+    # scene_xml.appendChild(generate_fill_light(xml_doc))
 
     # Compute global transform to [-1, 1]^3.
     bbox_min, bbox_max = scene.bbox
@@ -97,7 +97,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
                 global_transform,
             )
             material = generate_bsdf_rough_plastic(
-                xml_doc, distribution="ggx", diffuse_reflectance=m.colors[0]
+                xml_doc, diffuse_reflectance=m.colors[0]
             )
         else:
             mesh = generate_mesh(
@@ -111,8 +111,11 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
             )
             # TODO: update to use vertex color
             material = generate_bsdf_rough_plastic(
-                xml_doc, distribution="ggx", diffuse_reflectance=m.colors[0]
+                xml_doc, diffuse_reflectance=m.colors[0], nonlinear=True
             )
+            # material = generate_bsdf_plastic(xml_doc,
+            #        diffuse_reflectance=m.colors[0], int_ior=1.9, nonlinear=True)
+            # material = generate_bsdf_rough_conductor(xml_doc)
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 
@@ -136,7 +139,8 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
     if config.dry_run:
         print(cmd)
     else:
-        mi.set_variant("scalar_spectral")
+        mi.set_variant("llvm_ad_rgb")
+        # mi.set_variant("scalar_rgb")
         mi_scene = mi.load_file(str(xml_file))
         image = mi.render(mi_scene)
         mi.Bitmap(image).write(str(config.filename))

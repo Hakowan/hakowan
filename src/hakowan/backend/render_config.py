@@ -14,7 +14,6 @@ class RenderConfig:
     width: int = 2048
     height: int = 1800
     fov: float = 28.8415
-    focus_distance: float = 3.0
     num_samples: int = 64
     transform: npt.NDArray = np.identity(4)
     dry_run = False
