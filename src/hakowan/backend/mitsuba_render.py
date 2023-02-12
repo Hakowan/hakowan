@@ -143,5 +143,5 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
         # mi.set_variant("scalar_rgb")
         mi_scene = mi.load_file(str(xml_file))
         image = mi.render(mi_scene)
-        mi.Bitmap(image).write(str(config.filename))
-        # mi.util.write_bitmap(config.filename, image)
+        # mi.Bitmap(image).write(str(config.filename))
+        mi.util.write_bitmap(config.filename, image)

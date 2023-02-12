@@ -1,5 +1,5 @@
 """ Redner configurations """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import numpy as np
 import numpy.typing as npt
@@ -15,9 +15,8 @@ class RenderConfig:
     height: int = 1800
     fov: float = 28.8415
     num_samples: int = 64
-    transform: npt.NDArray = np.identity(4)
+    transform: npt.NDArray = field(default_factory=lambda: np.identity(4))
     dry_run = False
-
 
     def __post_init__(self):
         if not isinstance(self.filename, Path):
