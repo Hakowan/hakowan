@@ -40,9 +40,9 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
         )
     )
     scene_xml.appendChild(generate_front_light(xml_doc))
-    # scene_xml.appendChild(generate_side_light(xml_doc))
-    # scene_xml.appendChild(generate_back_light(xml_doc))
-    # scene_xml.appendChild(generate_fill_light(xml_doc))
+    scene_xml.appendChild(generate_side_light(xml_doc))
+    scene_xml.appendChild(generate_back_light(xml_doc))
+    scene_xml.appendChild(generate_fill_light(xml_doc))
 
     # Compute global transform to [-1, 1]^3.
     bbox_min, bbox_max = scene.bbox
@@ -135,13 +135,13 @@ def render_with_mitsuba(scene: Scene, config: RenderConfig):
     with open(xml_file, "w") as fin:
         xml_doc.writexml(fin, indent="", addindent="    ", newl="\n")
 
-    cmd = f"mitsuba {xml_file} -o {config.filename}"
     if config.dry_run:
-        print(cmd)
-    else:
-        mi.set_variant("llvm_ad_rgb")
-        # mi.set_variant("scalar_rgb")
-        mi_scene = mi.load_file(str(xml_file))
-        image = mi.render(mi_scene)
-        # mi.Bitmap(image).write(str(config.filename))
-        mi.util.write_bitmap(config.filename, image)
+        # Mission accomplished!
+        return
+
+    mi.set_variant("llvm_ad_rgb")
+    # mi.set_variant("scalar_rgb")
+    mi_scene = mi.load_file(str(xml_file))
+    image = mi.render(mi_scene)
+    # mi.Bitmap(image).write(str(config.filename))
+    mi.util.write_bitmap(config.filename, image)
