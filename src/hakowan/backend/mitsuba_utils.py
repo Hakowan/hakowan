@@ -14,6 +14,7 @@ from typing import Union
 from ..common.exception import InvalidSetting
 from ..scene.scene import Scene
 from .serialization import serialize_mesh
+from .render_config import RenderConfig
 
 
 def generate_tag(xml_doc, tag, name, val):
@@ -204,11 +205,11 @@ def generate_bsdf_rough_plastic(
     return bsdf_xml
 
 
-def generate_bsdf_rough_conductor(xml_doc: minidom.Document):
+def generate_bsdf_rough_conductor(xml_doc: minidom.Document, material: str = "Cu"):
     """Generate bsdf for rough conductor."""
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "roughconductor")
-    bsdf_xml.appendChild(generate_string(xml_doc, "material", "Al"))
+    bsdf_xml.appendChild(generate_string(xml_doc, "material", material))
     bsdf_xml.appendChild(generate_string(xml_doc, "distribution", "ggx"))
 
     return bsdf_xml
@@ -296,10 +297,10 @@ def generate_mesh(
     return shape_xml
 
 
-def generate_sampler(xml_doc: minidom.Document, sample_count: int):
+def generate_sampler(xml_doc: minidom.Document, sampler_type: str, sample_count: int):
     """Generate xml element <sampler></sampler>"""
     sampler = xml_doc.createElement("sampler")
-    sampler.setAttribute("type", "independent")
+    sampler.setAttribute("type", sampler_type)
     sampler.appendChild(generate_integer(xml_doc, "sample_count", sample_count))
     return sampler
 
@@ -326,17 +327,14 @@ def generate_film(xml_doc: minidom.Document, width: int, height: int):
 
 def generate_camera(
     xml_doc: minidom.Document,
-    width: int,
-    height: int,
-    fov: float,
-    num_samples: int,
+    config: RenderConfig,
 ):
     """Generate camera setting"""
     sensor = xml_doc.createElement("sensor")
     sensor.setAttribute("type", "perspective")
     sensor.appendChild(generate_string(xml_doc, "fov_axis", "smaller"))
     # sensor.appendChild(generate_float(xml_doc, "focus_distance", "3.0"))
-    sensor.appendChild(generate_float(xml_doc, "fov", "28.8415"))
+    sensor.appendChild(generate_float(xml_doc, "fov", config.fov))
     sensor.appendChild(
         generate_transform_lookat(
             xml_doc,
@@ -346,8 +344,10 @@ def generate_camera(
             up=np.array([0, 1, 0]),
         )
     )
-    sensor.appendChild(generate_sampler(xml_doc, num_samples))
-    sensor.appendChild(generate_film(xml_doc, width, height))
+    sensor.appendChild(
+        generate_sampler(xml_doc, config.sampler_type, config.num_samples)
+    )
+    sensor.appendChild(generate_film(xml_doc, config.width, config.height))
     return sensor
 
 
@@ -402,6 +402,6 @@ def generate_integrator(xml_doc: minidom.Document, integrator_type):
     """Generate xml element <integrator></integrator>"""
     integrator = xml_doc.createElement("integrator")
     integrator.setAttribute("type", integrator_type)
-    # integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "true"))
+    # integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "false"))
     # integrator.appendChild(generate_integer(xml_doc, "rr_depth", 100))
     return integrator

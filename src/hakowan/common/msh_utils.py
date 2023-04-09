@@ -1,6 +1,5 @@
 """ MSH format utility functions"""
 
-import mshio
 import numpy as np
 
 

@@ -15,6 +15,7 @@ class RenderConfig:
     height: int = 1800
     fov: float = 28.8415
     num_samples: int = 64
+    sampler_type: str = "independent"
     transform: npt.NDArray = field(default_factory=lambda: np.identity(4))
     dry_run = False
 

@@ -31,18 +31,12 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     scene_xml.appendChild(generate_integrator(xml_doc, "path"))
 
     scene_xml.appendChild(
-        generate_camera(
-            xml_doc,
-            config.width,
-            config.height,
-            config.fov,
-            config.num_samples,
-        )
+        generate_camera(xml_doc, config)
     )
     scene_xml.appendChild(generate_front_light(xml_doc))
     scene_xml.appendChild(generate_side_light(xml_doc))
     scene_xml.appendChild(generate_back_light(xml_doc))
-    scene_xml.appendChild(generate_fill_light(xml_doc))
+    #scene_xml.appendChild(generate_fill_light(xml_doc))
 
     # Compute global transform to [-1, 1]^3.
     bbox_min, bbox_max = scene.bbox
@@ -110,12 +104,12 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
                 global_transform,
             )
             # TODO: update to use vertex color
-            material = generate_bsdf_rough_plastic(
-                xml_doc, diffuse_reflectance=m.colors[0], nonlinear=True
-            )
+            #material = generate_bsdf_rough_plastic(
+            #    xml_doc, diffuse_reflectance=m.colors[0], nonlinear=True
+            #)
             # material = generate_bsdf_plastic(xml_doc,
             #        diffuse_reflectance=m.colors[0], int_ior=1.9, nonlinear=True)
-            # material = generate_bsdf_rough_conductor(xml_doc)
+            material = generate_bsdf_rough_conductor(xml_doc, "Au")
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 
