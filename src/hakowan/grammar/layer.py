@@ -1,61 +1,49 @@
 """ Layer module """
 
 from __future__ import annotations  # To allow type hint of the enclosing class.
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from textwrap import indent
 import numpy as np
 from .layer_data import LayerData, DataFrame, Mark, ChannelSetting, Transform
+from pathlib import Path
+import lagrange
 
 
 class Layer:
     """A layer represent a node in the visualization layer graph."""
 
-    def __init__(
-        self,
-        *,
-        data: Optional[DataFrame] = None,
-        channel_setting: Optional[dict[str, Any]] = None,
-        mark: Optional[Mark] = None,
-        transform: Optional[np.ndarray] = None,
-    ):
-        """Construct a `Layer` object.
-
-        Args:
-            data (DataFrame): The 3D data frame to use.
-            channel_setting (dict[str, Any]): A dict of channel settings.
-            mark (Mark): The type of visualization.
-        """
+    def __init__(self):
+        """Construct a `Layer` object."""
         self.layer_data = LayerData()
         self.children: list[Layer] = []
 
-        if data is not None:
-            self.layer_data.data = data
-
-        if channel_setting is not None:
-            self.layer_data.channel_setting = ChannelSetting(**channel_setting)
-
-        if mark is not None:
-            self.layer_data.mark = mark
-
-        if transform is not None:
-            self.layer_data.transform = Transform(transform)
-
-    def data(self, data_frame: DataFrame) -> Layer:
+    def data(self, data_frame: Union[Path, str, lagrange.SurfaceMesh]) -> Layer:
         """Specify data sources."""
 
-        parent = Layer(data=data_frame)
+        if isinstance(data_frame, str):
+            data_frame = Path(data_frame)
+        if isinstance(data_frame, Path):
+            assert data_frame.exists(), f"File {data_frame} does not exist."
+            data_frame = lagrange.io.load_mesh(data_frame)
+
+        data_frame = DataFrame(mesh=data_frame)
+        data_frame.finalize()
+        parent = Layer()
+        parent.layer_data.data = data_frame
         parent.children.append(self)
         return parent
 
     def channel(self, **kwargs) -> Layer:
         """Specify visualization channels."""
-        parent = Layer(channel_setting=kwargs)
+        parent = Layer()
+        parent.layer_data.channel_setting = ChannelSetting(**kwargs)
         parent.children.append(self)
         return parent
 
     def mark(self, value: Mark) -> Layer:
         """Specify marks."""
-        parent = Layer(mark=value)
+        parent = Layer()
+        parent.layer_data.mark = value
         parent.children.append(self)
         return parent
 

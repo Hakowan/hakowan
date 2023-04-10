@@ -1,5 +1,6 @@
 """ Utility functions to generate scenes. """
 import numpy as np
+from numpy.linalg import norm
 import numpy.typing as npt
 import numbers
 
@@ -19,73 +20,92 @@ from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
 
 
-def extract_position_channel(layer_data: LayerData) -> tuple[npt.NDArray, npt.NDArray]:
+def extract_position_channel(layer_data: LayerData) -> npt.NDArray:
     """Extract position channel from layer data.
 
     Args:
         layer_data (LayerData): Input layer data.
 
     Returns:
-        (np.ndarray, np.ndarray): The position encoded as nodes and elements.
+        The positions.
     """
     assert layer_data.data is not None
 
-    data = layer_data.data
-
-    position_name = layer_data.channel_setting.position
-    if position_name is None:
-        position_name = DEFAULT_POSITION
-    position_attr = data.attributes.get(position_name, None)
-
-    assert position_attr is not None
-    assert position_attr.values is not None
-    assert position_attr.indices is not None
-
-    nodes = position_attr.values
-    elements = position_attr.indices
+    nodes = layer_data.data.vertices
 
     if layer_data.channel_setting.position_map is not None:
         position_map = layer_data.channel_setting.position_map
         assert callable(position_map)
         nodes = np.array([position_map(p) for p in nodes])
 
-    return nodes, elements
+    return nodes
 
 
-def extract_color_channel(
-    layer_data: LayerData, shape: tuple[int, ...], default_color: str
-) -> tuple[npt.NDArray, npt.NDArray]:
+def extract_index_channel(layer_data: LayerData) -> npt.NDArray:
+    """Extract index channel from layer data.
+
+    Args:
+        layer_data (LayerData): Input layer data.
+
+    Returns:
+        The indices.
+    """
+    assert layer_data.data is not None
+    return layer_data.data.facets
+
+
+def extract_normal_channel(layer_data: LayerData) -> npt.NDArray:
+    """Extract normal channel from layer data.
+
+    Args:
+        layer_data (LayerData): Input layer data.
+
+    Returns:
+        The normals.
+    """
+    assert layer_data.data is not None
+
+    normals = layer_data.data.normals
+
+    if layer_data.channel_setting.normal_map is not None:
+        normal_map = layer_data.channel_setting.normal_map
+        assert callable(normal_map)
+        normals = np.array([normal_map(n) for n in normals])
+
+    return normals
+
+
+def extract_color_channel(layer_data: LayerData, default_color: str) -> npt.NDArray:
     """Extract color channel from layer data.
 
     Args:
         layer_data (LayerData): Input layer data.
-        shape (tuple[int, int]): The element array shape.
 
     Returns:
-        (np.ndarray, np.ndarray): The encoded color and color indices.
+        np.ndarray: The encoded color.
     """
 
     assert layer_data.data is not None
-
     data = layer_data.data
+    num_entries = data.mesh.num_vertices
 
     attr_name = layer_data.channel_setting.color
     if attr_name is None:
         # Use default color.
         c = css_colors[default_color]
-        color_values = np.array([[c[0], c[1], c[2]]])
-        return color_values, np.zeros(shape, dtype=int)
+        return np.repeat([c], num_entries, axis=0)
     if attr_name.startswith("#"):
         # Color hex value.
         c = Color.from_hex(attr_name)
-        color_values = np.array([[c[0], c[1], c[2]]])
-        return color_values, np.zeros(shape, dtype=int)
+        return np.repeat([c], num_entries, axis=0)
     if attr_name in css_colors:
         # Color name.
         c = css_colors[attr_name]
-        color_values = np.array([[c[0], c[1], c[2]]])
-        return color_values, np.zeros(shape, dtype=int)
-    if attr_name in data.attributes:
+        return np.repeat([c], num_entries, axis=0)
+    if isinstance(attr_name, str):
+        mesh = layer_data.data.mesh
+        assert mesh.has_attribute(attr_name)
+
         # Convert attribute to color using color map
         colormap = layer_data.channel_setting.color_map
         if colormap is None:
@@ -96,57 +116,65 @@ def extract_color_channel(
                 raise InvalidSetting(f"Unknown colormap: {colormap}")
             colormap = named_colormaps[colormap]
 
-        attr = data.attributes[attr_name]
-        assert attr.values is not None
-        assert attr.indices is not None
-        color_values = np.array([colormap(v).data for v in attr.values])
-        color_indices = attr.indices
-        return color_values, color_indices
+        attr = mesh.attribute(attr_name).data
+        assert len(attr) == num_entries
+
+        # Normalize attribute values.
+        if attr.ndim == 2:
+            attr = norm(attr, axis=1)
+        if (attr.max() - attr.min()) > 0:
+            attr = (attr - attr.min()) / (attr.max() - attr.min())
+        else:
+            # All values are the same.
+            attr = np.zeros_like(attr)
+
+        return np.array([colormap(v).data for v in attr.values])
 
     raise InvalidSetting(f"Unable to interpret 'color' setting: {attr_name}")
 
 
-def extract_size_channel(
-    layer_data: LayerData, shape: tuple[int, ...]
-) -> tuple[npt.NDArray, npt.NDArray]:
+def extract_size_channel(layer_data: LayerData) -> npt.NDArray:
     """Extract color channel from layer data.
 
     Args:
         layer_data (LayerData): Input layer data.
 
     Returns:
-        (np.ndarray, np.ndarray): The encoded size and indices.
+        np.ndarray: The encoded size.
     """
     assert layer_data.data is not None
 
     data = layer_data.data
+    num_entries = data.mesh.num_vertices
 
     attr_name = layer_data.channel_setting.size
     if attr_name is None:
         # Default size.
-        sizes = np.array([DEFAULT_SIZE])
-        return sizes, np.zeros(shape, dtype=int)
+        return np.repeat([DEFAULT_SIZE], num_entries, axis=0)
     if isinstance(attr_name, numbers.Number):
         # Constant size.
-        sizes = np.array([attr_name])
-        return sizes, np.zeros(shape, dtype=int)
-    if isinstance(attr_name, str) and attr_name in data.attributes:
+        return np.repeat([attr_name], num_entries, axis=0)
+    if isinstance(attr_name, str):
         # Convert attribute to size field.
+        mesh = layer_data.data.mesh
+        assert mesh.has_attribute(attr_name)
+
+        size_data = mesh.attribute(attr_name).data
+        if size_data.ndim == 2:
+            size_data = norm(size_data, axis=1)
+
         size_map = layer_data.channel_setting.size_map
-        if size_map is None:
-            size_map = lambda x: x
-        elif size_map == "identity":
-            size_map = lambda x: x
+        if size_map is None or size_map == "identity":
+            return size_data
         elif size_map == "normalized":
-            raise NotImplementedError("Not supported yet")
-        elif not callable(size_map):
-            raise InvalidSetting("Unsupported size_map!")
-        attr = data.attributes[attr_name]
-        assert attr.values is not None
-        assert attr.indices is not None
-        size_values = np.array([size_map(v) for v in attr.values])
-        size_indices = attr.indices
-        return size_values, size_indices
+            if (size_data.max() - size_data.min()) > 0:
+                return (size_data - size_data.min()) / (
+                    size_data.max() - size_data.min()
+                )
+            else:
+                return np.zeros_like(size_data)
+        elif callable(size_map):
+            return np.array([size_map(v) for v in size_data])
 
     raise InvalidSetting(f"Unable to interpret 'size' setting: {attr_name}")
 
@@ -159,54 +187,19 @@ def update_points(layer_data: LayerData, scene: Scene):
         scene (Scene): The output scene object.
     """
 
-    nodes, _ = extract_position_channel(layer_data)
+    nodes = extract_position_channel(layer_data)
     assert nodes.shape[1] == 3
+    colors = extract_color_channel(layer_data, DEFAULT_POINT_COLOR)
+    sizes = extract_size_channel(layer_data)
     num_nodes = len(nodes)
-    color_values, color_indices = extract_color_channel(
-        layer_data, (num_nodes, 1), DEFAULT_POINT_COLOR
-    )
-    size_values, size_indices = extract_size_channel(layer_data, (num_nodes, 1))
+    assert num_nodes == len(colors)
+    assert num_nodes == len(sizes)
 
-    assert color_indices.size == num_nodes
-    color_indices = color_indices.ravel()
-    assert size_indices.size == num_nodes
-    size_indices = size_indices.ravel()
-
-    for i in range(num_nodes):
-        p = Point(
-            center=nodes[i],
-            radius=size_values[size_indices[i]],
-            color=color_values[color_indices[i]],
-        )
-        scene.points.append(p)
-
-
-def update_segments(layer_data: LayerData, scene: Scene):
-    """Update segments based on `layer_data`.
-
-    Args:
-        layer_data (LayerData): The input layer data.
-        scene (Scene): The output scene object.
-    """
-    nodes, elements = extract_position_channel(layer_data)
-    assert nodes.shape[1] == 3
-    assert elements.shape[1] == 2
-
-    num_elements = len(elements)
-    color_values, color_indices = extract_color_channel(
-        layer_data, elements.shape, DEFAULT_CURVE_COLOR
-    )
-    size_values, size_indices = extract_size_channel(layer_data, elements.shape)
-    assert color_indices.shape == elements.shape
-    assert size_indices.shape == elements.shape
-
-    for i in range(num_elements):
-        ei = elements[i]
-        si = size_indices[i]
-        ci = color_indices[i]
-
-        s = Segment(vertices=nodes[ei], radii=size_values[si], colors=color_values[ci])
-        scene.segments.append(s)
+    for p, r, c in zip(nodes, sizes, colors):
+        point = Point(center=p, radius=r, color=c)
+        if layer_data.channel_setting.material is not None:
+            point.material = layer_data.channel_setting.material
+        scene.points.append(point)
 
 
 def update_surfaces(layer_data: LayerData, scene: Scene):
@@ -217,33 +210,23 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
         scene (Scene): The output scene object.
     """
 
-    nodes, elements = extract_position_channel(layer_data)
+    nodes = extract_position_channel(layer_data)
+    elements = extract_index_channel(layer_data)
     if len(elements) == 0:
         return
 
     assert nodes.shape[1] == 3
     assert elements.shape[1] == 3
 
-    color_values, color_indices = extract_color_channel(
-        layer_data, elements.shape, DEFAULT_COLOR
+    colors = extract_color_channel(layer_data, DEFAULT_COLOR)
+    normals = extract_normal_channel(layer_data)
+    # TODO: uvs
+
+    surface = Surface(
+        vertices=nodes, triangles=elements, colors=colors, normals=normals
     )
-    # TODO: normals, uvs
-
-    # TODO: need unify index buffer capability.
-    num_elements = len(elements)
-    vertices = np.zeros((num_elements * 3, 3))
-    colors = np.zeros((num_elements * 3, 3))
-    triangles = np.arange(num_elements * 3).reshape((num_elements, 3))
-    for i in range(num_elements):
-        vertices[i * 3] = nodes[elements[i, 0]]
-        vertices[i * 3 + 1] = nodes[elements[i, 1]]
-        vertices[i * 3 + 2] = nodes[elements[i, 2]]
-
-        colors[i * 3] = color_values[color_indices[i, 0]]
-        colors[i * 3 + 1] = color_values[color_indices[i, 1]]
-        colors[i * 3 + 2] = color_values[color_indices[i, 2]]
-
-    surface = Surface(vertices=vertices, triangles=triangles, colors=colors)
+    if layer_data.channel_setting.material is not None:
+        surface.material = layer_data.channel_setting.material
     scene.surfaces.append(surface)
 
 
@@ -260,7 +243,7 @@ def update_scene(layer_data: LayerData, scene: Scene):
     if layer_data.mark == Mark.POINT:
         update_points(layer_data, scene)
     elif layer_data.mark == Mark.CURVE:
-        update_segments(layer_data, scene)
+        raise NotImplementedError("Curve mark is not yet supported!")
     elif layer_data.mark == Mark.SURFACE:
         update_surfaces(layer_data, scene)
     else:

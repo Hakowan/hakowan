@@ -154,7 +154,7 @@ def generate_rgb(
     rgb_xml = xml_doc.createElement("rgb")
     rgb_xml.setAttribute("name", name)
     if isinstance(color, float):
-        rgb_xml.setAttribute("value", color)
+        rgb_xml.setAttribute("value", str(color))
     else:
         rgb_xml.setAttribute("value", ",".join([str(v) for v in color]))
     return rgb_xml

@@ -5,13 +5,10 @@ from dataclasses import dataclass, fields, field
 from enum import Enum
 from typing import Callable, Union, Optional
 import numpy as np
+import lagrange
+from pathlib import Path
 
 from ..common.color import Color
-from ..common.default import (
-    DEFAULT_POSITION,
-    DEFAULT_UV,
-    DEFAULT_NORMAL,
-)
 
 
 class Mark(Enum):
@@ -85,12 +82,12 @@ class ChannelSetting:
 class DataFrame:
     """3D geometry data frame."""
 
-    attributes: dict[str, Attribute] = field(default_factory=dict)
+    mesh: lagrange.SurfaceMesh = field(default_factory=lagrange.SurfaceMesh)
 
     def __or__(self, other: DataFrame) -> DataFrame:
         """Merge two data frames.
 
-        If a field is defined by both, use the one from `other`.
+        Policy: other's mesh will overwrite self's mesh.
 
         Args:
             other (DataFrame): The other data frame.
@@ -98,39 +95,40 @@ class DataFrame:
         Returns:
             DataFrame: The combined data frame.
         """
-        result = DataFrame()
-        result.attributes = self.attributes | other.attributes
+        result = DataFrame(mesh=other.mesh)
         return result
 
-    # The following are some of the common attributes with reserved attribute
-    # names.
+    def finalize(self):
+        if not self.mesh.is_triangle_mesh:
+            lagrange.triangulate_polygonal_facets(self.mesh)
+
+        normal_attr_ids = self.mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
+        if len(normal_attr_ids) == 0:
+            lagrange.compute_normal(self.mesh)
+
+        # This must be the last operation, so normal, uv, color and other attributes share the same
+        # index buffer.
+        self.mesh = lagrange.unify_index_buffer(self.mesh, [])
 
     @property
-    def geometry(self):
-        """Indexed vertex positions."""
-        return self.attributes.get(DEFAULT_POSITION, None)
-
-    @geometry.setter
-    def geometry(self, attr: Attribute):
-        self.attributes[DEFAULT_POSITION] = attr
+    def vertices(self):
+        return self.mesh.vertices
 
     @property
-    def uv(self):
-        """Indexed UV coordinates. (optional)"""
-        return self.attributes.get(DEFAULT_UV, None)
-
-    @uv.setter
-    def uv(self, attr: Attribute):
-        self.attributes[DEFAULT_UV] = attr
+    def facets(self):
+        return self.mesh.facets
 
     @property
-    def normal(self):
-        """Indexed normal attribute. (optional)"""
-        return self.attributes.get(DEFAULT_NORMAL, None)
-
-    @normal.setter
-    def normal(self, attr: Attribute):
-        self.attributes[DEFAULT_NORMAL] = attr
+    def normals(self):
+        normal_attr_ids = self.mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
+        if len(normal_attr_ids) == 0:
+            raise RuntimeError("Mesh does not have normal attribute.")
+        else:
+            return self.mesh.attribute(normal_attr_ids[0]).data
 
 
 @dataclass

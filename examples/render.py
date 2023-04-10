@@ -28,25 +28,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def mesh_to_dataframe(mesh):
-    if (not mesh.is_triangle_mesh):
-        lagrange.triangulate_polygonal_facets(mesh)
-    assert(mesh.is_triangle_mesh)
-
-    data = hakowan.grammar.layer_data.DataFrame()
-    vertices = mesh.vertices
-    faces = mesh.facets
-    data.geometry = hakowan.grammar.layer_data.Attribute(vertices, faces)
-    return data
-
-
 def main():
     args = parse_args()
 
-    mesh = lagrange.io.load_mesh(args.input_mesh)
-    data = mesh_to_dataframe(mesh)
-
-    base = hakowan.layer(data=data)
+    base = hakowan.layer().data(args.input_mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(color=args.color)
 
     transform = np.identity(4)
