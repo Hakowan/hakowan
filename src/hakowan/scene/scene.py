@@ -15,6 +15,7 @@ class Point:
     radius: float
     color: npt.NDArray
     material: str = "diffuse"
+    material_preset: str = "none"
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Segment:
     radii: npt.NDArray
     colors: npt.NDArray
     material: str = "diffuse"
+    material_preset: str = "none"
 
 
 @dataclass
@@ -37,6 +39,7 @@ class Surface:
     uvs: Optional[npt.NDArray] = None
     colors: Optional[npt.NDArray] = None
     material: str = "diffuse"
+    material_preset: str = "none"
 
 
 @dataclass

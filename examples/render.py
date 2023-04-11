@@ -22,9 +22,43 @@ def parse_args():
     )
     parser.add_argument("-H", "--height", help="Output image height", default=800)
     parser.add_argument("-W", "--width", help="Output image width", default=1024)
-    parser.add_argument("-s", "--num-samples", help="Number of samples",
-            default=64)
+    parser.add_argument("-s", "--num-samples", help="Number of samples", default=64)
     parser.add_argument("-c", "--color", help="Shape color", default="ivory")
+    parser.add_argument(
+        "-m",
+        "--material",
+        help="Material",
+        default="diffuse",
+        choices=[
+            "conductor",
+            "diffuse",
+            "plastic",
+            "roughconductor",
+            "roughplastic",
+        ],
+    )
+    parser.add_argument(
+        "-p",
+        "--material-preset",
+        help="Material preset",
+        default="Au",
+        choices=[
+            "Ag",
+            "Al",
+            "Au",
+            "Cr",
+            "CrI",
+            "Cu",
+            "Cu2O",
+            "CuO",
+            "Hg",
+            "Ir",
+            "Li",
+            "MgO",
+            "TiC",
+            "TiN",
+        ],
+    )
     return parser.parse_args()
 
 
@@ -32,7 +66,9 @@ def main():
     args = parse_args()
 
     base = hakowan.layer().data(args.input_mesh)
-    surface_view = base.mark(hakowan.SURFACE).channel(color=args.color)
+    surface_view = base.mark(hakowan.SURFACE).channel(
+        color=args.color, material=args.material, material_preset=args.material_preset
+    )
 
     transform = np.identity(4)
     transform[:3, :3] = Rotation.from_euler("xyz", args.euler, degrees=True).as_matrix()
@@ -42,6 +78,7 @@ def main():
     config.width = args.width
     config.height = args.height
     config.num_samples = args.num_samples
+    config.sampler_type = "multijitter"
 
     hakowan.render(surface_view, config)
 

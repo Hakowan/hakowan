@@ -3,6 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 import numpy.typing as npt
 import numbers
+from typing import Union
 
 from ..common.color import Color
 from ..common.named_colors import css_colors
@@ -75,14 +76,17 @@ def extract_normal_channel(layer_data: LayerData) -> npt.NDArray:
     return normals
 
 
-def extract_color_channel(layer_data: LayerData, default_color: str) -> npt.NDArray:
+def extract_color_channel(
+    layer_data: LayerData, default_color: str
+) -> Union[Color, npt.NDArray]:
     """Extract color channel from layer data.
 
     Args:
         layer_data (LayerData): Input layer data.
 
     Returns:
-        np.ndarray: The encoded color.
+        Color: If the encoded color is uniform.
+        np.ndarray: If the encoded color is changing.
     """
 
     assert layer_data.data is not None
@@ -93,15 +97,15 @@ def extract_color_channel(layer_data: LayerData, default_color: str) -> npt.NDAr
     if attr_name is None:
         # Use default color.
         c = css_colors[default_color]
-        return np.repeat([c], num_entries, axis=0)
+        return c
     if attr_name.startswith("#"):
         # Color hex value.
         c = Color.from_hex(attr_name)
-        return np.repeat([c], num_entries, axis=0)
+        return c
     if attr_name in css_colors:
         # Color name.
         c = css_colors[attr_name]
-        return np.repeat([c], num_entries, axis=0)
+        return c
     if isinstance(attr_name, str):
         mesh = layer_data.data.mesh
         assert mesh.has_attribute(attr_name)
@@ -192,13 +196,15 @@ def update_points(layer_data: LayerData, scene: Scene):
     colors = extract_color_channel(layer_data, DEFAULT_POINT_COLOR)
     sizes = extract_size_channel(layer_data)
     num_nodes = len(nodes)
-    assert num_nodes == len(colors)
-    assert num_nodes == len(sizes)
+    if colors.ndim == 1:
+        colors = np.repeat([colors], num_nodes, axis=0)
 
     for p, r, c in zip(nodes, sizes, colors):
         point = Point(center=p, radius=r, color=c)
         if layer_data.channel_setting.material is not None:
             point.material = layer_data.channel_setting.material
+        if layer_data.channel_setting.material_preset is not None:
+            point.material_preset = layer_data.channel_setting.material_preset
         scene.points.append(point)
 
 
@@ -227,6 +233,8 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
     )
     if layer_data.channel_setting.material is not None:
         surface.material = layer_data.channel_setting.material
+    if layer_data.channel_setting.material_preset is not None:
+        surface.material_preset = layer_data.channel_setting.material_preset
     scene.surfaces.append(surface)
 
 

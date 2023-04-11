@@ -205,12 +205,21 @@ def generate_bsdf_rough_plastic(
     return bsdf_xml
 
 
-def generate_bsdf_rough_conductor(xml_doc: minidom.Document, material: str = "Cu"):
+def generate_bsdf_rough_conductor(xml_doc: minidom.Document, material: str):
     """Generate bsdf for rough conductor."""
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "roughconductor")
     bsdf_xml.appendChild(generate_string(xml_doc, "material", material))
     bsdf_xml.appendChild(generate_string(xml_doc, "distribution", "ggx"))
+    bsdf_xml.appendChild(generate_float(xml_doc, "alpha", 0.25))
+
+    return bsdf_xml
+
+def generate_bsdf_conductor(xml_doc: minidom.Document, material: str):
+    """Generate bsdf for conductor."""
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "conductor")
+    bsdf_xml.appendChild(generate_string(xml_doc, "material", material))
 
     return bsdf_xml
 
@@ -379,8 +388,8 @@ def generate_side_light(xml_doc: minidom.Document):
 def generate_back_light(xml_doc: minidom.Document):
     """Generate back light."""
     emitter = generate_emitter(xml_doc, "point")
-    emitter.appendChild(generate_tag(xml_doc, "spectrum", "intensity", 10))
-    emitter.appendChild(generate_point(xml_doc, "position", [0, 0, -6]))
+    emitter.appendChild(generate_tag(xml_doc, "spectrum", "intensity", 15))
+    emitter.appendChild(generate_point(xml_doc, "position", [-1, -1, -6]))
     return emitter
 
 
@@ -402,6 +411,7 @@ def generate_integrator(xml_doc: minidom.Document, integrator_type):
     """Generate xml element <integrator></integrator>"""
     integrator = xml_doc.createElement("integrator")
     integrator.setAttribute("type", integrator_type)
-    # integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", "false"))
-    # integrator.appendChild(generate_integer(xml_doc, "rr_depth", 100))
+    integrator.appendChild(generate_boolean(xml_doc, "hide_emitters", True))
+    # integrator.appendChild(generate_integer(xml_doc, "rr_depth", 3))
+    # integrator.appendChild(generate_integer(xml_doc, "max_depth", 20))
     return integrator

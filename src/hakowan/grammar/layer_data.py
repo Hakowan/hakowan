@@ -54,6 +54,7 @@ class ChannelSetting:
 
     # Material
     material: Optional[str] = None
+    material_preset: Optional[str] = None
 
     def __or__(self, other: ChannelSetting) -> ChannelSetting:
         """Merge settings defined in `self` and `other`.
