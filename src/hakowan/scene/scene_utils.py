@@ -196,7 +196,7 @@ def update_points(layer_data: LayerData, scene: Scene):
     colors = extract_color_channel(layer_data, DEFAULT_POINT_COLOR)
     sizes = extract_size_channel(layer_data)
     num_nodes = len(nodes)
-    if colors.ndim == 1:
+    if isinstance(colors, Color):
         colors = np.repeat([colors], num_nodes, axis=0)
 
     for p, r, c in zip(nodes, sizes, colors):

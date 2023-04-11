@@ -1,11 +1,12 @@
 """Scene module"""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 import math
 import numpy as np
 import numpy.typing as npt
 
+from ..common.color import Color
 
 @dataclass
 class Point:
@@ -37,7 +38,7 @@ class Surface:
     triangles: npt.NDArray
     normals: Optional[npt.NDArray] = None
     uvs: Optional[npt.NDArray] = None
-    colors: Optional[npt.NDArray] = None
+    colors: Union[Color, npt.NDArray, None] = None
     material: str = "diffuse"
     material_preset: str = "none"
 

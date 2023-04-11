@@ -26,6 +26,22 @@ from ..scene.scene import Scene
 from ..common.color import Color
 
 
+def generate_material(xml_doc, material, color, material_preset):
+    """ Generate material specific xml node. """
+    if material == "plastic":
+        return generate_bsdf_plastic(xml_doc, diffuse_reflectance=color)
+    elif material == "roughplastic":
+        return generate_bsdf_rough_plastic(xml_doc, diffuse_reflectance=color)
+    elif material == "conductor":
+        return generate_bsdf_conductor(xml_doc, material=material_preset)
+    elif material == "roughconductor":
+        return generate_bsdf_rough_conductor(xml_doc, material=material_preset)
+    elif material == "diffuse":
+        return generate_bsdf_diffuse(xml_doc, relectance=color)
+    else:
+        raise ValueError(f"Unknown material {material}")
+
+
 def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     """Convert layer tree into mitsuba xml input."""
     xml_doc = minidom.Document()
@@ -53,8 +69,9 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
 
     # Gather points.
     for p in scene.points:
+        color = p.color.data[:3]
         sphere = generate_sphere(xml_doc, p.center, p.radius, global_transform)
-        material = generate_bsdf_plastic(xml_doc, p.color)
+        material = generate_material(xml_doc, p.material, color, p.material_preset)
         sphere.appendChild(material)
         scene_xml.appendChild(sphere)
 
@@ -91,18 +108,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
                 None,
                 global_transform,
             )
-            if m.material == "plastic":
-                material = generate_bsdf_plastic(xml_doc, diffuse_reflectance=color, nonlinear=True)
-            elif m.material == "roughplastic":
-                material = generate_bsdf_rough_plastic(
-                    xml_doc, diffuse_reflectance=color
-                )
-            elif m.material == "conductor":
-                material = generate_bsdf_conductor(xml_doc, m.material_preset)
-            elif m.material == "roughconductor":
-                material = generate_bsdf_rough_conductor(xml_doc, m.material_preset)
-            else:
-                material = generate_bsdf_diffuse(xml_doc, reflectance=color)
+            material = generate_material(xml_doc, m.material, color, m.material_preset)
         else:
             mesh = generate_mesh(
                 xml_doc,
