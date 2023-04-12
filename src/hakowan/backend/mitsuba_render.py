@@ -119,13 +119,14 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
                 m.colors,
                 global_transform,
             )
+            material = generate_bsdf_diffuse(xml_doc, "vertex_color")
             # TODO: update to use vertex color
             # material = generate_bsdf_rough_plastic(
             #    xml_doc, diffuse_reflectance=m.colors[0], nonlinear=True
             # )
             # material = generate_bsdf_plastic(xml_doc,
             #        diffuse_reflectance=m.colors[0], int_ior=1.9, nonlinear=True)
-            material = generate_bsdf_rough_conductor(xml_doc, "Au")
+            #material = generate_bsdf_rough_conductor(xml_doc, "Au")
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 

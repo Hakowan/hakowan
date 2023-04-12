@@ -1,5 +1,8 @@
 import struct
 import zlib
+import numpy as np
+
+import lagrange
 
 
 def serialize_mesh(vertices, faces, normals=None, colors=None, uvs=None):
@@ -52,3 +55,38 @@ def serialize_mesh(vertices, faces, normals=None, colors=None, uvs=None):
 
     data = header + mesh_data + footer
     return data
+
+
+def serialize_mesh_ply(vertices, faces, normals=None, colors=None, uvs=None):
+    mesh = lagrange.SurfaceMesh()
+    mesh.vertices = vertices
+    mesh.facets = faces
+
+    if normals is not None:
+        mesh.create_attribute(
+            "vertex_normal",
+            lagrange.AttributeElement.Vertex,
+            lagrange.AttributeUsage.Normal,
+            normals,
+            np.array([], dtype=np.intc),
+        )
+
+    if colors is not None:
+        mesh.create_attribute(
+            "vertex_color",
+            lagrange.AttributeElement.Vertex,
+            lagrange.AttributeUsage.Color,
+            colors[:, :3].copy(),
+            np.array([], dtype=np.intc),
+        )
+
+    if uvs is not None:
+        mesh.create_attribute(
+            "vertex_uv",
+            lagrange.AttributeElement.Vertex,
+            lagrange.AttributeUsage.UV,
+            colors,
+            np.array([], dtype=np.intc),
+        )
+
+    return lagrange.io.serialize_mesh(mesh, "ply")

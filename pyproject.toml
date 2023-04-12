@@ -13,7 +13,7 @@ dependencies=[
     "mitsuba",
     "numpy>=1.21",
     "scipy>=1.8.0",
-    "lagrange-open",
+    "lagrange@git+ssh://git@git.corp.adobe.com/lagrange/lagrange-lib.git@qnzhou/python",
     ]
 
 [mypy]

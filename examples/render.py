@@ -66,18 +66,25 @@ def main():
     args = parse_args()
 
     mesh = lagrange.io.load_mesh(args.input_mesh)
-    max_side = np.amax(np.amax(mesh.vertices, axis=0) - np.amin(mesh.vertices, axis=0))
+    vertices = mesh.vertices
+    max_side = np.amax(np.amax(vertices, axis=0) - np.amin(vertices, axis=0))
+    mesh.create_attribute(
+        "x",
+        lagrange.AttributeElement.Vertex,
+        lagrange.AttributeUsage.Scalar,
+    )
+    mesh.attribute("x").data = vertices[:,0].copy()
 
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
-        color=args.color, material=args.material, material_preset=args.material_preset
+        color="x", material=args.material, material_preset=args.material_preset
     )
-    point_view = base.mark(hakowan.POINT).channel(
-        color="red",
-        material="roughconductor",
-        material_preset="Cr",
-        size=0.01 * max_side,
-    )
+    #point_view = base.mark(hakowan.POINT).channel(
+    #    color="red",
+    #    material="roughconductor",
+    #    material_preset="Cr",
+    #    size=0.01 * max_side,
+    #)
 
     transform = np.identity(4)
     transform[:3, :3] = Rotation.from_euler("xyz", args.euler, degrees=True).as_matrix()
@@ -89,7 +96,7 @@ def main():
     config.num_samples = args.num_samples
     config.sampler_type = "multijitter"
 
-    hakowan.render(surface_view + point_view, config)
+    hakowan.render(surface_view, config)
 
 
 if __name__ == "__main__":

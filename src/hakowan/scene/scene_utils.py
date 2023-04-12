@@ -128,11 +128,8 @@ def extract_color_channel(
             attr = norm(attr, axis=1)
         if (attr.max() - attr.min()) > 0:
             attr = (attr - attr.min()) / (attr.max() - attr.min())
-        else:
-            # All values are the same.
-            attr = np.zeros_like(attr)
 
-        return np.array([colormap(v).data for v in attr.values])
+        return np.array([colormap(v).data for v in attr])
 
     raise InvalidSetting(f"Unable to interpret 'color' setting: {attr_name}")
 
