@@ -13,7 +13,7 @@ from typing import Union
 
 from ..common.exception import InvalidSetting
 from ..scene.scene import Scene
-from .serialization import serialize_mesh, serialize_mesh_ply
+from .serialization import serialize_mesh_ply
 from .render_config import RenderConfig
 
 
@@ -292,32 +292,6 @@ def generate_cylinder(
     shape_xml.appendChild(generate_cylinder_transform(xml_doc, p0, p1))
     return shape_xml
 
-
-#def generate_mesh(
-#    xml_doc: minidom.Document,
-#    vertices: npt.NDArray,
-#    faces: npt.NDArray,
-#    normals: Union[npt.NDArray, None] = None,
-#    uvs: Union[npt.NDArray, None] = None,
-#    colors: Union[npt.NDArray, None] = None,
-#    transform: Union[npt.NDArray, None] = None,
-#):
-#    """Generate xml element <shape type="serialized"></shape>"""
-#    data = serialize_mesh(vertices, faces, normals, colors, uvs)
-#    timestamp = datetime.datetime.now().isoformat()
-#    tmp_file = Path(tempfile.gettempdir()) / f"{timestamp}.scene"
-#    with open(tmp_file, "wb") as fout:
-#        fout.write(data)
-#
-#    shape_xml = xml_doc.createElement("shape")
-#    shape_xml.setAttribute("type", "serialized")
-#    shape_xml.appendChild(generate_string(xml_doc, "filename", str(tmp_file)))
-#    shape_xml.appendChild(generate_boolean(xml_doc, "face_normals", False))
-#
-#    if transform is not None:
-#        shape_xml.appendChild(generate_transform(xml_doc, "to_world", transform))
-#
-#    return shape_xml
 
 def generate_mesh(
     xml_doc: minidom.Document,

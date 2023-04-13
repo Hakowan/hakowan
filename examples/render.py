@@ -68,23 +68,32 @@ def main():
     mesh = lagrange.io.load_mesh(args.input_mesh)
     vertices = mesh.vertices
     max_side = np.amax(np.amax(vertices, axis=0) - np.amin(vertices, axis=0))
-    mesh.create_attribute(
-        "x",
-        lagrange.AttributeElement.Vertex,
-        lagrange.AttributeUsage.Scalar,
-    )
-    mesh.attribute("x").data = vertices[:,0].copy()
+    # mesh.create_attribute(
+    #    name="test",
+    #    element=lagrange.AttributeElement.Vertex,
+    #    usage=lagrange.AttributeUsage.Scalar,
+    #    num_channels=1,
+    #    dtype=vertices.dtype.type,
+    # )
+    # mesh.attribute("x").data = vertices[:, 0].copy()
+
+    id = lagrange.compute_facet_normal(mesh)
+    name = mesh.get_attribute_name(id)
+    abs_map = lambda x: np.absolute(x)
 
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
-        color="x", material=args.material, material_preset=args.material_preset
+        color=args.color,
+        #color_map=abs_map,
+        material=args.material,
+        material_preset=args.material_preset,
     )
-    #point_view = base.mark(hakowan.POINT).channel(
+    # point_view = base.mark(hakowan.POINT).channel(
     #    color="red",
     #    material="roughconductor",
     #    material_preset="Cr",
     #    size=0.01 * max_side,
-    #)
+    # )
 
     transform = np.identity(4)
     transform[:3, :3] = Rotation.from_euler("xyz", args.euler, degrees=True).as_matrix()

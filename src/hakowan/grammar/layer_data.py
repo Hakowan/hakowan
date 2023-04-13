@@ -104,6 +104,7 @@ class DataFrame:
             lagrange.triangulate_polygonal_facets(self.mesh)
 
         normal_attr_ids = self.mesh.get_matching_attribute_ids(
+            element=lagrange.AttributeElement.Indexed,
             usage=lagrange.AttributeUsage.Normal
         )
         if len(normal_attr_ids) == 0:
@@ -124,6 +125,7 @@ class DataFrame:
     @property
     def normals(self):
         normal_attr_ids = self.mesh.get_matching_attribute_ids(
+            element=lagrange.AttributeElement.Vertex,
             usage=lagrange.AttributeUsage.Normal
         )
         if len(normal_attr_ids) == 0:

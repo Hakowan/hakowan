@@ -91,7 +91,6 @@ def extract_color_channel(
 
     assert layer_data.data is not None
     data = layer_data.data
-    num_entries = data.mesh.num_vertices
 
     attr_name = layer_data.channel_setting.color
     if attr_name is None:
@@ -112,22 +111,24 @@ def extract_color_channel(
 
         # Convert attribute to color using color map
         colormap = layer_data.channel_setting.color_map
-        if colormap is None:
-            colormap = "viridis"
+
+        attr = mesh.attribute(attr_name).data
+        num_entries = data.mesh.num_vertices
+        assert len(attr) == data.mesh.num_vertices or len(attr) == data.mesh.num_facets
+
         if not callable(colormap):
+            if colormap is None:
+                colormap = "viridis"
             assert isinstance(colormap, str)
             if colormap not in named_colormaps:
                 raise InvalidSetting(f"Unknown colormap: {colormap}")
             colormap = named_colormaps[colormap]
 
-        attr = mesh.attribute(attr_name).data
-        assert len(attr) == num_entries
-
-        # Normalize attribute values.
-        if attr.ndim == 2:
-            attr = norm(attr, axis=1)
-        if (attr.max() - attr.min()) > 0:
-            attr = (attr - attr.min()) / (attr.max() - attr.min())
+            # Normalize attribute values.
+            if attr.ndim == 2:
+                attr = norm(attr, axis=1)
+            if (attr.max() - attr.min()) > 0:
+                attr = (attr - attr.min()) / (attr.max() - attr.min())
 
         return np.array([colormap(v).data for v in attr])
 

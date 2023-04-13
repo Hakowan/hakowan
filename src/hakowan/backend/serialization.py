@@ -72,13 +72,20 @@ def serialize_mesh_ply(vertices, faces, normals=None, colors=None, uvs=None):
         )
 
     if colors is not None:
-        mesh.create_attribute(
-            "vertex_color",
-            lagrange.AttributeElement.Vertex,
-            lagrange.AttributeUsage.Color,
-            colors[:, :3].copy(),
-            np.array([], dtype=np.intc),
-        )
+        if len(colors) == len(vertices):
+            mesh.create_attribute(
+                "vertex_color",
+                lagrange.AttributeElement.Vertex,
+                lagrange.AttributeUsage.Color,
+                colors[:, :3].copy(),
+            )
+        elif len(colors) == len(faces):
+            mesh.create_attribute(
+                "facet_color",
+                lagrange.AttributeElement.Facet,
+                lagrange.AttributeUsage.Color,
+                colors[:, :3].copy(),
+            )
 
     if uvs is not None:
         mesh.create_attribute(

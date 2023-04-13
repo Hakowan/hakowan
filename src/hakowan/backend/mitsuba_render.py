@@ -37,7 +37,7 @@ def generate_material(xml_doc, material, color, material_preset):
     elif material == "roughconductor":
         return generate_bsdf_rough_conductor(xml_doc, material=material_preset)
     elif material == "diffuse":
-        return generate_bsdf_diffuse(xml_doc, relectance=color)
+        return generate_bsdf_diffuse(xml_doc, reflectance=color)
     else:
         raise ValueError(f"Unknown material {material}")
 
@@ -119,14 +119,13 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
                 m.colors,
                 global_transform,
             )
-            material = generate_bsdf_diffuse(xml_doc, "vertex_color")
-            # TODO: update to use vertex color
-            # material = generate_bsdf_rough_plastic(
-            #    xml_doc, diffuse_reflectance=m.colors[0], nonlinear=True
-            # )
-            # material = generate_bsdf_plastic(xml_doc,
-            #        diffuse_reflectance=m.colors[0], int_ior=1.9, nonlinear=True)
-            #material = generate_bsdf_rough_conductor(xml_doc, "Au")
+            if len(m.colors) == len(m.vertices):
+                material = generate_bsdf_diffuse(xml_doc, "vertex_color")
+            elif len(m.colors) == len(m.triangles):
+                material = generate_bsdf_diffuse(xml_doc, "face_color")
+            else:
+                # Invalid color setting.
+                material = generate_bsdf_rough_plastic(xml_doc)
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 
