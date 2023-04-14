@@ -110,6 +110,9 @@ class DataFrame:
         if len(normal_attr_ids) == 0:
             lagrange.compute_normal(self.mesh)
 
+        # Clear edges to avoid warning.
+        self.mesh.clear_edges()
+
         # This must be the last operation, so normal, uv, color and other attributes share the same
         # index buffer.
         self.mesh = lagrange.unify_index_buffer(self.mesh, [])

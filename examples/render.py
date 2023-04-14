@@ -35,6 +35,8 @@ def parse_args():
             "plastic",
             "roughconductor",
             "roughplastic",
+            "dielectric",
+            "principled",
         ],
     )
     parser.add_argument(
@@ -43,20 +45,21 @@ def parse_args():
         help="Material preset",
         default="Au",
         choices=[
+            "a-C",
             "Ag",
             "Al",
             "Au",
             "Cr",
-            "CrI",
             "Cu",
             "Cu2O",
             "CuO",
+            "K",
             "Hg",
             "Ir",
             "Li",
-            "MgO",
             "TiC",
             "TiN",
+            "W",
         ],
     )
     return parser.parse_args()
@@ -77,23 +80,30 @@ def main():
     # )
     # mesh.attribute("x").data = vertices[:, 0].copy()
 
-    id = lagrange.compute_facet_normal(mesh)
-    name = mesh.get_attribute_name(id)
-    abs_map = lambda x: np.absolute(x)
+    # id = lagrange.compute_facet_normal(mesh)
+    # name = mesh.get_attribute_name(id)
+    # abs_map = lambda x: np.absolute(x)
+
+    id = mesh.create_attribute(
+        "index",
+        element=lagrange.AttributeElement.Facet,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.arange(mesh.num_facets),
+    )
 
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
         color=args.color,
-        #color_map=abs_map,
+        # color_map=abs_map,
         material=args.material,
         material_preset=args.material_preset,
     )
-    # point_view = base.mark(hakowan.POINT).channel(
-    #    color="red",
-    #    material="roughconductor",
-    #    material_preset="Cr",
-    #    size=0.01 * max_side,
-    # )
+    point_view = base.mark(hakowan.POINT).channel(
+        color="red",
+        material="roughconductor",
+        material_preset="Cr",
+        size=0.01 * max_side,
+    )
 
     transform = np.identity(4)
     transform[:3, :3] = Rotation.from_euler("xyz", args.euler, degrees=True).as_matrix()

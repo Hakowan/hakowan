@@ -7,8 +7,10 @@ import mitsuba as mi
 from .mitsuba_utils import (
     generate_back_light,
     generate_bsdf_conductor,
+    generate_bsdf_dielectric,
     generate_bsdf_diffuse,
     generate_bsdf_plastic,
+    generate_bsdf_principled,
     generate_bsdf_rough_conductor,
     generate_bsdf_rough_plastic,
     generate_camera,
@@ -27,7 +29,7 @@ from ..common.color import Color
 
 
 def generate_material(xml_doc, material, color, material_preset):
-    """ Generate material specific xml node. """
+    """Generate material specific xml node."""
     if material == "plastic":
         return generate_bsdf_plastic(xml_doc, diffuse_reflectance=color)
     elif material == "roughplastic":
@@ -38,6 +40,12 @@ def generate_material(xml_doc, material, color, material_preset):
         return generate_bsdf_rough_conductor(xml_doc, material=material_preset)
     elif material == "diffuse":
         return generate_bsdf_diffuse(xml_doc, reflectance=color)
+    elif material == "dielectric":
+        return generate_bsdf_dielectric(xml_doc)
+    elif material == "principled":
+        return generate_bsdf_principled(
+            xml_doc, color, roughness=0.5, metallic=0.9, specular=0.1
+        )
     else:
         raise ValueError(f"Unknown material {material}")
 

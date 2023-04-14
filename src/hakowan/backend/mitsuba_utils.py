@@ -225,6 +225,31 @@ def generate_bsdf_conductor(xml_doc: minidom.Document, material: str):
     return bsdf_xml
 
 
+def generate_bsdf_dielectric(xml_doc: minidom.Document):
+    """Generate bsdf for dielectric."""
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "dielectric")
+    bsdf_xml.appendChild(generate_float(xml_doc, "int_ior", 1.5))
+    bsdf_xml.appendChild(generate_float(xml_doc, "ext_ior", 1.0))
+    return bsdf_xml
+
+
+def generate_bsdf_principled(
+    xml_doc: minidom.Document,
+    base_color: Union[npt.NDArray, float] = 0.5,
+    roughness: float = 0.5,
+    metallic: float = 0.0,
+    specular: float = 0.5,
+):
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "principled")
+    bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
+    bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
+    bsdf_xml.appendChild(generate_float(xml_doc, "metallic", metallic))
+    bsdf_xml.appendChild(generate_float(xml_doc, "specular", specular))
+    return bsdf_xml
+
+
 def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
     texture = xml_doc.createElement("texture")
     texture.setAttribute("type", texture_type)
@@ -240,7 +265,9 @@ def generate_bsdf_diffuse(
 
     if isinstance(reflectance, str):
         # reflectance encodes a vertex color attribute.
-        texture = generate_texture(xml_doc, name="reflectance", texture_type="mesh_attribute")
+        texture = generate_texture(
+            xml_doc, name="reflectance", texture_type="mesh_attribute"
+        )
         texture.appendChild(generate_string(xml_doc, "name", reflectance))
         bsdf_xml.appendChild(texture)
     else:
