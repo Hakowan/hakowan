@@ -17,16 +17,18 @@ class Layer:
         self.layer_data = LayerData()
         self.children: list[Layer] = []
 
-    def data(self, data_frame: Union[Path, str, lagrange.SurfaceMesh]) -> Layer:
+    def data(self, source: Union[Path, str, lagrange.SurfaceMesh, DataFrame]) -> Layer:
         """Specify data sources."""
 
-        if isinstance(data_frame, str):
-            data_frame = Path(data_frame)
-        if isinstance(data_frame, Path):
-            assert data_frame.exists(), f"File {data_frame} does not exist."
-            data_frame = lagrange.io.load_mesh(data_frame)
+        if isinstance(source, str):
+            data_frame_path = Path(source)
+            mesh = lagrange.io.load_mesh(data_frame_path)
+        elif isinstance(source, Path):
+            mesh = lagrange.io.load_mesh(source)
+        elif isinstance(source, lagrange.SurfaceMesh):
+            mesh = source
 
-        data_frame = DataFrame(mesh=data_frame)
+        data_frame = DataFrame(mesh = mesh)
         data_frame.finalize()
         parent = Layer()
         parent.layer_data.data = data_frame
