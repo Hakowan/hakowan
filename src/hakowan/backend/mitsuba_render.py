@@ -1,8 +1,10 @@
 import numpy as np
 from numpy.linalg import norm
+import numpy.typing as npt
 import pathlib
 from xml.dom import minidom
 import mitsuba as mi
+from typing import TypedDict, Union
 
 from .mitsuba_utils import (
     generate_back_light,
@@ -26,28 +28,6 @@ from .mitsuba_utils import (
 from .render_config import RenderConfig
 from ..scene.scene import Scene
 from ..common.color import Color
-
-
-def generate_material(xml_doc, material, color, material_preset):
-    """Generate material specific xml node."""
-    if material == "plastic":
-        return generate_bsdf_plastic(xml_doc, diffuse_reflectance=color)
-    elif material == "roughplastic":
-        return generate_bsdf_rough_plastic(xml_doc, diffuse_reflectance=color)
-    elif material == "conductor":
-        return generate_bsdf_conductor(xml_doc, material=material_preset)
-    elif material == "roughconductor":
-        return generate_bsdf_rough_conductor(xml_doc, material=material_preset)
-    elif material == "diffuse":
-        return generate_bsdf_diffuse(xml_doc, reflectance=color)
-    elif material == "dielectric":
-        return generate_bsdf_dielectric(xml_doc)
-    elif material == "principled":
-        return generate_bsdf_principled(
-            xml_doc, color, roughness=0.5, metallic=0.9, specular=0.1
-        )
-    else:
-        raise ValueError(f"Unknown material {material}")
 
 
 def generate_mitsuba_config(scene: Scene, config: RenderConfig):
@@ -77,63 +57,73 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
 
     # Gather points.
     for p in scene.points:
-        color = p.color.data[:3]
         sphere = generate_sphere(xml_doc, p.center, p.radius, global_transform)
-        material = generate_material(xml_doc, p.material, color, p.material_preset)
+        material = generate_bsdf_principled(
+            xml_doc,
+            base_color=p.color,
+            roughness=p.roughness,
+            metallic=p.metallic,
+        )
         sphere.appendChild(material)
         scene_xml.appendChild(sphere)
 
-    # Gather segments.
-    for s in scene.segments:
-        segment = generate_cylinder(
-            xml_doc, s.vertices[0], s.vertices[1], np.mean(s.radii), global_transform
-        )
-        material = generate_bsdf_plastic(xml_doc, np.mean(s.colors, axis=0))
-        segment.appendChild(material)
-        scene_xml.appendChild(segment)
+    ## Gather segments.
+    # for s in scene.segments:
+    #    segment = generate_cylinder(
+    #        xml_doc, s.vertices[0], s.vertices[1], np.mean(s.radii), global_transform
+    #    )
+    #    material = generate_bsdf_plastic(xml_doc, np.mean(s.colors, axis=0))
+    #    segment.appendChild(material)
+    #    scene_xml.appendChild(segment)
 
     # Gather surfaces.
     for m in scene.surfaces:
-        if m.colors is None:
-            mesh = generate_mesh(
-                xml_doc,
-                m.vertices,
-                m.triangles,
-                m.normals,
-                m.uvs,
-                None,
-                global_transform,
-            )
-            material = generate_bsdf_rough_plastic(xml_doc)
-        elif isinstance(m.colors, Color):
-            color = m.colors.data[:3]
-            mesh = generate_mesh(
-                xml_doc,
-                m.vertices,
-                m.triangles,
-                m.normals,
-                m.uvs,
-                None,
-                global_transform,
-            )
-            material = generate_material(xml_doc, m.material, color, m.material_preset)
+        mesh_attributes = {}
+        material_color: Union[str, Color]
+        material_roughness: Union[str, float]
+        material_metallic: Union[str, float]
+
+        prefix = lambda data: "vertex" if len(data) == len(m.vertices) else "face"
+
+        if isinstance(m.normals, np.ndarray):
+            mesh_attributes["normal"] = m.normals
+
+        if isinstance(m.uvs, np.ndarray):
+            mesh_attributes["uv"] = m.uvs
+
+        if isinstance(m.color, np.ndarray):
+            mesh_attributes["color"] = m.color
+            material_color = f"{prefix(m.color)}_color"
         else:
-            mesh = generate_mesh(
-                xml_doc,
-                m.vertices,
-                m.triangles,
-                m.normals,
-                m.uvs,
-                m.colors,
-                global_transform,
-            )
-            if len(m.colors) == len(m.vertices):
-                material = generate_bsdf_diffuse(xml_doc, "vertex_color")
-            elif len(m.colors) == len(m.triangles):
-                material = generate_bsdf_diffuse(xml_doc, "face_color")
-            else:
-                # Invalid color setting.
-                material = generate_bsdf_rough_plastic(xml_doc)
+            assert isinstance(m.color, Color)
+            material_color = m.color
+
+        if isinstance(m.roughness, np.ndarray):
+            mesh_attributes["roughness"] = m.roughness
+            material_roughness = f"{prefix(m.roughness)}_roughness"
+        else:
+            assert isinstance(m.roughness, float)
+            material_roughness = m.roughness
+
+        if isinstance(m.metallic, np.ndarray):
+            mesh_attributes["metallic"] = m.metallic
+            material_metallic = f"{prefix(m.metallic)}_metallic"
+        else:
+            assert isinstance(m.metallic, float)
+            material_metallic = m.metallic
+
+        # TODO: double check transform here.
+        mesh = generate_mesh(
+            xml_doc, m.vertices, m.triangles, global_transform, **mesh_attributes
+        )
+
+        material = generate_bsdf_principled(
+            xml_doc,
+            base_color=material_color,
+            roughness=material_roughness,
+            metallic=material_metallic,
+        )
+
         mesh.appendChild(material)
         scene_xml.appendChild(mesh)
 

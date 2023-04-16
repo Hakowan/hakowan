@@ -14,20 +14,25 @@ class Point:
 
     center: npt.NDArray
     radius: float
-    color: npt.NDArray
-    material: str = "diffuse"
-    material_preset: str = "none"
+
+    color: Color
+    roughness: float
+    metallic: float
+    alpha: float
 
 
 @dataclass
 class Segment:
     """A line segment with radius and color."""
 
-    vertices: npt.NDArray
-    radii: npt.NDArray
-    colors: npt.NDArray
-    material: str = "diffuse"
-    material_preset: str = "none"
+    p0: npt.NDArray
+    p1: npt.NDArray
+    radius: float
+
+    color: Color
+    roughness: float
+    metallic: float
+    alpha: float
 
 
 @dataclass
@@ -36,12 +41,13 @@ class Surface:
 
     vertices: npt.NDArray
     triangles: npt.NDArray
-    normals: Optional[npt.NDArray] = None
-    uvs: Optional[npt.NDArray] = None
-    colors: Union[Color, npt.NDArray, None] = None
-    material: str = "diffuse"
-    material_preset: str = "none"
+    normals: Optional[npt.NDArray]
+    uvs: Optional[npt.NDArray]
 
+    color: Union[Color, npt.NDArray]
+    roughness: Union[float, npt.NDArray]
+    metallic: Union[float, npt.NDArray]
+    alpha: Union[float, npt.NDArray]
 
 @dataclass
 class Scene:

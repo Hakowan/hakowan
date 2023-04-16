@@ -12,7 +12,7 @@ import lagrange
 class Layer:
     """A layer represent a node in the visualization layer graph."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Construct a `Layer` object."""
         self.layer_data = LayerData()
         self.children: list[Layer] = []

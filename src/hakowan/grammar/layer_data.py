@@ -36,25 +36,27 @@ class Attribute:
 class ChannelSetting:
     """Visualization channel settings"""
 
-    # Channal source data.
+    # Geometry channels
     position: Optional[str] = None
     normal: Optional[str] = None
     uv: Optional[str] = None
+
+    # Material channels
     color: Optional[str] = None
+    roughness: Union[float, str, None] = None
+    metallic: Union[float, str, None] = None
+    alpha: Union[float, str, None] = None
+
+    # Other channels
     size: Union[str, float, None] = None
-    alpha: Union[str, float, None] = None
 
-    # Channel-specific mapping.
+    # Scale mappings
     position_map: Union[str, Callable[..., np.ndarray], None] = None
-    normal_map: Union[str, Callable[..., np.ndarray], None] = None
-    uv_map: Union[str, Callable[..., np.ndarray], None] = None
     color_map: Union[str, Callable[..., Color], None] = None
-    size_map: Union[str, Callable[..., float], None] = None
+    roughness_map: Union[str, Callable[..., float], None] = None
+    metallic_map: Union[str, Callable[..., float], None] = None
     alpha_map: Union[str, Callable[..., float], None] = None
-
-    # Material
-    material: Optional[str] = None
-    material_preset: Optional[str] = None
+    size_map: Union[str, Callable[..., float], None] = None
 
     def __or__(self, other: ChannelSetting) -> ChannelSetting:
         """Merge settings defined in `self` and `other`.

@@ -1,6 +1,7 @@
 import struct
 import zlib
 import numpy as np
+import numpy.typing as npt
 
 import lagrange
 
@@ -57,43 +58,55 @@ def serialize_mesh(vertices, faces, normals=None, colors=None, uvs=None):
     return data
 
 
-def serialize_mesh_ply(vertices, faces, normals=None, colors=None, uvs=None):
+def add_attribute(
+    mesh: lagrange.SurfaceMesh,
+    name: str,
+    data: npt.NDArray,
+    usage: lagrange.AttributeUsage,
+):
+    postfix = (
+        ""
+        if usage in [lagrange.AttributeUsage.Normal, lagrange.AttributeUsage.Color]
+        else "_0"
+    )
+    if len(data) == mesh.num_vertices:
+        mesh.create_attribute(
+            name=f"{name}{postfix}",
+            element=lagrange.AttributeElement.Vertex,
+            usage=usage,
+            initial_values=data,
+        )
+    elif len(data) == mesh.num_facets:
+        mesh.create_attribute(
+            name=f"{name}{postfix}",
+            element=lagrange.AttributeElement.Facet,
+            usage=usage,
+            initial_values=data,
+        )
+    else:
+        raise ValueError("Invalid data length")
+
+
+def serialize_mesh_ply(
+    vertices: npt.NDArray, faces: npt.NDArray, **kwargs: npt.NDArray
+):
     mesh = lagrange.SurfaceMesh()
     mesh.vertices = vertices
     mesh.facets = faces
 
-    if normals is not None:
-        mesh.create_attribute(
-            "vertex_normal",
-            lagrange.AttributeElement.Vertex,
-            lagrange.AttributeUsage.Normal,
-            normals,
-            np.array([], dtype=np.intc),
-        )
-
-    if colors is not None:
-        if len(colors) == len(vertices):
-            mesh.create_attribute(
-                "vertex_color",
-                lagrange.AttributeElement.Vertex,
-                lagrange.AttributeUsage.Color,
-                colors[:, :3].copy(),
+    for name, data in kwargs.items():
+        if name == "normal":
+            add_attribute(mesh, "normal", data, lagrange.AttributeUsage.Normal)
+        elif name == "color":
+            add_attribute(mesh, "color", data, lagrange.AttributeUsage.Color)
+        elif name == "uv":
+            add_attribute(mesh, "uv", data, lagrange.AttributeUsage.UV)
+        else:
+            usage = (
+                lagrange.AttributeUsage.Scalar
+                if data.ndim == 1
+                else lagrange.AttributeUsage.Vector
             )
-        elif len(colors) == len(faces):
-            mesh.create_attribute(
-                "facet_color",
-                lagrange.AttributeElement.Facet,
-                lagrange.AttributeUsage.Color,
-                colors[:, :3].copy(),
-            )
-
-    if uvs is not None:
-        mesh.create_attribute(
-            "vertex_uv",
-            lagrange.AttributeElement.Vertex,
-            lagrange.AttributeUsage.UV,
-            colors,
-            np.array([], dtype=np.intc),
-        )
+            add_attribute(mesh, name, data, usage)
 
     return lagrange.io.serialize_mesh(mesh, "ply")

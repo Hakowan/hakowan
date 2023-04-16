@@ -7,7 +7,7 @@ class Color:
     """A minimal representation of color."""
 
     @classmethod
-    def from_hex(cls, hex_color, alpha=1.0):
+    def from_hex(cls, hex_color):
         """Construct color from hex."""
         c = hex_color.lstrip("#")
         assert len(c) == 6
@@ -15,11 +15,10 @@ class Color:
             int(c[0:2], 16) / 255.0,
             int(c[2:4], 16) / 255.0,
             int(c[4:6], 16) / 255.0,
-            alpha,
         )
 
-    def __init__(self, red=0.0, green=0.0, blue=0.0, alpha=1.0):
-        self.color = np.array([red, green, blue, alpha])
+    def __init__(self, red=0.0, green=0.0, blue=0.0):
+        self.color = np.array([red, green, blue])
 
     def __getitem__(self, i):
         return self.color[i]
@@ -41,8 +40,11 @@ class Color:
     def __ne__(self, other):
         return not self == other
 
+    def __iter__(self):
+        return self.color.__iter__()
+
     def __repr__(self):
-        return f"Color ({self.red}, {self.green}, {self.blue}, {self.alpha})"
+        return f"Color ({self.red}, {self.green}, {self.blue})"
 
     @property
     def red(self):
@@ -58,11 +60,6 @@ class Color:
     def blue(self):
         """Blue channel"""
         return self.color[2]
-
-    @property
-    def alpha(self):
-        """Alpha channel"""
-        return self.color[3]
 
     @property
     def data(self):

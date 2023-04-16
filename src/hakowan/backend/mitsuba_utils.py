@@ -12,6 +12,7 @@ from numpy.linalg import norm
 from typing import Union
 
 from ..common.exception import InvalidSetting
+from ..common.color import Color
 from ..scene.scene import Scene
 from .serialization import serialize_mesh_ply
 from .render_config import RenderConfig
@@ -148,7 +149,7 @@ def generate_cylinder_transform(
 
 
 def generate_rgb(
-    xml_doc: minidom.Document, name: str, color: Union[npt.NDArray, float]
+    xml_doc: minidom.Document, name: str, color: Union[Color, float]
 ):
     """Generate xml element <rgb></rgb>"""
     rgb_xml = xml_doc.createElement("rgb")
@@ -162,7 +163,7 @@ def generate_rgb(
 
 def generate_bsdf_plastic(
     xml_doc: minidom.Document,
-    diffuse_reflectance: Union[npt.NDArray, float] = 0.5,
+    diffuse_reflectance: Union[Color, float] = 0.5,
     int_ior: float = 1.49,
     ext_ior: float = 1.000277,
     nonlinear: bool = False,
@@ -184,7 +185,7 @@ def generate_bsdf_plastic(
 def generate_bsdf_rough_plastic(
     xml_doc: minidom.Document,
     distribution: str = "beckmann",
-    diffuse_reflectance: Union[npt.NDArray, float] = 0.5,
+    diffuse_reflectance: Union[Color, float] = 0.5,
     int_ior: float = 1.5,
     ext_ior: float = 1.000277,
     alpha: float = 0.3,
@@ -234,22 +235,6 @@ def generate_bsdf_dielectric(xml_doc: minidom.Document):
     return bsdf_xml
 
 
-def generate_bsdf_principled(
-    xml_doc: minidom.Document,
-    base_color: Union[npt.NDArray, float] = 0.5,
-    roughness: float = 0.5,
-    metallic: float = 0.0,
-    specular: float = 0.5,
-):
-    bsdf_xml = xml_doc.createElement("bsdf")
-    bsdf_xml.setAttribute("type", "principled")
-    bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
-    bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
-    bsdf_xml.appendChild(generate_float(xml_doc, "metallic", metallic))
-    bsdf_xml.appendChild(generate_float(xml_doc, "specular", specular))
-    return bsdf_xml
-
-
 def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
     texture = xml_doc.createElement("texture")
     texture.setAttribute("type", texture_type)
@@ -257,8 +242,41 @@ def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
     return texture
 
 
+def generate_bsdf_principled(
+    xml_doc: minidom.Document,
+    base_color: Union[Color, float, str],
+    roughness: Union[float, str],
+    metallic: Union[float, str],
+):
+    bsdf_xml = xml_doc.createElement("bsdf")
+    bsdf_xml.setAttribute("type", "principled")
+
+    if isinstance(base_color, str):
+        texture = generate_texture(xml_doc, name="base_color", texture_type="mesh_attribute")
+        texture.appendChild(generate_string(xml_doc, "name", base_color))
+        bsdf_xml.appendChild(texture)
+    else:
+        bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
+
+    if isinstance(roughness, str):
+        texture = generate_texture(xml_doc, name="roughness", texture_type="mesh_attribute")
+        texture.appendChild(generate_string(xml_doc, "name", roughness))
+        bsdf_xml.appendChild(texture)
+    else:
+        bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
+
+    if isinstance(metallic, str):
+        texture = generate_texture(xml_doc, name="metallic", texture_type="mesh_attribute")
+        texture.appendChild(generate_string(xml_doc, "name", metallic))
+        bsdf_xml.appendChild(texture)
+    else:
+        bsdf_xml.appendChild(generate_float(xml_doc, "metallic", metallic))
+
+    return bsdf_xml
+
+
 def generate_bsdf_diffuse(
-    xml_doc: minidom.Document, reflectance: Union[npt.NDArray, float, str] = 0.5
+    xml_doc: minidom.Document, reflectance: Union[Color, float, str] = 0.5
 ):
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "diffuse")
@@ -324,15 +342,14 @@ def generate_mesh(
     xml_doc: minidom.Document,
     vertices: npt.NDArray,
     faces: npt.NDArray,
-    normals: Union[npt.NDArray, None] = None,
-    uvs: Union[npt.NDArray, None] = None,
-    colors: Union[npt.NDArray, None] = None,
     transform: Union[npt.NDArray, None] = None,
+    **kwargs: npt.NDArray,
 ):
     """Generate xml element <shape type="serialized"></shape>"""
-    data = serialize_mesh_ply(vertices, faces, normals, colors, uvs)
+    data = serialize_mesh_ply(vertices, faces, **kwargs)
     timestamp = datetime.datetime.now().isoformat()
     tmp_file = Path(tempfile.gettempdir()) / f"{timestamp}.ply"
+    print(tmp_file)
     with open(tmp_file, "wb") as fout:
         fout.write(data)
 

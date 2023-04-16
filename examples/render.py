@@ -23,45 +23,9 @@ def parse_args():
     parser.add_argument("-H", "--height", help="Output image height", default=800)
     parser.add_argument("-W", "--width", help="Output image width", default=1024)
     parser.add_argument("-s", "--num-samples", help="Number of samples", default=64)
-    parser.add_argument("-c", "--color", help="Shape color", default="ivory")
-    parser.add_argument(
-        "-m",
-        "--material",
-        help="Material",
-        default="diffuse",
-        choices=[
-            "conductor",
-            "diffuse",
-            "plastic",
-            "roughconductor",
-            "roughplastic",
-            "dielectric",
-            "principled",
-        ],
-    )
-    parser.add_argument(
-        "-p",
-        "--material-preset",
-        help="Material preset",
-        default="Au",
-        choices=[
-            "a-C",
-            "Ag",
-            "Al",
-            "Au",
-            "Cr",
-            "Cu",
-            "Cu2O",
-            "CuO",
-            "K",
-            "Hg",
-            "Ir",
-            "Li",
-            "TiC",
-            "TiN",
-            "W",
-        ],
-    )
+    parser.add_argument("-c", "--color", help="Base color", default="ivory")
+    parser.add_argument("-r", "--roughness", help="Material roughness", default=0.5)
+    parser.add_argument("-m", "--metallic", help="Material metallic", default=0.0)
     return parser.parse_args()
 
 
@@ -71,14 +35,12 @@ def main():
     mesh = lagrange.io.load_mesh(args.input_mesh)
     vertices = mesh.vertices
     max_side = np.amax(np.amax(vertices, axis=0) - np.amin(vertices, axis=0))
-    # mesh.create_attribute(
-    #    name="test",
-    #    element=lagrange.AttributeElement.Vertex,
-    #    usage=lagrange.AttributeUsage.Scalar,
-    #    num_channels=1,
-    #    dtype=vertices.dtype.type,
-    # )
-    # mesh.attribute("x").data = vertices[:, 0].copy()
+    mesh.create_attribute(
+        name="x",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=mesh.vertices[:, 0].copy(),
+    )
 
     # id = lagrange.compute_facet_normal(mesh)
     # name = mesh.get_attribute_name(id)
@@ -91,17 +53,23 @@ def main():
         initial_values=np.arange(mesh.num_facets),
     )
 
+    try:
+        roughness = float(args.roughness)
+    except ValueError:
+        roughness = args.roughness
+
+    try:
+        metallic = float(args.metallic)
+    except ValueError:
+        metallic = args.metallic
+
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
         color=args.color,
-        # color_map=abs_map,
-        material=args.material,
-        material_preset=args.material_preset,
+        roughness=roughness,
+        metallic=metallic,
     )
     point_view = base.mark(hakowan.POINT).channel(
-        color="red",
-        material="roughconductor",
-        material_preset="Cr",
         size=0.01 * max_side,
     )
 
