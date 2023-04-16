@@ -82,6 +82,7 @@ def main():
     config.height = args.height
     config.num_samples = args.num_samples
     config.sampler_type = "multijitter"
+    config.envmap_scale = 1
 
     hakowan.render(surface_view, config)
 

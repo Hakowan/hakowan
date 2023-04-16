@@ -7,7 +7,6 @@ import mitsuba as mi
 from typing import TypedDict, Union
 
 from .mitsuba_utils import (
-    generate_back_light,
     generate_bsdf_conductor,
     generate_bsdf_dielectric,
     generate_bsdf_diffuse,
@@ -17,12 +16,10 @@ from .mitsuba_utils import (
     generate_bsdf_rough_plastic,
     generate_camera,
     generate_cylinder,
-    generate_fill_light,
-    generate_front_light,
+    generate_envmap,
     generate_integrator,
     generate_mesh,
     generate_scene,
-    generate_side_light,
     generate_sphere,
 )
 from .render_config import RenderConfig
@@ -37,10 +34,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     scene_xml.appendChild(generate_integrator(xml_doc, "path"))
 
     scene_xml.appendChild(generate_camera(xml_doc, config))
-    scene_xml.appendChild(generate_front_light(xml_doc))
-    scene_xml.appendChild(generate_side_light(xml_doc))
-    scene_xml.appendChild(generate_back_light(xml_doc))
-    # scene_xml.appendChild(generate_fill_light(xml_doc))
+    scene_xml.appendChild(generate_envmap(xml_doc, config.envmap, config.envmap_scale))
 
     # Compute global transform to [-1, 1]^3.
     bbox_min, bbox_max = scene.bbox

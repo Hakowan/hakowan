@@ -17,7 +17,9 @@ class RenderConfig:
     num_samples: int = 64
     sampler_type: str = "independent"
     transform: npt.NDArray = field(default_factory=lambda: np.identity(4))
-    dry_run = False
+    dry_run: bool = False
+    envmap: str = "museum"
+    envmap_scale: float = 1.0
 
     def __post_init__(self):
         if not isinstance(self.filename, Path):

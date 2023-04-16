@@ -148,9 +148,7 @@ def generate_cylinder_transform(
     return transform_xml
 
 
-def generate_rgb(
-    xml_doc: minidom.Document, name: str, color: Union[Color, float]
-):
+def generate_rgb(xml_doc: minidom.Document, name: str, color: Union[Color, float]):
     """Generate xml element <rgb></rgb>"""
     rgb_xml = xml_doc.createElement("rgb")
     rgb_xml.setAttribute("name", name)
@@ -252,21 +250,27 @@ def generate_bsdf_principled(
     bsdf_xml.setAttribute("type", "principled")
 
     if isinstance(base_color, str):
-        texture = generate_texture(xml_doc, name="base_color", texture_type="mesh_attribute")
+        texture = generate_texture(
+            xml_doc, name="base_color", texture_type="mesh_attribute"
+        )
         texture.appendChild(generate_string(xml_doc, "name", base_color))
         bsdf_xml.appendChild(texture)
     else:
         bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
 
     if isinstance(roughness, str):
-        texture = generate_texture(xml_doc, name="roughness", texture_type="mesh_attribute")
+        texture = generate_texture(
+            xml_doc, name="roughness", texture_type="mesh_attribute"
+        )
         texture.appendChild(generate_string(xml_doc, "name", roughness))
         bsdf_xml.appendChild(texture)
     else:
         bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
 
     if isinstance(metallic, str):
-        texture = generate_texture(xml_doc, name="metallic", texture_type="mesh_attribute")
+        texture = generate_texture(
+            xml_doc, name="metallic", texture_type="mesh_attribute"
+        )
         texture.appendChild(generate_string(xml_doc, "name", metallic))
         bsdf_xml.appendChild(texture)
     else:
@@ -336,6 +340,47 @@ def generate_cylinder(
 
     shape_xml.appendChild(generate_cylinder_transform(xml_doc, p0, p1))
     return shape_xml
+
+
+def generate_disk_transform(
+    xml_doc: minidom.Document, center: npt.NDArray, radius: float, normal: npt.NDArray
+):
+    """Generate xml element <transform name="to_world"></transform>"""
+
+    # Compute the rotation matrix.
+    z = np.array([0, 0, 1])
+    v = normal / norm(normal)
+    axis = np.cross(z, v)
+    axis_norm = norm(axis)
+    if axis_norm > 1e-6:
+        axis = axis / norm(axis)
+    else:
+        axis = np.array([1, 0, 0])
+    angle = np.degrees(np.arccos(np.dot(z, v)))
+
+    # Compute the translation vector.
+    t = center
+
+    # Compute the scale factor.
+    s = radius
+
+    # Generate the transform xml spec.
+    transform_xml = xml_doc.createElement("transform")
+    transform_xml.setAttribute("name", "to_world")
+    transform_xml.appendChild(generate_scale(xml_doc, np.array([s, s, s])))
+    transform_xml.appendChild(generate_rotate_axis_angle(xml_doc, axis, angle))
+    transform_xml.appendChild(generate_translate(xml_doc, t))
+
+    return transform_xml
+
+
+def generate_disk(
+    xml_doc: minidom.Document, center: npt.NDArray, radius: float, normal: npt.NDArray
+):
+    disk_xml = xml_doc.createElement("shape")
+    disk_xml.setAttribute("type", "disk")
+    disk_xml.appendChild(generate_disk_transform(xml_doc, center, radius, normal))
+    return disk_xml
 
 
 def generate_mesh(
@@ -425,7 +470,37 @@ def generate_emitter(xml_doc: minidom.Document, emitter_type: str):
     return emitter
 
 
+def generate_envmap(xml_doc: minidom.Document, envmap_type: str, envmap_scale: float):
+    emitter = generate_emitter(xml_doc, "envmap")
+
+    envmap_file = Path(envmap_type)
+    if envmap_file.exists():
+        emitter.appendChild(generate_string(xml_doc, "filename", envmap_type))
+    else:
+        from ..common.envmaps import envmaps
+        assert envmap_type in envmaps, f"envmap {envmap_type} not found"
+        envmap_file = envmaps[envmap_type]
+        emitter.appendChild(generate_string(xml_doc, "filename", str(envmap_file)))
+
+    transform_xml = xml_doc.createElement("transform")
+    transform_xml.setAttribute("name", "to_world")
+    transform_xml.appendChild(generate_rotate_axis_angle(xml_doc, np.array([0, 1, 0]), 180))
+
+    emitter.appendChild(transform_xml)
+    emitter.appendChild(generate_float(xml_doc, "scale", envmap_scale))
+
+    return emitter
+
+
 def generate_front_light(xml_doc: minidom.Document):
+    """Generate front light."""
+    light = generate_disk(xml_doc, np.array([-2, 6, 6]), 2.0, np.array([0, 0, -1]))
+    emitter = generate_emitter(xml_doc, "area")
+    emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 250))
+    light.appendChild(emitter)
+    return light
+
+def generate_front_light2(xml_doc: minidom.Document):
     """Generate front light."""
     light = generate_sphere(xml_doc, [-2, 6, 6], 0.5)
     emitter = generate_emitter(xml_doc, "area")
