@@ -478,13 +478,16 @@ def generate_envmap(xml_doc: minidom.Document, envmap_type: str, envmap_scale: f
         emitter.appendChild(generate_string(xml_doc, "filename", envmap_type))
     else:
         from ..common.envmaps import envmaps
+
         assert envmap_type in envmaps, f"envmap {envmap_type} not found"
         envmap_file = envmaps[envmap_type]
         emitter.appendChild(generate_string(xml_doc, "filename", str(envmap_file)))
 
     transform_xml = xml_doc.createElement("transform")
     transform_xml.setAttribute("name", "to_world")
-    transform_xml.appendChild(generate_rotate_axis_angle(xml_doc, np.array([0, 1, 0]), 180))
+    transform_xml.appendChild(
+        generate_rotate_axis_angle(xml_doc, np.array([0, 1, 0]), 180)
+    )
 
     emitter.appendChild(transform_xml)
     emitter.appendChild(generate_float(xml_doc, "scale", envmap_scale))
@@ -499,6 +502,7 @@ def generate_front_light(xml_doc: minidom.Document):
     emitter.appendChild(generate_tag(xml_doc, "spectrum", "radiance", 250))
     light.appendChild(emitter)
     return light
+
 
 def generate_front_light2(xml_doc: minidom.Document):
     """Generate front light."""
