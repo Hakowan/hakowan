@@ -15,8 +15,8 @@ pip install git+ssh://git@github.com/qnzhou/hakowan.git
 
 Based on the principles from grammar of graphics, Hakowan decomposes a 3D visualization into the
 four basic components: data, mark, channel and transform.  A complete specification of all four components
-forms a __layer__, and mutliple layers can be combined together to create the final visualization.
-All components have reasonble default settings.  Here is a simple example:
+forms a __layer__, and multiple layers can be combined together to create the final visualization.
+All components have reasonable default settings.  Here is a simple example:
 
 ```python
 import hakowan
@@ -31,7 +31,7 @@ layer = layer.channel(
     metallic = 0.75,                # Set metallic channel to a const value.
 )
 
-config = hakowan.RenderConfi()   # Global render settings.
+config = hakowan.RenderConfig()   # Global render settings.
 config.filename = "output.exr"   # The output image filename.
 
 hakowan.render(layer, config)
@@ -46,7 +46,7 @@ We use `lagrange.SurfaceMesh` to represent a 3D data frame. It is capable of rep
 polygonal mesh, point cloud.  It support scalar, vector and tensor attributes associated with
 vertices, facets, edges and  corners. It also supports indexed attributes and value attributes.
 
-To speicify a data:
+To specify a data:
 
 ```python
 mesh = lagrange.io.load_mesh("input_mesh.obj")
@@ -71,20 +71,20 @@ The following channels are supported:
 * `metallic`: The metallic-ness of the material. It can be a value in [0, 1] range or an attribute
   name from the current layer's data frame.
 * `size`: The size channel.  Only used by point and curve marks.
-* `color_map`: The color map.  Must be one of the predefiend color maps: `viridis`, `turbo`,
+* `color_map`: The color map.  Must be one of the predefined color maps: `viridis`, `turbo`,
   `coolwarm`, `magma`, `plasma` and `inferno`.
 * `alpha`: It specifies the transparency of the material.  (Not yet supported.)
 * `position`: Specifies the vertex positions.  (Not yet supported.)
-* `normal`: Specifiees the normal attribute to use. (Not yet supported.)
+* `normal`: Specifies the normal attribute to use. (Not yet supported.)
 * `uv`: Specifies the uv attribute. (Not yet supported.)
 
 ### Transform
 
-Transform specifies the transformaiton of the data frame before rendering. It supports the following
+Transform specifies the transformation of the data frame before rendering. It supports the following
 types:
 
 * Rotation and translation of the geometry as a whole. (TODO)
 * Filtering of geometric elements. (TODO)
-* Rotation and translaiton of geometric elements. (TODO)
+* Rotation and translation of geometric elements. (TODO)
 * Generation of new geometries such as isoline. (TODO)
 
