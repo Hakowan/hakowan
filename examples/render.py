@@ -47,9 +47,10 @@ def main():
     # abs_map = lambda x: np.absolute(x)
 
     id = mesh.create_attribute(
-        "index",
+        "facet_index",
         element=lagrange.AttributeElement.Facet,
         usage=lagrange.AttributeUsage.Scalar,
+        #initial_values=np.random.permutation(mesh.num_facets),
         initial_values=np.arange(mesh.num_facets),
     )
 
@@ -66,6 +67,7 @@ def main():
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
         color=args.color,
+        color_map="turbo",
         roughness=roughness,
         metallic=metallic,
     )

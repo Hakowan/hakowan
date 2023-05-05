@@ -109,4 +109,4 @@ def serialize_mesh_ply(
             )
             add_attribute(mesh, name, data, usage)
 
-    return lagrange.io.serialize_mesh(mesh, "ply")
+    return lagrange.io.mesh_to_string(mesh, "ply")

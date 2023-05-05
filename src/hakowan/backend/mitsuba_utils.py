@@ -240,6 +240,18 @@ def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
     return texture
 
 
+def generate_checkerboard(
+    xml_doc: minidom.Document,
+    color0: Union[float, Color],
+    color1: Union[float, Color],
+):
+    texture = xml_doc.createElement("texture")
+    texture.setAttribute("type", "checkerboard")
+    texture.appendChild(generate_rgb(xml_doc, "color0", color0))
+    texture.appendChild(generate_rgb(xml_doc, "color1", color1))
+    return texture
+
+
 def generate_bsdf_principled(
     xml_doc: minidom.Document,
     base_color: Union[Color, float, str],
