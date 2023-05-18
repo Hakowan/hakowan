@@ -240,6 +240,13 @@ def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
     return texture
 
 
+def generate_ref(xml_doc: minidom.Document, name: str, id: str):
+    element = xml_doc.createElement("ref")
+    element.setAttribute("id", id)
+    element.setAttribute("name", name)
+    return element
+
+
 def generate_checkerboard(
     xml_doc: minidom.Document,
     color0: Union[float, Color],
@@ -247,8 +254,22 @@ def generate_checkerboard(
 ):
     texture = xml_doc.createElement("texture")
     texture.setAttribute("type", "checkerboard")
+    texture.setAttribute("id", "texture-checkerboard")
     texture.appendChild(generate_rgb(xml_doc, "color0", color0))
     texture.appendChild(generate_rgb(xml_doc, "color1", color1))
+
+
+    scale = 16
+    scale_xml = xml_doc.createElement("scale")
+    scale_xml.setAttribute("x", str(scale))
+    scale_xml.setAttribute("y", str(scale))
+
+    transform_xml = xml_doc.createElement("transform")
+    transform_xml.setAttribute("name", "to_uv")
+    transform_xml.appendChild(scale_xml)
+
+    texture.appendChild(transform_xml)
+
     return texture
 
 
@@ -261,14 +282,16 @@ def generate_bsdf_principled(
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "principled")
 
-    if isinstance(base_color, str):
-        texture = generate_texture(
-            xml_doc, name="base_color", texture_type="mesh_attribute"
-        )
-        texture.appendChild(generate_string(xml_doc, "name", base_color))
-        bsdf_xml.appendChild(texture)
-    else:
-        bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
+    texture = generate_ref(xml_doc, name="base_color", id="texture-checkerboard")
+    bsdf_xml.appendChild(texture)
+    # if isinstance(base_color, str):
+    #     texture = generate_texture(
+    #         xml_doc, name="base_color", texture_type="mesh_attribute"
+    #     )
+    #     texture.appendChild(generate_string(xml_doc, "name", base_color))
+    #     bsdf_xml.appendChild(texture)
+    # else:
+    #     bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
 
     if isinstance(roughness, str):
         texture = generate_texture(
@@ -404,7 +427,7 @@ def generate_mesh(
 ):
     """Generate xml element <shape type="serialized"></shape>"""
     data = serialize_mesh_ply(vertices, faces, **kwargs)
-    timestamp = datetime.datetime.now().isoformat()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp_file = Path(tempfile.gettempdir()) / f"{timestamp}.ply"
     print(tmp_file)
     with open(tmp_file, "wb") as fout:
@@ -414,6 +437,9 @@ def generate_mesh(
     shape_xml.setAttribute("type", "ply")
     shape_xml.appendChild(generate_string(xml_doc, "filename", str(tmp_file)))
     shape_xml.appendChild(generate_boolean(xml_doc, "face_normals", False))
+
+    # if "uv" in kwargs:
+    #     shape_xml.appendChild(generate_string(xml_doc, "vertex_texcoords", "uv"))
 
     if transform is not None:
         shape_xml.appendChild(generate_transform(xml_doc, "to_world", transform))

@@ -138,6 +138,17 @@ class DataFrame:
         else:
             return self.mesh.attribute(normal_attr_ids[0]).data
 
+    @property
+    def uvs(self):
+        uv_attr_ids = self.mesh.get_matching_attribute_ids(
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.UV
+        )
+        if len(uv_attr_ids) == 0:
+            raise RuntimeError("Mesh does not have uv attribute.")
+        else:
+            return self.mesh.attribute(uv_attr_ids[0]).data
+
 
 @dataclass
 class Transform:

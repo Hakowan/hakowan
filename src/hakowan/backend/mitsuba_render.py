@@ -14,6 +14,7 @@ from .mitsuba_utils import (
     generate_bsdf_principled,
     generate_bsdf_rough_conductor,
     generate_bsdf_rough_plastic,
+    generate_checkerboard,
     generate_camera,
     generate_cylinder,
     generate_envmap,
@@ -48,6 +49,9 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     global_transform = np.dot(
         config.transform, np.dot(scale_transform, translate_transform)
     )
+
+    # Checkerboard texture.
+    scene_xml.appendChild(generate_checkerboard(xml_doc, color0=Color(0.1, 0.1, 0.1), color1=Color(0.5, 0.5, 0.5)))
 
     # Gather points.
     for p in scene.points:

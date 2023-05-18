@@ -75,6 +75,26 @@ def extract_normal_channel(layer_data: LayerData) -> npt.NDArray:
     return normals
 
 
+def extract_uv_channel(
+    layer_data: LayerData
+) -> npt.NDArray:
+    """Extract uv channel from layer data.
+
+    Args:
+        layer_data (LayerData): Input layer data.
+
+    Returns:
+        The texcoords.
+    """
+
+    assert layer_data.data is not None
+
+    # TODO: check layer_data.channel-setting.uv
+    uv = layer_data.data.uvs
+
+    return uv
+
+
 def extract_color_channel(
     layer_data: LayerData, default_color: str
 ) -> Union[Color, npt.NDArray]:
@@ -304,7 +324,7 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
 
     color = extract_color_channel(layer_data, DEFAULT_COLOR)
     normals = extract_normal_channel(layer_data)
-    # TODO: uvs
+    uvs = extract_uv_channel(layer_data)
     roughness = extract_roughness_channel(layer_data, DEFAULT_ROUGHNESS)
     metallic = extract_metallic_channel(layer_data, DEFAULT_METALLIC)
 
@@ -312,7 +332,7 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
         vertices=nodes,
         triangles=elements,
         normals=normals,
-        uvs=None, # TODO
+        uvs=uvs,
         color=color,
         roughness=roughness,
         metallic=metallic,
