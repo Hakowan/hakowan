@@ -404,7 +404,7 @@ def generate_mesh(
 ):
     """Generate xml element <shape type="serialized"></shape>"""
     data = serialize_mesh_ply(vertices, faces, **kwargs)
-    timestamp = datetime.datetime.now().isoformat()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp_file = Path(tempfile.gettempdir()) / f"{timestamp}.ply"
     print(tmp_file)
     with open(tmp_file, "wb") as fout:
