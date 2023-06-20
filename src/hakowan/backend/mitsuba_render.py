@@ -73,7 +73,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     # Gather surfaces.
     for m in scene.surfaces:
         mesh_attributes = {}
-        material_color: Union[str, Color]
+        material_color: Union[str, Color, pathlib.Path]
         material_roughness: Union[str, float]
         material_metallic: Union[str, float]
 
@@ -89,7 +89,6 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
             mesh_attributes["color"] = m.color
             material_color = f"{prefix(m.color)}_color"
         else:
-            assert isinstance(m.color, Color)
             material_color = m.color
 
         if isinstance(m.roughness, np.ndarray):

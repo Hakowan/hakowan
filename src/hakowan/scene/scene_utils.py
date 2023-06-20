@@ -3,7 +3,8 @@ import numpy as np
 from numpy.linalg import norm
 import numpy.typing as npt
 import numbers
-from typing import Union
+from typing import Union, Optional
+import pathlib
 
 from ..common.color import Color
 from ..common.named_colors import css_colors
@@ -21,6 +22,7 @@ from ..common.default import (
 from ..grammar.layer import Layer
 from ..grammar.layer_data import LayerData, Mark, ChannelSetting, DataFrame
 from .scene import Scene, Surface, Point, Segment
+import lagrange
 
 
 def extract_position_channel(layer_data: LayerData) -> npt.NDArray:
@@ -75,9 +77,36 @@ def extract_normal_channel(layer_data: LayerData) -> npt.NDArray:
     return normals
 
 
+def extract_uv_channel(layer_data: LayerData) -> Optional[npt.NDArray]:
+    """Extract uv channel from layer data.
+
+    Args:
+        layer_data (LayerData): Input layer data.
+
+    Returns:
+        The uvs.
+    """
+    assert layer_data.data is not None
+
+    uv_attr_name = layer_data.channel_setting.uv
+    if uv_attr_name is None:
+        # Use the first attribute with UV usage
+        ids = layer_data.data.mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.UV
+        )
+        if len(ids) == 0:
+            return None
+        uvs = layer_data.data.mesh.attribute(ids[0]).data
+    else:
+        assert layer_data.data.mesh.has_attribute(uv_attr_name)
+        uvs = layer_data.data.mesh.attribute(uv_attr_name).data
+    assert uvs.ndim == 2 and uvs.shape[1] == 2
+    return uvs
+
+
 def extract_color_channel(
     layer_data: LayerData, default_color: str
-) -> Union[Color, npt.NDArray]:
+) -> Union[Color, npt.NDArray, str, pathlib.Path]:
     """Extract color channel from layer data.
 
     Args:
@@ -101,6 +130,10 @@ def extract_color_channel(
     if color in css_colors:
         # Color name.
         return css_colors[color]
+    if color == "checkerboard":
+        return color
+    if pathlib.Path(color).exists():
+        return pathlib.Path(color)
 
     assert isinstance(color, str)
 
@@ -264,7 +297,10 @@ def update_points(layer_data: LayerData, scene: Scene):
     colors = extract_color_channel(layer_data, DEFAULT_POINT_COLOR)
     if isinstance(colors, Color):
         colors = np.repeat([colors], num_nodes, axis=0)
-    assert len(colors) == num_nodes
+    elif isinstance(colors, np.ndarray):
+        assert len(colors) == num_nodes
+    else:
+        raise ValueError("Unsupported color type for point cloud.")
 
     roughnesses = extract_roughness_channel(layer_data, DEFAULT_ROUGHNESS)
     if isinstance(roughnesses, float):
@@ -304,7 +340,7 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
 
     color = extract_color_channel(layer_data, DEFAULT_COLOR)
     normals = extract_normal_channel(layer_data)
-    # TODO: uvs
+    uvs = extract_uv_channel(layer_data)
     roughness = extract_roughness_channel(layer_data, DEFAULT_ROUGHNESS)
     metallic = extract_metallic_channel(layer_data, DEFAULT_METALLIC)
 
@@ -312,11 +348,11 @@ def update_surfaces(layer_data: LayerData, scene: Scene):
         vertices=nodes,
         triangles=elements,
         normals=normals,
-        uvs=None, # TODO
+        uvs=uvs,
         color=color,
         roughness=roughness,
         metallic=metallic,
-        alpha=1.0, # TODO
+        alpha=1.0,  # TODO
     )
     scene.surfaces.append(surface)
 

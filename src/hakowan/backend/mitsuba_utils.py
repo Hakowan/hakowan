@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.linalg import norm
 from typing import Union
+import pathlib
 
 from ..common.exception import InvalidSetting
 from ..common.color import Color
@@ -242,30 +243,46 @@ def generate_texture(xml_doc: minidom.Document, name: str, texture_type: str):
 
 def generate_checkerboard(
     xml_doc: minidom.Document,
+    name: str,
     color0: Union[float, Color],
     color1: Union[float, Color],
 ):
     texture = xml_doc.createElement("texture")
     texture.setAttribute("type", "checkerboard")
+    texture.setAttribute("name", name)
     texture.appendChild(generate_rgb(xml_doc, "color0", color0))
     texture.appendChild(generate_rgb(xml_doc, "color1", color1))
     return texture
 
 
+def generate_bitmap(xml_doc: minidom.Document, name: str, filename: pathlib.Path):
+    texture = xml_doc.createElement("texture")
+    texture.setAttribute("type", "bitmap")
+    texture.setAttribute("name", name)
+    texture.appendChild(generate_string(xml_doc, "filename", str(filename)))
+    return texture
+
+
 def generate_bsdf_principled(
     xml_doc: minidom.Document,
-    base_color: Union[Color, float, str],
+    base_color: Union[Color, float, str, pathlib.Path],
     roughness: Union[float, str],
     metallic: Union[float, str],
 ):
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "principled")
 
-    if isinstance(base_color, str):
+    if base_color == "checkerboard":
+        texture = generate_checkerboard(xml_doc, "base_color", 0.25, 0.75)
+        bsdf_xml.appendChild(texture)
+    elif isinstance(base_color, str):
         texture = generate_texture(
             xml_doc, name="base_color", texture_type="mesh_attribute"
         )
         texture.appendChild(generate_string(xml_doc, "name", base_color))
+        bsdf_xml.appendChild(texture)
+    elif isinstance(base_color, pathlib.Path):
+        texture = generate_bitmap(xml_doc, "base_color", base_color)
         bsdf_xml.appendChild(texture)
     else:
         bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))

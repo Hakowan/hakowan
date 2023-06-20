@@ -5,6 +5,7 @@ from typing import Optional, Union
 import math
 import numpy as np
 import numpy.typing as npt
+import pathlib
 
 from ..common.color import Color
 
@@ -44,7 +45,7 @@ class Surface:
     normals: Optional[npt.NDArray]
     uvs: Optional[npt.NDArray]
 
-    color: Union[Color, npt.NDArray]
+    color: Union[Color, npt.NDArray, str, pathlib.Path]
     roughness: Union[float, npt.NDArray]
     metallic: Union[float, npt.NDArray]
     alpha: Union[float, npt.NDArray]

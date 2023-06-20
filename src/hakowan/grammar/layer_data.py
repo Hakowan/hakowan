@@ -20,19 +20,6 @@ class Mark(Enum):
 
 
 @dataclass
-class Attribute:
-    """An attribute defines a mapping from geometry to values."""
-
-    values: np.ndarray
-    """ An array of scalar or vectors """
-
-    indices: np.ndarray
-    """ An array of elements, where each element is defined by a set of indices
-    into the `values` array.
-    """
-
-
-@dataclass
 class ChannelSetting:
     """Visualization channel settings"""
 
