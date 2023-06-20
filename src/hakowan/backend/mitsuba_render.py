@@ -74,7 +74,7 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
     for m in scene.surfaces:
         mesh_attributes = {}
         material_color: Union[str, Color, pathlib.Path]
-        material_roughness: Union[str, float]
+        material_roughness: Union[str, float, pathlib.Path]
         material_metallic: Union[str, float]
 
         prefix = lambda data: "vertex" if len(data) == len(m.vertices) else "face"
@@ -95,7 +95,6 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
             mesh_attributes["roughness"] = m.roughness
             material_roughness = f"{prefix(m.roughness)}_roughness"
         else:
-            assert isinstance(m.roughness, float)
             material_roughness = m.roughness
 
         if isinstance(m.metallic, np.ndarray):

@@ -166,7 +166,7 @@ def extract_color_channel(
 
 def extract_roughness_channel(
     layer_data: LayerData, default_roughness: float
-) -> Union[float, npt.NDArray]:
+) -> Union[float, npt.NDArray, str, pathlib.Path]:
     assert layer_data.data is not None
     data = layer_data.data
 
@@ -175,6 +175,10 @@ def extract_roughness_channel(
         return default_roughness
     elif isinstance(roughness, numbers.Number):
         return float(roughness)
+    elif roughness == "checkerboard":
+        return roughness
+    elif isinstance(roughness, str) and pathlib.Path(roughness).exists():
+        return pathlib.Path(roughness)
 
     assert isinstance(roughness, str)
     mesh = data.mesh
@@ -305,7 +309,10 @@ def update_points(layer_data: LayerData, scene: Scene):
     roughnesses = extract_roughness_channel(layer_data, DEFAULT_ROUGHNESS)
     if isinstance(roughnesses, float):
         roughnesses = np.repeat([roughnesses], num_nodes, axis=0)
-    assert len(roughnesses) == num_nodes
+    elif isinstance(roughnesses, np.ndarray):
+        assert len(roughnesses) == num_nodes
+    else:
+        raise ValueError("Unsupported roughness type for point cloud.")
 
     metallics = extract_metallic_channel(layer_data, DEFAULT_METALLIC)
     if isinstance(metallics, float):

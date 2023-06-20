@@ -46,7 +46,7 @@ class Surface:
     uvs: Optional[npt.NDArray]
 
     color: Union[Color, npt.NDArray, str, pathlib.Path]
-    roughness: Union[float, npt.NDArray]
+    roughness: Union[float, npt.NDArray, str, pathlib.Path]
     metallic: Union[float, npt.NDArray]
     alpha: Union[float, npt.NDArray]
 

@@ -272,7 +272,7 @@ def generate_bsdf_principled(
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "principled")
 
-    if base_color == "checkerboard":
+    if isinstance(base_color, str) and base_color == "checkerboard":
         texture = generate_checkerboard(xml_doc, "base_color", 0.25, 0.75)
         bsdf_xml.appendChild(texture)
     elif isinstance(base_color, str):
@@ -287,11 +287,17 @@ def generate_bsdf_principled(
     else:
         bsdf_xml.appendChild(generate_rgb(xml_doc, "base_color", base_color))
 
-    if isinstance(roughness, str):
+    if isinstance(roughness, str) and roughness == "checkerboard":
+        texture = generate_checkerboard(xml_doc, "roughness", 0.25, 0.75)
+        bsdf_xml.appendChild(texture)
+    elif isinstance(roughness, str):
         texture = generate_texture(
             xml_doc, name="roughness", texture_type="mesh_attribute"
         )
         texture.appendChild(generate_string(xml_doc, "name", roughness))
+        bsdf_xml.appendChild(texture)
+    elif isinstance(roughness, pathlib.Path):
+        texture = generate_bitmap(xml_doc, "roughness", roughness)
         bsdf_xml.appendChild(texture)
     else:
         bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
