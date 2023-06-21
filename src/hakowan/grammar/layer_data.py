@@ -39,6 +39,7 @@ class ChannelSetting:
 
     # Scale mappings
     position_map: Union[str, Callable[..., np.ndarray], None] = None
+    uv_map: Union[float, None] = None
     color_map: Union[str, Callable[..., Color], None] = None
     roughness_map: Union[str, Callable[..., float], None] = None
     metallic_map: Union[str, Callable[..., float], None] = None
@@ -99,8 +100,9 @@ class DataFrame:
         if len(normal_attr_ids) == 0:
             lagrange.compute_normal(self.mesh)
 
-        # Clear edges to avoid warning.
-        self.mesh.clear_edges()
+        if self.mesh.has_edges:
+            # Clear edges to avoid warning.
+            self.mesh.clear_edges()
 
         # This must be the last operation, so normal, uv, color and other attributes share the same
         # index buffer.

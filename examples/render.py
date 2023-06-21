@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument("-c", "--color", help="Base color", default="ivory")
     parser.add_argument("-r", "--roughness", help="Material roughness", default=0.5)
     parser.add_argument("-m", "--metallic", help="Material metallic", default=0.0)
+    parser.add_argument("--uv-scale", help="UV scale", default=1.0, type=float)
     return parser.parse_args()
 
 
@@ -70,6 +71,7 @@ def main():
         color_map="turbo",
         roughness=roughness,
         metallic=metallic,
+        uv_map=args.uv_scale,
     )
     point_view = base.mark(hakowan.POINT).channel(
         size=0.01 * max_side,

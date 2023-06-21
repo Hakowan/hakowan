@@ -101,6 +101,11 @@ def extract_uv_channel(layer_data: LayerData) -> Optional[npt.NDArray]:
         assert layer_data.data.mesh.has_attribute(uv_attr_name)
         uvs = layer_data.data.mesh.attribute(uv_attr_name).data
     assert uvs.ndim == 2 and uvs.shape[1] == 2
+
+    if layer_data.channel_setting.uv_map is not None:
+        assert isinstance(layer_data.channel_setting.uv_map, float)
+        scale = layer_data.channel_setting.uv_map
+        uvs = uvs * scale
     return uvs
 
 

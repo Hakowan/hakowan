@@ -266,7 +266,7 @@ def generate_bitmap(xml_doc: minidom.Document, name: str, filename: pathlib.Path
 def generate_bsdf_principled(
     xml_doc: minidom.Document,
     base_color: Union[Color, float, str, pathlib.Path],
-    roughness: Union[float, str],
+    roughness: Union[float, str, pathlib.Path],
     metallic: Union[float, str],
 ):
     bsdf_xml = xml_doc.createElement("bsdf")
