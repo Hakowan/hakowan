@@ -267,7 +267,7 @@ def generate_bsdf_principled(
     xml_doc: minidom.Document,
     base_color: Union[Color, float, str, pathlib.Path],
     roughness: Union[float, str, pathlib.Path],
-    metallic: Union[float, str],
+    metallic: Union[float, str, pathlib.Path],
 ):
     bsdf_xml = xml_doc.createElement("bsdf")
     bsdf_xml.setAttribute("type", "principled")
@@ -302,11 +302,17 @@ def generate_bsdf_principled(
     else:
         bsdf_xml.appendChild(generate_float(xml_doc, "roughness", roughness))
 
-    if isinstance(metallic, str):
+    if isinstance(metallic, str) and metallic == "checkerboard":
+        texture = generate_checkerboard(xml_doc, "metallic", 0.75, 0.25)
+        bsdf_xml.appendChild(texture)
+    elif isinstance(metallic, str):
         texture = generate_texture(
             xml_doc, name="metallic", texture_type="mesh_attribute"
         )
         texture.appendChild(generate_string(xml_doc, "name", metallic))
+        bsdf_xml.appendChild(texture)
+    elif isinstance(metallic, pathlib.Path):
+        texture = generate_bitmap(xml_doc, "metallic", metallic)
         bsdf_xml.appendChild(texture)
     else:
         bsdf_xml.appendChild(generate_float(xml_doc, "metallic", metallic))

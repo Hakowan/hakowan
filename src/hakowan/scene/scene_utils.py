@@ -213,7 +213,7 @@ def extract_roughness_channel(
 
 def extract_metallic_channel(
     layer_data: LayerData, default_metallic: float
-) -> Union[float, npt.NDArray]:
+) -> Union[float, npt.NDArray, str, pathlib.Path]:
     assert layer_data.data is not None
     data = layer_data.data
 
@@ -222,6 +222,10 @@ def extract_metallic_channel(
         return default_metallic
     elif isinstance(metallic, numbers.Number):
         return float(metallic)
+    elif metallic == "checkerboard":
+        return metallic
+    elif isinstance(metallic, str) and pathlib.Path(metallic).exists():
+        return pathlib.Path(metallic)
 
     assert isinstance(metallic, str)
     mesh = data.mesh
@@ -322,7 +326,10 @@ def update_points(layer_data: LayerData, scene: Scene):
     metallics = extract_metallic_channel(layer_data, DEFAULT_METALLIC)
     if isinstance(metallics, float):
         metallics = np.repeat([metallics], num_nodes, axis=0)
-    assert len(metallics) == num_nodes
+    elif isinstance(metallics, np.ndarray):
+        assert len(metallics) == num_nodes
+    else:
+        raise ValueError("Unsupported metalic type for point cloud.")
 
     sizes = extract_size_channel(layer_data, DEFAULT_SIZE)
     if isinstance(sizes, float):

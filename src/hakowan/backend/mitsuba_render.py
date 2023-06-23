@@ -101,7 +101,6 @@ def generate_mitsuba_config(scene: Scene, config: RenderConfig):
             mesh_attributes["metallic"] = m.metallic
             material_metallic = f"{prefix(m.metallic)}_metallic"
         else:
-            assert isinstance(m.metallic, float)
             material_metallic = m.metallic
 
         # TODO: double check transform here.
