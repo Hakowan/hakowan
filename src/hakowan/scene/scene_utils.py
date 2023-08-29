@@ -156,15 +156,18 @@ def extract_color_channel(
         if colormap is None:
             colormap = "viridis"
         assert isinstance(colormap, str)
-        if colormap not in named_colormaps:
-            raise InvalidSetting(f"Unknown colormap: {colormap}")
-        colormap = named_colormaps[colormap]
+        if colormap == "identity":
+            colormap = lambda x: x[:3]
+        else:
+            if colormap not in named_colormaps:
+                raise InvalidSetting(f"Unknown colormap: {colormap}")
+            colormap = named_colormaps[colormap]
 
-        # Normalize attribute values.
-        if attr.ndim == 2:
-            attr = norm(attr, axis=1)
-        if (attr.max() - attr.min()) > 0:
-            attr = (attr - attr.min()) / (attr.max() - attr.min())
+            # Normalize attribute values.
+            if attr.ndim == 2:
+                attr = norm(attr, axis=1)
+            if (attr.max() - attr.min()) > 0:
+                attr = (attr - attr.min()) / (attr.max() - attr.min())
 
     return np.array([colormap(v).data for v in attr])
 
