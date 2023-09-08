@@ -2,7 +2,7 @@
 
 from . import grammar
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 # Add handy alias
 POINT = grammar.layer_data.Mark.POINT

@@ -1,1 +1,2 @@
-from .channel import Channel
+from .channel import Channel, Position, Normal, Size
+from .material import *

@@ -1,2 +1,1 @@
-from .dataframe import *
-from .attribute import *
+from .dataframe import DataFrame

@@ -1,8 +1,8 @@
 import pytest
-from hakowan.beta import Mark
+from hakowan.beta import mark
 
 class TestMark:
     def test_simple(self):
-        m = Mark.Surface
-        assert m == Mark.Surface
-        assert m != Mark.Curve
+        m = mark.Surface
+        assert m == mark.Surface
+        assert m != mark.Curve

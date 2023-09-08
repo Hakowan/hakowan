@@ -1,1 +1,1 @@
-from .material import *
+from .material import Material, Diffuse

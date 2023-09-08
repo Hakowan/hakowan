@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from ..scale import Scale
+from .scale import Scale
 
 @dataclass(kw_only=True)
 class Attribute:

@@ -68,7 +68,7 @@ def main():
     base = hakowan.layer().data(mesh)
     surface_view = base.mark(hakowan.SURFACE).channel(
         color=args.color,
-        color_map="turbo",
+        color_map="identity",
         roughness=roughness,
         metallic=metallic,
         uv_map=args.uv_scale,

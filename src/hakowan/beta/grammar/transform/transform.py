@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Self, Callable
 
-from ..dataframe import Attribute
+from ..scale import Attribute
 
 
 @dataclass(kw_only=True)

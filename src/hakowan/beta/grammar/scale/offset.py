@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .scale import Scale
-from ..dataframe import Attribute
+from .attribute import Attribute
 
 @dataclass(kw_only=True)
 class Offset(Scale):
