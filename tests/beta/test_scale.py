@@ -2,8 +2,6 @@ import pytest
 from hakowan.beta import scale
 import numpy as np
 
-import lagrange
-
 
 class TestAttribute:
     def test_attribute(self):

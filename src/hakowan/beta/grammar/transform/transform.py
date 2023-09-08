@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, Self, Callable
+from typing import Self, Callable
 
 from ..scale import Attribute
 
 
 @dataclass(kw_only=True)
 class Transform:
-    child: Optional[Self] = None
+    child: Self | None = None
 
 
 @dataclass(kw_only=True)

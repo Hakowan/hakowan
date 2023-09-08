@@ -1,44 +1,44 @@
-from dataclasses import dataclass
-from typing import Union
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...common.color import Color
+from ..scale import Attribute
 
 
 @dataclass(kw_only=True)
 class Texture:
-    _active_attribute: list[str]
+    pass
 
 
 @dataclass(kw_only=True)
 class ScalarField(Texture):
-    data: str
-    colormap: str
-    min_value: float
-    max_value: float
+    data: Attribute
+    colormap: str = "viridis"
+    _min_value: float | None = None
+    _max_value: float | None = None
 
 
 @dataclass(kw_only=True)
 class Uniform(Texture):
-    color: Union[float, str, Color]
+    color: float | str | Color
 
 
 @dataclass(kw_only=True)
 class Image(Texture):
-    uv: str
+    uv: Attribute
     filename: Path
 
 
 @dataclass(kw_only=True)
 class CheckerBoard(Texture):
-    uv: str
-    color1: Texture
-    color2: Texture
+    uv: Attribute
+    texture1: Texture
+    texture2: Texture
 
 
 @dataclass(kw_only=True)
 class Isocontour(Texture):
-    data: str
-    color1: Texture
-    color2: Texture
-    _uv: str
+    data: Attribute
+    texture1: Texture
+    texture2: Texture
+    _uv: Attribute | None = None

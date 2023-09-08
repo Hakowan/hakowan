@@ -13,9 +13,9 @@ class Layer:
     mark: Optional[Mark] = None
     channels: list[Channel] = field(default_factory=list)
     transform: Optional[Transform] = None
-    children: list[Self] = field(default_factory=list)
+    _children: list[Self] = field(default_factory=list)
 
     def __add__(self, other: Self) -> "Layer":
         parent = Layer()
-        parent.children = [self, other]
+        parent._children = [self, other]
         return parent
