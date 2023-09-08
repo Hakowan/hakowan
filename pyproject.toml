@@ -15,8 +15,10 @@ dependencies=[
     "scipy>=1.8.0",
     "lagrange-open",
     ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 
 [mypy]
 plugins = "numpy.typing.mypy_plugin"
+follow_imports = "skip"
+

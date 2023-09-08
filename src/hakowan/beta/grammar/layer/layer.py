@@ -15,7 +15,7 @@ class Layer:
     transform: Optional[Transform] = None
     children: list[Self] = field(default_factory=list)
 
-    def __add__(self, other: Self) -> Self:
+    def __add__(self, other: Self) -> "Layer":
         parent = Layer()
         parent.children = [self, other]
         return parent
