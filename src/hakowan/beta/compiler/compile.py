@@ -11,7 +11,7 @@ def compile(root: layer.Layer) -> Scene:
         view = View()
         for l in ancestors:
             if view.data is None:
-                view.data = l._spec.data
+                view.data = copy.deepcopy(l._spec.data)
             if view.mark is None:
                 view.mark = l._spec.mark
             if view.transform is None:

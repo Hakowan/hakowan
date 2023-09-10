@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Self
 import copy
 
+import lagrange
+
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame
 from ..mark import Mark
@@ -19,8 +21,14 @@ class Layer:
         parent._children = [self, other]
         return parent
 
-    def data(self, data: DataFrame) -> "Layer":
-        self._spec.data = data
+    def data(self, data: lagrange.SurfaceMesh | DataFrame) -> "Layer":
+        match (data):
+            case lagrange.SurfaceMesh():
+                self._spec.data = DataFrame(mesh=data)
+            case DataFrame():
+                self._spec.data = data
+            case _:
+                raise TypeError(f"Unsupported data type: {type(data)}!")
         return self
 
     def mark(self, mark: Mark) -> "Layer":
