@@ -28,7 +28,8 @@ class TestCompile:
         l1 = layer.Layer().data(mesh).mark(mark.Surface)
         l1.transform(
             transform.Filter(
-                data=scale.Attribute(name="index"), condition=lambda v: v % 2 == 0
+                data=scale.Attribute(name="index"),
+                condition=lambda v: v % 2 == 0,
             )
         )
         scene = compiler.compile(l1)

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from ..grammar import dataframe as df, mark as mk, channel as ch, transform as tf
+from ..common import logger
 
 import lagrange
 import numpy as np
@@ -37,6 +38,8 @@ class View:
         assert self.data is not None, "View must have data"
         mesh = self.data.mesh
         attr_name = transform.data.name
+        if transform.data.scale is not None:
+            logger.warning("Attribute scale is ignored for applying transform.")
         assert mesh.has_attribute(
             attr_name
         ), f"Attribute {attr_name} does not exist in data"
