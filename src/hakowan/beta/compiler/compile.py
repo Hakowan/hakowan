@@ -1,10 +1,11 @@
 from ..grammar import layer
 from .view import View
+from .scene import Scene
 import copy
 
 
-def compile(root: layer.Layer) -> list[View]:
-    views: list[View] = []
+def compile(root: layer.Layer) -> Scene:
+    scene = Scene()
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
         view = View()
@@ -20,19 +21,18 @@ def compile(root: layer.Layer) -> list[View]:
             if len(l._spec.channels) > 0:
                 view.channels.extend(l._spec.channels)
 
-        assert view.data is not None
-        assert view.mark is not None
+        view.validate()
         return view
 
     def traverse(l: layer.Layer, ancestors: list[layer.Layer]) -> None:
         # `ancestors` is a list of layers from the root to the current layer.
         ancestors.append(l)
         if len(l._children) == 0:
-            views.append(generate_view(ancestors))
+            scene.append(generate_view(ancestors))
         else:
             for child in l._children:
                 traverse(child, ancestors)
         ancestors.pop()
 
     traverse(root, [])
-    return views
+    return scene

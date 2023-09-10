@@ -8,3 +8,11 @@ class View:
     mark: mk.Mark | None = None
     channels: list[ch.Channel] = field(default_factory=list)
     transform: tf.Transform | None = None
+
+    def validate(self):
+        """ Validate the currvent view is complete.
+        A view is complete if data and mark are both not None
+        """
+        assert self.data is not None, "View must have data"
+        assert self.mark is not None, "View must have mark"
+

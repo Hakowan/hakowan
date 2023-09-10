@@ -8,5 +8,5 @@ class TestCompile:
         data = lagrange.SurfaceMesh()
         l1 = layer.Layer().data(data)
         root = l1.mark(mark.Surface)
-        views = compiler.compile(root)
-        assert len(views) == 1
+        scene = compiler.compile(root)
+        assert len(scene.views) == 1
