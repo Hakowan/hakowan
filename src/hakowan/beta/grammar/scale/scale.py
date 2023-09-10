@@ -5,7 +5,7 @@ from numpy import typing as npt
 
 @dataclass(kw_only=True)
 class Scale:
-    child: Optional[Self] = None
+    _child: Optional[Self] = None
 
 
 @dataclass(kw_only=True)

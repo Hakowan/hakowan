@@ -16,7 +16,7 @@ class TestAttribute:
 class TestScale:
     def test_normalize(self):
         s = scale.Normalize(bbox_min=np.zeros(3), bbox_max=np.ones(3))
-        assert s.child is None
+        assert s._child is None
         assert np.all(s.bbox_min == [0, 0, 0])
         assert np.all(s.bbox_max == [1, 1, 1])
 
@@ -27,12 +27,12 @@ class TestScale:
 
     def test_log(self):
         s = scale.Log(base=2)
-        assert s.child is None
+        assert s._child is None
         assert s.base == 2
 
     def test_uniform(self):
         s = scale.Uniform(factor=2)
-        assert s.child is None
+        assert s._child is None
         assert s.factor == 2
 
     def test_offset(self):
@@ -40,7 +40,7 @@ class TestScale:
         assert a.name == "index"
         assert a.scale is None
         s = scale.Offset(offset=a)
-        assert s.child is None
+        assert s._child is None
         assert s.offset is a
 
         a.name = "curvature"
@@ -50,6 +50,6 @@ class TestScale:
     def test_chaning(self):
         s1 = scale.Normalize(bbox_min=np.zeros(3), bbox_max=np.ones(3))
         s2 = scale.Log(base=10)
-        s1.child = s2
-        assert s1.child.base == 10
-        assert s2.child is None
+        s1._child = s2
+        assert s1._child.base == 10
+        assert s2._child is None

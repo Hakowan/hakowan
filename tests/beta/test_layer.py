@@ -6,10 +6,10 @@ import lagrange
 class TestLayer:
     def test_empty_layer(self):
         l = layer.Layer()
-        assert l.data is None
-        assert l.mark is None
-        assert l.channels == []
-        assert l.transform is None
+        assert l._spec.data is None
+        assert l._spec.mark is None
+        assert l._spec.channels == []
+        assert l._spec.transform is None
         assert l._children == []
 
     def test_chain_layers(self):
