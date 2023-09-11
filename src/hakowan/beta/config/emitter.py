@@ -19,6 +19,6 @@ class Point(Emitter):
 @dataclass(kw_only=True)
 class Envmap(Emitter):
     filename: Path = field(
-        default_factory=lambda: Path(__file__).parents[1] / "envmap" / "envmap.exr"
+        default_factory=lambda: Path(__file__).parents[2] / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
