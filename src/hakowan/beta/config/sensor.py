@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
+import numpy as np
 import numpy.typing as npt
 
 
 @dataclass(kw_only=True)
 class Sensor:
-    location: npt.NDarray = field(default_factory=lambda: np.array([0, 0, 5]))
+    location: npt.NDArray = field(default_factory=lambda: np.array([0, 0, 5]))
     target: npt.NDArray = field(default_factory=lambda: np.array([0, 0, 0]))
     up: npt.NDArray = field(default_factory=lambda: np.array([0, 1, 0]))
     near_clip: float = 1e-2

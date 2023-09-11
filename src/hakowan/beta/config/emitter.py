@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import numpy.typing as npt
 from pathlib import Path
 
-from ..common import Color
+from ..common.color import Color
 
 
 @dataclass(kw_only=True)
@@ -13,12 +13,12 @@ class Emitter:
 @dataclass(kw_only=True)
 class Point(Emitter):
     intensity: Color | float
-    position: npt.NDArray[float]
+    position: npt.NDArray
 
 
 @dataclass(kw_only=True)
 class Envmap(Emitter):
     filename: Path = field(
-        default_factory=lambda: Path(__path__).parents[1] / "envmap" / "envmap.exr"
+        default_factory=lambda: Path(__file__).parents[1] / "envmap" / "envmap.exr"
     )
     scale: float = 1.0
