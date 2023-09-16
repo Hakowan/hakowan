@@ -34,6 +34,4 @@ class TestCompile:
         )
         scene = compiler.compile(l1)
         assert len(scene) == 1
-        assert scene[0].data.mesh.num_facets == 2
-        scene[0].apply_transform()
         assert scene[0].data.mesh.num_facets == 1

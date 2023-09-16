@@ -1,10 +1,13 @@
 from ..grammar import layer
 from .view import View
 from .scene import Scene
+from .transform import apply_transform
+from .channel import process_channels
+
 import copy
 
 
-def compile(root: layer.Layer) -> Scene:
+def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
     scene = Scene()
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
@@ -35,4 +38,19 @@ def compile(root: layer.Layer) -> Scene:
         ancestors.pop()
 
     traverse(root, [])
+    return scene
+
+
+def compile(root: layer.Layer) -> Scene:
+    # Step 1: condense each path from root to leaf in the layer tree into a view.
+    scene = condense_layer_tree_to_scene(root)
+
+    # Step 2: carry out transform operations on each view.
+    for view in scene:
+        apply_transform(view)
+
+    # Step 3: process channels
+    for view in scene:
+        process_channels(view)
+
     return scene
