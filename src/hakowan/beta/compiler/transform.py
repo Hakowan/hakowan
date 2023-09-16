@@ -7,11 +7,11 @@ import lagrange
 import numpy as np
 
 
-def _apply_filter_transform(data: DataFrame, transform: Filter):
+def _apply_filter_transform(df: DataFrame, transform: Filter):
     """Filter the data based on attribute value and condition specified in the transform."""
-    assert data is not None
+    assert df is not None
     assert transform is not None
-    mesh = data.mesh
+    mesh = df.mesh
     attr_name = transform.data.name
     if transform.data.scale is not None:
         logger.warning("Attribute scale is ignored when applying transform.")
@@ -24,7 +24,7 @@ def _apply_filter_transform(data: DataFrame, transform: Filter):
     match (attr.element_type):
         case lagrange.AttributeElement.Facet:
             selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[keep]
-            data.mesh = lagrange.extract_submesh(
+            df.mesh = lagrange.extract_submesh(
                 mesh,
                 selected_facets=selected_facets,
                 map_attributes=True,
@@ -34,7 +34,7 @@ def _apply_filter_transform(data: DataFrame, transform: Filter):
 
 
 def apply_transform(view: View):
-    """Apply a chain of transforms specified by view.transform to view.data.
+    """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
     """
 
@@ -43,8 +43,8 @@ def apply_transform(view: View):
             return
         match (t):
             case Filter():
-                assert view.data is not None
-                _apply_filter_transform(view.data, t)
+                assert view.data_frame is not None
+                _apply_filter_transform(view.data_frame, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

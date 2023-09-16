@@ -2,7 +2,7 @@ from ..grammar import layer
 from .view import View
 from .scene import Scene
 from .transform import apply_transform
-from .channel import process_channels
+from .channel import preprocess_channels, process_channels
 
 import copy
 
@@ -13,8 +13,8 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
     def generate_view(ancestors: list[layer.Layer]) -> View:
         view = View()
         for l in ancestors:
-            if view.data is None:
-                view.data = copy.deepcopy(l._spec.data)
+            if view.data_frame is None:
+                view.data_frame = copy.deepcopy(l._spec.data)
             if view.mark is None:
                 view.mark = l._spec.mark
             if view.transform is None:
@@ -49,7 +49,11 @@ def compile(root: layer.Layer) -> Scene:
     for view in scene:
         apply_transform(view)
 
-    # Step 3: process channels
+    # Step 3: preprocess channels
+    for view in scene:
+        preprocess_channels(view)
+
+    # Step 4: process channels
     for view in scene:
         process_channels(view)
 

@@ -4,7 +4,7 @@ from ..grammar import dataframe as df, mark as mk, channel as ch, transform as t
 
 @dataclass(kw_only=True)
 class View:
-    data: df.DataFrame | None = None
+    data_frame: df.DataFrame | None = None
     mark: mk.Mark | None = None
     channels: list[ch.Channel] = field(default_factory=list)
     transform: tf.Transform | None = None
@@ -17,7 +17,7 @@ class View:
 
     def validate(self):
         """Validate the currvent view is complete.
-        A view is complete if data and mark are both not None
+        A view is complete if data_frame and mark are both not None
         """
-        assert self.data is not None, "View must have data"
+        assert self.data_frame is not None, "View must have data_frame"
         assert self.mark is not None, "View must have mark"
