@@ -137,6 +137,18 @@ def _apply_custom(data: npt.NDArray, scale: Custom):
         data[i] = scale.function(entry)
 
 
+def _apply_affine(data: npt.NDArray, scale: Affine):
+    assert data.ndim == 2
+    assert scale.matrix.ndim == 2
+    dim = data.shape[1]
+    M = scale.matrix
+
+    if dim == M.shape[1]:
+        data[:] = data @ M.T
+    elif dim + 1 == M.shape[1]:
+        data[:] = data @ M[0:dim, 0:dim].T + M[0:dim, dim].T
+
+
 def _apply_offset(
     target_attr: lagrange.Attribute | lagrange.IndexedAttribute,
     scale: Offset,
@@ -183,8 +195,7 @@ def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
         case Custom():
             _apply_custom(mesh_attr.data, attr_scale)
         case Affine():
-            raise NotImplementedError("Affine scale is not supported")
-            pass
+            _apply_affine(mesh_attr.data, attr_scale)
         case Offset():
             _apply_offset(mesh_attr, attr_scale, df)
         case _:
@@ -205,8 +216,7 @@ def _apply_scale_indexed_attribute(df: DataFrame, attr_name: str, attr_scale: Sc
         case Custom():
             _apply_custom(indexed_attr.values.data, attr_scale)
         case Affine():
-            raise NotImplementedError("Affine scale is not supported")
-            pass
+            _apply_affine(indexed_attr.values.data, attr_scale)
         case Offset():
             _apply_offset(indexed_attr, attr_scale, df)
         case _:

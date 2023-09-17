@@ -54,8 +54,8 @@ class TestScale:
         compiler.attribute.apply_scale(df, name, sc)
 
         assert mesh.has_attribute(name)
-        vertex_index = mesh.attribute(name).data
-        assert np.all(vertex_index == pytest.approx(expected_result))
+        data = mesh.attribute(name).data
+        assert np.all(data == pytest.approx(expected_result))
 
     def test_uniform(self, triangle):
         mesh = triangle
@@ -86,3 +86,47 @@ class TestScale:
         df = dataframe.DataFrame(mesh=mesh)
         sc = scale.Custom(function=lambda x: x**2)
         self.__apply_scale(df, "vertex_data", sc, np.array([1, 4, 9]))
+
+    def test_affine_scaling(self, triangle):
+        mesh = triangle
+        df = dataframe.DataFrame(mesh=mesh)
+        sc = scale.Affine(matrix=np.eye(3) * 2)
+        self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices * 2)
+
+    def test_affine_translating(self, triangle):
+        mesh = triangle
+        df = dataframe.DataFrame(mesh=mesh)
+        M = np.eye(4)
+        translation = np.array([1, 1, 1])
+        M[0:3, 3] = translation
+        sc = scale.Affine(matrix=M)
+        self.__apply_scale(
+            df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + translation
+        )
+
+    def test_offset(self, triangle):
+        mesh = triangle
+        df = dataframe.DataFrame(mesh=mesh)
+        mesh.create_attribute(
+            "offset",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.ones((triangle.num_vertices, 3)),
+        )
+        offset_attr = scale.Attribute(name="offset")
+        sc = scale.Offset(offset=offset_attr)
+        self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 1)
+
+    def test_scaled_offset(self, triangle):
+        mesh = triangle
+        df = dataframe.DataFrame(mesh=mesh)
+        mesh.create_attribute(
+            "offset",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.ones((triangle.num_vertices, 3)),
+        )
+        uniform_scale = scale.Uniform(factor=2.0)
+        offset_attr = scale.Attribute(name="offset", scale=uniform_scale)
+        sc = scale.Offset(offset=offset_attr)
+        self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 2)
