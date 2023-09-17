@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Optional, Self, Callable
+from typing import Optional, Callable
 from numpy import typing as npt
 
 
 @dataclass(kw_only=True)
 class Scale:
-    _child: Optional[Self] = None
+    _child: Optional["Scale"] = None
 
 
 @dataclass(kw_only=True)
@@ -44,3 +44,10 @@ class Affine(Scale):
     """Scale the data using an affine transformation."""
 
     matrix: npt.NDArray
+
+
+@dataclass(kw_only=True)
+class Clip(Scale):
+    """Clip the data to the range [min, max]."""
+
+    domain: tuple[float, float]

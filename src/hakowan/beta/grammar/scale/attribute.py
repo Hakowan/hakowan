@@ -6,3 +6,4 @@ from .scale import Scale
 class Attribute:
     name: str
     scale: Scale | None = None
+    _internal_name: str | None = None

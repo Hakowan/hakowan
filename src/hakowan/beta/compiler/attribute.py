@@ -1,13 +1,14 @@
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import (
-    Attribute,
-    Normalize,
-    Log,
-    Uniform,
-    Custom,
     Affine,
+    Attribute,
+    Clip,
+    Custom,
+    Log,
+    Normalize,
     Offset,
     Scale,
+    Uniform,
 )
 
 import lagrange
@@ -15,54 +16,86 @@ import numpy as np
 import numpy.typing as npt
 import numbers
 
-
 ### Public API
 
 
-def update_scale(data: DataFrame, attr_name: str, attr_scale: Scale):
+def update_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
     """Update scale with attribute data
 
     Some scale has parameters that depends on the data. This method compute such data.
 
-    :param data:       The input data frame.
+    :param df:         The input data frame.
     :param attr_name:  Target attribute name.
     :param attr_scale: Scale to be updated in place.
     """
-    _update_scale(data, attr_name, attr_scale)
+    _update_scale(df, attr_name, attr_scale)
 
 
-def apply_scale(data: DataFrame, attr_name: str, attr_scale: Scale):
+def apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
     """Apply scale to attribute data
 
-    :param data:       The data frame, which will be modified in place.
+    :param df:         The data frame, which will be modified in place.
     :param attr_name:  Target attribute name
     :param attr_scale: Scale to apply
     """
-    _apply_scale(data, attr_name, attr_scale)
+    _apply_scale(df, attr_name, attr_scale)
+
+
+def compute_scaled_attribute(df: DataFrame, attr: Attribute):
+    """ Compute a new attribute which is the scaled version of the original attribute.
+
+    The scaled attribute is stored in the data frame the name `attr._internal_name`.
+
+    :param df:   The input data frame.
+    :param attr: The attribute to be scaled.
+    """
+    if attr.scale is not None:
+        if attr._internal_name is None:
+            attr._internal_name = f"_hakowan_{attr.name}"
+            df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+            apply_scale(df, attr._internal_name, attr.scale)
+    else:
+        # No scale.
+        attr._internal_name = attr.name
+
+
+def compute_attribute_minmax(df: DataFrame, attr_name: str):
+    """Compute the column-wise min and max value of an attribute.
+
+    :param df:        The input data frame.
+    :param attr_name: Target attribute name.
+
+    :return: A tuple of (min, max) value of the attribute.
+    """
+    mesh = df.mesh
+    assert mesh is not None
+    assert mesh.has_attribute(attr_name)
+
+    if mesh.is_attribute_indexed(attr_name):
+        attr = mesh.indexed_attribute(attr_name)
+        values = attr.values.data
+    else:
+        values = mesh.attribute(attr_name).data
+
+    return np.amin(values, axis=0), np.amax(values, axis=0)
 
 
 ### Private API
 
 
-def _update_normalize_scale(data: DataFrame, attr_name: str, attr_scale: Normalize):
-    mesh = data.mesh
-    assert mesh is not None
-    assert mesh.has_attribute(attr_name)
+def _update_normalize_scale(df: DataFrame, attr_name: str, attr_scale: Normalize):
+    value_min, value_max = compute_attribute_minmax(df, attr_name)
 
-    if mesh.is_attribute_indexed(attr_name):
-        pass
-    else:
-        attr_data = mesh.attribute(attr_name).data
-        attr_scale._value_min = (
-            np.amin(attr_data, axis=0)
-            if attr_scale._value_min is None
-            else np.minimum(attr_scale._value_min, np.amin(attr_data, axis=0))
-        )
-        attr_scale._value_max = (
-            np.amax(attr_data, axis=0)
-            if attr_scale._value_max is None
-            else np.maximum(attr_scale._value_max, np.amax(attr_data, axis=0))
-        )
+    attr_scale._value_min = (
+        value_min
+        if attr_scale._value_min is None
+        else np.minimum(attr_scale._value_min, value_min)
+    )
+    attr_scale._value_max = (
+        value_max
+        if attr_scale._value_max is None
+        else np.maximum(attr_scale._value_max, value_max)
+    )
 
 
 def _update_scale(data: DataFrame, attr_name: str, attr_scale: Scale):
@@ -176,9 +209,16 @@ def _apply_offset(
             offset_attr.indices
         ]
     elif target_is_indexed:
+        # TODO
         pass
     else:
+        # TODO
         pass
+
+
+def _apply_clip(data: npt.NDArray, scale: Clip):
+    assert scale.domain[0] <= scale.domain[1]
+    np.clip(data, scale.domain[0], scale.domain[1], out=data)
 
 
 def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
@@ -198,6 +238,8 @@ def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
             _apply_affine(mesh_attr.data, attr_scale)
         case Offset():
             _apply_offset(mesh_attr, attr_scale, df)
+        case Clip():
+            _apply_clip(mesh_attr.data, attr_scale)
         case _:
             raise NotImplementedError(f"Scale type {type(attr_scale)} is not supported")
 
@@ -219,6 +261,8 @@ def _apply_scale_indexed_attribute(df: DataFrame, attr_name: str, attr_scale: Sc
             _apply_affine(indexed_attr.values.data, attr_scale)
         case Offset():
             _apply_offset(indexed_attr, attr_scale, df)
+        case Clip():
+            _apply_clip(indexed_attr.values.data, attr_scale)
         case _:
             raise NotImplementedError(f"Scale type {type(attr_scale)} is not supported")
 
@@ -236,3 +280,4 @@ def _apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
 
     if attr_scale._child is not None:
         apply_scale(df, attr_name, attr_scale._child)
+
