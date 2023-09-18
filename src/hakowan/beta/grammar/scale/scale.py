@@ -14,8 +14,8 @@ class Normalize(Scale):
 
     bbox_min: npt.NDArray | float
     bbox_max: npt.NDArray | float
-    _value_min: npt.NDArray | float | None = None
-    _value_max: npt.NDArray | float | None = None
+    domain_min: npt.NDArray | float | None = None
+    domain_max: npt.NDArray | float | None = None
 
 
 @dataclass(kw_only=True)

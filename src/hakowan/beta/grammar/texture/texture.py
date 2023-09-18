@@ -15,8 +15,7 @@ class ScalarField(Texture):
     data: Attribute
     colormap: str = "viridis"
     domain: tuple[float, float] | None = None
-    _value_min: float | None = None
-    _value_max: float | None = None
+    range: tuple[float, float] | None = None
 
 
 @dataclass(kw_only=True)

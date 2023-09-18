@@ -75,10 +75,6 @@ class TestScale:
         mesh = triangle
         df = dataframe.DataFrame(mesh=mesh)
         sc = scale.Normalize(bbox_min=0, bbox_max=1)
-        compiler.attribute.update_scale(df, "vertex_data", sc)
-        assert sc._value_min == pytest.approx(1)
-        assert sc._value_max == pytest.approx(3)
-
         self.__apply_scale(df, "vertex_data", sc, np.array([0, 0.5, 1]))
 
     def test_custom(self, triangle):

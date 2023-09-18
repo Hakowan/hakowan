@@ -20,10 +20,10 @@ class TestScale:
         assert np.all(s.bbox_min == [0, 0, 0])
         assert np.all(s.bbox_max == [1, 1, 1])
 
-        s._value_min = 0
-        s._value_max = 1
-        assert s._value_min == 0
-        assert s._value_max == 1
+        s.domain_min= 0
+        s.domain_max= 1
+        assert s.domain_min== 0
+        assert s.domain_max== 1
 
     def test_log(self):
         s = scale.Log(base=2)

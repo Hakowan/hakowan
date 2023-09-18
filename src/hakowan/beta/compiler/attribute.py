@@ -19,18 +19,6 @@ import numbers
 ### Public API
 
 
-def update_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
-    """Update scale with attribute data
-
-    Some scale has parameters that depends on the data. This method compute such data.
-
-    :param df:         The input data frame.
-    :param attr_name:  Target attribute name.
-    :param attr_scale: Scale to be updated in place.
-    """
-    _update_scale(df, attr_name, attr_scale)
-
-
 def apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
     """Apply scale to attribute data
 
@@ -42,7 +30,7 @@ def apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
 
 
 def compute_scaled_attribute(df: DataFrame, attr: Attribute):
-    """ Compute a new attribute which is the scaled version of the original attribute.
+    """Compute a new attribute which is the scaled version of the original attribute.
 
     The scaled attribute is stored in the data frame the name `attr._internal_name`.
 
@@ -83,30 +71,6 @@ def compute_attribute_minmax(df: DataFrame, attr_name: str):
 ### Private API
 
 
-def _update_normalize_scale(df: DataFrame, attr_name: str, attr_scale: Normalize):
-    value_min, value_max = compute_attribute_minmax(df, attr_name)
-
-    attr_scale._value_min = (
-        value_min
-        if attr_scale._value_min is None
-        else np.minimum(attr_scale._value_min, value_min)
-    )
-    attr_scale._value_max = (
-        value_max
-        if attr_scale._value_max is None
-        else np.maximum(attr_scale._value_max, value_max)
-    )
-
-
-def _update_scale(data: DataFrame, attr_name: str, attr_scale: Scale):
-    match attr_scale:
-        case Normalize():
-            _update_normalize_scale(data, attr_name, attr_scale)
-
-    if attr_scale._child is not None:
-        update_scale(data, attr_name, attr_scale._child)
-
-
 def _apply_normalize(data: npt.NDArray, scale: Normalize):
     if data.ndim == 2:
         dim = data.shape[1]
@@ -114,33 +78,37 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         assert data.ndim == 1
         dim = 1
     assert np.all(np.isfinite(data))
-    assert scale._value_min is not None
-    assert scale._value_max is not None
+    domain_min: npt.NDArray | float = (
+        scale.domain_min if scale.domain_min is not None else np.amin(data, axis=0)
+    )
+    domain_max: npt.NDArray | float = (
+        scale.domain_max if scale.domain_max is not None else np.amax(data, axis=0)
+    )
     if dim > 1:
         assert isinstance(scale.bbox_min, npt.NDArray)
         assert isinstance(scale.bbox_max, npt.NDArray)
-        assert isinstance(scale._value_min, npt.NDArray)
-        assert isinstance(scale._value_max, npt.NDArray)
+        assert isinstance(domain_min, npt.NDArray)
+        assert isinstance(domain_max, npt.NDArray)
         assert dim == len(scale.bbox_min)
         assert dim == len(scale.bbox_max)
-        assert dim == len(scale._value_min)
-        assert dim == len(scale._value_max)
+        assert dim == len(domain_min)
+        assert dim == len(domain_max)
         assert np.all(scale.bbox_max >= scale.bbox_min)
-        assert np.all(scale._value_max > scale._value_min)
-        domain_size = scale._value_max - scale._value_min
+        assert np.all(domain_max > domain_min)
+        domain_size = domain_max - domain_min
         range_size = scale.bbox_max - scale.bbox_min
     else:
         assert dim == 1
         assert isinstance(scale.bbox_min, numbers.Number)
         assert isinstance(scale.bbox_max, numbers.Number)
-        assert isinstance(scale._value_min, numbers.Number)
-        assert isinstance(scale._value_max, numbers.Number)
+        assert isinstance(domain_min, numbers.Number)
+        assert isinstance(domain_max, numbers.Number)
         assert scale.bbox_max >= scale.bbox_min
-        assert scale._value_max > scale._value_min
-        domain_size = scale._value_max - scale._value_min
+        assert domain_max >= domain_min
+        domain_size = domain_max - domain_min
         range_size = scale.bbox_max - scale.bbox_min
 
-    data[:] = (data - scale._value_min) / domain_size * range_size + scale.bbox_min
+    data[:] = (data - domain_min) / domain_size * range_size + scale.bbox_min
     assert np.all(np.isfinite(data))
 
 
@@ -280,4 +248,3 @@ def _apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
 
     if attr_scale._child is not None:
         apply_scale(df, attr_name, attr_scale._child)
-

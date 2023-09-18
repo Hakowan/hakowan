@@ -49,7 +49,7 @@ def compile(root: layer.Layer) -> Scene:
     for view in scene:
         apply_transform(view)
 
-    # Step 3: preprocess channels, compute dependent parameters based on data.
+    # Step 3: preprocess channels.
     for view in scene:
         preprocess_channels(view)
 
