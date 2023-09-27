@@ -7,7 +7,7 @@ from ..scale import Attribute
 
 @dataclass(kw_only=True)
 class Texture:
-    pass
+    _uv: Attribute | None = None
 
 
 @dataclass(kw_only=True)
@@ -39,6 +39,6 @@ class CheckerBoard(Texture):
 @dataclass(kw_only=True)
 class Isocontour(Texture):
     data: Attribute
+    ratio: float = 0.1
     texture1: Texture
     texture2: Texture
-    _uv: Attribute | None = None

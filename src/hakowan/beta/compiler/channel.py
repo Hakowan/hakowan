@@ -1,5 +1,6 @@
 from .view import View
 from .attribute import compute_scaled_attribute
+from .texture import apply_texture
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
 from ..grammar.channel import Channel, Position, Normal, Size, Diffuse
@@ -67,32 +68,29 @@ def _preprocess_channels(view: View):
         view._position_channel = _generate_default_position_channel(view.data_frame)
 
 
-def _process_channel(df: DataFrame, channel: Channel):
-    match channel:
-        case Position() | Normal():
-            attr = channel.data
-            compute_scaled_attribute(df, attr)
-        case Size():
-            if isinstance(channel.data, Attribute):
-                attr = channel.data
-                compute_scaled_attribute(df, attr)
-        case Diffuse():
-            # TODO
-            pass
-
-
 def _process_channels(view: View):
     assert view.data_frame is not None
+    df = view.data_frame
     if view._position_channel is not None:
         assert isinstance(view._position_channel, Position)
-        _process_channel(view.data_frame, view._position_channel)
+        attr = view._position_channel.data
+        compute_scaled_attribute(df, attr)
     if view._normal_channel is not None:
         assert isinstance(view._normal_channel, Normal)
-        _process_channel(view.data_frame, view._normal_channel)
+        attr = view._normal_channel.data
+        compute_scaled_attribute(df, attr)
     if view._size_channel is not None:
         assert isinstance(view._size_channel, Size)
-        _process_channel(view.data_frame, view._size_channel)
-    if view._uv_channel is not None:
-        pass
+        if isinstance(view._size_channel.data, Attribute):
+            attr = view._size_channel.data
+            compute_scaled_attribute(df, attr)
     if view._material_channel is not None:
-        pass
+        match view._material_channel:
+            case Diffuse():
+                tex = view._material_channel.reflectance
+                apply_texture(df, tex)
+                view._uv_attribute = tex._uv
+            case _:
+                raise NotImplementedError(
+                    f"Channel type {type(view._material_channel)} is not supported"
+                )
