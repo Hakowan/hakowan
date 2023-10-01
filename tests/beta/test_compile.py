@@ -16,22 +16,13 @@ class TestCompile:
         scene = compiler.compile(root)
         assert len(scene.views) == 1
 
-    def test_apply_transform(self):
-        mesh = lagrange.SurfaceMesh()
-        mesh.add_vertices(np.eye(3))
-        mesh.add_triangle(0, 1, 2)
-        mesh.add_triangle(2, 1, 0)
-        mesh.create_attribute(
-            "index",
-            element=lagrange.AttributeElement.Facet,
-            usage=lagrange.AttributeUsage.Scalar,
-            initial_values=np.arange(mesh.num_facets, dtype=np.uint32),
-        )
+    def test_apply_transform(self, two_triangles):
+        mesh = two_triangles
 
-        l1 = layer.Layer().data(mesh).mark(mark.Surface)
-        l1.transform(
+        base = layer.Layer().data(mesh).mark(mark.Surface)
+        l1 = base.transform(
             transform.Filter(
-                data=scale.Attribute(name="index"),
+                data=scale.Attribute(name="facet_index"),
                 condition=lambda v: v % 2 == 0,
             )
         )

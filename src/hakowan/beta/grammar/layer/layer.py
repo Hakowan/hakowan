@@ -22,26 +22,31 @@ class Layer:
         return parent
 
     def data(self, data: lagrange.SurfaceMesh | DataFrame) -> "Layer":
+        parent = Layer()
         match (data):
             case lagrange.SurfaceMesh():
-                self._spec.data = DataFrame(mesh=data)
+                parent._spec.data = DataFrame(mesh=data)
             case DataFrame():
-                self._spec.data = data
+                parent._spec.data = data
             case _:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
-        return self
+        parent._children = [self]
+        return parent
 
     def mark(self, mark: Mark) -> "Layer":
-        self._spec.mark = mark
-        return self
+        parent = Layer()
+        parent._spec.mark = mark
+        parent._children = [self]
+        return parent
 
     def channel(self, channel: Channel) -> "Layer":
-        self._spec.channels.append(channel)
-        return self
+        parent = Layer()
+        parent._spec.channels.append(channel)
+        parent._children = [self]
+        return parent
 
     def transform(self, transform: Transform) -> "Layer":
-        if self._spec.transform is None:
-            self._spec.transform = copy.deepcopy(transform)
-        else:
-            self._spec.transform *= transform
-        return self
+        parent = Layer()
+        parent._spec.transform = transform
+        parent._children = [self]
+        return parent

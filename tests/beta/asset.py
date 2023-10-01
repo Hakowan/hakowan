@@ -42,7 +42,7 @@ def add_attributes(mesh: lagrange.SurfaceMesh):
         "vertex_data",
         element=lagrange.AttributeElement.Vertex,
         usage=lagrange.AttributeUsage.Scalar,
-        initial_values=np.array([1, 2, 3], dtype=np.float32),
+        initial_values=np.arange(1, mesh.num_vertices + 1, dtype=np.float32),
     )
 
 
@@ -58,10 +58,10 @@ def triangle():
 @pytest.fixture
 def two_triangles():
     mesh = lagrange.SurfaceMesh()
-    mesh.add_vertices([0, 0, 0])
-    mesh.add_vertices([1, 0, 0])
-    mesh.add_vertices([1, 1, 0])
-    mesh.add_vertices([0, 1, 0])
+    mesh.add_vertex([0, 0, 0])
+    mesh.add_vertex([1, 0, 0])
+    mesh.add_vertex([1, 1, 0])
+    mesh.add_vertex([0, 1, 0])
     mesh.add_triangle(0, 1, 2)
     mesh.add_triangle(0, 2, 3)
     add_attributes(mesh)

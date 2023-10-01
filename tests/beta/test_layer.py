@@ -15,11 +15,12 @@ class TestLayer:
     def test_chain_layers(self):
         l0 = layer.Layer()
         mesh = lagrange.SurfaceMesh()
-        l0.data = dataframe.DataFrame(mesh=mesh)
+        l1 = l0.data(mesh)
+        assert l0 in l1._children
 
-        l1 = layer.Layer()
         position = scale.Attribute(name="position")
-        l1.channel = channel.Position(data=position)
+        l2 = l0.channel(channel.Position(data=position))
+        assert l0 in l2._children
 
-        l = l0 + l1
-        assert l._children == [l0, l1]
+        l = l1 + l2
+        assert l._children == [l1, l2]
