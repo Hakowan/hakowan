@@ -47,53 +47,53 @@ def _preprocess_channels(view: View):
     for channel in view.channels:
         match channel:
             case Position():
-                if view._position_channel is None:
-                    view._position_channel = channel
+                if view.position_channel is None:
+                    view.position_channel = channel
             case Normal():
-                if view._normal_channel is None:
-                    view._normal_channel = channel
+                if view.normal_channel is None:
+                    view.normal_channel = channel
             case Size():
-                if view._size_channel is None:
-                    view._size_channel = channel
+                if view.size_channel is None:
+                    view.size_channel = channel
             case Diffuse():
-                if view._material_channel is None:
-                    view._material_channel = channel
+                if view.material_channel is None:
+                    view.material_channel = channel
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(channel)} is not supported"
                 )
 
-    if view._position_channel is None:
+    if view.position_channel is None:
         assert view.data_frame is not None
-        view._position_channel = _generate_default_position_channel(view.data_frame)
+        view.position_channel = _generate_default_position_channel(view.data_frame)
 
 
 def _process_channels(view: View):
     assert view.data_frame is not None
     df = view.data_frame
-    if view._position_channel is not None:
-        assert isinstance(view._position_channel, Position)
-        attr = view._position_channel.data
+    if view.position_channel is not None:
+        assert isinstance(view.position_channel, Position)
+        attr = view.position_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
-    if view._normal_channel is not None:
-        assert isinstance(view._normal_channel, Normal)
-        attr = view._normal_channel.data
+    if view.normal_channel is not None:
+        assert isinstance(view.normal_channel, Normal)
+        attr = view.normal_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
-    if view._size_channel is not None:
-        assert isinstance(view._size_channel, Size)
-        if isinstance(view._size_channel.data, Attribute):
-            attr = view._size_channel.data
+    if view.size_channel is not None:
+        assert isinstance(view.size_channel, Size)
+        if isinstance(view.size_channel.data, Attribute):
+            attr = view.size_channel.data
             compute_scaled_attribute(df, attr)
             view._active_attributes.append(attr)
-    if view._material_channel is not None:
-        match view._material_channel:
+    if view.material_channel is not None:
+        match view.material_channel:
             case Diffuse():
-                tex = view._material_channel.reflectance
+                tex = view.material_channel.reflectance
                 view._active_attributes += apply_texture(df, tex)
                 view._uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(
-                    f"Channel type {type(view._material_channel)} is not supported"
+                    f"Channel type {type(view.material_channel)} is not supported"
                 )

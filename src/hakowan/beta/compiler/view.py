@@ -1,4 +1,4 @@
-from ..grammar.channel import Channel
+from ..grammar.channel import Channel, Position, Normal, Size, Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute
@@ -61,3 +61,73 @@ class View:
         unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
 
         self.data_frame.mesh = unified_mesh
+
+    @property
+    def position_channel(self) -> Channel | None:
+        return self._position_channel
+
+    @position_channel.setter
+    def position_channel(self, channel: Position):
+        assert self.data_frame is not None
+        assert isinstance(channel, Position)
+        attr = channel.data
+        mesh = self.data_frame.mesh
+        assert mesh.has_attribute(attr.name)
+        if mesh.is_attribute_indexed(attr.name):
+            position_attr = mesh.indexed_attribute(attr.name)
+        else:
+            position_attr = mesh.attribute(attr.name)
+
+        assert position_attr.num_channels == mesh.dimension
+        self._position_channel = channel
+
+    @property
+    def normal_channel(self) -> Channel | None:
+        return self._normal_channel
+
+    @normal_channel.setter
+    def normal_channel(self, channel: Normal):
+        assert self.data_frame is not None
+        assert isinstance(channel, Normal)
+        attr = channel.data
+        mesh = self.data_frame.mesh
+        assert mesh.has_attribute(attr.name)
+        if mesh.is_attribute_indexed(attr.name):
+            normal_attr = mesh.indexed_attribute(attr.name)
+        else:
+            normal_attr = mesh.attribute(attr.name)
+
+        assert normal_attr.num_channels == mesh.dimension
+        self._normal_channel = channel
+
+    @property
+    def size_channel(self) -> Channel | None:
+        return self._size_channel
+
+    @size_channel.setter
+    def size_channel(self, channel: Size):
+        assert isinstance(channel, Size)
+
+        match (channel.data):
+            case Attribute():
+                assert self.data_frame is not None
+                attr = channel.data
+                mesh = self.data_frame.mesh
+                assert mesh.has_attribute(attr.name)
+                if mesh.is_attribute_indexed(attr.name):
+                    size_attr = mesh.indexed_attribute(attr.name)
+                else:
+                    size_attr = mesh.attribute(attr.name)
+
+                assert size_attr.num_channels == 1
+
+        self._size_channel = channel
+
+    @property
+    def material_channel(self) -> Channel | None:
+        return self._material_channel
+
+    @material_channel.setter
+    def material_channel(self, channel: Material):
+        assert isinstance(channel, Material)
+        self._material_channel = channel
