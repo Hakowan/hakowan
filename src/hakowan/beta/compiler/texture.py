@@ -39,8 +39,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
     range_min, range_max = tex.range if tex.range is not None else (0, 1)
     normalize_scale = Normalize(
-        bbox_min=np.array([range_min], dtype=np.float32),
-        bbox_max=np.array([range_max], dtype=np.float32),
+        bbox_min=range_min,
+        bbox_max=range_max,
         domain_min=domain_min,
         domain_max=domain_max,
     )
@@ -87,7 +87,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
 
     def generate_uv_values(attr_values: lagrange.Attribute):
         assert attr_values.num_channels == 1
-        uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2))
+        uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2)).astype(np.float32)
         uv_values[:, 1] += tex.ratio * math.sqrt(2) / 2
         return uv_values
 
@@ -113,7 +113,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
         attr = mesh.attribute(attr_name)
         match attr.element_type:
             case lagrange.AttributeElement.Vertex:
-                uv_values = generate_uv_values(attr.values)
+                uv_values = generate_uv_values(attr)
                 mesh.create_attribute(
                     uv_name,
                     element=lagrange.AttributeElement.Indexed,
@@ -122,7 +122,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
                     initial_indices=mesh.facets,
                 )
             case lagrange.AttributeElement.Corner:
-                uv_values = generate_uv_values(attr.values)
+                uv_values = generate_uv_values(attr)
                 mesh.create_attribute(
                     uv_name,
                     element=lagrange.AttributeElement.Indexed,
