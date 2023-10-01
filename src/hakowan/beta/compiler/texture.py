@@ -18,14 +18,18 @@ import math
 import numpy as np
 
 
-def apply_texture(df: DataFrame, tex: Texture, uv: Attribute | None = None):
+def apply_texture(
+    df: DataFrame, tex: Texture, uv: Attribute | None = None
+) -> list[Attribute]:
     """Apply scale to attributes used in the texture.
 
     :param df:  The data frame, which will be modified in place.
     :param tex: The texture to process.
     :param uv:  The attribute used as UV coordinates.
+
+    :return: A list of active attributes used by the texture.
     """
-    _apply_texture(df, tex, uv)
+    return _apply_texture(df, tex, uv)
 
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
@@ -55,6 +59,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     # Compute scaled attribute
     compute_scaled_attribute(df, tex.data)
 
+    return [tex.data]
+
 
 def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
     assert tex.filename.exists()
@@ -66,6 +72,7 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
         tex._uv = uv
+    return [tex._uv]
 
 
 def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None = None):
@@ -78,8 +85,9 @@ def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None 
         ), "Conflicting UV detected"
         tex._uv = uv
 
-    apply_texture(df, tex.texture1, tex._uv)
-    apply_texture(df, tex.texture2, tex._uv)
+    active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
+    active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
+    return [tex._uv] + active_attrs_1 + active_attrs_2
 
 
 def _apply_isocontour(df: DataFrame, tex: Isocontour):
@@ -136,23 +144,26 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
                 )
 
     tex._uv = Attribute(name=uv_name)
-    apply_texture(df, tex.texture1, tex._uv)
-    apply_texture(df, tex.texture2, tex._uv)
+    active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
+    active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
+    return [tex._uv] + active_attrs_1 + active_attrs_2
 
 
-def _apply_texture(df: DataFrame, tex: Texture, uv: Attribute | None = None):
+def _apply_texture(
+    df: DataFrame, tex: Texture, uv: Attribute | None = None
+) -> list[Attribute]:
     match tex:
         case ScalarField():
-            _apply_scalar_field(df, tex)
+            return _apply_scalar_field(df, tex)
         case Uniform():
             # Nothing to do with uniform texture.
-            pass
+            return []
         case Image():
-            _apply_image(df, tex, uv)
+            return _apply_image(df, tex, uv)
         case CheckerBoard():
-            _apply_checker_board(df, tex, uv)
+            return _apply_checker_board(df, tex, uv)
         case Isocontour():
             assert uv is None, "Isocontour texture is incompatible with UV."
-            _apply_isocontour(df, tex)
+            return _apply_isocontour(df, tex)
         case _:
             raise NotImplementedError(f"Texture type {type(tex)} is not supported")

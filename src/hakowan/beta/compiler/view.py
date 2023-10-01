@@ -19,6 +19,8 @@ class View:
     _material_channel: Channel | None = None
     _uv_attribute: Attribute | None = None
 
+    _active_attributes: list[Attribute] = field(default_factory=list)
+
     def validate(self):
         """Validate the currvent view is complete.
         A view is complete if data_frame and mark are both not None

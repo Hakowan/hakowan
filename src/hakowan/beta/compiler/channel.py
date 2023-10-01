@@ -75,20 +75,23 @@ def _process_channels(view: View):
         assert isinstance(view._position_channel, Position)
         attr = view._position_channel.data
         compute_scaled_attribute(df, attr)
+        view._active_attributes.append(attr)
     if view._normal_channel is not None:
         assert isinstance(view._normal_channel, Normal)
         attr = view._normal_channel.data
         compute_scaled_attribute(df, attr)
+        view._active_attributes.append(attr)
     if view._size_channel is not None:
         assert isinstance(view._size_channel, Size)
         if isinstance(view._size_channel.data, Attribute):
             attr = view._size_channel.data
             compute_scaled_attribute(df, attr)
+            view._active_attributes.append(attr)
     if view._material_channel is not None:
         match view._material_channel:
             case Diffuse():
                 tex = view._material_channel.reflectance
-                apply_texture(df, tex)
+                view._active_attributes += apply_texture(df, tex)
                 view._uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(

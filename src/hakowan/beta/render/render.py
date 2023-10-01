@@ -4,6 +4,12 @@ from ..compiler import Scene, View
 from ..config import Config
 
 def generate_config(view: View):
+    """ Generate a Mitsuba shape description dict from a View."""
+    # Gather all involved attributes.
+    # Unify index buffer.
+    # Save mesh.
+    # Generate shape description.
+    # Generate bsdf.
     # TODO
     return {}
 
