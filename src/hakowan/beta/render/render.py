@@ -1,12 +1,13 @@
 import mitsuba as mi
 
 from ..compiler import Scene, View
+from ..config import Config
 
 def generate_config(view: View):
     # TODO
     return {}
 
-def render(scene: Scene):
+def render(scene: Scene, config: Config):
     mi_config = {}
     for i, view in enumerate(scene):
         mi_config[f"view_{i:03}"] = generate_config(view)

@@ -23,7 +23,7 @@ def preprocess_channels(view: View):
 def process_channels(view: View):
     """Process the channels in a view.
 
-    This step applies scales on the corresponding data.
+    This step applies scales and textures on the corresponding data.
 
     :param view: The view to be processed. Update will be made in place.
     """
