@@ -16,6 +16,22 @@ class Layer:
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list[Self] = field(default_factory=list)
 
+    def __init__(
+        self,
+        *,
+        data: lagrange.SurfaceMesh | DataFrame | None = None,
+        mark: Mark | None = None,
+        channels: list[Channel] | None = None,
+        transform: Transform | None = None,
+    ):
+        data = DataFrame(mesh=data) if isinstance(data, lagrange.SurfaceMesh) else data
+        self._spec = LayerSpec(
+            data=data,
+            mark=mark,
+            channels=channels if channels is not None else [],
+            transform=transform,
+        )
+
     def __add__(self, other: Self) -> "Layer":
         parent = Layer()
         parent._children = [self, other]
