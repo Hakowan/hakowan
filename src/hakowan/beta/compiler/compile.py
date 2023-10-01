@@ -57,4 +57,8 @@ def compile(root: layer.Layer) -> Scene:
     for view in scene:
         process_channels(view)
 
+    # Step 5: finalize the data frame.
+    for view in scene:
+        view.finalize()
+
     return scene
