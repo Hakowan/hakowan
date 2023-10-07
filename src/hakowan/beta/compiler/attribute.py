@@ -191,7 +191,7 @@ def _apply_clip(data: npt.NDArray, scale: Clip):
 
 def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
     mesh = df.mesh
-    mesh_attr = mesh.attribute(attr_name)
+    mesh_attr = mesh.attribute(attr_name, sharing=False)
 
     match attr_scale:
         case Normalize():
@@ -214,7 +214,7 @@ def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
 
 def _apply_scale_indexed_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
     mesh = df.mesh
-    indexed_attr = mesh.indexed_attribute(attr_name)
+    indexed_attr = mesh.indexed_attribute(attr_name, sharing=False)
 
     match attr_scale:
         case Normalize():

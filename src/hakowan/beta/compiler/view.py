@@ -3,6 +3,7 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute
 from ..grammar.transform import Transform
+from ..common import logger
 from dataclasses import dataclass, field
 
 import lagrange
@@ -31,11 +32,18 @@ class View:
         assert self.mark is not None, "View must have mark"
 
     def finalize(self):
-        """ Finalize the view by updating the data frame.
+        """Finalize the view by updating the data frame.
 
         This function will ensure all attributes are either vertex or facet attribute.
         """
         mesh = self.data_frame.mesh
+        active_attribute_names = [attr._internal_name for attr in self._active_attributes]
+
+        # Drop all non-active attributes
+        for attr_id in mesh.get_matching_attribute_ids():
+            attr_name = mesh.get_attribute_name(attr_id)
+            if attr_name not in active_attribute_names:
+                mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
         for attr in self._active_attributes:
@@ -57,8 +65,18 @@ class View:
             if mesh.is_attribute_indexed(attr_name):
                 indexed_attr_names.append(attr_name)
 
+        logger.debug(f"Indexed attributes: {indexed_attr_names}")
         # Unify all active index buffers.
         unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
+
+        # Update mesh vertices to the scaled version if needed.
+        if (
+            self._position_channel is not None
+            and self._position_channel.data._internal_name is not None
+        ):
+            position_attr_name = self._position_channel.data._internal_name
+            if position_attr_name != unified_mesh.attr_name_vertex_to_position:
+                unified_mesh.vertices = unified_mesh.attribute(position_attr_name).data.copy()
 
         self.data_frame.mesh = unified_mesh
 

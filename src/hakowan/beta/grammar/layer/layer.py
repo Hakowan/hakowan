@@ -7,7 +7,7 @@ import lagrange
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame
 from ..mark import Mark
-from ..channel import Channel
+from ..channel import Channel, Position, Normal, Size, Material
 from ..transform import Transform
 
 
@@ -25,6 +25,7 @@ class Layer:
         transform: Transform | None = None,
     ):
         data = DataFrame(mesh=data) if isinstance(data, lagrange.SurfaceMesh) else data
+        self._children = []
         self._spec = LayerSpec(
             data=data,
             mark=mark,
@@ -55,9 +56,23 @@ class Layer:
         parent._children = [self]
         return parent
 
-    def channel(self, channel: Channel) -> "Layer":
+    def channel(
+        self,
+        *,
+        position: Position | None = None,
+        normal: Normal | None = None,
+        size: Size | None = None,
+        material: Material | None = None,
+    ) -> "Layer":
         parent = Layer()
-        parent._spec.channels.append(channel)
+        if position is not None:
+            parent._spec.channels.append(position)
+        if normal is not None:
+            parent._spec.channels.append(normal)
+        if size is not None:
+            parent._spec.channels.append(size)
+        if material is not None:
+            parent._spec.channels.append(material)
         parent._children = [self]
         return parent
 
