@@ -1,3 +1,4 @@
+from ..common import logger
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import (
     Affine,
@@ -72,6 +73,11 @@ def compute_attribute_minmax(df: DataFrame, attr_name: str):
 
 
 def _apply_normalize(data: npt.NDArray, scale: Normalize):
+    if np.issubdtype(data.dtype, np.integer):
+        logger.warning(
+            "Normalize scale applying to integer data may lead to truncation error."
+        )
+
     if data.ndim == 2:
         dim = data.shape[1]
     else:

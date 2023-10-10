@@ -8,10 +8,10 @@ class Sampler:
 
 
 @dataclass(kw_only=True)
-class IndependentSampler(Sampler):
+class Independent(Sampler):
     pass
 
 
 @dataclass(kw_only=True)
-class StratifiedSampler(Sampler):
+class Stratified(Sampler):
     jitter: bool = True

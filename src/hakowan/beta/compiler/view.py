@@ -16,10 +16,10 @@ class View:
     channels: list[Channel] = field(default_factory=list)
     transform: Transform | None = None
 
-    _position_channel: Channel | None = None
-    _normal_channel: Channel | None = None
-    _size_channel: Channel | None = None
-    _material_channel: Channel | None = None
+    _position_channel: Position | None = None
+    _normal_channel: Normal | None = None
+    _size_channel: Size | None = None
+    _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
 
     _active_attributes: list[Attribute] = field(default_factory=list)
@@ -81,7 +81,7 @@ class View:
         self.data_frame.mesh = unified_mesh
 
     @property
-    def position_channel(self) -> Channel | None:
+    def position_channel(self) -> Position | None:
         return self._position_channel
 
     @position_channel.setter
@@ -100,7 +100,7 @@ class View:
         self._position_channel = channel
 
     @property
-    def normal_channel(self) -> Channel | None:
+    def normal_channel(self) -> Normal | None:
         return self._normal_channel
 
     @normal_channel.setter
@@ -119,7 +119,7 @@ class View:
         self._normal_channel = channel
 
     @property
-    def size_channel(self) -> Channel | None:
+    def size_channel(self) -> Size | None:
         return self._size_channel
 
     @size_channel.setter
@@ -142,7 +142,7 @@ class View:
         self._size_channel = channel
 
     @property
-    def material_channel(self) -> Channel | None:
+    def material_channel(self) -> Material | None:
         return self._material_channel
 
     @material_channel.setter

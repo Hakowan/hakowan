@@ -1,23 +1,68 @@
-import mitsuba as mi
+from .emitter import generate_emitter_config
+from .film import generate_film_config
+from .integrator import generate_integrator_config
+from .sampler import generate_sampler_config
+from .sensor import generate_sensor_config
+from .shape import generate_point_cloud_config, generate_mesh_config
 
 from ..compiler import Scene, View
 from ..config import Config
+from ..grammar.mark import Point, Curve, Surface
 
-def generate_config(view: View):
-    """ Generate a Mitsuba shape description dict from a View."""
-    # Gather all involved attributes.
-    # Unify index buffer.
-    # Save mesh.
-    # Generate shape description.
-    # Generate bsdf.
-    # TODO
-    return {}
+import datetime
+import mitsuba as mi
+
+
+def generate_base_config(config: Config):
+    """Generate a Mitsuba base config dict from a Config."""
+    sensor_config = generate_sensor_config(config.sensor)
+    sensor_config["film"] = generate_film_config(config.film)
+    sensor_config["sampler"] = generate_sampler_config(config.sampler)
+    integrator_config = generate_integrator_config(config.integrator)
+
+    mi_config = {
+        "camera": sensor_config,
+        "integrator": integrator_config,
+    }
+
+    for i, emitter in enumerate(config.emitters):
+        mi_config[f"emitter_{i:03}"] = generate_emitter_config(config.emitters[i])
+
+    return mi_config
+
+
+def generate_view_config(view: View, stamp: str, index: int):
+    """Generate a Mitsuba shape description dict from a View."""
+    shapes = []
+
+    # Generate shape.
+    match view.mark:
+        case Point:
+            shapes = generate_point_cloud_config(view)
+        case Curve:
+            raise NotImplementedError("Curve rendering is not yet supported.")
+        case Surface:
+            shapes.append(generate_mesh_config(view, stamp, index))
+
+    mi_config = {f"shape_{i:06}": shape for i, shape in enumerate(shapes)}
+    return mi_config
+
+
+def generate_scene_config(scene: Scene) -> dict:
+    """Generate a mitsuba scene description dict from a Scene."""
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    scene_config = {}
+    for i, view in enumerate(scene):
+        scene_config[f"view_{i:03}"] = generate_view_config(view, stamp, i)
+    return scene_config
+
 
 def render(scene: Scene, config: Config):
-    mi_config = {}
-    for i, view in enumerate(scene):
-        mi_config[f"view_{i:03}"] = generate_config(view)
+    mi.set_variant("scalar_rgb")
+
+    mi_config = generate_base_config(config)
+    mi_config |= generate_scene_config(scene)
 
     mi_scene = mi.load_dict(mi_config)
-    image = mi.render(scene = mi_scene) # type: ignore
+    image = mi.render(scene=mi_scene)  # type: ignore
     mi.util.write_bitmap("tmp.exr", image)

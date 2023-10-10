@@ -73,18 +73,20 @@ class TestCompile:
         dark_material = hkw.texture.Uniform(color=0.8)
         checkerboard = hkw.texture.CheckerBoard(
             uv=hkw.Attribute(name=uv_attr_name, scale=hkw.scale.Uniform(factor=2.0)),
-            texture1 = light_material,
-            texture2 = dark_material)
+            texture1=light_material,
+            texture2=dark_material,
+        )
         l1 = base.channel(material=hkw.channel.Diffuse(reflectance=checkerboard))
 
         scene = hkw.compiler.compile(l1)
         assert len(scene) == 1
         out_mesh = scene[0].data_frame.mesh
 
-        for attr_id in out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV):
+        for attr_id in out_mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.UV
+        ):
             attr_name = out_mesh.get_attribute_name(attr_id)
             if attr_name.startswith("_hakowan"):
-
                 assert out_mesh.has_attribute(attr_name)
                 assert not out_mesh.is_attribute_indexed(attr_name)
                 out_uv_values = out_mesh.attribute(attr_name).data
@@ -93,6 +95,37 @@ class TestCompile:
 
                 assert bbox_min * 2 == pytest.approx(out_bbox_min)
                 assert bbox_max * 2 == pytest.approx(out_bbox_max)
+
+    def test_scalar_field(self, triangle):
+        mesh = triangle
+
+        base = hkw.layer.Layer(data=mesh, mark=hkw.mark.Surface)
+        mat = hkw.channel.Diffuse(
+            reflectance=hkw.texture.ScalarField(
+                data=hkw.Attribute(name="vertex_data"), colormap="viridis"
+            )
+        )
+        l1 = base.channel(material=mat)
+
+        scene = hkw.compiler.compile(l1)
+        assert len(scene) == 1
+        out_mesh = scene[0].data_frame.mesh
+
+        color_attr_ids = out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+        assert len(color_attr_ids) == 1
+        color_attr_id = color_attr_ids[0]
+        color_attr_name = out_mesh.get_attribute_name(color_attr_id)
+        assert color_attr_name.startswith("vertex_")
+        color_attr = out_mesh.attribute(color_attr_id)
+        assert color_attr.usage == lagrange.AttributeUsage.Color
+        assert color_attr.element_type == lagrange.AttributeElement.Vertex
+        assert color_attr.num_channels == 3
+
+        colors = color_attr.data
+        assert colors[0] == pytest.approx([0.267004, 0.004874, 0.329415])
+        assert colors[2] == pytest.approx([0.993248, 0.906157, 0.143936])
+        assert np.amax(np.absolute(colors[1] - colors[0])) > 0.1
+        assert np.amax(np.absolute(colors[1] - colors[2])) > 0.1
 
 
 class TestScale:
@@ -187,15 +220,16 @@ class TestTexture:
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
 
-        attr = hkw.scale.Attribute(name="vertex_index")
+        attr = hkw.scale.Attribute(name="vertex_data")
         tex = hkw.texture.ScalarField(data=attr)
         hkw.compiler.texture.apply_texture(df, tex)
         assert attr._internal_name is not None
         assert mesh.has_attribute(attr._internal_name)
 
         data = mesh.attribute(attr._internal_name).data
-        assert np.amax(data) == pytest.approx(1.0)
-        assert np.amin(data) == pytest.approx(0.0)
+        assert data[0] == pytest.approx(0.0)
+        assert data[1] == pytest.approx(0.5)
+        assert data[2] == pytest.approx(1.0)
 
     def test_image(self, triangle):
         import tempfile
@@ -232,7 +266,7 @@ class TestTexture:
         df = hkw.dataframe.DataFrame(mesh=mesh)
 
         attr = hkw.scale.Attribute(name="uv")
-        attr2 = hkw.scale.Attribute(name="vertex_index")
+        attr2 = hkw.scale.Attribute(name="vertex_data")
         tex = hkw.texture.CheckerBoard(
             uv=attr,
             texture1=hkw.texture.ScalarField(data=attr),

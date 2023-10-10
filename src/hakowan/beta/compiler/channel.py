@@ -1,9 +1,14 @@
 from .view import View
 from .attribute import compute_scaled_attribute
+from .color import apply_colormap
 from .texture import apply_texture
-from ..grammar.dataframe import DataFrame
-from ..grammar.scale import Attribute
 from ..grammar.channel import Channel, Position, Normal, Size, Diffuse
+from ..grammar.dataframe import DataFrame
+from ..grammar.mark import Mark
+from ..grammar.scale import Attribute
+from ..grammar.texture import Uniform, ScalarField
+
+import lagrange
 
 ### Public API
 
@@ -63,9 +68,21 @@ def _preprocess_channels(view: View):
                     f"Channel type {type(channel)} is not supported"
                 )
 
+    # Generate default position channel if not specified.
     if view.position_channel is None:
         assert view.data_frame is not None
         view.position_channel = _generate_default_position_channel(view.data_frame)
+
+    # Generate default normal channel if not specified.
+    if view.mark == Mark.Surface and view.normal_channel is None:
+        mesh = view.data_frame.mesh
+        normal_attr_id = lagrange.compute_normal(mesh)
+        normal_attr_name = mesh.get_attribute_name(normal_attr_id)
+        view.normal_channel = Normal(data=Attribute(name=normal_attr_name))
+
+    # Generate default material channel if not specified.
+    if view.material_channel is None:
+        view.material_channel = Diffuse(reflectance=Uniform(color="ivory"))
 
 
 def _process_channels(view: View):
@@ -93,6 +110,8 @@ def _process_channels(view: View):
                 tex = view.material_channel.reflectance
                 view._active_attributes += apply_texture(df, tex)
                 view._uv_attribute = tex._uv
+                if isinstance(tex, ScalarField):
+                    apply_colormap(df, tex)
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

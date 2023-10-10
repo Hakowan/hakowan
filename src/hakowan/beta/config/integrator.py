@@ -8,8 +8,9 @@ class Integrator:
 
 @dataclass(kw_only=True)
 class Direct(Integrator):
-    emitter_samples: int
-    bsdf_samples: int
+    shading_samples: int | None = None
+    emitter_samples: int | None = None
+    bsdf_samples: int | None = None
 
 
 @dataclass(kw_only=True)
@@ -21,7 +22,7 @@ class Path(Integrator):
 @dataclass(kw_only=True)
 class AOV(Integrator):
     aovs: list[str]
-    integrator: Integrator
+    integrator: Integrator | None = None
 
 
 @dataclass(kw_only=True)

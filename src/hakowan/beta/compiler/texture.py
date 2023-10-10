@@ -1,7 +1,5 @@
 from .view import View
 from .attribute import compute_attribute_minmax, compute_scaled_attribute
-from ..common.color import Color
-from ..common.named_colors import css_colors
 from ..grammar.dataframe import DataFrame
 from ..grammar.texture import (
     Texture,
@@ -34,12 +32,17 @@ def apply_texture(
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     if tex.domain is not None:
-        # Add a clip scale as the first scale to the attribute.
+        # Add a clip scale as the last scale to the attribute.
         clip_scale = Clip(domain=tex.domain)
-        clip_scale._child = tex.data.scale
-        tex.data.scale = clip_scale
+        if tex.data.scale is not None:
+            s: Scale = tex.data.scale
+            while s._child is not None:
+                s = s._child
+            s._child = clip_scale
+        else:
+            tex.data.scale = clip_scale
 
-    # Add a normalize scale as the last scale to the attribute.
+    # Add a normalize scale as the first scale to the attribute.
     domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
     range_min, range_max = tex.range if tex.range is not None else (0, 1)
     normalize_scale = Normalize(
@@ -48,13 +51,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
         domain_min=domain_min,
         domain_max=domain_max,
     )
-    if tex.data.scale is not None:
-        s: Scale = tex.data.scale
-        while s._child is not None:
-            s = s._child
-        s._child = normalize_scale
-    else:
-        tex.data.scale = normalize_scale
+    normalize_scale._child = tex.data.scale
+    tex.data.scale = normalize_scale
 
     # Compute scaled attribute
     compute_scaled_attribute(df, tex.data)
@@ -95,7 +93,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
 
     def generate_uv_values(attr_values: lagrange.Attribute):
         assert attr_values.num_channels == 1
-        uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2)).astype(np.float32)
+        uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2)).astype(np.float32)  # type: ignore
         uv_values[:, 1] += tex.ratio * math.sqrt(2) / 2
         return uv_values
 
