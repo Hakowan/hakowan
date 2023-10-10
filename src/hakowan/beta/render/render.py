@@ -5,9 +5,10 @@ from .sampler import generate_sampler_config
 from .sensor import generate_sensor_config
 from .shape import generate_point_cloud_config, generate_mesh_config
 
-from ..compiler import Scene, View
+from ..compiler import Scene, View, compile
 from ..config import Config
-from ..grammar.mark import Point, Curve, Surface
+from ..grammar import mark
+from ..grammar import layer
 
 import datetime
 import mitsuba as mi
@@ -37,11 +38,11 @@ def generate_view_config(view: View, stamp: str, index: int):
 
     # Generate shape.
     match view.mark:
-        case Point:
+        case mark.Point:
             shapes = generate_point_cloud_config(view)
-        case Curve:
+        case mark.Curve:
             raise NotImplementedError("Curve rendering is not yet supported.")
-        case Surface:
+        case mark.Surface:
             shapes.append(generate_mesh_config(view, stamp, index))
 
     mi_config = {f"shape_{i:06}": shape for i, shape in enumerate(shapes)}
@@ -57,9 +58,10 @@ def generate_scene_config(scene: Scene) -> dict:
     return scene_config
 
 
-def render(scene: Scene, config: Config):
-    mi.set_variant("scalar_rgb")
+def render(root: layer.Layer, config: Config):
+    scene = compile(root)
 
+    mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
 
