@@ -2,7 +2,18 @@ from .view import View
 from .attribute import compute_scaled_attribute
 from .color import apply_colormap
 from .texture import apply_texture
-from ..grammar.channel import Channel, Position, Normal, Size, Material, Diffuse, Conductor, RoughConductor
+from ..grammar.channel import (
+    Channel,
+    Position,
+    Normal,
+    Size,
+    Material,
+    Diffuse,
+    Conductor,
+    RoughConductor,
+    Plastic,
+    RoughPlastic,
+)
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
@@ -124,16 +135,28 @@ def _process_channels(view: View):
             case Diffuse():
                 tex = view.material_channel.reflectance
                 view._active_attributes += apply_texture(df, tex)
-                view._uv_attribute = tex._uv
+                view.uv_attribute = tex._uv
                 apply_colormap(df, tex)
-            case Conductor():
-                # Nothing to do.
-                pass
             case RoughConductor():
                 if isinstance(view.material_channel.alpha, Texture):
                     tex = view.material_channel.alpha
                     view._active_attributes += apply_texture(df, tex)
-                    view._uv_attribute = tex._uv
+                    view.uv_attribute = tex._uv
+                    apply_colormap(df, tex)
+            case Conductor():
+                # Nothing to do.
+                pass
+            case RoughPlastic() | Plastic():
+                if isinstance(view.material_channel.diffuse_reflectance, Texture):
+                    tex = view.material_channel.diffuse_reflectance
+                    view._active_attributes += apply_texture(df, tex)
+                    view.uv_attribute = tex._uv
+                    apply_colormap(df, tex)
+                if isinstance(view.material_channel.specular_reflectance, Texture):
+                    tex = view.material_channel.specular_reflectance
+                    view._active_attributes += apply_texture(df, tex)
+                    view.uv_attribute = tex._uv
+                    apply_colormap(df, tex)
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

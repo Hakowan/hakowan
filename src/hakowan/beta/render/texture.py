@@ -22,7 +22,7 @@ def generate_uniform_config(tex: Uniform) -> dict:
     }
     match tex.color:
         case float():
-            mi_config["value"] = [tex.color] * 3
+            mi_config["value"] = tex.color
         case str():
             assert tex.color in css_colors
             mi_config["value"] = css_colors[tex.color].data.tolist()

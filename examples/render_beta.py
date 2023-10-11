@@ -38,27 +38,30 @@ def main():
 
     mesh = lagrange.io.load_mesh(args.input_mesh)
     uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+    mesh.create_attribute(
+        "x",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=mesh.vertices[:, 0].copy(),
+    )
 
     base = hkw.layer.Layer().data(mesh).mark(hkw.mark.Surface)
     if len(uv_ids) > 0:
         uv_name = mesh.get_attribute_name(uv_ids[0])
-        checkerboard = hkw.channel.Diffuse(
-            reflectance=hkw.texture.CheckerBoard(
-                uv=hkw.Attribute(name=uv_name, scale=hkw.scale.Uniform(factor=10)),
-                texture1=hkw.texture.Uniform(color=0.2),
-                texture2=hkw.texture.Uniform(color=0.8),
-            )
+        checkerboard = hkw.texture.CheckerBoard(
+            uv=hkw.Attribute(name=uv_name, scale=hkw.scale.Uniform(factor=10)),
+            texture1=hkw.texture.Uniform(color=0.2),
+            texture2=hkw.texture.Uniform(color=0.8),
         )
+        diffuse = hkw.channel.Diffuse(reflectance=checkerboard)
         conductor = hkw.channel.RoughConductor(material="Al", alpha=0.2)
-
-        base = base.channel(material=conductor)
-    else:
-        mesh.create_attribute(
-            "x",
-            element=lagrange.AttributeElement.Vertex,
-            usage=lagrange.AttributeUsage.Scalar,
-            initial_values=mesh.vertices[:, 0].copy(),
+        plastic = hkw.channel.Plastic(
+            diffuse_reflectance=checkerboard,
+            specular_reflectance=1.0,
         )
+
+        base = base.channel(material=plastic)
+    else:
         base = base.channel(
             material=hkw.channel.Diffuse(
                 reflectance=hkw.texture.Isocontour(

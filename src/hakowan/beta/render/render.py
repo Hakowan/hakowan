@@ -85,10 +85,7 @@ def render(root: layer.Layer, config: Config):
     mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
-
-    lines = dump_dict(mi_config)
-    for line in lines:
-        logger.info(line)
+    mi.xml.dict_to_xml(mi_config, "tmp.xml")
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore

@@ -80,6 +80,8 @@ class View:
                 unified_mesh.vertices = unified_mesh.attribute(position_attr_name).data.copy()
                 unified_mesh.delete_attribute(position_attr_name)
 
+        uv_ids = unified_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+        assert len(uv_ids) <= 1, "At most one UV attribute is allowed"
         self.data_frame.mesh = unified_mesh
 
     @property
@@ -151,3 +153,15 @@ class View:
     def material_channel(self, channel: Material):
         assert isinstance(channel, Material)
         self._material_channel = channel
+
+    @property
+    def uv_attribute(self) -> Attribute | None:
+        return self._uv_attribute
+
+    @uv_attribute.setter
+    def uv_attribute(self, attribute: Attribute):
+        assert isinstance(attribute, Attribute)
+        if self._uv_attribute is not None and self._uv_attribute != attribute:
+            raise ValueError("UV attribute can only be set once.")
+
+        self._uv_attribute = attribute
