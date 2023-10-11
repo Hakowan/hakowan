@@ -58,18 +58,20 @@ def _generate_default_position_channel(df: DataFrame):
     mesh = df.mesh
     assert mesh is not None
 
+    attr = Attribute(name=mesh.attr_name_vertex_to_position)
+
+    if mesh.num_vertices == 0:
+        return Position(data=attr)
+
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
     max_side = np.amax(bbox_max - bbox_min)
     diag = norm(bbox_max - bbox_min)
 
-    attr = Attribute(
-        name=mesh.attr_name_vertex_to_position,
-        scale=Normalize(
-            bbox_min=-np.ones(mesh.dimension),
-            bbox_max=np.ones(mesh.dimension),
-            _child=scale.Uniform(factor=max_side / diag),
-        ),
+    attr.scale = Normalize(
+        bbox_min=-np.ones(mesh.dimension),
+        bbox_max=np.ones(mesh.dimension),
+        _child=scale.Uniform(factor=max_side / diag),
     )
     position_channel = Position(data=attr)
     return position_channel
@@ -111,6 +113,7 @@ def _preprocess_channels(view: View):
     # Generate default material channel if not specified.
     if view.material_channel is None:
         view.material_channel = Diffuse(reflectance=Uniform(color="ivory"))
+
 
 def rename_attribute(df: DataFrame, attr: Attribute, name: str):
     mesh = df.mesh
