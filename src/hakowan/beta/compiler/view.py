@@ -78,6 +78,7 @@ class View:
             position_attr_name = self._position_channel.data._internal_name
             if position_attr_name != unified_mesh.attr_name_vertex_to_position:
                 unified_mesh.vertices = unified_mesh.attribute(position_attr_name).data.copy()
+                unified_mesh.delete_attribute(position_attr_name)
 
         self.data_frame.mesh = unified_mesh
 
