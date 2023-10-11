@@ -2,7 +2,7 @@ from .view import View
 from .attribute import compute_scaled_attribute
 from .color import apply_colormap
 from .texture import apply_texture
-from ..grammar.channel import Channel, Position, Normal, Size, Diffuse
+from ..grammar.channel import Channel, Position, Normal, Size, Material, Diffuse, Conductor
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
@@ -75,7 +75,7 @@ def _preprocess_channels(view: View):
             case Size():
                 if view.size_channel is None:
                     view.size_channel = channel
-            case Diffuse():
+            case Material():
                 if view.material_channel is None:
                     view.material_channel = channel
             case _:
@@ -126,6 +126,9 @@ def _process_channels(view: View):
                 view._active_attributes += apply_texture(df, tex)
                 view._uv_attribute = tex._uv
                 apply_colormap(df, tex)
+            case Conductor():
+                # Nothing to do.
+                pass
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

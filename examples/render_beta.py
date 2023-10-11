@@ -49,8 +49,9 @@ def main():
                 texture2=hkw.texture.Uniform(color=0.8),
             )
         )
+        conductor = hkw.channel.Conductor(material="Hg")
 
-        base = base.channel(material=checkerboard)
+        base = base.channel(material=conductor)
     else:
         mesh.create_attribute(
             "x",

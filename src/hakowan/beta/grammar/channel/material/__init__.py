@@ -1,1 +1,1 @@
-from .material import Material, Diffuse
+from .material import Material, Diffuse, Conductor

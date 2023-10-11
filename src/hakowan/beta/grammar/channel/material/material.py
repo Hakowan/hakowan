@@ -12,3 +12,8 @@ class Material(Channel):
 @dataclass(kw_only=True)
 class Diffuse(Material):
     reflectance: Texture
+
+
+@dataclass(kw_only=True)
+class Conductor(Material):
+    material: str
