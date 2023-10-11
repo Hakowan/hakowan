@@ -7,6 +7,7 @@ def generate_film_config(film: Film) -> dict:
     """Generate a Mitsuba film description dict from a Film."""
 
     mi_config = {
+        "type": "hdrfilm",
         "width": film.width,
         "height": film.height,
         "file_format": film.file_format,

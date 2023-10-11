@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(kw_only=True)
 class Integrator:
-    hide_emitters: bool = False
+    hide_emitters: bool = True
 
 
 @dataclass(kw_only=True)

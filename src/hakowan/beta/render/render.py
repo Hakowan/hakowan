@@ -12,6 +12,7 @@ from ..grammar import layer
 
 import datetime
 import mitsuba as mi
+from typing import Any
 
 
 def generate_base_config(config: Config):
@@ -22,6 +23,7 @@ def generate_base_config(config: Config):
     integrator_config = generate_integrator_config(config.integrator)
 
     mi_config = {
+        "type": "scene",
         "camera": sensor_config,
         "integrator": integrator_config,
     }
@@ -52,9 +54,9 @@ def generate_view_config(view: View, stamp: str, index: int):
 def generate_scene_config(scene: Scene) -> dict:
     """Generate a mitsuba scene description dict from a Scene."""
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    scene_config = {}
+    scene_config: dict[str, Any] = {}
     for i, view in enumerate(scene):
-        scene_config[f"view_{i:03}"] = generate_view_config(view, stamp, i)
+        scene_config |= generate_view_config(view, stamp, i)
     return scene_config
 
 

@@ -1,13 +1,14 @@
 from ..config.sensor import Sensor, Perspective, Orthographic, ThinLens
 
 import mitsuba as mi
+import numpy as np
 
 
 def generate_sensor_config(sensor: Sensor) -> dict:
     """Generate a Mitsuba sensor description dict from a Sensor."""
 
     mi_config = {
-        "to_world": mi.ScalarTransform4f.look_at( # type: ignore
+        "to_world": mi.ScalarTransform4f.look_at(  # type: ignore
             origin=sensor.location, target=sensor.target, up=sensor.up
         ),
         "near_clip": sensor.near_clip,

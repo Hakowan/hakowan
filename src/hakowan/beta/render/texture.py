@@ -25,7 +25,7 @@ def generate_uniform_config(tex: Uniform) -> dict:
             mi_config["value"] = [tex.color] * 3
         case str():
             assert tex.color in css_colors
-            mi_config["value"] = css_colors[tex.color]
+            mi_config["value"] = css_colors[tex.color].data.tolist()
         case Color():
             mi_config["value"] = tex.color.data.tolist()
 

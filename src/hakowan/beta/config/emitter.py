@@ -22,3 +22,4 @@ class Envmap(Emitter):
         default_factory=lambda: Path(__file__).parents[2] / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
+    rotation: float = 180.0

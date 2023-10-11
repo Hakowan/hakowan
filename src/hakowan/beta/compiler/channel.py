@@ -5,10 +5,11 @@ from .texture import apply_texture
 from ..grammar.channel import Channel, Position, Normal, Size, Diffuse
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
-from ..grammar.scale import Attribute
+from ..grammar.scale import Attribute, Normalize
 from ..grammar.texture import Uniform, ScalarField
 
 import lagrange
+import numpy as np
 
 ### Public API
 
@@ -42,7 +43,12 @@ def _generate_default_position_channel(df: DataFrame):
     mesh = df.mesh
     assert mesh is not None
 
-    attr = Attribute(name=mesh.attr_name_vertex_to_position)
+    attr = Attribute(
+        name=mesh.attr_name_vertex_to_position,
+        scale=Normalize(
+            bbox_min=-np.ones(mesh.dimension), bbox_max=np.ones(mesh.dimension)
+        ),
+    )
     position_channel = Position(data=attr)
     return position_channel
 

@@ -3,6 +3,8 @@ from .spectrum import generate_spectrum_config
 
 from typing import Any
 
+import mitsuba as mi
+
 
 def generate_emitter_config(emitter: Emitter) -> dict:
     """Generate a Mitsuba emitter description dict from a Emitter."""
@@ -18,6 +20,10 @@ def generate_emitter_config(emitter: Emitter) -> dict:
             mi_config["type"] = "envmap"
             mi_config["filename"] = str(emitter.filename)
             mi_config["scale"] = emitter.scale
+            mi_config["to_world"] = mi.ScalarTransform4f.rotate(  # type: ignore
+                [0, 1, 0],
+                emitter.rotation,
+            )
         case _:
             raise NotImplementedError(f"Unknown emitter type: {type(emitter)}")
 

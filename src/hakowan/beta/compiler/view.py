@@ -48,6 +48,7 @@ class View:
         # Convert all corner attributes to indexed attributes
         for attr in self._active_attributes:
             attr_name = attr._internal_name
+            assert attr_name is not None
             if mesh.is_attribute_indexed(attr_name):
                 continue
 

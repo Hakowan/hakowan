@@ -141,7 +141,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
                     f"Isocontour does not support attribute element type {attr.element_type}."
                 )
 
-    tex._uv = Attribute(name=uv_name)
+    tex._uv = Attribute(name=uv_name, _internal_name=uv_name)
     active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
     active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
     return [tex._uv] + active_attrs_1 + active_attrs_2

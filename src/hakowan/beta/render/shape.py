@@ -1,4 +1,5 @@
 from .bsdf import generate_bsdf_config
+from ..common import logger
 from ..compiler import View
 from ..grammar.scale import Attribute
 
@@ -43,6 +44,7 @@ def generate_mesh_config(view: View, stamp: str, index: int):
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+    logger.info(f"Saving mesh to {str(filename)}")
     lagrange.io.save_mesh(filename, mesh) # type: ignore
 
     mi_config = {

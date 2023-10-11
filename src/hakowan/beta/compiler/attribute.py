@@ -83,6 +83,9 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
     else:
         assert data.ndim == 1
         dim = 1
+
+    if len(data) == 0: return
+
     assert np.all(np.isfinite(data))
     domain_min: npt.NDArray | float = (
         scale.domain_min if scale.domain_min is not None else np.amin(data, axis=0)
@@ -91,18 +94,24 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         scale.domain_max if scale.domain_max is not None else np.amax(data, axis=0)
     )
     if dim > 1:
-        assert isinstance(scale.bbox_min, npt.NDArray)
-        assert isinstance(scale.bbox_max, npt.NDArray)
-        assert isinstance(domain_min, npt.NDArray)
-        assert isinstance(domain_max, npt.NDArray)
+        assert isinstance(scale.bbox_min, np.ndarray)
+        assert isinstance(scale.bbox_max, np.ndarray)
+        assert isinstance(domain_min, np.ndarray)
+        assert isinstance(domain_max, np.ndarray)
         assert dim == len(scale.bbox_min)
         assert dim == len(scale.bbox_max)
         assert dim == len(domain_min)
         assert dim == len(domain_max)
         assert np.all(scale.bbox_max >= scale.bbox_min)
-        assert np.all(domain_max > domain_min)
+        assert np.all(domain_max >= domain_min)
         domain_size = domain_max - domain_min
         range_size = scale.bbox_max - scale.bbox_min
+        domain_center = (domain_min + domain_max) / 2
+        range_center = (scale.bbox_min + scale.bbox_max) / 2
+
+        axis = np.argmax(domain_size)
+        domain_size = domain_size[axis]
+        range_size = range_size[axis]
     else:
         assert dim == 1
         assert isinstance(scale.bbox_min, numbers.Number)
@@ -113,8 +122,10 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         assert domain_max >= domain_min
         domain_size = domain_max - domain_min
         range_size = scale.bbox_max - scale.bbox_min
+        domain_center = (domain_min + domain_max) / 2
+        range_center = (scale.bbox_min + scale.bbox_max) / 2
 
-    data[:] = (data - domain_min) / domain_size * range_size + scale.bbox_min
+    data[:] = (data - domain_center) / domain_size * range_size + range_center
     assert np.all(np.isfinite(data))
 
 
