@@ -53,25 +53,32 @@ def main():
             texture1=hkw.texture.Uniform(color=0.2),
             texture2=hkw.texture.Uniform(color=0.8),
         )
+        scalar_field = hkw.texture.ScalarField(
+            data=hkw.Attribute(name="x"), colormap="viridis"
+        )
         diffuse = hkw.channel.Diffuse(reflectance=checkerboard)
         conductor = hkw.channel.RoughConductor(material="Al", alpha=0.2)
         plastic = hkw.channel.Plastic(
             diffuse_reflectance=checkerboard,
             specular_reflectance=1.0,
         )
+        principled = hkw.channel.Principled(
+            color=0.5, roughness=scalar_field, #metallic=checkerboard
+        )
 
-        base = base.channel(material=plastic)
+        base = base.channel(material=principled)
     else:
         base = base.channel(
-            material=hkw.channel.Diffuse(
-                reflectance=hkw.texture.Isocontour(
+            material=hkw.channel.Principled(
+                color=hkw.texture.Uniform(color=args.color),
+                metallic=hkw.texture.Isocontour(
                     data=hkw.Attribute(name="x", scale=hkw.scale.Uniform(factor=0.1)),
                     ratio=0.1,
                     texture1=hkw.texture.Uniform(color=0.9),
                     texture2=hkw.texture.ScalarField(
                         data=hkw.Attribute(name="x"), colormap="viridis"
                     ),
-                )
+                ),
             ),
         )
 

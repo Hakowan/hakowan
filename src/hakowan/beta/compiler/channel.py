@@ -13,7 +13,9 @@ from ..grammar.channel import (
     RoughConductor,
     Plastic,
     RoughPlastic,
+    Principled,
 )
+from .utils import unique_name
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
@@ -110,6 +112,23 @@ def _preprocess_channels(view: View):
     if view.material_channel is None:
         view.material_channel = Diffuse(reflectance=Uniform(color="ivory"))
 
+def rename_attribute(df: DataFrame, attr: Attribute, name: str):
+    mesh = df.mesh
+    assert attr._internal_name is not None
+    assert mesh.has_attribute(attr._internal_name)
+    if mesh.is_attribute_indexed(attr._internal_name):
+        prefix = "vertex"
+    else:
+        mesh_attr = mesh.attribute(attr._internal_name)
+        if mesh_attr.element_type == lagrange.AttributeElement.Vertex:
+            prefix = "vertex"
+        else:
+            prefix = "face"
+
+    new_name = unique_name(mesh, f"{prefix}_{name}")
+    mesh.rename_attribute(attr._internal_name, new_name)
+    attr._internal_name = new_name
+
 
 def _process_channels(view: View):
     assert view.data_frame is not None
@@ -156,7 +175,26 @@ def _process_channels(view: View):
                     tex = view.material_channel.specular_reflectance
                     view._active_attributes += apply_texture(df, tex)
                     view.uv_attribute = tex._uv
+            case Principled():
+                if isinstance(view.material_channel.color, Texture):
+                    tex = view.material_channel.color
+                    view._active_attributes += apply_texture(df, tex)
+                    view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
+                if isinstance(view.material_channel.metallic, Texture):
+                    tex = view.material_channel.metallic
+                    active_attributes = apply_texture(df, tex)
+                    for attr in active_attributes:
+                        rename_attribute(df, attr, "metallic")
+                    view._active_attributes += active_attributes
+                    view.uv_attribute = tex._uv
+                if isinstance(view.material_channel.roughness, Texture):
+                    tex = view.material_channel.roughness
+                    active_attributes = apply_texture(df, tex)
+                    for attr in active_attributes:
+                        rename_attribute(df, attr, "roughness")
+                    view._active_attributes += active_attributes
+                    view.uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

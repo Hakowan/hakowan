@@ -32,3 +32,9 @@ class Plastic(Material):
 class RoughPlastic(Plastic):
     distribution: str = "beckmann"
     alpha: float = 0.1
+
+@dataclass(kw_only=True)
+class Principled(Material):
+    color: Texture | float = 0.5
+    roughness: Texture | float = 0.5
+    metallic: Texture | float = 0.0

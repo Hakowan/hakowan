@@ -37,7 +37,9 @@ class View:
         This function will ensure all attributes are either vertex or facet attribute.
         """
         mesh = self.data_frame.mesh
-        active_attribute_names = [attr._internal_name for attr in self._active_attributes]
+        active_attribute_names = [
+            attr._internal_name for attr in self._active_attributes
+        ]
 
         # Drop all non-active attributes
         for attr_id in mesh.get_matching_attribute_ids():
@@ -77,10 +79,14 @@ class View:
         ):
             position_attr_name = self._position_channel.data._internal_name
             if position_attr_name != unified_mesh.attr_name_vertex_to_position:
-                unified_mesh.vertices = unified_mesh.attribute(position_attr_name).data.copy()
+                unified_mesh.vertices = unified_mesh.attribute(
+                    position_attr_name
+                ).data.copy()
                 unified_mesh.delete_attribute(position_attr_name)
 
-        uv_ids = unified_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+        uv_ids = unified_mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.UV
+        )
         assert len(uv_ids) <= 1, "At most one UV attribute is allowed"
         self.data_frame.mesh = unified_mesh
 
@@ -159,7 +165,9 @@ class View:
         return self._uv_attribute
 
     @uv_attribute.setter
-    def uv_attribute(self, attribute: Attribute):
+    def uv_attribute(self, attribute: Attribute | None):
+        if attribute is None:
+            return
         assert isinstance(attribute, Attribute)
         if self._uv_attribute is not None and self._uv_attribute != attribute:
             raise ValueError("UV attribute can only be set once.")
