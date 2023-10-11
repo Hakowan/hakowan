@@ -94,7 +94,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
     def generate_uv_values(attr_values: lagrange.Attribute):
         assert attr_values.num_channels == 1
         uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2)).astype(np.float32)  # type: ignore
-        uv_values[:, 1] += tex.ratio * math.sqrt(2) / 2
+        uv_values[:, 1] += (1 - tex.ratio) / 2
         return uv_values
 
     # Generate UV.

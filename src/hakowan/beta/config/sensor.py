@@ -15,7 +15,7 @@ class Sensor:
 @dataclass(kw_only=True)
 class Perspective(Sensor):
     fov: float = 28.8415  # degrees
-    fov_axis: str = "x"
+    fov_axis: str = "smaller"
 
 
 @dataclass(kw_only=True)

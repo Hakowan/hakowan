@@ -116,8 +116,7 @@ def _process_channels(view: View):
                 tex = view.material_channel.reflectance
                 view._active_attributes += apply_texture(df, tex)
                 view._uv_attribute = tex._uv
-                if isinstance(tex, ScalarField):
-                    apply_colormap(df, tex)
+                apply_colormap(df, tex)
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

@@ -63,13 +63,16 @@ def main():
                 reflectance=hkw.texture.Isocontour(
                     data=hkw.Attribute(name="x", scale=hkw.scale.Uniform(factor=0.1)),
                     ratio=0.1,
-                    texture1=hkw.texture.Uniform(color=0.2),
-                    texture2=hkw.texture.Uniform(color=0.8),
+                    texture1=hkw.texture.Uniform(color=0.9),
+                    texture2=hkw.texture.ScalarField(
+                        data=hkw.Attribute(name="x"), colormap="viridis"
+                    ),
                 )
-            )
+            ),
         )
 
     config = hkw.config.Config()
+    config.z_up()
     config.sampler.sample_count = args.num_samples
     hkw.render(base, config)
 

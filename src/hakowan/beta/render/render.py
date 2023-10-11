@@ -5,6 +5,7 @@ from .sampler import generate_sampler_config
 from .sensor import generate_sensor_config
 from .shape import generate_point_cloud_config, generate_mesh_config
 
+from ..common import logger
 from ..compiler import Scene, View, compile
 from ..config import Config
 from ..grammar import mark
@@ -60,12 +61,34 @@ def generate_scene_config(scene: Scene) -> dict:
     return scene_config
 
 
+def dump_dict(data: dict, indent: int = 0):
+    lines = []
+    for key, value in data.items():
+        lines.append(" " * indent + f"{key}:")
+        if isinstance(value, dict):
+            lines.append(" " * indent + "{")
+            lines += dump_dict(value, indent + 4)
+            lines.append(" " * indent + "}")
+        else:
+            sublines = value.__repr__().split("\n")
+            if len(sublines) == 1:
+                lines[-1] += f" {sublines[0]}"
+            else:
+                sublines = [" " * indent + line for line in sublines]
+                lines += sublines
+    return lines
+
+
 def render(root: layer.Layer, config: Config):
     scene = compile(root)
 
     mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
+
+    lines = dump_dict(mi_config)
+    for line in lines:
+        logger.info(line)
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
