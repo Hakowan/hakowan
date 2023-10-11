@@ -49,7 +49,7 @@ def main():
                 texture2=hkw.texture.Uniform(color=0.8),
             )
         )
-        conductor = hkw.channel.Conductor(material="Hg")
+        conductor = hkw.channel.RoughConductor(material="Al", alpha=0.2)
 
         base = base.channel(material=conductor)
     else:

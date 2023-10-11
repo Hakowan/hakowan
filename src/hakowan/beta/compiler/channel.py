@@ -2,12 +2,12 @@ from .view import View
 from .attribute import compute_scaled_attribute
 from .color import apply_colormap
 from .texture import apply_texture
-from ..grammar.channel import Channel, Position, Normal, Size, Material, Diffuse, Conductor
+from ..grammar.channel import Channel, Position, Normal, Size, Material, Diffuse, Conductor, RoughConductor
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
 from ..grammar.scale import Attribute, Normalize
-from ..grammar.texture import Uniform, ScalarField
+from ..grammar.texture import Texture, Uniform, ScalarField
 
 import lagrange
 import numpy as np
@@ -129,6 +129,11 @@ def _process_channels(view: View):
             case Conductor():
                 # Nothing to do.
                 pass
+            case RoughConductor():
+                if isinstance(view.material_channel.alpha, Texture):
+                    tex = view.material_channel.alpha
+                    view._active_attributes += apply_texture(df, tex)
+                    view._uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"

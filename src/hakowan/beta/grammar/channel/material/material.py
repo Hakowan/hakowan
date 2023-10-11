@@ -17,3 +17,9 @@ class Diffuse(Material):
 @dataclass(kw_only=True)
 class Conductor(Material):
     material: str
+
+@dataclass(kw_only=True)
+class RoughConductor(Conductor):
+    distribution: str = "beckmann"
+    alpha: Texture | float = 0.1
+
