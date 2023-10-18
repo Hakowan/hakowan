@@ -141,13 +141,13 @@ def _process_channels(view: View):
             case Diffuse():
                 if isinstance(view.material_channel.reflectance, Texture):
                     tex = view.material_channel.reflectance
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
             case RoughConductor():
                 if isinstance(view.material_channel.alpha, Texture):
                     tex = view.material_channel.alpha
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
             case Conductor():
@@ -156,26 +156,26 @@ def _process_channels(view: View):
             case RoughPlastic() | Plastic():
                 if isinstance(view.material_channel.diffuse_reflectance, Texture):
                     tex = view.material_channel.diffuse_reflectance
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
                 if isinstance(view.material_channel.specular_reflectance, Texture):
                     tex = view.material_channel.specular_reflectance
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
             case Principled():
                 if isinstance(view.material_channel.color, Texture):
                     tex = view.material_channel.color
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
                 if isinstance(view.material_channel.metallic, Texture):
                     tex = view.material_channel.metallic
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                 if isinstance(view.material_channel.roughness, Texture):
                     tex = view.material_channel.roughness
-                    view._active_attributes += apply_texture(df, tex)
+                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(

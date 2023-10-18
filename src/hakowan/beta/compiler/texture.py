@@ -1,6 +1,6 @@
 from .view import View
 from .attribute import compute_attribute_minmax, compute_scaled_attribute
-from .utils import get_default_uv
+from .utils import get_default_uv, unique_name
 from ..grammar.dataframe import DataFrame
 from ..grammar.texture import (
     Texture,
@@ -95,9 +95,11 @@ def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None 
     return [tex._uv] + active_attrs_1 + active_attrs_2
 
 
-def _apply_isocontour(df: DataFrame, tex: Isocontour):
+def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = None):
     if tex._uv is not None:
+        # This texture is already processed.
         return []
+
     compute_scaled_attribute(df, tex.data)
 
     def generate_uv_values(attr_values: lagrange.Attribute):
@@ -111,7 +113,16 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour):
     assert tex.data._internal_name is not None
     attr_name: str = tex.data._internal_name
     assert mesh.has_attribute(attr_name)
-    uv_name = "_hakowan_uv"
+    uv_name = f"_hakowan_isocontour_uv_generated_from_{tex.data.name}"
+
+    if uv is not None:
+        assert uv.name == uv_name, "Conflicting UV detected"
+        tex._uv = uv
+        active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
+        active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
+        return active_attrs_1 + active_attrs_2
+
+
     if mesh.is_attribute_indexed(attr_name):
         attr = mesh.indexed_attribute(attr_name)
         attr_values = attr.values
@@ -170,7 +181,6 @@ def _apply_texture(
         case CheckerBoard():
             return _apply_checker_board(df, tex, uv)
         case Isocontour():
-            assert uv is None, "Isocontour texture is incompatible with UV."
-            return _apply_isocontour(df, tex)
+            return _apply_isocontour(df, tex, uv)
         case _:
             raise NotImplementedError(f"Texture type {type(tex)} is not supported")
