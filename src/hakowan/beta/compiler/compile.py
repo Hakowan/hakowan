@@ -29,7 +29,7 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
             elif l._spec.transform is not None:
                 view.transform *= l._spec.transform
             if len(l._spec.channels) > 0:
-                view.channels.extend(l._spec.channels)
+                view.channels.extend(copy.deepcopy(l._spec.channels))
 
         view.validate()
         return view
