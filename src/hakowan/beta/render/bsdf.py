@@ -14,10 +14,18 @@ from ..grammar.texture import Texture
 from typing import Any
 
 
+def generate_float_or_texture_config(tex: float | Texture, is_color: bool = False):
+    match tex:
+        case float():
+            return tex
+        case Texture():
+            return generate_texture_config(tex, is_color)
+
+
 def generate_diffuse_bsdf_config(mat: Diffuse):
     mi_config = {
         "type": "diffuse",
-        "reflectance": generate_texture_config(mat.reflectance),
+        "reflectance": generate_float_or_texture_config(mat.reflectance, True),
     }
     return mi_config
 
@@ -28,14 +36,6 @@ def generate_conductor_bsdf_config(mat: Conductor):
         "material": mat.material,
     }
     return mi_config
-
-
-def generate_float_or_texture_config(tex: float | Texture):
-    match tex:
-        case float():
-            return tex
-        case Texture():
-            return generate_texture_config(tex)
 
 
 def generate_rough_conductor_bsdf_config(mat: RoughConductor):
@@ -52,7 +52,7 @@ def generate_plastic_bsdf_config(mat: Plastic):
     mi_config: dict[str, Any] = {
         "type": "plastic",
         "diffuse_reflectance": generate_float_or_texture_config(
-            mat.diffuse_reflectance
+            mat.diffuse_reflectance, True
         ),
         "specular_reflectance": generate_float_or_texture_config(
             mat.specular_reflectance
@@ -65,7 +65,7 @@ def generate_rough_plastic_bsdf_config(mat: RoughPlastic):
     mi_config: dict[str, Any] = {
         "type": "roughplastic",
         "diffuse_reflectance": generate_float_or_texture_config(
-            mat.diffuse_reflectance
+            mat.diffuse_reflectance, True
         ),
         "specular_reflectance": generate_float_or_texture_config(
             mat.specular_reflectance
@@ -79,7 +79,7 @@ def generate_rough_plastic_bsdf_config(mat: RoughPlastic):
 def generate_principled_bsdf_config(mat: Principled):
     mi_config: dict[str, Any] = {
         "type": "principled",
-        "base_color": generate_float_or_texture_config(mat.color),
+        "base_color": generate_float_or_texture_config(mat.color, True),
         "roughness": generate_float_or_texture_config(mat.roughness),
         "metallic": generate_float_or_texture_config(mat.metallic),
     }

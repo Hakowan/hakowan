@@ -89,6 +89,8 @@ def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None 
 
 
 def _apply_isocontour(df: DataFrame, tex: Isocontour):
+    if tex._uv is not None:
+        return []
     compute_scaled_attribute(df, tex.data)
 
     def generate_uv_values(attr_values: lagrange.Attribute):

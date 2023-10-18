@@ -2,6 +2,9 @@ from .view import View
 from .attribute import compute_scaled_attribute
 from .color import apply_colormap
 from .texture import apply_texture
+from .utils import unique_name
+
+from ..common import logger
 from ..grammar.channel import (
     Channel,
     Position,
@@ -15,7 +18,6 @@ from ..grammar.channel import (
     RoughPlastic,
     Principled,
 )
-from .utils import unique_name
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
@@ -115,20 +117,48 @@ def _preprocess_channels(view: View):
         view.material_channel = Diffuse(reflectance=Uniform(color="ivory"))
 
 
-def rename_attribute(df: DataFrame, attr: Attribute, name: str):
+def rename_attribute(df: DataFrame, attr: Attribute):
+    """For general attributes that are not position, normal, or uv, rename it to
+    `<element>_<name>_0` due to mitsuba requirement.
+    """
     mesh = df.mesh
     assert attr._internal_name is not None
     assert mesh.has_attribute(attr._internal_name)
+
     if mesh.is_attribute_indexed(attr._internal_name):
-        prefix = "vertex"
+        mesh_attr = mesh.indexed_attribute(attr._internal_name)
     else:
         mesh_attr = mesh.attribute(attr._internal_name)
-        if mesh_attr.element_type == lagrange.AttributeElement.Vertex:
-            prefix = "vertex"
-        else:
-            prefix = "face"
 
-    new_name = unique_name(mesh, f"{prefix}_{name}")
+    if (
+        mesh_attr.usage != lagrange.AttributeUsage.Scalar
+        and mesh_attr.usage != lagrange.AttributeUsage.Vector
+    ):
+        # No need to rename speical attributes such as normal, color, position or uv because their
+        # name does not matter when saved in ply format.
+        return
+
+    if attr._internal_name.startswith("vertex_") or attr._internal_name.startswith(
+        "face_"
+    ):
+        # No need to rename attributes that are already renamed.
+        return
+
+    match mesh_attr.element_type:
+        case lagrange.AttributeElement.Vertex:
+            prefix = "vertex_"
+        case lagrange.AttributeElement.Corner:
+            prefix = "vertex_"
+        case lagrange.AttributeElement.Indexed:
+            prefix = "vertex_"
+        case lagrange.AttributeElement.Facet:
+            prefix = "face_"
+        case _:
+            raise NotImplementedError(
+                f"Unsupported attribute element type {mesh_attr.element_type}"
+            )
+    new_name = unique_name(mesh, f"{prefix}{attr._internal_name}_0")
+    logger.info(f"Renaming attribute {attr._internal_name} to {new_name}")
     mesh.rename_attribute(attr._internal_name, new_name)
     attr._internal_name = new_name
 
@@ -155,10 +185,11 @@ def _process_channels(view: View):
     if view.material_channel is not None:
         match view.material_channel:
             case Diffuse():
-                tex = view.material_channel.reflectance
-                view._active_attributes += apply_texture(df, tex)
-                view.uv_attribute = tex._uv
-                apply_colormap(df, tex)
+                if isinstance(view.material_channel.reflectance, Texture):
+                    tex = view.material_channel.reflectance
+                    view._active_attributes += apply_texture(df, tex)
+                    view.uv_attribute = tex._uv
+                    apply_colormap(df, tex)
             case RoughConductor():
                 if isinstance(view.material_channel.alpha, Texture):
                     tex = view.material_channel.alpha
@@ -186,19 +217,17 @@ def _process_channels(view: View):
                     apply_colormap(df, tex)
                 if isinstance(view.material_channel.metallic, Texture):
                     tex = view.material_channel.metallic
-                    active_attributes = apply_texture(df, tex)
-                    for attr in active_attributes:
-                        rename_attribute(df, attr, "metallic")
-                    view._active_attributes += active_attributes
+                    view._active_attributes += apply_texture(df, tex)
                     view.uv_attribute = tex._uv
                 if isinstance(view.material_channel.roughness, Texture):
                     tex = view.material_channel.roughness
-                    active_attributes = apply_texture(df, tex)
-                    for attr in active_attributes:
-                        rename_attribute(df, attr, "roughness")
-                    view._active_attributes += active_attributes
+                    view._active_attributes += apply_texture(df, tex)
                     view.uv_attribute = tex._uv
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"
                 )
+
+    # Rename generic attribute with prefix.
+    for attr in view._active_attributes:
+        rename_attribute(df, attr)

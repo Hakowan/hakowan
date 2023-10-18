@@ -41,7 +41,7 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
     """
     if attr.scale is not None:
         if attr._internal_name is None:
-            attr._internal_name = unique_name(df.mesh, f"_hakowan_{attr.name}")
+            attr._internal_name = unique_name(df.mesh, f"_scaled_{attr.name}")
             df.mesh.duplicate_attribute(attr.name, attr._internal_name)
             apply_scale(df, attr._internal_name, attr.scale)
     else:

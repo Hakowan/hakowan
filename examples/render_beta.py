@@ -48,13 +48,19 @@ def main():
     base = hkw.layer.Layer().data(mesh).mark(hkw.mark.Surface)
     if len(uv_ids) > 0:
         uv_name = mesh.get_attribute_name(uv_ids[0])
+        scalar_field = hkw.texture.ScalarField(
+            data=hkw.Attribute(name="x"), colormap="viridis"
+        )
         checkerboard = hkw.texture.CheckerBoard(
             uv=hkw.Attribute(name=uv_name, scale=hkw.scale.Uniform(factor=10)),
             texture1=hkw.texture.Uniform(color=0.2),
             texture2=hkw.texture.Uniform(color=0.8),
         )
-        scalar_field = hkw.texture.ScalarField(
-            data=hkw.Attribute(name="x"), colormap="viridis"
+        isocontour = hkw.texture.Isocontour(
+            data=hkw.Attribute(name="x", scale=hkw.scale.Uniform(factor=0.1)),
+            ratio=0.1,
+            texture1=hkw.texture.Uniform(color=0.9),
+            texture2=scalar_field,
         )
         diffuse = hkw.channel.Diffuse(reflectance=checkerboard)
         conductor = hkw.channel.RoughConductor(material="Al", alpha=0.2)
@@ -63,23 +69,26 @@ def main():
             specular_reflectance=1.0,
         )
         principled = hkw.channel.Principled(
-            color=0.5, roughness=scalar_field, #metallic=checkerboard
+            color=scalar_field, roughness=scalar_field, metallic=scalar_field
         )
 
         base = base.channel(material=principled)
     else:
         base = base.channel(
-            material=hkw.channel.Principled(
-                color=hkw.texture.Uniform(color=args.color),
-                metallic=hkw.texture.Isocontour(
-                    data=hkw.Attribute(name="x", scale=hkw.scale.Uniform(factor=0.1)),
-                    ratio=0.1,
-                    texture1=hkw.texture.Uniform(color=0.9),
-                    texture2=hkw.texture.ScalarField(
-                        data=hkw.Attribute(name="x"), colormap="viridis"
-                    ),
-                ),
-            ),
+            #material=hkw.channel.Principled(
+            #    color=hkw.texture.Uniform(color=args.color),
+            #    metallic=hkw.texture.Isocontour(
+            #        data=hkw.Attribute(name="x", scale=hkw.scale.Uniform(factor=0.1)),
+            #        ratio=0.1,
+            #        texture1=hkw.texture.Uniform(color=0.9),
+            #        texture2=hkw.texture.ScalarField(
+            #            data=hkw.Attribute(name="x"), colormap="viridis"
+            #        ),
+            #    ),
+            #),
+            material=hkw.channel.RoughConductor(
+                material="W",
+            )
         )
 
     config = hkw.config.Config()

@@ -40,6 +40,11 @@ class View:
         active_attribute_names = [
             attr._internal_name for attr in self._active_attributes
         ]
+        active_attribute_names += [
+            attr._internal_color_field
+            for attr in self._active_attributes
+            if attr._internal_color_field is not None
+        ]
 
         # Drop all non-active attributes
         for attr_id in mesh.get_matching_attribute_ids():

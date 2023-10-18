@@ -11,7 +11,7 @@ class Material(Channel):
 
 @dataclass(kw_only=True)
 class Diffuse(Material):
-    reflectance: Texture
+    reflectance: Texture | float = 0.5
 
 
 @dataclass(kw_only=True)
