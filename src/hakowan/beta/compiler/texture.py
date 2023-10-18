@@ -1,5 +1,6 @@
 from .view import View
 from .attribute import compute_attribute_minmax, compute_scaled_attribute
+from .utils import get_default_uv
 from ..grammar.dataframe import DataFrame
 from ..grammar.texture import (
     Texture,
@@ -63,9 +64,12 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
 def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
     assert tex.filename.exists()
     if uv is None:
+        if tex.uv is None:
+            assert df.mesh is not None
+            tex.uv = Attribute(name=get_default_uv(df.mesh))
         compute_scaled_attribute(df, tex.uv)
         tex._uv = tex.uv
-    else:
+    elif tex.uv is not None:
         assert (
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
@@ -75,9 +79,12 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
 
 def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None = None):
     if uv is None:
+        if tex.uv is None:
+            assert df.mesh is not None
+            tex.uv = Attribute(name=get_default_uv(df.mesh))
         compute_scaled_attribute(df, tex.uv)
         tex._uv = tex.uv
-    else:
+    elif tex.uv is not None:
         assert (
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"

@@ -25,13 +25,13 @@ class Uniform(Texture):
 
 @dataclass(kw_only=True, slots=True)
 class Image(Texture):
-    uv: Attribute
+    uv: Attribute | None = None
     filename: Path
 
 
 @dataclass(kw_only=True, slots=True)
 class CheckerBoard(Texture):
-    uv: Attribute
+    uv: Attribute | None = None
     texture1: Texture
     texture2: Texture
 
