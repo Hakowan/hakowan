@@ -6,7 +6,7 @@ from ..mark import Mark
 from ..channel import Channel
 from ..transform import Transform
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class LayerSpec:
     data: Optional[DataFrame] = None
     mark: Optional[Mark] = None

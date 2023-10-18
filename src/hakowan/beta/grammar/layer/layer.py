@@ -10,7 +10,7 @@ from typing import Optional, Self
 import lagrange
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Layer:
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list[Self] = field(default_factory=list)

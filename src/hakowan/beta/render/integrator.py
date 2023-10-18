@@ -25,9 +25,9 @@ def generate_integrator_config(integrator: Integrator) -> dict:
             mi_config["rr_depth"] = integrator.rr_depth
         case AOV():
             mi_config["type"] = "aov"
-            mi_config["aovs"] = integrator.aovs
+            mi_config["aovs"] = ",".join(integrator.aovs)
             if integrator.integrator is not None:
-                mi_config["integrator"] = generate_integrator_config(
+                mi_config["aov_image"] = generate_integrator_config(
                     integrator.integrator
                 )
         case VolPath():

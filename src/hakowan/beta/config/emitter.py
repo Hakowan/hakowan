@@ -6,18 +6,18 @@ import numpy as np
 import numpy.typing as npt
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Emitter:
     pass
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Point(Emitter):
     intensity: Color | float
     position: npt.NDArray
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Envmap(Emitter):
     filename: Path = field(
         default_factory=lambda: Path(__file__).parents[2] / "envmaps" / "museum.exr"

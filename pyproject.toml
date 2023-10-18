@@ -10,7 +10,7 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
     "pytest",
-    "mitsuba",
+    "mitsuba>=3.4",
     "numpy>=1.21",
     "scipy>=1.8.0",
     "lagrange",

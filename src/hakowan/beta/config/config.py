@@ -8,7 +8,7 @@ import numpy as np
 from dataclasses import dataclass, field
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Config:
     sensor: Sensor = field(default_factory=Perspective)
     film: Film = field(default_factory=Film)

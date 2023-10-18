@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 import numpy.typing as npt
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Film:
     width: int = 1024
     height: int = 800

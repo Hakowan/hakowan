@@ -5,7 +5,7 @@ import copy
 from ..scale import Attribute
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Transform:
     _child: Self | None = None
 
@@ -22,7 +22,7 @@ class Transform:
             t._child = copy.deepcopy(other)
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Filter(Transform):
     data: Attribute
     condition: Callable

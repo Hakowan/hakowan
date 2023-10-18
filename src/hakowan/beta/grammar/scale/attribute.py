@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from .scale import Scale
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, slots=True)
 class Attribute:
     name: str
     scale: Scale | None = None
