@@ -1,14 +1,13 @@
-from dataclasses import dataclass, field
-from typing import Optional, Self
-import copy
-
-import lagrange
-
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, Material
 from ..transform import Transform
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional, Self
+import lagrange
 
 
 @dataclass(kw_only=True)
@@ -38,9 +37,12 @@ class Layer:
         parent._children = [self, other]
         return parent
 
-    def data(self, data: lagrange.SurfaceMesh | DataFrame) -> "Layer":
+    def data(self, data: str | Path | lagrange.SurfaceMesh | DataFrame) -> "Layer":
         parent = Layer()
         match (data):
+            case str() | Path():
+                mesh = lagrange.io.load_mesh(data) # type: ignore
+                parent._spec.data = DataFrame(mesh=mesh)
             case lagrange.SurfaceMesh():
                 parent._spec.data = DataFrame(mesh=data)
             case DataFrame():

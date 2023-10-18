@@ -127,6 +127,20 @@ class TestCompile:
         assert np.amax(np.absolute(colors[1] - colors[0])) > 0.1
         assert np.amax(np.absolute(colors[1] - colors[2])) > 0.1
 
+    def test_multiple_views(self, triangle, two_triangles):
+        mesh1 = triangle
+        mesh2 = two_triangles
+
+        l1 = hkw.layer.Layer(data=mesh1)
+        l2 = hkw.layer.Layer(data=mesh2)
+        combined = (l1 + l2).mark(hkw.mark.Surface)
+
+        scene = hkw.compiler.compile(combined)
+        assert len(scene) == 2
+
+        assert scene[0].data_frame.mesh.num_facets == 1
+        assert scene[1].data_frame.mesh.num_facets == 2
+
 
 class TestScale:
     def __apply_scale(
