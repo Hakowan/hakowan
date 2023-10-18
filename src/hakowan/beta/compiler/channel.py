@@ -117,52 +117,6 @@ def _preprocess_channels(view: View):
         view.material_channel = Diffuse(reflectance=Uniform(color="ivory"))
 
 
-def rename_attribute(df: DataFrame, attr: Attribute):
-    """For general attributes that are not position, normal, or uv, rename it to
-    `<element>_<name>_0` due to mitsuba requirement.
-    """
-    mesh = df.mesh
-    assert attr._internal_name is not None
-    assert mesh.has_attribute(attr._internal_name)
-
-    if mesh.is_attribute_indexed(attr._internal_name):
-        mesh_attr = mesh.indexed_attribute(attr._internal_name)
-    else:
-        mesh_attr = mesh.attribute(attr._internal_name)
-
-    if (
-        mesh_attr.usage != lagrange.AttributeUsage.Scalar
-        and mesh_attr.usage != lagrange.AttributeUsage.Vector
-    ):
-        # No need to rename speical attributes such as normal, color, position or uv because their
-        # name does not matter when saved in ply format.
-        return
-
-    if attr._internal_name.startswith("vertex_") or attr._internal_name.startswith(
-        "face_"
-    ):
-        # No need to rename attributes that are already renamed.
-        return
-
-    match mesh_attr.element_type:
-        case lagrange.AttributeElement.Vertex:
-            prefix = "vertex_"
-        case lagrange.AttributeElement.Corner:
-            prefix = "vertex_"
-        case lagrange.AttributeElement.Indexed:
-            prefix = "vertex_"
-        case lagrange.AttributeElement.Facet:
-            prefix = "face_"
-        case _:
-            raise NotImplementedError(
-                f"Unsupported attribute element type {mesh_attr.element_type}"
-            )
-    new_name = unique_name(mesh, f"{prefix}{attr._internal_name}_0")
-    logger.info(f"Renaming attribute {attr._internal_name} to {new_name}")
-    mesh.rename_attribute(attr._internal_name, new_name)
-    attr._internal_name = new_name
-
-
 def _process_channels(view: View):
     assert view.data_frame is not None
     df = view.data_frame
@@ -227,7 +181,3 @@ def _process_channels(view: View):
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"
                 )
-
-    # Rename generic attribute with prefix.
-    for attr in view._active_attributes:
-        rename_attribute(df, attr)

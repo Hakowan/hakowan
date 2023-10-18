@@ -88,6 +88,9 @@ class View:
                     position_attr_name
                 ).data.copy()
                 unified_mesh.delete_attribute(position_attr_name)
+                self._position_channel.data._internal_name = (
+                    unified_mesh.attr_name_vertex_to_position
+                )
 
         uv_ids = unified_mesh.get_matching_attribute_ids(
             usage=lagrange.AttributeUsage.UV
