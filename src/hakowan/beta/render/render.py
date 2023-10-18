@@ -49,7 +49,9 @@ def generate_view_config(view: View, stamp: str, index: int):
         case mark.Surface:
             shapes.append(generate_mesh_config(view, stamp, index))
 
-    mi_config = {f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)}
+    mi_config = {
+        f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)
+    }
     return mi_config
 
 
@@ -80,7 +82,9 @@ def dump_dict(data: dict, indent: int = 0):
     return lines
 
 
-def render(root: layer.Layer, config: Config | None = None, filename: Path | None = None):
+def render(
+    root: layer.Layer, config: Config | None = None, filename: Path | None = None
+):
     scene = compile(root)
 
     if config is None:
@@ -89,7 +93,7 @@ def render(root: layer.Layer, config: Config | None = None, filename: Path | Non
     mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
-    mi.xml.dict_to_xml(mi_config, "tmp.xml")
+    # mi.xml.dict_to_xml(mi_config, "tmp.xml")
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
