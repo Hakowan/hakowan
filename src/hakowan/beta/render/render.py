@@ -14,6 +14,7 @@ from ..grammar import layer
 import datetime
 import mitsuba as mi
 from typing import Any
+from pathlib import Path
 
 
 def generate_base_config(config: Config):
@@ -79,7 +80,7 @@ def dump_dict(data: dict, indent: int = 0):
     return lines
 
 
-def render(root: layer.Layer, config: Config):
+def render(root: layer.Layer, config: Config, filename: Path | None = None):
     scene = compile(root)
 
     mi.set_variant("scalar_rgb")
@@ -89,4 +90,8 @@ def render(root: layer.Layer, config: Config):
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
-    mi.util.write_bitmap("tmp.exr", image)
+
+    if filename is not None:
+        mi.util.write_bitmap(filename, image)
+
+    return image

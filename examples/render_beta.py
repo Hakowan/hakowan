@@ -94,7 +94,7 @@ def main():
     config = hkw.config.Config()
     config.z_up()
     config.sampler.sample_count = args.num_samples
-    hkw.render(base, config)
+    hkw.render(base, config, filename=args.output_image)
 
 
 if __name__ == "__main__":
