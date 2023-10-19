@@ -83,7 +83,10 @@ def dump_dict(data: dict, indent: int = 0):
 
 
 def render(
-    root: layer.Layer, config: Config | None = None, filename: Path | None = None
+    root: layer.Layer,
+    config: Config | None = None,
+    filename: Path | None = None,
+    xml_filename: Path | None = None,
 ):
     scene = compile(root)
 
@@ -93,7 +96,9 @@ def render(
     mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
-    # mi.xml.dict_to_xml(mi_config, "tmp.xml")
+
+    if xml_filename is not None:
+        mi.xml.dict_to_xml(mi_config, xml_filename)
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore

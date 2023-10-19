@@ -15,19 +15,36 @@ from typing import Any
 import lagrange
 
 
-def generate_float_or_texture_config(mesh: lagrange.SurfaceMesh, tex: float | Texture, is_color: bool = False):
+def generate_float_or_texture_config(
+    mesh: lagrange.SurfaceMesh,
+    tex: float | Texture,
+    is_color: bool = False,
+    is_primitive: bool = False,
+):
     match tex:
         case float():
             return tex
         case Texture():
-            return generate_texture_config(mesh, tex, is_color)
+            return generate_texture_config(mesh, tex, is_color, is_primitive)
 
 
-def generate_diffuse_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Diffuse):
-    mi_config = {
-        "type": "diffuse",
-        "reflectance": generate_float_or_texture_config(mesh, mat.reflectance, True),
-    }
+def generate_diffuse_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: Diffuse, is_primitive
+):
+    reflectance = generate_float_or_texture_config(
+        mesh, mat.reflectance, True, is_primitive
+    )
+    mi_config: dict[str, Any]
+    if is_primitive and "colors" in reflectance:
+        mi_config = {
+            f"bsdf_{i:06}": {
+                "type": "diffuse",
+                "reflectance": {"type": "rgb", "value": color},
+            }
+            for i, color in enumerate(reflectance["colors"])
+        }
+    else:
+        mi_config = {"type": "diffuse", "reflectance": reflectance}
     return mi_config
 
 
@@ -39,7 +56,9 @@ def generate_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Conductor):
     return mi_config
 
 
-def generate_rough_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughConductor):
+def generate_rough_conductor_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: RoughConductor
+):
     mi_config: dict[str, Any] = {
         "type": "roughconductor",
         "material": mat.material,
@@ -87,13 +106,15 @@ def generate_principled_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Principled)
     return mi_config
 
 
-def generate_bsdf_config(view: View):
+def generate_bsdf_config(view: View, is_primitive=False):
     assert view.data_frame is not None
     assert view.material_channel is not None
     mesh = view.data_frame.mesh
     match view.material_channel:
         case Diffuse():
-            return generate_diffuse_bsdf_config(mesh, view.material_channel)
+            return generate_diffuse_bsdf_config(
+                mesh, view.material_channel, is_primitive
+            )
         case RoughConductor():
             return generate_rough_conductor_bsdf_config(mesh, view.material_channel)
         case Conductor():

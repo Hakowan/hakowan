@@ -28,20 +28,33 @@ def generate_point_cloud_config(view: View):
                 radii = mesh.attribute(
                     view.size_channel.data._internal_name
                 ).data.tolist()
-                assert len(radii) == mesh.num_vertices
+            case _:
+                raise NotImplementedError(
+                    f"Unsupported size channel type: {type(view.size_channel.data)}"
+                )
     else:
         radii = [0.01] * mesh.num_vertices
 
     # Generate spheres.
+    assert len(radii) == mesh.num_vertices
     for i, v in enumerate(mesh.vertices):
-        shapes.append({"type": "sphere", "center": v.tolist(), "raiuds": radii[i]})
+        shapes.append({"type": "sphere", "center": v.tolist(), "radius": radii[i]})
 
-    # TODO: Generate bsdf.
+    bsdfs = generate_bsdf_config(view, is_primitive=True)
+    if "type" in bsdfs:
+        # Single bsdf
+        bsdf = bsdfs
+        for shape in shapes:
+            shape["bsdf"] = bsdf
+    else:
+        assert len(bsdfs) == len(shapes)
+        for (bsdf_id, bsdf), shape in zip(bsdfs.items(), shapes):
+            shape[bsdf_id] = bsdf
     return shapes
 
 
 def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attribute]):
-    """ Rename generic scalar and vector attribute with suffix "_0". This is required by mitsuba to
+    """Rename generic scalar and vector attribute with suffix "_0". This is required by mitsuba to
     correct parse them from a ply file.
 
     :param mesh: The mesh to rename attributes.
@@ -75,7 +88,7 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
 
 
 def generate_mesh_config(view: View, stamp: str, index: int):
-    """ Generate the mitsuba config for a mesh.
+    """Generate the mitsuba config for a mesh.
 
     It does the following things:
     1. Rename all generic scalar/vector attributes with _0 suffix.
@@ -108,6 +121,6 @@ def generate_mesh_config(view: View, stamp: str, index: int):
     mi_config = {
         "type": "ply",
         "filename": str(filename.resolve()),
-        "bsdf": generate_bsdf_config(view),
+        "bsdf": generate_bsdf_config(view, is_primitive=False),
     }
     return mi_config

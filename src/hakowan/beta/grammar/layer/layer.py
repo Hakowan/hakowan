@@ -3,6 +3,7 @@ from ..dataframe import DataFrame
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, Material
 from ..transform import Transform
+from ..scale import Attribute
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,7 +42,7 @@ class Layer:
         parent = Layer()
         match (data):
             case str() | Path():
-                mesh = lagrange.io.load_mesh(data) # type: ignore
+                mesh = lagrange.io.load_mesh(data)  # type: ignore
                 parent._spec.data = DataFrame(mesh=mesh)
             case lagrange.SurfaceMesh():
                 parent._spec.data = DataFrame(mesh=data)
@@ -63,7 +64,7 @@ class Layer:
         *,
         position: Position | None = None,
         normal: Normal | None = None,
-        size: Size | None = None,
+        size: float | str | Size | None = None,
         material: Material | None = None,
     ) -> "Layer":
         parent = Layer()
@@ -72,7 +73,12 @@ class Layer:
         if normal is not None:
             parent._spec.channels.append(normal)
         if size is not None:
-            parent._spec.channels.append(size)
+            if isinstance(size, float):
+                parent._spec.channels.append(Size(data=size))
+            elif isinstance(size, str):
+                parent._spec.channels.append(Size(data=Attribute(name=size)))
+            else:
+                parent._spec.channels.append(size)
         if material is not None:
             parent._spec.channels.append(material)
         parent._children = [self]
