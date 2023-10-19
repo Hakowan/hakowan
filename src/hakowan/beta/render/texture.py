@@ -36,8 +36,12 @@ def generate_uniform_config(tex: Uniform) -> dict:
         case float():
             mi_config["value"] = tex.color
         case str():
-            assert tex.color in css_colors
-            mi_config["value"] = css_colors[tex.color].data.tolist()
+            if tex.color.startswith("#"):
+                c = Color.from_hex(tex.color)
+                mi_config["value"] = c.data.tolist()
+            else:
+                assert tex.color in css_colors
+                mi_config["value"] = css_colors[tex.color].data.tolist()
         case Color():
             mi_config["value"] = tex.color.data.tolist()
 
