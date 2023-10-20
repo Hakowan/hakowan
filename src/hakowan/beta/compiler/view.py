@@ -1,4 +1,4 @@
-from ..grammar.channel import Channel, Position, Normal, Size, Material
+from ..grammar.channel import Channel, Position, Normal, Size, VectorField, Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute
@@ -19,6 +19,7 @@ class View:
     _position_channel: Position | None = None
     _normal_channel: Normal | None = None
     _size_channel: Size | None = None
+    _vector_field_channel: VectorField | None = None
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
 
@@ -161,6 +162,15 @@ class View:
                 assert size_attr.num_channels == 1
 
         self._size_channel = channel
+
+    @property
+    def vector_field_channel(self) -> VectorField | None:
+        return self._vector_field_channel
+
+    @vector_field_channel.setter
+    def vector_field_channel(self, channel: VectorField):
+        assert isinstance(channel, VectorField)
+        self._vector_field_channel = channel
 
     @property
     def material_channel(self) -> Material | None:

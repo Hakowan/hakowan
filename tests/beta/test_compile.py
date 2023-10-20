@@ -141,6 +141,19 @@ class TestCompile:
         assert scene[0].data_frame.mesh.num_facets == 1
         assert scene[1].data_frame.mesh.num_facets == 2
 
+    def test_vector_field(self, triangle):
+        mesh = triangle
+        attr_id = lagrange.compute_vertex_normal(mesh)
+        attr_name = mesh.get_attribute_name(attr_id)
+
+        base = hkw.Layer(data=mesh, mark=hkw.mark.Curve)
+        base = base.channel(vector_field=attr_name)
+
+        scene = hkw.compiler.compile(base)
+        assert len(scene) == 1
+
+        assert scene[0].vector_field_channel is not None
+
 
 class TestScale:
     def __apply_scale(

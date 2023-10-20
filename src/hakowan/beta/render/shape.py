@@ -70,19 +70,34 @@ def generate_curve_config(view: View, stamp: str, index: int):
     # Compute radii
     radii = extract_size(view)
 
-    # Generate edge file
+    curves = []
+    # Generate curve file
+    if view.vector_field_channel is not None:
+        attr_name = view.vector_field_channel.data._internal_name
+        assert attr_name is not None
+        assert mesh.has_attribute(attr_name)
+        vertices = mesh.vertices
+        vector_field = mesh.attribute(attr_name).data
+        assert vertices.shape == vector_field.shape
+        for i in range(mesh.num_vertices):
+            curves.append((vertices[i], vertices[i] + vector_field[i]))
+    else:
+        # Use edges of the mesh.
+        mesh.initialize_edges()
+        vertices = mesh.vertices
+        for i in range(mesh.num_edges):
+            edge_vts = mesh.get_edge_vertices(i)
+            curves.append((vertices[edge_vts[0]], vertices[edge_vts[1]]))
+
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
     logger.info(f"Saving curves to {str(filename)}")
-    mesh.initialize_edges()
-    vertices = mesh.vertices
     with open(filename, "w") as fout:
-        for i in range(mesh.num_edges):
-            edge_vts = mesh.get_edge_vertices(i)
-            v0 = vertices[edge_vts[0]]
-            v1 = vertices[edge_vts[1]]
-            r0 = radii[edge_vts[0]]
-            r1 = radii[edge_vts[1]]
+        for i, e in enumerate(curves):
+            v0 = e[0]
+            v1 = e[1]
+            r0 = radii[i]
+            r1 = radii[i]
             fout.write(f"{v0[0]} {v0[1]} {v0[2]} {r0}\n")
             fout.write(f"{v1[0]} {v1[1]} {v1[2]} {r1}\n\n")
 

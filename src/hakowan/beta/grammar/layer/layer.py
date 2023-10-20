@@ -1,7 +1,7 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, Material
+from ..channel import Channel, Position, Normal, Size, VectorField, Material
 from ..transform import Transform
 from ..scale import Attribute
 
@@ -65,6 +65,7 @@ class Layer:
         position: Position | None = None,
         normal: Normal | None = None,
         size: float | str | Size | None = None,
+        vector_field: VectorField | None = None,
         material: Material | None = None,
     ) -> "Layer":
         parent = Layer()
@@ -77,8 +78,17 @@ class Layer:
                 parent._spec.channels.append(Size(data=size))
             elif isinstance(size, str):
                 parent._spec.channels.append(Size(data=Attribute(name=size)))
-            else:
+            elif isinstance(size, Size):
                 parent._spec.channels.append(size)
+            else:
+                raise TypeError(f"Unsupported size type: {type(size)}!")
+        if vector_field is not None:
+            if isinstance(vector_field, VectorField):
+                parent._spec.channels.append(vector_field)
+            elif isinstance(vector_field, str):
+                parent._spec.channels.append(VectorField(data=Attribute(name=vector_field)))
+            else:
+                raise TypeError(f"Unsupported vector field type: {type(vector_field)}!")
         if material is not None:
             parent._spec.channels.append(material)
         parent._children = [self]

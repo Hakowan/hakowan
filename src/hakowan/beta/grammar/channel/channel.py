@@ -22,3 +22,8 @@ class Normal(Channel):
 @dataclass(kw_only=True, slots=True)
 class Size(Channel):
     data: Union[Attribute, float]
+
+
+@dataclass(kw_only=True, slots=True)
+class VectorField(Channel):
+    data: Attribute

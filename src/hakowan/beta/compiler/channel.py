@@ -10,6 +10,7 @@ from ..grammar.channel import (
     Position,
     Normal,
     Size,
+    VectorField,
     Material,
     Diffuse,
     Conductor,
@@ -92,6 +93,9 @@ def _preprocess_channels(view: View):
             case Size():
                 if view.size_channel is None:
                     view.size_channel = channel
+            case VectorField():
+                if view.vector_field_channel is None:
+                    view.vector_field_channel = channel
             case Material():
                 if view.material_channel is None:
                     view.material_channel = channel
@@ -136,6 +140,11 @@ def _process_channels(view: View):
             attr = view.size_channel.data
             compute_scaled_attribute(df, attr)
             view._active_attributes.append(attr)
+    if view.vector_field_channel is not None:
+        assert isinstance(view.vector_field_channel, VectorField)
+        attr = view.vector_field_channel.data
+        compute_scaled_attribute(df, attr)
+        view._active_attributes.append(attr)
     if view.material_channel is not None:
         match view.material_channel:
             case Diffuse():
