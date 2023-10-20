@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(kw_only=True, slots=True)
 class Sampler:
-    sample_count: int = 32  # Samples per pixel.
+    sample_count: int = 128  # Samples per pixel.
     seed: int = 0
 
 
