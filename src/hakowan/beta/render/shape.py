@@ -76,7 +76,7 @@ def generate_curve_config(view: View, stamp: str, index: int):
     logger.info(f"Saving curves to {str(filename)}")
     mesh.initialize_edges()
     vertices = mesh.vertices
-    with open(filename, 'w') as fout:
+    with open(filename, "w") as fout:
         for i in range(mesh.num_edges):
             edge_vts = mesh.get_edge_vertices(i)
             v0 = vertices[edge_vts[0]]
