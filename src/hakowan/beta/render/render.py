@@ -3,7 +3,7 @@ from .film import generate_film_config
 from .integrator import generate_integrator_config
 from .sampler import generate_sampler_config
 from .sensor import generate_sensor_config
-from .shape import generate_point_cloud_config, generate_mesh_config
+from .shape import generate_point_config, generate_curve_config, generate_surface_config
 
 from ..common import logger
 from ..compiler import Scene, View, compile
@@ -43,11 +43,11 @@ def generate_view_config(view: View, stamp: str, index: int):
     # Generate shape.
     match view.mark:
         case mark.Point:
-            shapes = generate_point_cloud_config(view)
+            shapes = generate_point_config(view)
         case mark.Curve:
-            raise NotImplementedError("Curve rendering is not yet supported.")
+            shapes.append(generate_curve_config(view, stamp, index))
         case mark.Surface:
-            shapes.append(generate_mesh_config(view, stamp, index))
+            shapes.append(generate_surface_config(view, stamp, index))
 
     mi_config = {
         f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)

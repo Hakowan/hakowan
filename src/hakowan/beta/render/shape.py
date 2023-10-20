@@ -11,13 +11,10 @@ from typing import Any
 import copy
 
 
-def generate_point_cloud_config(view: View):
-    """Generate point cloud shapes from a View."""
+def extract_size(view: View):
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
-    shapes: list[dict[str, Any]] = []
 
-    # Compute radii
     radii = []
     if view.size_channel is not None:
         match view.size_channel.data:
@@ -35,6 +32,18 @@ def generate_point_cloud_config(view: View):
     else:
         radii = [0.01] * mesh.num_vertices
 
+    return radii
+
+
+def generate_point_config(view: View):
+    """Generate point cloud shapes from a View."""
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+    shapes: list[dict[str, Any]] = []
+
+    # Compute radii
+    radii = extract_size(view)
+
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
     for i, v in enumerate(mesh.vertices):
@@ -51,6 +60,38 @@ def generate_point_cloud_config(view: View):
         for (bsdf_id, bsdf), shape in zip(bsdfs.items(), shapes):
             shape[bsdf_id] = bsdf
     return shapes
+
+
+def generate_curve_config(view: View, stamp: str, index: int):
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+    shapes: list[dict[str, Any]] = []
+
+    # Compute radii
+    radii = extract_size(view)
+
+    # Generate edge file
+    tmp_dir = pathlib.Path(tempfile.gettempdir())
+    filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
+    logger.info(f"Saving curves to {str(filename)}")
+    mesh.initialize_edges()
+    vertices = mesh.vertices
+    with open(filename, 'w') as fout:
+        for i in range(mesh.num_edges):
+            edge_vts = mesh.get_edge_vertices(i)
+            v0 = vertices[edge_vts[0]]
+            v1 = vertices[edge_vts[1]]
+            r0 = radii[edge_vts[0]]
+            r1 = radii[edge_vts[1]]
+            fout.write(f"{v0[0]} {v0[1]} {v0[2]} {r0}\n")
+            fout.write(f"{v1[0]} {v1[1]} {v1[2]} {r1}\n\n")
+
+    mi_config = {
+        "type": "linearcurve",
+        "filename": str(filename.resolve()),
+        "bsdf": generate_bsdf_config(view, is_primitive=False),
+    }
+    return mi_config
 
 
 def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attribute]):
@@ -87,7 +128,7 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
         # Note that we will keep attr._internal_name the same.
 
 
-def generate_mesh_config(view: View, stamp: str, index: int):
+def generate_surface_config(view: View, stamp: str, index: int):
     """Generate the mitsuba config for a mesh.
 
     It does the following things:
