@@ -12,8 +12,8 @@ class Scale:
 class Normalize(Scale):
     """Normalize the data so that it fits in a bounding box defined by bbox_min and bbox_max."""
 
-    bbox_min: npt.NDArray | float
-    bbox_max: npt.NDArray | float
+    range_min: npt.NDArray | float
+    range_max: npt.NDArray | float
     domain_min: npt.NDArray | float | None = None
     domain_max: npt.NDArray | float | None = None
 

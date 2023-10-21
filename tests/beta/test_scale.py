@@ -15,10 +15,10 @@ class TestAttribute:
 
 class TestScale:
     def test_normalize(self):
-        s = scale.Normalize(bbox_min=np.zeros(3), bbox_max=np.ones(3))
+        s = scale.Normalize(range_min=np.zeros(3), range_max=np.ones(3))
         assert s._child is None
-        assert np.all(s.bbox_min == [0, 0, 0])
-        assert np.all(s.bbox_max == [1, 1, 1])
+        assert np.all(s.range_min == [0, 0, 0])
+        assert np.all(s.range_max == [1, 1, 1])
 
         s.domain_min= 0
         s.domain_max= 1
@@ -48,7 +48,7 @@ class TestScale:
 
 
     def test_chaning(self):
-        s1 = scale.Normalize(bbox_min=np.zeros(3), bbox_max=np.ones(3))
+        s1 = scale.Normalize(range_min=np.zeros(3), range_max=np.ones(3))
         s2 = scale.Log(base=10)
         s1._child = s2
         assert s1._child.base == 10

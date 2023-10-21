@@ -175,8 +175,7 @@ class TestCompile:
 
         assert len(scene) == 1
         assert scene[0].data_frame.mesh.num_facets == 1
-        assert scene[0].data_frame.mesh.has_attribute("_hakowan_bbox")
-        bbox = scene[0].data_frame.mesh.attribute("_hakowan_bbox").data
+        bbox = scene[0].bbox
         assert np.all(bbox[0] == pytest.approx(bbox_min))
         assert np.all(bbox[1] == pytest.approx(bbox_max))
 
@@ -214,7 +213,7 @@ class TestScale:
     def test_normalize(self, triangle):
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
-        sc = hkw.scale.Normalize(bbox_min=0, bbox_max=1)
+        sc = hkw.scale.Normalize(range_min=0, range_max=1)
         self.__apply_scale(df, "vertex_data", sc, np.array([0, 0.5, 1]))
 
     def test_custom(self, triangle):

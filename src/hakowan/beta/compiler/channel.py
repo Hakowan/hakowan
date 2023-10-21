@@ -72,8 +72,8 @@ def _generate_default_position_scale(view: View):
 
     factor = max_side / diag
     return Normalize(
-        bbox_min=-np.ones(mesh.dimension) * factor,
-        bbox_max=np.ones(mesh.dimension) * factor,
+        range_min=-np.ones(mesh.dimension) * factor,
+        range_max=np.ones(mesh.dimension) * factor,
         domain_min=bbox_min,
         domain_max=bbox_max,
     )

@@ -47,8 +47,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
     range_min, range_max = tex.range if tex.range is not None else (0, 1)
     normalize_scale = Normalize(
-        bbox_min=range_min,
-        bbox_max=range_max,
+        range_min=range_min,
+        range_max=range_max,
         domain_min=domain_min,
         domain_max=domain_max,
     )
