@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import texture, color, scale
+from hakowan.beta import texture, scale
 import numpy as np
 from pathlib import Path
 
@@ -8,8 +8,8 @@ class TestTexture:
     def test_uniform(self):
         t = texture.Uniform(color="#000000")
         assert t.color == "#000000"
-        t.color = color.Color.from_hex("#ffffff")
-        assert np.all(t.color.data == (1, 1, 1))
+        t.color = (1, 1, 1)
+        assert np.all(t.color == (1, 1, 1))
 
     def test_scalar_field(self):
         attr = scale.Attribute(name="index")
