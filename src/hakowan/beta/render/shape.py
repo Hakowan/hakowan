@@ -3,15 +3,25 @@ from ..common import logger
 from ..compiler import View
 from ..grammar.scale import Attribute
 
+from typing import Any
+import copy
 import lagrange
+import numpy as np
+import numpy.typing as npt
 import pathlib
 import re
 import tempfile
-from typing import Any
-import copy
 
 
-def extract_size(view: View):
+def extract_size(view: View, n: int, default_size=0.01):
+    """Extract the size attribute from a view.
+
+    :param view: The view to extract size from.
+    :param n: The cardinality of size attribute.
+    :param default_size: The default size if size attribute is not specified.
+
+    :return: A list of size values of length n.
+    """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
 
@@ -19,18 +29,19 @@ def extract_size(view: View):
     if view.size_channel is not None:
         match view.size_channel.data:
             case float():
-                radii = [view.size_channel.data] * mesh.num_vertices
+                radii = [view.size_channel.data] * n
             case Attribute():
                 assert view.size_channel.data._internal_name is not None
                 radii = mesh.attribute(
                     view.size_channel.data._internal_name
                 ).data.tolist()
+                assert len(radii) == n
             case _:
                 raise NotImplementedError(
                     f"Unsupported size channel type: {type(view.size_channel.data)}"
                 )
     else:
-        radii = [0.01] * mesh.num_vertices
+        radii = [default_size] * n
 
     return radii
 
@@ -42,7 +53,7 @@ def generate_point_config(view: View):
     shapes: list[dict[str, Any]] = []
 
     # Compute radii
-    radii = extract_size(view)
+    radii = extract_size(view, mesh.num_vertices)
 
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
@@ -62,44 +73,77 @@ def generate_point_config(view: View):
     return shapes
 
 
+def extract_vector_field(view: View):
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+
+    assert view.vector_field_channel is not None
+    attr_name = view.vector_field_channel.data._internal_name
+    assert attr_name is not None
+    assert mesh.has_attribute(attr_name)
+
+    attr = mesh.attribute(attr_name)
+    match attr.element_type:
+        case lagrange.AttributeElement.Vertex:
+            base = mesh.vertices
+            size = extract_size(view, mesh.num_vertices)
+        case lagrange.AttributeElement.Facet:
+            centroid_attr_id = lagrange.compute_facet_centroid(mesh)
+            base = mesh.attribute(centroid_attr_id).data  # type: ignore
+            size = extract_size(view, mesh.num_facets)
+        case _:
+            raise NotImplementedError(
+                f"Unsupported vector field element type: {attr.element_type}"
+            )
+    tip = attr.data + base
+    return [base, tip, size, size]
+
+
+def extract_edges(view: View):
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+    mesh.initialize_edges()
+
+    base: npt.NDArray = np.ndarray((mesh.num_edges, mesh.dimension), dtype=np.float32)
+    tip: npt.NDArray = np.ndarray((mesh.num_edges, mesh.dimension), dtype=np.float32)
+    base_size: npt.NDArray = np.ndarray(mesh.num_edges, dtype=np.float32)
+    tip_size: npt.NDArray = np.ndarray(mesh.num_edges, dtype=np.float32)
+
+    sizes = extract_size(view, mesh.num_vertices)
+    vertices = mesh.vertices
+    for i in range(mesh.num_edges):
+        edge_vts = mesh.get_edge_vertices(i)
+        base[i] = vertices[edge_vts[0]]
+        tip[i] = vertices[edge_vts[1]]
+        base_size[i] = sizes[edge_vts[0]]
+        tip_size[i] = sizes[edge_vts[1]]
+
+    return [base, tip, base_size, tip_size]
+
+
 def generate_curve_config(view: View, stamp: str, index: int):
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
 
-    # Compute radii
-    radii = extract_size(view)
-
-    curves = []
     # Generate curve file
     if view.vector_field_channel is not None:
-        attr_name = view.vector_field_channel.data._internal_name
-        assert attr_name is not None
-        assert mesh.has_attribute(attr_name)
-        vertices = mesh.vertices
-        vector_field = mesh.attribute(attr_name).data
-        assert vertices.shape == vector_field.shape
-        for i in range(mesh.num_vertices):
-            curves.append((vertices[i], vertices[i] + vector_field[i]))
+        base, tip, base_size, tip_size = extract_vector_field(view)
     else:
         # Use edges of the mesh.
-        mesh.initialize_edges()
-        vertices = mesh.vertices
-        for i in range(mesh.num_edges):
-            edge_vts = mesh.get_edge_vertices(i)
-            curves.append((vertices[edge_vts[0]], vertices[edge_vts[1]]))
+        base, tip, base_size, tip_size = extract_edges(view)
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
     logger.info(f"Saving curves to {str(filename)}")
+
+    assert len(base) == len(tip)
+    assert len(base) == len(base_size)
+    assert len(tip) == len(tip_size)
     with open(filename, "w") as fout:
-        for i, e in enumerate(curves):
-            v0 = e[0]
-            v1 = e[1]
-            r0 = radii[i]
-            r1 = radii[i]
-            fout.write(f"{v0[0]} {v0[1]} {v0[2]} {r0}\n")
-            fout.write(f"{v1[0]} {v1[1]} {v1[2]} {r1}\n\n")
+        for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
+            fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0}\n")
+            fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1}\n\n")
 
     mi_config = {
         "type": "linearcurve",
