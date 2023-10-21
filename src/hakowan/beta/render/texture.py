@@ -1,3 +1,4 @@
+from .color import generate_color_config
 from ..common.color import Color
 from ..common.named_colors import css_colors
 from ..grammar.texture import (
@@ -29,23 +30,7 @@ def generate_texture_config(
 
 
 def generate_uniform_config(tex: Uniform) -> dict:
-    mi_config: dict[str, Any] = {
-        "type": "rgb",
-    }
-    match tex.color:
-        case float():
-            mi_config["value"] = tex.color
-        case str():
-            if tex.color.startswith("#"):
-                c = Color.from_hex(tex.color)
-                mi_config["value"] = c.data.tolist()
-            else:
-                assert tex.color in css_colors
-                mi_config["value"] = css_colors[tex.color].data.tolist()
-        case Color():
-            mi_config["value"] = tex.color.data.tolist()
-
-    return mi_config
+    return generate_color_config(tex.color)
 
 
 def generate_image_config(tex: Image) -> dict:

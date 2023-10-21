@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...common.color import Color
+from ...common.color import ColorLike
 from ..scale import Attribute
 
 
@@ -20,7 +20,7 @@ class ScalarField(Texture):
 
 @dataclass(kw_only=True, slots=True)
 class Uniform(Texture):
-    color: float | str | Color
+    color: ColorLike
 
 
 @dataclass(kw_only=True, slots=True)

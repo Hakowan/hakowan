@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from ..channel import Channel
 from ...texture import Texture
+from ....common.color import ColorLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -11,7 +12,7 @@ class Material(Channel):
 
 @dataclass(kw_only=True, slots=True)
 class Diffuse(Material):
-    reflectance: Texture | float = 0.5
+    reflectance: Texture | ColorLike = 0.5
 
 
 @dataclass(kw_only=True, slots=True)
@@ -25,7 +26,7 @@ class RoughConductor(Conductor):
 
 @dataclass(kw_only=True, slots=True)
 class Plastic(Material):
-    diffuse_reflectance: Texture | float = 0.5
+    diffuse_reflectance: Texture | ColorLike = 0.5
     specular_reflectance: Texture | float = 1.0
 
 @dataclass(kw_only=True, slots=True)
@@ -35,6 +36,6 @@ class RoughPlastic(Plastic):
 
 @dataclass(kw_only=True, slots=True)
 class Principled(Material):
-    color: Texture | float = 0.5
+    color: Texture | ColorLike = 0.5
     roughness: Texture | float = 0.5
     metallic: Texture | float = 0.0

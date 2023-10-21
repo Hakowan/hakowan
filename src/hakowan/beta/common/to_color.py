@@ -4,8 +4,8 @@ from .named_colors import css_colors
 
 def to_color(data: ColorLike):
     match data:
-        case float():
-            return Color(data, data, data)
+        case float() | int():
+            return Color(float(data), float(data), float(data))
         case str():
             if data.startswith("#"):
                 return Color.from_hex(data)

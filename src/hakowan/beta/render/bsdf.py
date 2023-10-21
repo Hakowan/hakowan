@@ -1,4 +1,5 @@
 from .texture import generate_texture_config
+from .color import generate_color_config
 
 from ..compiler import View
 from ..grammar.channel import (
@@ -10,20 +11,24 @@ from ..grammar.channel import (
     Principled,
 )
 from ..grammar.texture import Texture
+from ..common.color import ColorLike
 
 from typing import Any
 import lagrange
 
 
-def generate_float_or_texture_config(
+def generate_float_color_texture_config(
     mesh: lagrange.SurfaceMesh,
-    tex: float | Texture,
+    tex: ColorLike | Texture,
     is_color: bool = False,
     is_primitive: bool = False,
 ):
     match tex:
         case float() | int():
             return float(tex)
+        case str() | list() | tuple():
+            assert is_color
+            return generate_color_config(tex)
         case Texture():
             return generate_texture_config(mesh, tex, is_color, is_primitive)
         case _:
@@ -33,7 +38,7 @@ def generate_float_or_texture_config(
 def generate_diffuse_bsdf_config(
     mesh: lagrange.SurfaceMesh, mat: Diffuse, is_primitive
 ):
-    reflectance = generate_float_or_texture_config(
+    reflectance = generate_float_color_texture_config(
         mesh, mat.reflectance, True, is_primitive
     )
     mi_config: dict[str, Any]
@@ -65,7 +70,7 @@ def generate_rough_conductor_bsdf_config(
         "type": "roughconductor",
         "material": mat.material,
         "distribution": mat.distribution,
-        "alpha": generate_float_or_texture_config(mesh, mat.alpha),
+        "alpha": generate_float_color_texture_config(mesh, mat.alpha),
     }
     return mi_config
 
@@ -73,10 +78,10 @@ def generate_rough_conductor_bsdf_config(
 def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic):
     mi_config: dict[str, Any] = {
         "type": "plastic",
-        "diffuse_reflectance": generate_float_or_texture_config(
+        "diffuse_reflectance": generate_float_color_texture_config(
             mesh, mat.diffuse_reflectance, True
         ),
-        "specular_reflectance": generate_float_or_texture_config(
+        "specular_reflectance": generate_float_color_texture_config(
             mesh, mat.specular_reflectance
         ),
     }
@@ -86,10 +91,10 @@ def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic):
 def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPlastic):
     mi_config: dict[str, Any] = {
         "type": "roughplastic",
-        "diffuse_reflectance": generate_float_or_texture_config(
+        "diffuse_reflectance": generate_float_color_texture_config(
             mesh, mat.diffuse_reflectance, True
         ),
-        "specular_reflectance": generate_float_or_texture_config(
+        "specular_reflectance": generate_float_color_texture_config(
             mesh, mat.specular_reflectance
         ),
         "distribution": mat.distribution,
@@ -101,9 +106,9 @@ def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPla
 def generate_principled_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Principled):
     mi_config: dict[str, Any] = {
         "type": "principled",
-        "base_color": generate_float_or_texture_config(mesh, mat.color, True),
-        "roughness": generate_float_or_texture_config(mesh, mat.roughness),
-        "metallic": generate_float_or_texture_config(mesh, mat.metallic),
+        "base_color": generate_float_color_texture_config(mesh, mat.color, True),
+        "roughness": generate_float_color_texture_config(mesh, mat.roughness),
+        "metallic": generate_float_color_texture_config(mesh, mat.metallic),
     }
     return mi_config
 

@@ -3,7 +3,7 @@
 import numpy as np
 from typing import TypeAlias
 
-ColorLike: TypeAlias = float | str | tuple | list
+ColorLike: TypeAlias = float | int | str | tuple | list
 
 
 class Color:
