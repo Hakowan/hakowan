@@ -111,7 +111,9 @@ class TestCompile:
         assert len(scene) == 1
         out_mesh = scene[0].data_frame.mesh
 
-        color_attr_ids = out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+        color_attr_ids = out_mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Color
+        )
         assert len(color_attr_ids) == 1
         color_attr_id = color_attr_ids[0]
         color_attr_name = out_mesh.get_attribute_name(color_attr_id)
@@ -153,6 +155,30 @@ class TestCompile:
         assert len(scene) == 1
 
         assert scene[0].vector_field_channel is not None
+
+    def test_filter_transform(self, two_triangles):
+        mesh = two_triangles
+        bbox_min = np.amin(mesh.vertices, axis=0)
+        bbox_max = np.amax(mesh.vertices, axis=0)
+        base = (
+            hkw.Layer()
+            .data(mesh)
+            .mark(hkw.mark.Surface)
+            .transform(
+                hkw.transform.Filter(
+                    data=hkw.Attribute(name="facet_index"),
+                    condition=lambda x: x % 2 == 0,
+                )
+            )
+        )
+        scene = hkw.compiler.compile(base)
+
+        assert len(scene) == 1
+        assert scene[0].data_frame.mesh.num_facets == 1
+        assert scene[0].data_frame.mesh.has_attribute("_hakowan_bbox")
+        bbox = scene[0].data_frame.mesh.attribute("_hakowan_bbox").data
+        assert np.all(bbox[0] == pytest.approx(bbox_min))
+        assert np.all(bbox[1] == pytest.approx(bbox_max))
 
 
 class TestScale:

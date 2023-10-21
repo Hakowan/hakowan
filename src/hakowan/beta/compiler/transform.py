@@ -7,11 +7,18 @@ import lagrange
 import numpy as np
 
 
-def _apply_filter_transform(df: DataFrame, transform: Filter):
+def _apply_filter_transform(view: View, transform: Filter):
     """Filter the data based on attribute value and condition specified in the transform."""
+    df = view.data_frame
     assert df is not None
     assert transform is not None
     mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+
+    # Compute and store original bbox
+    assert view.bbox is not None
+
     attr_name = transform.data.name
     if transform.data.scale is not None:
         logger.warning("Attribute scale is ignored when applying transform.")
@@ -44,7 +51,7 @@ def apply_transform(view: View):
         match (t):
             case Filter():
                 assert view.data_frame is not None
-                _apply_filter_transform(view.data_frame, t)
+                _apply_filter_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

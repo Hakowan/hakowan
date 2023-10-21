@@ -4,9 +4,11 @@ from ..grammar.mark import Mark
 from ..grammar.scale import Attribute
 from ..grammar.transform import Transform
 from ..common import logger
-from dataclasses import dataclass, field
 
+from dataclasses import dataclass, field
 import lagrange
+import numpy as np
+import numpy.typing as npt
 
 
 @dataclass(kw_only=True)
@@ -24,6 +26,17 @@ class View:
     _uv_attribute: Attribute | None = None
 
     _active_attributes: list[Attribute] = field(default_factory=list)
+    _bbox: npt.NDArray | None = None
+
+    def initialize_bbox(self):
+        assert self.data_frame is not None
+        mesh = self.data_frame.mesh
+        if mesh.num_vertices == 0:
+            return
+
+        bbox_min = np.amin(mesh.vertices, axis=0)
+        bbox_max = np.amax(mesh.vertices, axis=0)
+        self.bbox = np.stack([bbox_min, bbox_max])
 
     def validate(self):
         """Validate the currvent view is complete.
@@ -50,7 +63,9 @@ class View:
         # Drop all non-active attributes
         for attr_id in mesh.get_matching_attribute_ids():
             attr_name = mesh.get_attribute_name(attr_id)
-            if attr_name not in active_attribute_names:
+            if attr_name not in active_attribute_names and not attr_name.startswith(
+                "_hakowan"
+            ):
                 mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
@@ -194,3 +209,11 @@ class View:
             raise ValueError("UV attribute can only be set once.")
 
         self._uv_attribute = attribute
+
+    @property
+    def bbox(self) -> npt.NDArray | None:
+        return self._bbox
+
+    @bbox.setter
+    def bbox(self, value: npt.NDArray):
+        self._bbox = value

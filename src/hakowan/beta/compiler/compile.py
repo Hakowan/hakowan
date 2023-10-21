@@ -32,6 +32,7 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
                 view.channels.extend(copy.deepcopy(l._spec.channels))
 
         view.validate()
+        view.initialize_bbox()
         return view
 
     def traverse(l: layer.Layer, ancestors: list[layer.Layer]) -> None:

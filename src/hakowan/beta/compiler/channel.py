@@ -57,7 +57,31 @@ def process_channels(view: View):
 ### Private API
 
 
-def _generate_default_position_channel(df: DataFrame):
+def _generate_default_position_scale(view: View):
+    df = view.data_frame
+    assert df is not None
+    mesh = df.mesh
+    assert mesh is not None
+    assert mesh.num_vertices > 0
+    assert view.bbox is not None
+
+    bbox_min = view.bbox[0]
+    bbox_max = view.bbox[1]
+    max_side = np.amax(bbox_max - bbox_min)
+    diag = norm(bbox_max - bbox_min)
+
+    factor = max_side / diag
+    return Normalize(
+        bbox_min=-np.ones(mesh.dimension) * factor,
+        bbox_max=np.ones(mesh.dimension) * factor,
+        domain_min=bbox_min,
+        domain_max=bbox_max,
+    )
+
+
+def _generate_default_position_channel(view: View):
+    df = view.data_frame
+    assert df is not None
     mesh = df.mesh
     assert mesh is not None
 
@@ -66,16 +90,7 @@ def _generate_default_position_channel(df: DataFrame):
     if mesh.num_vertices == 0:
         return Position(data=attr)
 
-    bbox_min = np.amin(mesh.vertices, axis=0)
-    bbox_max = np.amax(mesh.vertices, axis=0)
-    max_side = np.amax(bbox_max - bbox_min)
-    diag = norm(bbox_max - bbox_min)
-
-    attr.scale = Normalize(
-        bbox_min=-np.ones(mesh.dimension),
-        bbox_max=np.ones(mesh.dimension),
-        _child=scale.Uniform(factor=max_side / diag),
-    )
+    attr.scale = _generate_default_position_scale(view)
     position_channel = Position(data=attr)
     return position_channel
 
@@ -107,7 +122,9 @@ def _preprocess_channels(view: View):
     # Generate default position channel if not specified.
     if view.position_channel is None:
         assert view.data_frame is not None
-        view.position_channel = _generate_default_position_channel(view.data_frame)
+        view.position_channel = _generate_default_position_channel(view)
+    elif view.position_channel.data.scale is None:
+        view.position_channel.data.scale = _generate_default_position_scale(view)
 
     # Generate default normal channel if not specified.
     if view.mark == Mark.Surface and view.normal_channel is None:
