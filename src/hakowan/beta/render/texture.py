@@ -67,12 +67,18 @@ def generate_scalar_field_config(
     mesh: lagrange.SurfaceMesh, tex: ScalarField, is_color: bool, is_primitive: bool
 ) -> dict:
     assert tex.data._internal_name is not None
-    if is_primitive:
-        assert is_color
+    if is_primitive and is_color:
+        # Primitive color field.
         name = tex.data._internal_color_field
         assert name in ["vertex_color", "face_color"]
         colors = mesh.attribute(name).data
         return {"colors": colors.tolist()}
+    elif is_primitive:
+        # Primitive scalar field.
+        name = tex.data._internal_name
+        assert mesh.has_attribute(name)
+        values = mesh.attribute(name).data
+        return {"values": values}
     elif is_color:
         name = tex.data._internal_color_field
         assert name in ["vertex_color", "face_color"]
