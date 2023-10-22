@@ -2,6 +2,8 @@ import pytest
 from hakowan.beta import channel, dataframe, layer, scale
 import lagrange
 
+from .asset import triangle
+
 
 class TestLayer:
     def test_empty_layer(self):
@@ -24,3 +26,13 @@ class TestLayer:
 
         l = l1 + l2
         assert l._children == [l1, l2]
+
+    def test_normal(self, triangle):
+        mesh = triangle
+        attr_id = lagrange.compute_vertex_normal(mesh)
+        l0 = layer.Layer().channel(normal=mesh.get_attribute_name(attr_id))
+        assert len(l0._spec.channels) == 1
+        ch = l0._spec.channels[0]
+        assert isinstance(ch, channel.Normal)
+        assert isinstance(ch.data, scale.Attribute)
+        assert ch.data.name == mesh.get_attribute_name(attr_id)

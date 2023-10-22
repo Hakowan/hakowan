@@ -1,4 +1,5 @@
-from ..grammar import layer
+from ..common import logger
+from ..grammar import layer, mark
 from .view import View
 from .scene import Scene
 from .transform import apply_transform
@@ -31,6 +32,10 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
             if len(l._spec.channels) > 0:
                 view.channels.extend(copy.deepcopy(l._spec.channels))
 
+        if view.mark is None:
+            logger.debug("Apply default surface mark.")
+            view.mark = mark.Mark.Surface
+
         view.validate()
         view.initialize_bbox()
         return view
@@ -52,6 +57,7 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
 def compile(root: layer.Layer) -> Scene:
     # Step 1: condense each path from root to leaf in the layer tree into a view.
     scene = condense_layer_tree_to_scene(root)
+    logger.debug(f"Created scene with {len(scene)} views")
 
     # Step 2: carry out transform operations on each view.
     for view in scene:
