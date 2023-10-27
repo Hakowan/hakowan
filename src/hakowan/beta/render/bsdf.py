@@ -22,10 +22,12 @@ def generate_float_or_texture_config(
     is_primitive: bool = False,
 ):
     match tex:
-        case float():
-            return tex
+        case float() | int():
+            return float(tex)
         case Texture():
             return generate_texture_config(mesh, tex, is_color, is_primitive)
+        case _:
+            raise NotImplementedError(f"Unsupported type: {type(tex)}")
 
 
 def generate_diffuse_bsdf_config(
