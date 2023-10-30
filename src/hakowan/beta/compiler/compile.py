@@ -75,4 +75,7 @@ def compile(root: layer.Layer) -> Scene:
     for view in scene:
         view.finalize()
 
+    # Step 6: compute the global scene transform
+    scene.compute_global_transform()
+
     return scene

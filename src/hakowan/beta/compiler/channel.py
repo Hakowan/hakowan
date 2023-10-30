@@ -57,44 +57,6 @@ def process_channels(view: View):
 ### Private API
 
 
-def _generate_default_position_scale(view: View):
-    df = view.data_frame
-    assert df is not None
-    mesh = df.mesh
-    assert mesh is not None
-    assert mesh.num_vertices > 0
-    assert view.bbox is not None
-
-    bbox_min = view.bbox[0]
-    bbox_max = view.bbox[1]
-    max_side = np.amax(bbox_max - bbox_min)
-    diag = norm(bbox_max - bbox_min)
-
-    factor = max_side / diag
-    return Normalize(
-        range_min=-np.ones(mesh.dimension) * factor,
-        range_max=np.ones(mesh.dimension) * factor,
-        domain_min=bbox_min,
-        domain_max=bbox_max,
-    )
-
-
-def _generate_default_position_channel(view: View):
-    df = view.data_frame
-    assert df is not None
-    mesh = df.mesh
-    assert mesh is not None
-
-    attr = Attribute(name=mesh.attr_name_vertex_to_position)
-
-    if mesh.num_vertices == 0:
-        return Position(data=attr)
-
-    attr.scale = _generate_default_position_scale(view)
-    position_channel = Position(data=attr)
-    return position_channel
-
-
 def _preprocess_channels(view: View):
     assert view.data_frame is not None
     for channel in view.channels:
@@ -118,13 +80,6 @@ def _preprocess_channels(view: View):
                 raise NotImplementedError(
                     f"Channel type {type(channel)} is not supported"
                 )
-
-    # Generate default position channel if not specified.
-    if view.position_channel is None:
-        assert view.data_frame is not None
-        view.position_channel = _generate_default_position_channel(view)
-    elif view.position_channel.data.scale is None:
-        view.position_channel.data.scale = _generate_default_position_scale(view)
 
     # Generate default normal channel if not specified.
     if view.mark == Mark.Surface and view.normal_channel is None:

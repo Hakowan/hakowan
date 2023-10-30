@@ -6,6 +6,7 @@ from ..grammar.scale import Attribute
 from typing import Any
 import copy
 import lagrange
+import mitsuba as mi
 import numpy as np
 import numpy.typing as npt
 import pathlib
@@ -60,6 +61,11 @@ def generate_point_config(view: View):
     for i, v in enumerate(mesh.vertices):
         shapes.append({"type": "sphere", "center": v.tolist(), "radius": radii[i]})
 
+    # Assign transform
+    for shape in shapes:
+        shape["to_world"] = mi.Transform4f(view.global_transform)
+
+    # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
     if "type" in bsdfs:
         # Single bsdf
@@ -149,6 +155,7 @@ def generate_curve_config(view: View, stamp: str, index: int):
         "type": "linearcurve",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
+        "to_world": mi.Transform4f(view.global_transform),
     }
     return mi_config
 
@@ -222,5 +229,6 @@ def generate_surface_config(view: View, stamp: str, index: int):
         "type": "ply",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
+        "to_world": mi.Transform4f(view.global_transform),
     }
     return mi_config

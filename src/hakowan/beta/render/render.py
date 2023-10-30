@@ -93,7 +93,6 @@ def render(
     if config is None:
         config = Config()
 
-    mi.set_variant("scalar_rgb")
     mi_config = generate_base_config(config)
     mi_config |= generate_scene_config(scene)
 
