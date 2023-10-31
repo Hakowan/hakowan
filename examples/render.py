@@ -26,21 +26,22 @@ def main():
     args = parse_args()
     hkw.logger.setLevel(logging.INFO)
 
-    mesh = lagrange.io.load_mesh(args.input_mesh)
-
+    # Create a base layer.
     base = (
         hkw.layer.Layer()
-        .data(mesh)
+        .data(args.input_mesh)
         .mark(hkw.mark.Surface)
         .channel(material=hkw.material.RoughConductor(material="Al"))
     )
 
+    # Setup configuration.
     config = hkw.config.Config()
     config.film.width = args.width
     config.film.height = args.height
     if args.z_up:
         config.z_up()
 
+    # Render!
     hkw.render(base, config, filename=args.output_image)
 
 
