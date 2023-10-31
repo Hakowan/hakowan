@@ -1,6 +1,6 @@
 import pytest
-from hakowan.beta.common.color import Color, ColorLike
-from hakowan.beta.common.to_color import to_color
+from hakowan.common.color import Color, ColorLike
+from hakowan.common.to_color import to_color
 
 
 class TestColor:

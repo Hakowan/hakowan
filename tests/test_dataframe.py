@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import dataframe
+from hakowan import dataframe
 
 import lagrange
 

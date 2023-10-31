@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import channel, scale, texture
+from hakowan import channel, scale, texture
 
 
 class TestChannel:

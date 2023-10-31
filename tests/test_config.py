@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import config
+from hakowan import config
 
 class TestConfig:
     def test_default(self):

@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import mark
+from hakowan import mark
 
 class TestMark:
     def test_simple(self):

@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import transform, scale
+from hakowan import transform, scale
 import copy
 
 

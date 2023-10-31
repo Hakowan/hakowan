@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import scale
+from hakowan import scale
 import numpy as np
 
 

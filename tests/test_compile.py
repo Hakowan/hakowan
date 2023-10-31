@@ -1,6 +1,6 @@
 import pytest
-import hakowan.beta as hkw
-import hakowan.beta.compiler
+import hakowan as hkw
+import hakowan.compiler
 import lagrange
 import numpy as np
 import numpy.typing as npt

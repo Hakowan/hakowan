@@ -1,5 +1,5 @@
 import pytest
-from hakowan.beta import texture, scale
+from hakowan import texture, scale
 import numpy as np
 from pathlib import Path
 

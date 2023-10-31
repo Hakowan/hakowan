@@ -1,7 +1,7 @@
 import pytest
 import pathlib
-import hakowan.beta as hkw
-from hakowan.beta.render.render import generate_scene_config
+import hakowan as hkw
+from hakowan.render.render import generate_scene_config
 import lagrange
 import numpy as np
 

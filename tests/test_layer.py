@@ -1,39 +1,38 @@
 import pytest
-import hakowan
+from hakowan import channel, dataframe, layer, scale
+import lagrange
 
-from .test_utils import triangle_data_frame
-
-
-@pytest.fixture
-def base_surface():
-    return hakowan.layer(mark=hakowan.SURFACE, data=triangle_data_frame)
-
-
-@pytest.fixture
-def base_point():
-    return hakowan.layer(mark=hakowan.POINT, data=triangle_data_frame)
+from .asset import triangle
 
 
 class TestLayer:
-    def test_construction(self, base_surface):
-        l0 = base_surface
-        l1 = l0.mark(hakowan.CURVE)
-        l2 = l1.channel(color="red")
+    def test_empty_layer(self):
+        l = layer.Layer()
+        assert l._spec.data is None
+        assert l._spec.mark is None
+        assert l._spec.channels == []
+        assert l._spec.transform is None
+        assert l._children == []
 
-        assert l0 in l1.children
-        assert l1 in l2.children
+    def test_chain_layers(self):
+        l0 = layer.Layer()
+        mesh = lagrange.SurfaceMesh()
+        l1 = l0.data(mesh)
+        assert l0 in l1._children
 
-        assert l0.layer_data.mark == hakowan.SURFACE
-        assert l1.layer_data.mark == hakowan.CURVE
-        assert l2.layer_data.mark is None
+        position = scale.Attribute(name="position")
+        l2 = l0.channel(position = channel.Position(data=position))
+        assert l0 in l2._children
 
-        assert l0.layer_data.channel_setting.color == None
-        assert l1.layer_data.channel_setting.color == None
-        assert l2.layer_data.channel_setting.color == "red"
+        l = l1 + l2
+        assert l._children == [l1, l2]
 
-    def test_simple(self, base_surface, base_point):
-        l0 = base_surface
-        l1 = base_point
-        l2 = l0 + l1
-        assert l0 in l2.children
-        assert l1 in l2.children
+    def test_normal(self, triangle):
+        mesh = triangle
+        attr_id = lagrange.compute_vertex_normal(mesh)
+        l0 = layer.Layer().channel(normal=mesh.get_attribute_name(attr_id))
+        assert len(l0._spec.channels) == 1
+        ch = l0._spec.channels[0]
+        assert isinstance(ch, channel.Normal)
+        assert isinstance(ch.data, scale.Attribute)
+        assert ch.data.name == mesh.get_attribute_name(attr_id)
