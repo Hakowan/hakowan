@@ -20,7 +20,7 @@ class Point(Emitter):
 @dataclass(kw_only=True, slots=True)
 class Envmap(Emitter):
     filename: Path = field(
-        default_factory=lambda: Path(__file__).parents[2] / "envmaps" / "museum.exr"
+        default_factory=lambda: Path(__file__).parent / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
     up: npt.NDArray = field(default_factory=lambda: np.array([0, 0, 1]))

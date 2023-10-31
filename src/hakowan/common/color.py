@@ -1,6 +1,9 @@
 """ Color module """
 
 import numpy as np
+from typing import TypeAlias
+
+ColorLike: TypeAlias = float | int | str | tuple | list
 
 
 class Color:
