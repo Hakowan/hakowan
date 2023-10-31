@@ -11,7 +11,7 @@ from .asset import triangle, two_triangles
 class TestRender:
     def test_render(self, triangle):
         mesh = triangle
-        base = hkw.layer.Layer().data(mesh).mark(hkw.mark.Surface)
+        base = hkw.layer().data(mesh).mark(hkw.mark.Surface)
 
         scene = hkw.compiler.compile(base)
         scene_config = generate_scene_config(scene)
@@ -23,7 +23,7 @@ class TestRender:
 
     def test_point_cloud(self, triangle):
         mesh = triangle
-        base = hkw.layer.Layer().data(mesh).mark(hkw.mark.Point)
+        base = hkw.layer().data(mesh).mark(hkw.mark.Point)
 
         scene = hkw.compiler.compile(base)
         scene_config = generate_scene_config(scene)
@@ -44,7 +44,7 @@ class TestRender:
             usage=lagrange.AttributeUsage.Scalar,
             initial_values=np.array([1, 2, 3], dtype=np.float32),
         )
-        base = hkw.layer.Layer().data(mesh)
+        base = hkw.layer().data(mesh)
         l0 = base.mark(hkw.mark.Point).channel(size="size")
         l1 = base.mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(l0 + l1)

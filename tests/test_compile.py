@@ -12,7 +12,7 @@ from .asset import triangle, two_triangles
 class TestCompile:
     def test_compile(self):
         data = lagrange.SurfaceMesh()
-        l1 = hkw.layer.Layer().data(data)
+        l1 = hkw.layer().data(data)
         root = l1.mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(root)
         assert len(scene.views) == 1
@@ -20,10 +20,10 @@ class TestCompile:
     def test_apply_transform(self, two_triangles):
         mesh = two_triangles
 
-        base = hkw.layer.Layer().data(mesh).mark(hkw.mark.Surface)
+        base = hkw.layer().data(mesh).mark(hkw.mark.Surface)
         l1 = base.transform(
             hkw.transform.Filter(
-                data=hkw.scale.Attribute(name="facet_index"),
+                data=hkw.attribute(name="facet_index"),
                 condition=lambda v: v % 2 == 0,
             )
         )
@@ -36,10 +36,10 @@ class TestCompile:
         bbox_min = np.amin(mesh.vertices, axis=0)
         bbox_max = np.amax(mesh.vertices, axis=0)
 
-        base = hkw.layer.Layer(data=mesh, mark=hkw.mark.Surface)
+        base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
         l1 = base.channel(
             position=hkw.channel.Position(
-                data=hkw.Attribute(
+                data=hkw.attribute(
                     name=mesh.attr_name_vertex_to_position,
                     scale=hkw.scale.Uniform(factor=2.0),
                 )
@@ -68,11 +68,11 @@ class TestCompile:
         bbox_min = np.amin(uv_values, axis=0)
         bbox_max = np.amax(uv_values, axis=0)
 
-        base = hkw.layer.Layer(data=mesh, mark=hkw.mark.Surface)
+        base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
         light_material = hkw.texture.Uniform(color=0.2)
         dark_material = hkw.texture.Uniform(color=0.8)
         checkerboard = hkw.texture.CheckerBoard(
-            uv=hkw.Attribute(name=uv_attr_name, scale=hkw.scale.Uniform(factor=2.0)),
+            uv=hkw.attribute(name=uv_attr_name, scale=hkw.scale.Uniform(factor=2.0)),
             texture1=light_material,
             texture2=dark_material,
         )
@@ -99,10 +99,10 @@ class TestCompile:
     def test_scalar_field(self, triangle):
         mesh = triangle
 
-        base = hkw.layer.Layer(data=mesh, mark=hkw.mark.Surface)
+        base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
         mat = hkw.channel.Diffuse(
             reflectance=hkw.texture.ScalarField(
-                data=hkw.Attribute(name="vertex_data"), colormap="viridis"
+                data=hkw.attribute(name="vertex_data"), colormap="viridis"
             )
         )
         l1 = base.channel(material=mat)
@@ -133,8 +133,8 @@ class TestCompile:
         mesh1 = triangle
         mesh2 = two_triangles
 
-        l1 = hkw.layer.Layer(data=mesh1)
-        l2 = hkw.layer.Layer(data=mesh2)
+        l1 = hkw.layer(data=mesh1)
+        l2 = hkw.layer(data=mesh2)
         combined = (l1 + l2).mark(hkw.mark.Surface)
 
         scene = hkw.compiler.compile(combined)
@@ -148,7 +148,7 @@ class TestCompile:
         attr_id = lagrange.compute_vertex_normal(mesh)
         attr_name = mesh.get_attribute_name(attr_id)
 
-        base = hkw.Layer(data=mesh, mark=hkw.mark.Curve)
+        base = hkw.layer(data=mesh, mark=hkw.mark.Curve)
         base = base.channel(vector_field=attr_name)
 
         scene = hkw.compiler.compile(base)
@@ -161,12 +161,12 @@ class TestCompile:
         bbox_min = np.amin(mesh.vertices, axis=0)
         bbox_max = np.amax(mesh.vertices, axis=0)
         base = (
-            hkw.Layer()
+            hkw.layer()
             .data(mesh)
             .mark(hkw.mark.Surface)
             .transform(
                 hkw.transform.Filter(
-                    data=hkw.Attribute(name="facet_index"),
+                    data=hkw.attribute(name="facet_index"),
                     condition=lambda x: x % 2 == 0,
                 )
             )
@@ -248,7 +248,7 @@ class TestScale:
             usage=lagrange.AttributeUsage.Vector,
             initial_values=np.ones((triangle.num_vertices, 3)),
         )
-        offset_attr = hkw.scale.Attribute(name="offset")
+        offset_attr = hkw.attribute(name="offset")
         sc = hkw.scale.Offset(offset=offset_attr)
         self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 1)
 
@@ -262,7 +262,7 @@ class TestScale:
             initial_values=np.ones((triangle.num_vertices, 3)),
         )
         uniform_scale = hkw.scale.Uniform(factor=2.0)
-        offset_attr = hkw.scale.Attribute(name="offset", scale=uniform_scale)
+        offset_attr = hkw.attribute(name="offset", scale=uniform_scale)
         sc = hkw.scale.Offset(offset=offset_attr)
         self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 2)
 
@@ -272,7 +272,7 @@ class TestTexture:
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
 
-        attr = hkw.scale.Attribute(name="vertex_data")
+        attr = hkw.attribute(name="vertex_data")
         tex = hkw.texture.ScalarField(data=attr)
         hkw.compiler.texture.apply_texture(df, tex)
         assert attr._internal_name is not None
@@ -290,7 +290,7 @@ class TestTexture:
             mesh = triangle
             df = hkw.dataframe.DataFrame(mesh=mesh)
 
-            attr = hkw.scale.Attribute(name="uv")
+            attr = hkw.attribute(name="uv")
             tex = hkw.texture.Image(uv=attr, filename=pathlib.Path(f.name))
 
             hkw.compiler.texture.apply_texture(df, tex)
@@ -305,7 +305,7 @@ class TestTexture:
             df = hkw.dataframe.DataFrame(mesh=mesh)
 
             s = hkw.scale.Uniform(factor=2.0)
-            attr = hkw.scale.Attribute(name="uv", scale=s)
+            attr = hkw.attribute(name="uv", scale=s)
             tex = hkw.texture.Image(uv=attr, filename=pathlib.Path(f.name))
 
             hkw.compiler.texture.apply_texture(df, tex)
@@ -317,8 +317,8 @@ class TestTexture:
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
 
-        attr = hkw.scale.Attribute(name="uv")
-        attr2 = hkw.scale.Attribute(name="vertex_data")
+        attr = hkw.attribute(name="uv")
+        attr2 = hkw.attribute(name="vertex_data")
         tex = hkw.texture.CheckerBoard(
             uv=attr,
             texture1=hkw.texture.ScalarField(data=attr),
@@ -335,7 +335,7 @@ class TestTexture:
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
 
-        attr = hkw.scale.Attribute(name="vertex_index")
+        attr = hkw.attribute(name="vertex_index")
         tex = hkw.texture.Isocontour(
             data=attr,
             ratio=0.1,

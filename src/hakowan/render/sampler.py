@@ -1,4 +1,4 @@
-from ..config.sampler import Sampler, Independent, Stratified
+from ..setup.sampler import Sampler, Independent, Stratified
 
 from typing import Any
 

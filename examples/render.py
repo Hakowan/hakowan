@@ -28,14 +28,14 @@ def main():
 
     # Create a base layer.
     base = (
-        hkw.layer.Layer()
+        hkw.layer()
         .data(args.input_mesh)
         .mark(hkw.mark.Surface)
         .channel(material=hkw.material.RoughConductor(material="Al"))
     )
 
     # Setup configuration.
-    config = hkw.config.Config()
+    config = hkw.config()
     config.film.width = args.width
     config.film.height = args.height
     if args.z_up:

@@ -2,10 +2,10 @@
 
 __version__ = "0.0.3"
 
-from . import config
 from .common import logger
-from .grammar import dataframe, mark, channel, scale, texture, transform, layer
-from .grammar.layer import Layer
-from .grammar.scale import Attribute
+from .setup import Config as config
+from .grammar import dataframe, mark, channel, scale, texture, transform
+from .grammar.layer import Layer as layer
+from .grammar.scale import Attribute as attribute
 from .grammar.channel import material
 from .render import render

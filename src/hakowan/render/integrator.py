@@ -1,4 +1,4 @@
-from ..config.integrator import Integrator, Direct, Path, AOV, VolPath
+from ..setup.integrator import Integrator, Direct, Path, AOV, VolPath
 
 from typing import Any
 

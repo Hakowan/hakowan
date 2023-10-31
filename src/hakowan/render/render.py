@@ -7,7 +7,7 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 
 from ..common import logger
 from ..compiler import Scene, View, compile
-from ..config import Config
+from ..setup import Config
 from ..grammar import mark
 from ..grammar import layer
 
