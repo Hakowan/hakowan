@@ -141,7 +141,7 @@ def generate_curve_config(view: View, stamp: str, index: int):
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
-    logger.info(f"Saving curves to {str(filename)}")
+    logger.debug(f"Saving curves to {str(filename)}")
 
     assert len(base) == len(tip)
     assert len(base) == len(base_size)
@@ -222,7 +222,7 @@ def generate_surface_config(view: View, stamp: str, index: int):
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
-    logger.info(f"Saving mesh to {str(filename)}")
+    logger.debug(f"Saving mesh to {str(filename)}")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
 
     mi_config = {
