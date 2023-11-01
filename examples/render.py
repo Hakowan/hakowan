@@ -3,7 +3,7 @@
 """ A command line rendering example using hakowan. """
 
 import argparse
-import hakowan
+import hakowan as hkw
 import logging
 import lagrange
 import numpy as np
@@ -15,80 +15,34 @@ def parse_args():
     parser.add_argument("input_mesh", help="Input mesh file")
     parser.add_argument("output_image", help="Output image file")
     parser.add_argument(
-        "--euler",
-        default=[0, 0, 0],
-        nargs=3,
-        help="Transformation defined in Euler angles",
+        "-Z", "--z-up", help="Make Z axis the up direction", action="store_true"
     )
     parser.add_argument("-H", "--height", help="Output image height", default=800)
     parser.add_argument("-W", "--width", help="Output image width", default=1024)
-    parser.add_argument("-s", "--num-samples", help="Number of samples", default=64)
-    parser.add_argument("-c", "--color", help="Base color", default="ivory")
-    parser.add_argument("-r", "--roughness", help="Material roughness", default=0.5)
-    parser.add_argument("-m", "--metallic", help="Material metallic", default=0.0)
-    parser.add_argument("--uv-scale", help="UV scale", default=1.0, type=float)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    hkw.logger.setLevel(logging.INFO)
 
-    mesh = lagrange.io.load_mesh(args.input_mesh)
-    vertices = mesh.vertices
-    max_side = np.amax(np.amax(vertices, axis=0) - np.amin(vertices, axis=0))
-    mesh.create_attribute(
-        name="x",
-        element=lagrange.AttributeElement.Vertex,
-        usage=lagrange.AttributeUsage.Scalar,
-        initial_values=mesh.vertices[:, 0].copy(),
+    # Create a base layer.
+    base = (
+        hkw.layer()
+        .data(args.input_mesh)
+        .mark(hkw.mark.Surface)
+        .channel(material=hkw.material.RoughConductor(material="Al"))
     )
 
-    # id = lagrange.compute_facet_normal(mesh)
-    # name = mesh.get_attribute_name(id)
-    # abs_map = lambda x: np.absolute(x)
+    # Setup configuration.
+    config = hkw.config()
+    config.film.width = args.width
+    config.film.height = args.height
+    if args.z_up:
+        config.z_up()
 
-    id = mesh.create_attribute(
-        "facet_index",
-        element=lagrange.AttributeElement.Facet,
-        usage=lagrange.AttributeUsage.Scalar,
-        #initial_values=np.random.permutation(mesh.num_facets),
-        initial_values=np.arange(mesh.num_facets),
-    )
-
-    try:
-        roughness = float(args.roughness)
-    except ValueError:
-        roughness = args.roughness
-
-    try:
-        metallic = float(args.metallic)
-    except ValueError:
-        metallic = args.metallic
-
-    base = hakowan.layer().data(mesh)
-    surface_view = base.mark(hakowan.SURFACE).channel(
-        color=args.color,
-        color_map="turbo",
-        roughness=roughness,
-        metallic=metallic,
-        uv_map=args.uv_scale,
-    )
-    point_view = base.mark(hakowan.POINT).channel(
-        size=0.01 * max_side,
-    )
-
-    transform = np.identity(4)
-    transform[:3, :3] = Rotation.from_euler("xyz", args.euler, degrees=True).as_matrix()
-    config = hakowan.RenderConfig()
-    config.filename = args.output_image
-    config.transform = transform
-    config.width = args.width
-    config.height = args.height
-    config.num_samples = args.num_samples
-    config.sampler_type = "multijitter"
-    config.envmap_scale = 1
-
-    hakowan.render(surface_view, config)
+    # Render!
+    hkw.render(base, config, filename=args.output_image)
 
 
 if __name__ == "__main__":
