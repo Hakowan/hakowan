@@ -22,6 +22,7 @@ class Transform:
             t._child = copy.deepcopy(other)
 
 
+@dataclass(kw_only=True, slots=True)
 class Filter(Transform):
     """ Filter data based on a condition.
 
@@ -30,26 +31,6 @@ class Filter(Transform):
         condition: A callable that takes a single argument, the value of the attribute, and returns
             a boolean indicating whether the data should be kept.
     """
-    def __init__(self, data: AttributeLike, condition: Callable):
-        super().__init__()
-        self.__set_data(data);
-        self.condition = condition
 
-    def __set_data(self, data: AttributeLike):
-        if isinstance(data, Attribute):
-            self._data = data
-        else:
-            assert isinstance(data, str)
-            self._data = Attribute(name=data)
-
-    @property
-    def data(self) -> Attribute:
-        return self._data
-
-    @data.setter
-    def data(self, data: AttributeLike):
-        self.__set_data(data)
-
-    _data: Attribute
+    data: AttributeLike
     condition: Callable
-    __slots__ = ('_data', 'condition')

@@ -1,6 +1,7 @@
 from .view import View
 from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
+from ..grammar.scale import Attribute
 from ..grammar.transform import Transform, Filter
 from ..common import logger
 
@@ -19,6 +20,10 @@ def _apply_filter_transform(view: View, transform: Filter):
 
     # Compute and store original bbox
     assert view.bbox is not None
+
+    if isinstance(transform.data, str):
+        transform.data = Attribute(name=transform.data)
+    assert isinstance(transform.data, Attribute)
 
     attr_name = transform.data.name
     if transform.data.scale is not None:
