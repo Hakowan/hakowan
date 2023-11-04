@@ -84,6 +84,7 @@ def extract_vector_field(view: View):
     mesh = view.data_frame.mesh
 
     assert view.vector_field_channel is not None
+    assert isinstance(view.vector_field_channel.data, Attribute)
     attr_name = view.vector_field_channel.data._internal_name
     assert attr_name is not None
     assert mesh.has_attribute(attr_name)

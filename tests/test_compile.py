@@ -129,6 +129,18 @@ class TestCompile:
         assert np.amax(np.absolute(colors[1] - colors[0])) > 0.1
         assert np.amax(np.absolute(colors[1] - colors[2])) > 0.1
 
+    def test_size_field(self, triangle):
+        mesh = triangle
+
+        base = hkw.layer(data=mesh, mark=hkw.mark.Point)
+        l1 = base.channel(size=0.1)
+
+        scene = hkw.compiler.compile(l1)
+        assert len(scene) == 1
+        view = scene[0]
+        assert view.size_channel is not None
+        assert view.size_channel.data == 0.1
+
     def test_multiple_views(self, triangle, two_triangles):
         mesh1 = triangle
         mesh2 = two_triangles

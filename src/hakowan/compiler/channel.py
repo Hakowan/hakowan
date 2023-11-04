@@ -98,22 +98,26 @@ def _process_channels(view: View):
     df = view.data_frame
     if view.position_channel is not None:
         assert isinstance(view.position_channel, Position)
+        assert isinstance(view.position_channel.data, Attribute)
         attr = view.position_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
     if view.normal_channel is not None:
         assert isinstance(view.normal_channel, Normal)
+        assert isinstance(view.normal_channel.data, Attribute)
         attr = view.normal_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
     if view.size_channel is not None:
         assert isinstance(view.size_channel, Size)
+        assert isinstance(view.size_channel.data, (Attribute, float))
         if isinstance(view.size_channel.data, Attribute):
             attr = view.size_channel.data
             compute_scaled_attribute(df, attr)
             view._active_attributes.append(attr)
     if view.vector_field_channel is not None:
         assert isinstance(view.vector_field_channel, VectorField)
+        assert isinstance(view.vector_field_channel.data, Attribute)
         attr = view.vector_field_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
