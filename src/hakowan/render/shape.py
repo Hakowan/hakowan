@@ -210,6 +210,9 @@ def generate_surface_config(view: View, stamp: str, index: int):
     """
     assert view.data_frame is not None
     mesh = copy.copy(view.data_frame.mesh)  # Shallow copy
+    if not mesh.is_triangle_mesh:
+        logger.debug("Convert dataframe to triangle mesh.")
+        lagrange.triangulate_polygonal_facets(mesh)
 
     # Rename attributes in the shallow copy of mesh.
     _rename_attributes(mesh, view._active_attributes)

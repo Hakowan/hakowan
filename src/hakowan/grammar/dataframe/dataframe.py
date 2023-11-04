@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import lagrange
+from typing import TypeAlias
+from pathlib import Path
 
 
 @dataclass(kw_only=True, slots=True)
@@ -13,3 +15,6 @@ class DataFrame:
     """
 
     mesh: lagrange.SurfaceMesh
+
+
+DataFrameLike: TypeAlias = str | Path | lagrange.SurfaceMesh | DataFrame

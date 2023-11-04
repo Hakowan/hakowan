@@ -1,4 +1,5 @@
 from .view import View
+from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.transform import Transform, Filter
 from ..common import logger
@@ -36,6 +37,10 @@ def _apply_filter_transform(view: View, transform: Filter):
                 selected_facets=selected_facets,
                 map_attributes=True,
             )
+        case lagrange.AttributeElement.Vertex:
+            assert view.mark == Mark.Point
+            vertices_to_remove = np.arange(mesh.num_vertices, dtype=np.uint32)[np.logical_not(keep)]
+            df.mesh.remove_vertices(vertices_to_remove)
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
