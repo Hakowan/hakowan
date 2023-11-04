@@ -10,7 +10,7 @@ class Scale:
 
     _child: Optional["Scale"] = None
 
-    def __iadd__(self, other: "Scale") -> "Scale":
+    def __imul__(self, other: "Scale") -> "Scale":
         """Combine the current scale with the `other` scale in place. The current scale will be applied
         before the `other` scale.
         """
@@ -20,13 +20,13 @@ class Scale:
         s._child = other
         return self
 
-    def __add__(self, other: "Scale") -> "Scale":
+    def __mul__(self, other: "Scale") -> "Scale":
         """ Combine the current scale with the `other` scale in a new scale. Both the current and
         the `other` scale is not modified. In the new scale, the current scale will be applied
         before the `other` scale.
         """
         r = copy.deepcopy(self)
-        r += other
+        r *= other
         return r
 
 

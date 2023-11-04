@@ -34,8 +34,12 @@ nav:
 - User guide:
   - Gammar: guide/grammar.md
   - Data: guide/data.md
+  - Attribute: guide/attribute.md
+  - Scale: guide/scale.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
+  - Material: guide/material.md
+  - Texture: guide/texture.md
   - Transform: guide/transform.md
   - Layer: guide/layer.md
   - Configuration: guide/config.md
