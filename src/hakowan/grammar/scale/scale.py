@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 from typing import Optional, Callable
 from numpy import typing as npt
@@ -5,7 +6,28 @@ from numpy import typing as npt
 
 @dataclass(kw_only=True, slots=True)
 class Scale:
+    """Base class for all scales."""
+
     _child: Optional["Scale"] = None
+
+    def __iadd__(self, other: "Scale") -> "Scale":
+        """Combine the current scale with the `other` scale in place. The current scale will be applied
+        before the `other` scale.
+        """
+        s = self
+        while s._child is not None:
+            s = s._child
+        s._child = other
+        return self
+
+    def __add__(self, other: "Scale") -> "Scale":
+        """ Combine the current scale with the `other` scale in a new scale. Both the current and
+        the `other` scale is not modified. In the new scale, the current scale will be applied
+        before the `other` scale.
+        """
+        r = copy.deepcopy(self)
+        r += other
+        return r
 
 
 @dataclass(kw_only=True, slots=True)

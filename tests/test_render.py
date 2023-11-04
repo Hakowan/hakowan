@@ -34,7 +34,7 @@ class TestRender:
             assert shape["radius"] > 0
             for key, value in shape.items():
                 if key.startswith("bsdf"):
-                    assert value["type"] == "diffuse"
+                    assert value["type"] == "plastic"
 
     def test_point_cloud_with_size(self, triangle):
         mesh = triangle
