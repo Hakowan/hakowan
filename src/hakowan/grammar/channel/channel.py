@@ -10,6 +10,12 @@ class Channel:
 
 
 class ScalarChannel(Channel):
+    """Scalar channel is the base class class for channels that maps from a scalar field.
+
+    Attributes:
+        data (Attribute | float): The attribute or value used to encode the scalar field.
+    """
+
     def __init__(self, data: AttributeLike | float):
         """Constructor
 
@@ -22,11 +28,11 @@ class ScalarChannel(Channel):
         self.__set_data(data)
 
     @property
-    def data(self) -> Attribute:
+    def data(self) -> Attribute | float:
         return self._data
 
     @data.setter
-    def data(self, data: AttributeLike):
+    def data(self, data: AttributeLike | float):
         self.__set_data(data)
 
     def __set_data(self, data: AttributeLike | float):
@@ -43,6 +49,12 @@ class ScalarChannel(Channel):
 
 
 class VectorChannel(Channel):
+    """Vector channel is the base class class for channels that maps from a vector field.
+
+    Attributes:
+        data (Attribute): The attribute used to encode the vector field.
+    """
+
     def __init__(self, data: AttributeLike):
         """Constructor
 
@@ -87,12 +99,14 @@ class Position(VectorChannel):
         """Constructor
 
         Args:
-            data (Attribute | str): The attribute used to encode the position field.
+            data (AttributeLike): The attribute used to encode the position field.
 
         Returns:
             (Position): The constructed position channel.
         """
         super().__init__(data)
+
+    __slots__ = ()
 
 
 class Normal(VectorChannel):
@@ -108,21 +122,22 @@ class Normal(VectorChannel):
         """Constructor
 
         Args:
-            data (Attribute | str): The attribute used to encode the normal field.
+            data (AttributeLike): The attribute used to encode the normal field.
 
         Returns:
             (Normal): The constructed normal channel.
         """
         super().__init__(data)
 
+    __slots__ = ()
+
 
 class Size(ScalarChannel):
     """Size channel
 
-    This class is used to specify the mapping from an attribute or value to the size channel.
-    If a value is used, all elements will have the same size. Note that size is defined in unit
-    that is relative to the bounding sphere of the entire visualization. Typically, size should be
-    between 0.001 and 0.05.
+    This class is used to specify the mapping from an attribute or value to the size channel. If a
+    value is used, all elements will have the same size. Note that size is defined in the same unit
+    as the input geometry.
     """
 
     def __init__(self, data: AttributeLike | float):
@@ -138,6 +153,8 @@ class Size(ScalarChannel):
         """
         super().__init__(data)
 
+    __slots__ = ()
+
 
 class VectorField(VectorChannel):
     """Vector field channel
@@ -152,9 +169,11 @@ class VectorField(VectorChannel):
         """Constructor
 
         Args:
-            data (Attribute | str): The attribute used to encode the vector field.
+            data (AttributeLike): The attribute used to encode the vector field.
 
         Returns:
             (VectorField): The constructed vector field channel.
         """
         super().__init__(data)
+
+    __slots__ = ()

@@ -43,7 +43,7 @@ base = (
     .channel(size=0.1)
     .transform(
         hkw.transform.Filter(
-            data=hkw.attribute(position_attr_name), condition=lambda p: p[0] > 0
+            data=position_attr_name, condition=lambda p: p[0] > 0
         )
     )
 )
@@ -63,7 +63,7 @@ base = hkw.layer("shape.obj", mark=hkw.mark.Point)
 In the following example, we will demonstrate the idea of _layer composition_.
 
 ``` py
-base = hkw.layer().data("shape.obj")
+base = hkw.layer("shape.obj")
 
 surface_view = base.mark(hkw.mark.Surface)
 point_view = base.mark(hkw.mark.Point)

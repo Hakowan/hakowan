@@ -44,3 +44,4 @@ nav:
   - Data: api/data.md
   - Layer: api/layer.md
   - Channel: api/channel.md
+  - Transform: api/transform.md
