@@ -43,3 +43,4 @@ nav:
 - Reference:
   - Data: api/data.md
   - Layer: api/layer.md
+  - Channel: api/channel.md

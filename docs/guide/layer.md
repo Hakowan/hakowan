@@ -1,7 +1,7 @@
 # Layer Overview
 
-Layer is a concept that holds the specification of the 4 key components: [data](guide/data.md),
-[mark](guide/makr.md), [channels](guide/channel.md) and [transform](guide/transform.md). A layer may
+Layer is a concept that holds the specification of the 4 key components: [data](data.md),
+[mark](mark.md), [channels](channel.md) and [transform](transform.md). A layer may
 be complete if all its associated components are not `None`, or partial if one or more component is
 `None`. A layer is created with the `hkw.layer` method.
 
