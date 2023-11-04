@@ -1,8 +1,9 @@
 # Layer Overview
 
-Layer is a concept that holds the specification of the 4 key components: data, mark, channels and
-transform. A layer may be complete if all its associated components are not `None`, or partial if
-one or more component is `None`. A layer is created with the `hkw.layer` method.
+Layer is a concept that holds the specification of the 4 key components: [data](guide/data.md),
+[mark](guide/makr.md), [channels](guide/channel.md) and [transform](guide/transform.md). A layer may
+be complete if all its associated components are not `None`, or partial if one or more component is
+`None`. A layer is created with the `hkw.layer` method.
 
 ``` py
 l0 = hkw.layer()
@@ -10,9 +11,8 @@ l0 = hkw.layer()
 
 Here we have created an empty layer, where all of data, mark, channels and transform are None.
 
-An empty layer cannot be rendered because data component is required for rendering. With data is
-specified, Hakowan will assign a default mark, channel or transform if any of them are `None` at the
-rendering time. Fortunately, it is very easy to build on top of an existing layer with a set of
+An empty layer cannot be rendered because the data component is required for rendering.
+Fortunately, it is very easy to build on top of an existing layer with a set of
 overwrite functions. For example,
 
 ``` py
@@ -35,6 +35,7 @@ complex example.
 ``` py
 mesh = lagrange.io.load_mesh("shape.obj")
 position_attr_name = mesh.attr_name_vertex_to_position
+
 base = (
     hkw.layer()
     .data(mesh)
@@ -48,8 +49,14 @@ base = (
 )
 ```
 
-This visualization shows all vertices of the input mesh with positive x coordinate as spheres with
-radius 0.1.
+This visualization shows all vertices of the input mesh with positive X coordinate as spheres with
+radius 0.1. Note that, in addition to filename, `.data` method can also take an actual Lagrange
+`SurfaceMesh` object.
+
+Lastly, it is also possible to directly specify the components as arguments to `hkw.layer` method.
+```py
+base = hkw.layer("shape.obj", mark=hkw.mark.Point)
+```
 
 ## Layer composition
 
