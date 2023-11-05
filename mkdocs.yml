@@ -13,8 +13,6 @@ plugins:
           docstring_style: google
           preload_modules:
           - hakowan
-          - hakowan.grammar
-          - hakowan.grammar.layer
 - search
 
 
@@ -34,18 +32,24 @@ nav:
 - User guide:
   - Gammar: guide/grammar.md
   - Data: guide/data.md
-  - Attribute: guide/attribute.md
-  - Scale: guide/scale.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
+  - Transform: guide/transform.md
+  - Attribute: guide/attribute.md
+  - Scale: guide/scale.md
   - Material: guide/material.md
   - Texture: guide/texture.md
-  - Transform: guide/transform.md
   - Layer: guide/layer.md
   - Configuration: guide/config.md
 - Gallery: gallery.md
 - Reference:
   - Data: api/data.md
-  - Layer: api/layer.md
+  - Mark: api/mark.md
   - Channel: api/channel.md
   - Transform: api/transform.md
+  - Attribute: api/attribute.md
+  - Scale: api/scale.md
+  - Material: api/material.md
+  - Texture: api/texture.md
+  - Layer: api/layer.md
+  - Configuration: api/config.md
