@@ -1,1 +1,1 @@
-from .dataframe import DataFrame
+from .dataframe import DataFrame, DataFrameLike

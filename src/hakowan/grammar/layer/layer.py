@@ -1,5 +1,5 @@
 from .layer_spec import LayerSpec
-from ..dataframe import DataFrame
+from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, VectorField, Material
 from ..transform import Transform
@@ -13,17 +13,31 @@ import lagrange
 
 @dataclass(kw_only=True, slots=True)
 class Layer:
+    """Layer contains the specification of data, mark, channels and transform."""
+
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list[Self] = field(default_factory=list)
 
     def __init__(
         self,
+        data: DataFrameLike | None = None,
         *,
-        data: str | Path | lagrange.SurfaceMesh | DataFrame | None = None,
         mark: Mark | None = None,
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
     ):
+        """ Constructor of Layer.
+
+        Args:
+            data (DataFrameLike | None, optional): The data component of
+                the layer.
+            mark (Mark|None, optional): The mark component of the layer.
+            channels (list[Channel], optional): The channels of the layer.
+            transform (Transform, optional): The transform component of the layer.
+
+        Returns:
+            (Layer): The constructed layer object.
+        """
         self._spec = LayerSpec()
         self._children = []
 
@@ -51,10 +65,20 @@ class Layer:
 
     def data(
         self,
-        data: str | Path | lagrange.SurfaceMesh | DataFrame,
+        data: DataFrameLike,
         *,
         in_place: bool = False,
     ) -> "Layer":
+        """ Overwrite the data component of this layer.
+
+        Args:
+            data (DataFrameLike): The data component of the layer.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with data component overwritten.
+        """
         l = self.__get_working_layer(in_place)
         match (data):
             case str() | Path():

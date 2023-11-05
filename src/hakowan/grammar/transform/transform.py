@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Self, Callable
 import copy
 
-from ..scale import Attribute
+from ..scale import Attribute, AttributeLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -24,5 +24,13 @@ class Transform:
 
 @dataclass(kw_only=True, slots=True)
 class Filter(Transform):
-    data: Attribute
+    """ Filter data based on a condition.
+
+    Attributes:
+        data: The attribute to filter on.
+        condition: A callable that takes a single argument, the value of the attribute, and returns
+            a boolean indicating whether the data should be kept.
+    """
+
+    data: AttributeLike
     condition: Callable

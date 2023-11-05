@@ -126,6 +126,9 @@ class View:
     def position_channel(self, channel: Position):
         assert self.data_frame is not None
         assert isinstance(channel, Position)
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name = channel.data)
+        assert isinstance(channel.data, Attribute)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -145,6 +148,9 @@ class View:
     def normal_channel(self, channel: Normal):
         assert self.data_frame is not None
         assert isinstance(channel, Normal)
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name = channel.data)
+        assert isinstance(channel.data, Attribute)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -163,6 +169,10 @@ class View:
     @size_channel.setter
     def size_channel(self, channel: Size):
         assert isinstance(channel, Size)
+
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name = channel.data)
+        assert isinstance(channel.data, (Attribute, float))
 
         match (channel.data):
             case Attribute():
@@ -186,6 +196,9 @@ class View:
     @vector_field_channel.setter
     def vector_field_channel(self, channel: VectorField):
         assert isinstance(channel, VectorField)
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name = channel.data)
+        assert isinstance(channel.data, Attribute)
         self._vector_field_channel = channel
 
     @property

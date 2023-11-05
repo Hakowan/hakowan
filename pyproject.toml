@@ -9,11 +9,10 @@ license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "pytest",
+    "pytest>=7.4",
     "mitsuba>=3.4",
     "numpy>=1.21",
-    "scipy>=1.8.0",
-    "lagrange",
+    "lagrange>=6.16.0",
     ]
 requires-python = ">=3.11"
 

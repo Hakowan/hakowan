@@ -1,5 +1,6 @@
 from .utils import unique_name
 from ..grammar.dataframe import DataFrame
+from ..grammar.scale import Attribute
 from ..grammar.texture import Texture, ScalarField, CheckerBoard, Isocontour
 from ..common.colormap.named_colormaps import named_colormaps
 
@@ -19,6 +20,7 @@ def apply_colormap(df: DataFrame, tex: Texture):
 
 
 def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
+    assert isinstance(tex.data, Attribute)
     assert tex.data._internal_name is not None
     mesh = df.mesh
     attr_name = tex.data._internal_name

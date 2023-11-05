@@ -32,6 +32,10 @@ def apply_texture(
 
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
+    if isinstance(tex.data, str):
+        tex.data = Attribute(name=tex.data)
+    assert isinstance(tex.data, Attribute)
+
     if tex.domain is not None:
         # Add a clip scale as the last scale to the attribute.
         clip_scale = Clip(domain=tex.domain)
@@ -67,9 +71,19 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
         if tex.uv is None:
             assert df.mesh is not None
             tex.uv = Attribute(name=get_default_uv(df.mesh))
+        elif isinstance(tex.uv, str):
+            assert df.mesh is not None
+            assert df.mesh.has_attribute(tex.uv)
+            tex.uv = Attribute(name=tex.uv)
+        assert isinstance(tex.uv, Attribute)
         compute_scaled_attribute(df, tex.uv)
         tex._uv = tex.uv
     elif tex.uv is not None:
+        if isinstance(tex.uv, str):
+            assert df.mesh is not None
+            assert df.mesh.has_attribute(tex.uv)
+            tex.uv = Attribute(name=tex.uv)
+        assert isinstance(tex.uv, Attribute)
         assert (
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
@@ -82,9 +96,19 @@ def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None 
         if tex.uv is None:
             assert df.mesh is not None
             tex.uv = Attribute(name=get_default_uv(df.mesh))
+        elif isinstance(tex.uv, str):
+            assert df.mesh is not None
+            assert df.mesh.has_attribute(tex.uv)
+            tex.uv = Attribute(name=tex.uv)
+        assert isinstance(tex.uv, Attribute)
         compute_scaled_attribute(df, tex.uv)
         tex._uv = tex.uv
     elif tex.uv is not None:
+        if isinstance(tex.uv, str):
+            assert df.mesh is not None
+            assert df.mesh.has_attribute(tex.uv)
+            tex.uv = Attribute(name=tex.uv)
+        assert isinstance(tex.uv, Attribute)
         assert (
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
@@ -99,6 +123,10 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
     if tex._uv is not None:
         # This texture is already processed.
         return []
+
+    if isinstance(tex.data, str):
+        tex.data = Attribute(name=tex.data)
+    assert isinstance(tex.data, Attribute)
 
     compute_scaled_attribute(df, tex.data)
 

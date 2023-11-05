@@ -1,6 +1,7 @@
 from .color import generate_color_config
 from ..common.color import Color
 from ..common.named_colors import css_colors
+from ..grammar.scale import Attribute
 from ..grammar.texture import (
     Texture,
     ScalarField,
@@ -66,6 +67,7 @@ def generate_isocontour_config(
 def generate_scalar_field_config(
     mesh: lagrange.SurfaceMesh, tex: ScalarField, is_color: bool, is_primitive: bool
 ) -> dict:
+    assert isinstance(tex.data, Attribute)
     assert tex.data._internal_name is not None
     if is_primitive and is_color:
         # Primitive color field.

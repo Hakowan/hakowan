@@ -1,0 +1,55 @@
+site_name: Hakowan - A 3D Data Visualization Grammar
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+
+plugins:
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          docstring_style: google
+          preload_modules:
+          - hakowan
+- search
+
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+
+nav:
+- Home: index.md
+- User guide:
+  - Gammar: guide/grammar.md
+  - Data: guide/data.md
+  - Mark: guide/mark.md
+  - Channel: guide/channel.md
+  - Transform: guide/transform.md
+  - Attribute: guide/attribute.md
+  - Scale: guide/scale.md
+  - Material: guide/material.md
+  - Texture: guide/texture.md
+  - Layer: guide/layer.md
+  - Configuration: guide/config.md
+- Gallery: gallery.md
+- Reference:
+  - Data: api/data.md
+  - Mark: api/mark.md
+  - Channel: api/channel.md
+  - Transform: api/transform.md
+  - Attribute: api/attribute.md
+  - Scale: api/scale.md
+  - Material: api/material.md
+  - Texture: api/texture.md
+  - Layer: api/layer.md
+  - Configuration: api/config.md

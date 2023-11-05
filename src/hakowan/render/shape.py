@@ -84,6 +84,7 @@ def extract_vector_field(view: View):
     mesh = view.data_frame.mesh
 
     assert view.vector_field_channel is not None
+    assert isinstance(view.vector_field_channel.data, Attribute)
     attr_name = view.vector_field_channel.data._internal_name
     assert attr_name is not None
     assert mesh.has_attribute(attr_name)
@@ -132,6 +133,12 @@ def generate_curve_config(view: View, stamp: str, index: int):
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
 
+    # The radius of the linearcurve shape in Mitsuba 3.4.0 will not be transformed using the
+    # `to_world` transform. This seems to be a bug on Mitsuba's part. Thus, we use a temporary fix
+    # to bypass this bug.
+    # TODO: Update once Mitsuba fixed the bug.
+    scale_correction_factor = np.trace(view.global_transform[:3, :3]) / 3
+
     # Generate curve file
     if view.vector_field_channel is not None:
         base, tip, base_size, tip_size = extract_vector_field(view)
@@ -148,8 +155,8 @@ def generate_curve_config(view: View, stamp: str, index: int):
     assert len(tip) == len(tip_size)
     with open(filename, "w") as fout:
         for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
-            fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0}\n")
-            fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1}\n\n")
+            fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+            fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n")
 
     mi_config = {
         "type": "linearcurve",
@@ -210,6 +217,9 @@ def generate_surface_config(view: View, stamp: str, index: int):
     """
     assert view.data_frame is not None
     mesh = copy.copy(view.data_frame.mesh)  # Shallow copy
+    if not mesh.is_triangle_mesh:
+        logger.debug("Convert dataframe to triangle mesh.")
+        lagrange.triangulate_polygonal_facets(mesh)
 
     # Rename attributes in the shallow copy of mesh.
     _rename_attributes(mesh, view._active_attributes)
