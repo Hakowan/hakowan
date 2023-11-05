@@ -1,3 +1,3 @@
 # Material
 
-::: hakowan.grammar.channel.material
+::: hakowan.grammar.channel.material.material
