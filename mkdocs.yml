@@ -1,9 +1,39 @@
 site_name: Hakowan - A 3D Data Visualization Grammar
 
+repo_url: https://github.com/qnzhou/hakowan
+
 theme:
   name: material
   features:
     - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - search.suggest
+    - search.highlight
+  logo: images/hakowan_logo.svg
+  favicon: images/hakowan_logo.svg
+
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: orange
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: grey
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+
+
+
 
 plugins:
 - mkdocstrings:
