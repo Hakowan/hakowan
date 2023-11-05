@@ -90,7 +90,7 @@ def _preprocess_channels(view: View):
 
     # Generate default material channel if not specified.
     if view.material_channel is None:
-        view.material_channel = Plastic(diffuse_reflectance=Uniform(color="ivory"))
+        view.material_channel = Plastic(diffuse_reflectance=Uniform(color="slategray"))
 
 
 def _process_channels(view: View):
