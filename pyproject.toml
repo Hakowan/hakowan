@@ -12,7 +12,7 @@ dependencies=[
     "pytest>=7.4",
     "mitsuba>=3.4",
     "numpy>=1.21",
-    "lagrange>=6.16.0",
+    "lagrange-open>=6.16.0",
     ]
 requires-python = ">=3.11"
 
