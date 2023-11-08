@@ -47,17 +47,18 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
         else:
             tex.data.scale = clip_scale
 
-    # Add a normalize scale as the first scale to the attribute.
-    domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
-    range_min, range_max = tex.range if tex.range is not None else (0, 1)
-    normalize_scale = Normalize(
-        range_min=range_min,
-        range_max=range_max,
-        domain_min=domain_min,
-        domain_max=domain_max,
-    )
-    normalize_scale._child = tex.data.scale
-    tex.data.scale = normalize_scale
+    if tex.colormap != "identity":
+        # Add a normalize scale as the first scale to the attribute.
+        domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
+        range_min, range_max = tex.range if tex.range is not None else (0, 1)
+        normalize_scale = Normalize(
+            range_min=range_min,
+            range_max=range_max,
+            domain_min=domain_min,
+            domain_max=domain_max,
+        )
+        normalize_scale._child = tex.data.scale
+        tex.data.scale = normalize_scale
 
     # Compute scaled attribute
     compute_scaled_attribute(df, tex.data)

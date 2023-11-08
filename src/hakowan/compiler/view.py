@@ -89,6 +89,10 @@ class View:
             attr_name = attr._internal_name
             if mesh.is_attribute_indexed(attr_name):
                 indexed_attr_names.append(attr_name)
+            if attr._internal_color_field is not None and mesh.is_attribute_indexed(
+                attr._internal_color_field
+            ):
+                indexed_attr_names.append(attr._internal_color_field)
 
         logger.debug(f"Indexed attributes: {indexed_attr_names}")
         # Unify all active index buffers.
@@ -127,7 +131,7 @@ class View:
         assert self.data_frame is not None
         assert isinstance(channel, Position)
         if isinstance(channel.data, str):
-            channel.data = Attribute(name = channel.data)
+            channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, Attribute)
         attr = channel.data
         mesh = self.data_frame.mesh
@@ -149,7 +153,7 @@ class View:
         assert self.data_frame is not None
         assert isinstance(channel, Normal)
         if isinstance(channel.data, str):
-            channel.data = Attribute(name = channel.data)
+            channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, Attribute)
         attr = channel.data
         mesh = self.data_frame.mesh
@@ -171,7 +175,7 @@ class View:
         assert isinstance(channel, Size)
 
         if isinstance(channel.data, str):
-            channel.data = Attribute(name = channel.data)
+            channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, (Attribute, float))
 
         match (channel.data):
@@ -197,7 +201,7 @@ class View:
     def vector_field_channel(self, channel: VectorField):
         assert isinstance(channel, VectorField)
         if isinstance(channel.data, str):
-            channel.data = Attribute(name = channel.data)
+            channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, Attribute)
         self._vector_field_channel = channel
 
