@@ -85,7 +85,7 @@ def dump_dict(data: dict, indent: int = 0):
 def render(
     root: layer.Layer,
     config: Config | None = None,
-    filename: Path | None = None,
+    filename: Path | str | None = None,
     xml_filename: Path | None = None,
 ):
     scene = compile(root)
@@ -103,6 +103,16 @@ def render(
     image = mi.render(scene=mi_scene)  # type: ignore
 
     if filename is not None:
-        mi.util.write_bitmap(filename, image)
+        if isinstance(filename, str):
+            filename = Path(filename)
+
+        if filename.suffix == ".exr":
+            mi.write(str(filename), image) # type: ignore
+        else:
+            mi.Bitmap(image).convert( # type: ignore
+                pixel_format=mi.Bitmap.PixelFormat.RGBA,
+                component_format=mi.Struct.Type.UInt8,
+                srgb_gamma=True
+            ).write(str(filename), quality=-1) # type: ignore
 
     return image
