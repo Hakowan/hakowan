@@ -107,7 +107,7 @@ def render(
             filename = Path(filename)
 
         if filename.suffix == ".exr":
-            mi.write(str(filename), image) # type: ignore
+            mi.util.write_bitmap(str(filename), image) # type: ignore
         else:
             mi.Bitmap(image).convert( # type: ignore
                 pixel_format=mi.Bitmap.PixelFormat.RGBA,
