@@ -49,3 +49,19 @@ class TestRender:
         l1 = base.mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(l0 + l1)
         scene_config = generate_scene_config(scene)
+
+    def test_identity_colormap(self, triangle):
+        mesh = triangle
+        mesh.create_attribute(
+            "color",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Color,
+            initial_values=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+        )
+        base = hkw.layer(mesh).channel(
+            material=hkw.material.Diffuse(
+                reflectance=hkw.texture.ScalarField(data="color", colormap="identity")
+            )
+        )
+        scene = hkw.compiler.compile(base)
+        scene_config = generate_scene_config(scene)
