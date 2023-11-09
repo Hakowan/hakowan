@@ -6,7 +6,7 @@ In 3D data visualization, we distinguish two types of 3D data:
 * __3D geometry as data__: In this category, we are mainly interested in visualizing the shape/location of
   the 3D geometry. For example, the shape of a deformed mesh or the location of points in a point
   cloud.
-* __Data associated with 3D geometry__: In this category, the data is a spatically varying field,
+* __Data associated with 3D geometry__: In this category, the data is a spatially varying field,
   and we would like to visualize its value at different locations. For example, the Gaussian
   curvature field on a curved surface, or the geodesic distance on a surface with respect to a
   source surface point.
@@ -26,7 +26,7 @@ of a mesh defines the "columns" of a 3D data frame.
 In addition, Hakowan can also extract geometry and data associated
 with geometry from a number of common 3D file formats such as OBJ, PLY, GLTF and MSH.
 
-Here is a quick example demostrating the various ways of specifying data in Hakowan:
+Here is a quick example demonstrating the various ways of specifying data in Hakowan:
 ```py
 # As argument to hkw.layer() method.
 l0 = hkw.layer("shape.obj")

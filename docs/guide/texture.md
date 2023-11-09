@@ -48,7 +48,7 @@ t = hkw.texture.CheckBoard(
 
 ## Isocontour texture
 
-`Isocontour` texture maps 3D elements to one of two possible sub-textures based on the isocontour of
+`Isocontour` texture maps 3D elements to one of two possible sub-textures based on the iso-contour of
 a given scalar field.
 
 ```py
