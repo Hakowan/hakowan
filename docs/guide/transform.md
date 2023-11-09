@@ -1,7 +1,7 @@
 # Transform
 
 Transform is applied to the entire data frame as a pre-processing step. It is useful to modify the
-geometry and/or computing new attributes from exsiting attributes.
+geometry and/or computing new attributes from existing attributes.
 
 ## Filter transform
 
