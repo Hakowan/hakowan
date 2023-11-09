@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: artifact
+          name: wheels
           path: dist
 
       - name: Publish package distributions to PyPI
