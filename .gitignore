@@ -2,6 +2,7 @@ env/
 __pycache__/
 build/
 site/
+dist/
 .tox/
 *.pyc
 *.egg-info
