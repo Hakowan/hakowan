@@ -1,0 +1,72 @@
+name: Build and deploy
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build_wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Test
+        run: pipx run tox
+
+      - name: Build wheels
+        run: pipx run build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./dist/*.whl
+
+      - name: Check metadata
+        run: pipx run twine check dist/*
+
+  upload_pypi:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    needs: [build_wheel]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/hakowan
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: wheels
+          path: dist
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  deploy_doc:
+    runs-on: ubuntu-latest
+    needs: [build_wheel]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+      - uses: actions/cache@v3
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+      - run: pip install mkdocs-material
+      - run: mkdocs gh-deploy --force
+

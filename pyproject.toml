@@ -4,15 +4,15 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "hakowan"
-authors = [{name = "Qingnan Zhou", email = "qnzhou@gmail.com"}]
+authors = [{name = "Qingnan Zhou", email = "qnzhou@gmail.com"}, {name = "Zhicheng Liu", email = "leozcliu@umd.edu"}]
 license = {file = "LICENSE"}
+readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "pytest>=7.4",
     "mitsuba>=3.4",
     "numpy>=1.21",
-    "lagrange>=6.16.0",
+    "lagrange-open>=6.16.0",
     ]
 requires-python = ">=3.11"
 
