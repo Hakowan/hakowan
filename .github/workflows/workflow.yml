@@ -1,3 +1,10 @@
+name: Build and deploy
+
+on:
+  push:
+    tags:
+      - '*'
+
 jobs:
   build_wheel:
     steps:
