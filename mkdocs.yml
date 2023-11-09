@@ -60,7 +60,7 @@ markdown_extensions:
 nav:
 - Home: index.md
 - User guide:
-  - Gammar: guide/grammar.md
+  - Grammar: guide/grammar.md
   - Data: guide/data.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
