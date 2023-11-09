@@ -26,7 +26,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: ./wheelhouse/*.whl
+          path: ./dist/*.whl
 
       - name: Check metadata
         run: pipx run twine check dist/*
