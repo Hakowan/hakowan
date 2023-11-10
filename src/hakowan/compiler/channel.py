@@ -81,13 +81,6 @@ def _preprocess_channels(view: View):
                     f"Channel type {type(channel)} is not supported"
                 )
 
-    # Generate default normal channel if not specified.
-    if view.mark == Mark.Surface and view.normal_channel is None:
-        mesh = view.data_frame.mesh
-        normal_attr_id = lagrange.compute_normal(mesh)
-        normal_attr_name = mesh.get_attribute_name(normal_attr_id)
-        view.normal_channel = Normal(data=Attribute(name=normal_attr_name))
-
     # Generate default material channel if not specified.
     if view.material_channel is None:
         view.material_channel = Plastic(diffuse_reflectance=Uniform(color="ivory"))
