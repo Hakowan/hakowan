@@ -56,6 +56,7 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+  - attr_list
 
 nav:
 - Home: index.md
