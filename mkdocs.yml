@@ -33,8 +33,6 @@ theme:
         name: Switch to light mode
 
 
-
-
 plugins:
 - mkdocstrings:
     handlers:
@@ -57,6 +55,8 @@ markdown_extensions:
   - toc:
       permalink: true
   - attr_list
+  - footnotes
+
 
 nav:
 - Home: index.md
