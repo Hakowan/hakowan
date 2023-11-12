@@ -11,10 +11,15 @@ In 3D data visualization, we distinguish two types of 3D data:
   curvature field on a curved surface, or the geodesic distance on a surface with respect to a
   source surface point.
 
-3D geometry are often represented as a mesh for visualization purposes. A mesh consists of vertices
+![Mesh elements](../images/origamix_rabbit.svg){: align="right" style="width:200px"}
+
+3D geometry are often represented as a mesh for visualization purposes. A mesh, such as the bunny
+model on the right[^1], consists of a set of vertices
 edges and facets.
 Data associated with 3D geometry are represented as an _attribute_ of a mesh. Each attribute is
 defined for a specific element type (vertex, edge or facet).
+
+[^1]: 3D model source: [origamix rabbit](https://www.thingiverse.com/thing:600429)
 
 In Hakowan, we leverage Lagrange's
 [SurfaceMesh](https://opensource.adobe.com/lagrange-docs/user/core/mesh/) data structure to
