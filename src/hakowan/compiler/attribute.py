@@ -114,6 +114,10 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         axis = np.argmax(domain_size)
         domain_size = domain_size[axis]
         range_size = range_size[axis]
+
+        # Avoid divide by zero.
+        zero_dim = np.argwhere(domain_size == 0)
+        domain_size[zero_dim] = 1
     else:
         assert dim == 1
         assert isinstance(scale.range_min, numbers.Number)
@@ -126,6 +130,10 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         range_size = scale.range_max - scale.range_min
         domain_center = (domain_min + domain_max) / 2
         range_center = (scale.range_min + scale.range_max) / 2
+
+        if domain_size == 0:
+            # Avoid divide by zero.
+            domain_size = 1
 
     data[:] = (data - domain_center) / domain_size * range_size + range_center
     assert np.all(np.isfinite(data))

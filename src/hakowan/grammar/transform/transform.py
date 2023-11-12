@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self, Callable
+from typing import Self, Callable, Optional
 import copy
 
 from ..scale import Attribute, AttributeLike
@@ -9,7 +9,7 @@ from ..scale import Attribute, AttributeLike
 class Transform:
     """Transform is the base class of all transforms."""
 
-    _child: Self | None = None
+    _child: Optional["Transform"] = None
 
     def __imul__(self, other: "Transform") -> "Transform":
         """In place update by applying another transform after the current transform.
