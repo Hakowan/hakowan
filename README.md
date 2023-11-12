@@ -18,7 +18,7 @@ pip install hakowan
 
 ## About
 
-Hakowan is devaloped and maintained by Qingnan Zhou and Zhicheng Liu.
+Hakowan is developed and maintained by Qingnan Zhou and Zhicheng Liu.
 
 ```bibtex
 @software{zhou2023hakowan,
