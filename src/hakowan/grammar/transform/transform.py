@@ -11,7 +11,7 @@ class Transform:
 
     _child: Self | None = None
 
-    def __imul__(self, other: Self):
+    def __imul__(self, other: "Transform") -> "Transform":
         """In place update by applying another transform after the current transform.
 
         Args:
@@ -26,6 +26,7 @@ class Transform:
             while t._child is not None:
                 t = t._child
             t._child = copy.deepcopy(other)
+        return self
 
     def __mul__(self, other: "Transform") -> "Transform":
         """Apply another transform, `other`, after the current transform.
@@ -52,3 +53,10 @@ class Filter(Transform):
 
     data: AttributeLike
     condition: Callable
+
+@dataclass(kw_only=True, slots=True)
+class UVMesh(Transform):
+    """ Extract UV mesh from data.
+    """
+
+    uv: AttributeLike

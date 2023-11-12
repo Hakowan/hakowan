@@ -191,6 +191,30 @@ class TestCompile:
         assert np.all(bbox[0] == pytest.approx(bbox_min))
         assert np.all(bbox[1] == pytest.approx(bbox_max))
 
+    def test_uv_mesh_transform(self, triangle):
+        mesh = triangle
+        mesh.vertices[:, 2] = 1
+        assert mesh.has_attribute("uv")
+        assert mesh.has_attribute("vertex_index")
+        assert mesh.has_attribute("facet_index")
+        assert mesh.has_attribute("corner_index")
+
+        base = hkw.layer(mesh).transform(hkw.transform.UVMesh(uv="uv"))
+        base = base.channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(data="vertex_index"),
+                roughness=hkw.texture.ScalarField(data="facet_index"),
+                metallic=hkw.texture.ScalarField(data="corner_index"),
+            )
+        )
+        scene = hkw.compiler.compile(base)
+        out_mesh = scene[0].data_frame.mesh
+
+        assert len(scene) == 1
+        assert out_mesh.num_facets == 1
+        assert np.allclose(out_mesh.vertices[:, 2], 0)
+        assert np.allclose(out_mesh.vertices[:, :2], mesh.vertices[:, :2])
+
 
 class TestScale:
     def __apply_scale(

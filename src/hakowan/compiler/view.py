@@ -78,7 +78,7 @@ class View:
 
             mesh_attr = mesh.attribute(attr_name)
             if mesh_attr.element_type == lagrange.AttributeElement.Corner:
-                attr_id = lagrange.map_attribute_in_plane(
+                attr_id = lagrange.map_attribute_in_place(
                     mesh, attr_name, lagrange.AttributeElement.Indexed
                 )
                 lagrange.weld_indexed_attribute(mesh, attr_id)
@@ -96,9 +96,6 @@ class View:
 
         logger.debug(f"Indexed attributes: {indexed_attr_names}")
         # Unify all active index buffers.
-        if mesh.has_edges:
-            # To avoid a warn related to edge attributes.
-            mesh.clear_edges()
         unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
 
         # Update mesh vertices to the scaled version if needed.
