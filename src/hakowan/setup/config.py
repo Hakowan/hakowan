@@ -24,7 +24,7 @@ class Config:
                 emitter.up = np.array([0, 0, 1])
 
     def z_down(self):
-        self.sensor.location = np.array([0, -5, 0])
+        self.sensor.location = np.array([0, 5, 0])
         self.sensor.up = np.array([0, 0, -1])
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):

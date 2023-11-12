@@ -7,10 +7,16 @@ from ..scale import Attribute, AttributeLike
 
 @dataclass(kw_only=True, slots=True)
 class Transform:
+    """Transform is the base class of all transforms."""
+
     _child: Self | None = None
 
     def __imul__(self, other: Self):
-        """ Apply another transform, `other`, after the current transform."""
+        """In place update by applying another transform after the current transform.
+
+        Args:
+            other: The transform to apply after the current transform.
+        """
         # Because transform may be used in multiple places in the layer graph, and it may have a
         # child in the future, it must be deep copied to avoid undesired side effects.
         if self._child is None:
@@ -21,10 +27,22 @@ class Transform:
                 t = t._child
             t._child = copy.deepcopy(other)
 
+    def __mul__(self, other: "Transform") -> "Transform":
+        """Apply another transform, `other`, after the current transform.
+
+        Args:
+            other: The other transform.
+
+        Returns: A new transform that is the composition of the current transform and `other`.
+        """
+        r = copy.deepcopy(self)
+        r *= other
+        return r
+
 
 @dataclass(kw_only=True, slots=True)
 class Filter(Transform):
-    """ Filter data based on a condition.
+    """Filter data based on a condition.
 
     Attributes:
         data: The attribute to filter on.
