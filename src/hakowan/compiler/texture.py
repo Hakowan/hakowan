@@ -7,7 +7,7 @@ from ..grammar.texture import (
     ScalarField,
     Uniform,
     Image,
-    CheckerBoard,
+    Checkerboard,
     Isocontour,
 )
 from ..grammar.scale import Attribute, Clip, Normalize, Scale
@@ -92,7 +92,7 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
     return [tex._uv]
 
 
-def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None = None):
+def _apply_checker_board(df: DataFrame, tex: Checkerboard, uv: Attribute | None = None):
     if uv is None:
         if tex.uv is None:
             assert df.mesh is not None
@@ -115,6 +115,10 @@ def _apply_checker_board(df: DataFrame, tex: CheckerBoard, uv: Attribute | None 
         ), "Conflicting UV detected"
         tex._uv = uv
 
+    if not isinstance(tex.texture1, Texture):
+        tex.texture1 = Uniform(color=tex.texture1)
+    if not isinstance(tex.texture2, Texture):
+        tex.texture2 = Uniform(color=tex.texture2)
     active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
     active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
     return [tex._uv] + active_attrs_1 + active_attrs_2
@@ -128,6 +132,11 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
     if isinstance(tex.data, str):
         tex.data = Attribute(name=tex.data)
     assert isinstance(tex.data, Attribute)
+
+    if not isinstance(tex.texture1, Texture):
+        tex.texture1 = Uniform(color=tex.texture1)
+    if not isinstance(tex.texture2, Texture):
+        tex.texture2 = Uniform(color=tex.texture2)
 
     compute_scaled_attribute(df, tex.data)
 
@@ -207,7 +216,7 @@ def _apply_texture(
             return []
         case Image():
             return _apply_image(df, tex, uv)
-        case CheckerBoard():
+        case Checkerboard():
             return _apply_checker_board(df, tex, uv)
         case Isocontour():
             return _apply_isocontour(df, tex, uv)

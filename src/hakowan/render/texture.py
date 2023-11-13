@@ -7,7 +7,7 @@ from ..grammar.texture import (
     ScalarField,
     Uniform,
     Image,
-    CheckerBoard,
+    Checkerboard,
     Isocontour,
 )
 
@@ -43,8 +43,10 @@ def generate_image_config(tex: Image) -> dict:
 
 
 def generate_checker_board_config(
-    mesh: lagrange.SurfaceMesh, tex: CheckerBoard, is_color: bool
+    mesh: lagrange.SurfaceMesh, tex: Checkerboard, is_color: bool
 ) -> dict:
+    assert isinstance(tex.texture1, Texture)
+    assert isinstance(tex.texture2, Texture)
     mi_config: dict[str, Any] = {
         "type": "checkerboard",
         "color0": generate_texture_config(mesh, tex.texture1, is_color),
@@ -56,6 +58,8 @@ def generate_checker_board_config(
 def generate_isocontour_config(
     mesh: lagrange.SurfaceMesh, tex: Isocontour, is_color: bool
 ) -> dict:
+    assert isinstance(tex.texture1, Texture)
+    assert isinstance(tex.texture2, Texture)
     mi_config: dict[str, Any] = {
         "type": "checkerboard",
         "color0": generate_texture_config(mesh, tex.texture1, is_color),
@@ -112,7 +116,7 @@ def _generate_texture_config(
             return generate_uniform_config(tex)
         case Image():
             return generate_image_config(tex)
-        case CheckerBoard():
+        case Checkerboard():
             return generate_checker_board_config(mesh, tex, is_color)
         case Isocontour():
             assert not is_primitive

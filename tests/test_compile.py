@@ -71,7 +71,7 @@ class TestCompile:
         base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
         light_material = hkw.texture.Uniform(color=0.2)
         dark_material = hkw.texture.Uniform(color=0.8)
-        checkerboard = hkw.texture.CheckerBoard(
+        checkerboard = hkw.texture.Checkerboard(
             uv=hkw.attribute(name=uv_attr_name, scale=hkw.scale.Uniform(factor=2.0)),
             texture1=light_material,
             texture2=dark_material,
@@ -355,7 +355,7 @@ class TestTexture:
 
         attr = hkw.attribute(name="uv")
         attr2 = hkw.attribute(name="vertex_data")
-        tex = hkw.texture.CheckerBoard(
+        tex = hkw.texture.Checkerboard(
             uv=attr,
             texture1=hkw.texture.ScalarField(data=attr),
             texture2=hkw.texture.ScalarField(data=attr2),

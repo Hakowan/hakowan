@@ -29,7 +29,7 @@ class TestTexture:
         attr = scale.Attribute(name="uv")
         t1 = texture.Uniform(color="#000000")
         t2 = texture.Uniform(color="#ffffff")
-        t = texture.CheckerBoard(uv=attr, texture1=t1, texture2=t2)
+        t = texture.Checkerboard(uv=attr, texture1=t1, texture2=t2)
         assert t.uv is attr
         assert t.texture1 is t1
         assert t.texture2 is t2
