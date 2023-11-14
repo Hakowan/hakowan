@@ -10,6 +10,7 @@ from ..grammar.scale import (
     Normalize,
     Offset,
     Scale,
+    ScaleLike,
     Uniform,
 )
 
@@ -21,13 +22,16 @@ import numbers
 ### Public API
 
 
-def apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
+def apply_scale(df: DataFrame, attr_name: str, attr_scale: ScaleLike):
     """Apply scale to attribute data
 
     :param df:         The data frame, which will be modified in place.
     :param attr_name:  Target attribute name
     :param attr_scale: Scale to apply
     """
+    if isinstance(attr_scale, numbers.Number):
+        attr_scale = Uniform(factor=float(attr_scale))
+    assert isinstance(attr_scale, Scale)
     _apply_scale(df, attr_name, attr_scale)
 
 
@@ -43,6 +47,7 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
         if attr._internal_name is None:
             attr._internal_name = unique_name(df.mesh, f"_scaled_{attr.name}")
             df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+
             apply_scale(df, attr._internal_name, attr.scale)
     else:
         # No scale.

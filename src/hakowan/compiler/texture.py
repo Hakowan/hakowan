@@ -40,6 +40,7 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
         # Add a clip scale as the last scale to the attribute.
         clip_scale = Clip(domain=tex.domain)
         if tex.data.scale is not None:
+            assert isinstance(tex.data.scale, Scale)
             s: Scale = tex.data.scale
             while s._child is not None:
                 s = s._child
@@ -57,6 +58,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
             domain_min=domain_min,
             domain_max=domain_max,
         )
+        if tex.data.scale is not None:
+            assert isinstance(tex.data.scale, Scale)
         normalize_scale._child = tex.data.scale
         tex.data.scale = normalize_scale
 

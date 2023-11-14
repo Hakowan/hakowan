@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from .scale import Scale
+from .scale import ScaleLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -17,7 +17,7 @@ class Attribute:
     """
 
     name: str
-    scale: Scale | None = None
+    scale: ScaleLike | None = None
 
     # (internal) The name of the attribute with scale applied.
     _internal_name: str | None = None

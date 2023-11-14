@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Optional, Callable, TypeAlias
 from numpy import typing as npt
 
 
@@ -21,7 +21,7 @@ class Scale:
         return self
 
     def __mul__(self, other: "Scale") -> "Scale":
-        """ Combine the current scale with the `other` scale in a new scale. Both the current and
+        """Combine the current scale with the `other` scale in a new scale. Both the current and
         the `other` scale is not modified. In the new scale, the current scale will be applied
         before the `other` scale.
         """
@@ -73,3 +73,6 @@ class Clip(Scale):
     """Clip the data to the range [min, max]."""
 
     domain: tuple[float, float]
+
+
+ScaleLike: TypeAlias = float | Scale
