@@ -22,6 +22,7 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, 0, 1])
+                emitter.rotation = 180.0
 
     def z_down(self):
         self.sensor.location = np.array([0, 5, 0])
@@ -29,13 +30,20 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, 0, -1])
+                emitter.rotation = 180.0
 
     def y_up(self):
-        return
+        self.sensor.location = np.array([0, 0, 5])
+        self.sensor.up = np.array([0, 1, 0])
+        for emitter in self.emitters:
+            if isinstance(emitter, Envmap):
+                emitter.up = np.array([0, 1, 0])
+                emitter.rotation = 180
 
     def y_down(self):
+        self.sensor.location = np.array([0, 0, -5])
         self.sensor.up = np.array([0, -1, 0])
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, -1, 0])
-                emitter.rotation = 0
+                emitter.rotation = 180
