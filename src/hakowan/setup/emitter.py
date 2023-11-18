@@ -23,5 +23,5 @@ class Envmap(Emitter):
         default_factory=lambda: Path(__file__).parents[1] / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
-    up: npt.NDArray = field(default_factory=lambda: np.array([0, 0, 1]))
+    up: npt.NDArray = field(default_factory=lambda: np.array([0, 1, 0]))
     rotation: float = 180.0

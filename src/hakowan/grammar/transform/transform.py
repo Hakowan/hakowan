@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Self, Callable
+from typing import Self, Callable, Optional
 import copy
+import numpy.typing as npt
 
 from ..scale import Attribute, AttributeLike
 
@@ -9,9 +10,9 @@ from ..scale import Attribute, AttributeLike
 class Transform:
     """Transform is the base class of all transforms."""
 
-    _child: Self | None = None
+    _child: Optional["Transform"] = None
 
-    def __imul__(self, other: Self):
+    def __imul__(self, other: "Transform") -> "Transform":
         """In place update by applying another transform after the current transform.
 
         Args:
@@ -26,6 +27,7 @@ class Transform:
             while t._child is not None:
                 t = t._child
             t._child = copy.deepcopy(other)
+        return self
 
     def __mul__(self, other: "Transform") -> "Transform":
         """Apply another transform, `other`, after the current transform.
@@ -40,7 +42,7 @@ class Transform:
         return r
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Filter(Transform):
     """Filter data based on a condition.
 
@@ -52,3 +54,21 @@ class Filter(Transform):
 
     data: AttributeLike
     condition: Callable
+
+
+@dataclass(slots=True)
+class UVMesh(Transform):
+    """Extract UV mesh from data."""
+
+    uv: AttributeLike
+
+
+@dataclass(slots=True)
+class Affine(Transform):
+    """Apply affine transformation to data.
+
+    Attributes:
+        matrix: The 4x4 affine matrix to apply.
+    """
+
+    matrix: npt.ArrayLike

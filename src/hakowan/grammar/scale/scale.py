@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Optional, Callable, TypeAlias
 from numpy import typing as npt
 
 
@@ -21,7 +21,7 @@ class Scale:
         return self
 
     def __mul__(self, other: "Scale") -> "Scale":
-        """ Combine the current scale with the `other` scale in a new scale. Both the current and
+        """Combine the current scale with the `other` scale in a new scale. Both the current and
         the `other` scale is not modified. In the new scale, the current scale will be applied
         before the `other` scale.
         """
@@ -30,7 +30,7 @@ class Scale:
         return r
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Normalize(Scale):
     """Normalize the data so that it fits in a bounding box defined by bbox_min and bbox_max."""
 
@@ -40,36 +40,39 @@ class Normalize(Scale):
     domain_max: npt.NDArray | float | None = None
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Log(Scale):
     """Logarithmic scale."""
 
     base: float = 10.0
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Uniform(Scale):
     """Scale the data uniformly using factor."""
 
     factor: float
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Custom(Scale):
     """Scale the data using a custom function."""
 
     function: Callable
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Affine(Scale):
     """Scale the data using an affine transformation."""
 
     matrix: npt.NDArray
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Clip(Scale):
     """Clip the data to the range [min, max]."""
 
     domain: tuple[float, float]
+
+
+ScaleLike: TypeAlias = float | Scale

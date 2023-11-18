@@ -46,7 +46,7 @@ def generate_diffuse_bsdf_config(
         mi_config = {
             f"bsdf_{i:06}": {
                 "type": "diffuse",
-                "reflectance": generate_color_config(color)
+                "reflectance": generate_color_config(color),
             }
             for i, color in enumerate(reflectance["colors"])
         }
@@ -118,7 +118,7 @@ def generate_principled_bsdf_config(
     n: int | None = None
 
     # Check size and generate getters
-    if isinstance(colors, dict)  and "colors" in colors:
+    if isinstance(colors, dict) and "colors" in colors:
         n = len(colors["colors"])
         get_color = lambda i: generate_color_config(colors["colors"][i])
     else:
@@ -162,28 +162,46 @@ def generate_principled_bsdf_config(
     return mi_config
 
 
-def generate_bsdf_config(view: View, is_primitive=False):
+def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "twosided",
+        "material": mi_config,
+    }
+
+
+def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     assert view.data_frame is not None
     assert view.material_channel is not None
     mesh = view.data_frame.mesh
+    material_config: dict[str, Any] = {}
     match view.material_channel:
         case Diffuse():
-            return generate_diffuse_bsdf_config(
+            material_config = generate_diffuse_bsdf_config(
                 mesh, view.material_channel, is_primitive
             )
         case RoughConductor():
-            return generate_rough_conductor_bsdf_config(mesh, view.material_channel)
+            material_config = generate_rough_conductor_bsdf_config(
+                mesh, view.material_channel
+            )
         case Conductor():
-            return generate_conductor_bsdf_config(mesh, view.material_channel)
+            material_config = generate_conductor_bsdf_config(
+                mesh, view.material_channel
+            )
         case RoughPlastic():
-            return generate_rough_plastic_bsdf_config(mesh, view.material_channel)
+            material_config = generate_rough_plastic_bsdf_config(
+                mesh, view.material_channel
+            )
         case Plastic():
-            return generate_plastic_bsdf_config(mesh, view.material_channel)
+            material_config = generate_plastic_bsdf_config(mesh, view.material_channel)
         case Principled():
-            return generate_principled_bsdf_config(
+            material_config = generate_principled_bsdf_config(
                 mesh, view.material_channel, is_primitive
             )
         case _:
             raise NotImplementedError(
                 f"Unknown material type: {type(view.material_channel)}"
             )
+    if view.material_channel.two_sided:
+        material_config = make_material_two_sided(material_config)
+
+    return material_config

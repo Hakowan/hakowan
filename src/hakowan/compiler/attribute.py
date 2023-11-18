@@ -10,6 +10,7 @@ from ..grammar.scale import (
     Normalize,
     Offset,
     Scale,
+    ScaleLike,
     Uniform,
 )
 
@@ -21,13 +22,16 @@ import numbers
 ### Public API
 
 
-def apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
+def apply_scale(df: DataFrame, attr_name: str, attr_scale: ScaleLike):
     """Apply scale to attribute data
 
     :param df:         The data frame, which will be modified in place.
     :param attr_name:  Target attribute name
     :param attr_scale: Scale to apply
     """
+    if isinstance(attr_scale, (float, int)):
+        attr_scale = Uniform(factor=float(attr_scale))
+    assert isinstance(attr_scale, Scale)
     _apply_scale(df, attr_name, attr_scale)
 
 
@@ -43,6 +47,7 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
         if attr._internal_name is None:
             attr._internal_name = unique_name(df.mesh, f"_scaled_{attr.name}")
             df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+
             apply_scale(df, attr._internal_name, attr.scale)
     else:
         # No scale.
@@ -114,18 +119,26 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         axis = np.argmax(domain_size)
         domain_size = domain_size[axis]
         range_size = range_size[axis]
+
+        # Avoid divide by zero.
+        zero_dim = np.argwhere(domain_size == 0)
+        domain_size[zero_dim] = 1
     else:
         assert dim == 1
-        assert isinstance(scale.range_min, numbers.Number)
-        assert isinstance(scale.range_max, numbers.Number)
-        assert isinstance(domain_min, numbers.Number)
-        assert isinstance(domain_max, numbers.Number)
+        assert isinstance(scale.range_min, numbers.Real)
+        assert isinstance(scale.range_max, numbers.Real)
+        assert isinstance(domain_min, numbers.Real)
+        assert isinstance(domain_max, numbers.Real)
         assert scale.range_max >= scale.range_min
         assert domain_max >= domain_min
         domain_size = domain_max - domain_min
         range_size = scale.range_max - scale.range_min
         domain_center = (domain_min + domain_max) / 2
         range_center = (scale.range_min + scale.range_max) / 2
+
+        if domain_size == 0:
+            # Avoid divide by zero.
+            domain_size = 1
 
     data[:] = (data - domain_center) / domain_size * range_size + range_center
     assert np.all(np.isfinite(data))

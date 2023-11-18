@@ -71,7 +71,7 @@ class TestCompile:
         base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
         light_material = hkw.texture.Uniform(color=0.2)
         dark_material = hkw.texture.Uniform(color=0.8)
-        checkerboard = hkw.texture.CheckerBoard(
+        checkerboard = hkw.texture.Checkerboard(
             uv=hkw.attribute(name=uv_attr_name, scale=hkw.scale.Uniform(factor=2.0)),
             texture1=light_material,
             texture2=dark_material,
@@ -190,6 +190,52 @@ class TestCompile:
         bbox = scene[0].bbox
         assert np.all(bbox[0] == pytest.approx(bbox_min))
         assert np.all(bbox[1] == pytest.approx(bbox_max))
+
+    def test_uv_mesh_transform(self, triangle):
+        mesh = triangle
+        mesh.vertices[:, 2] = 1
+        assert mesh.has_attribute("uv")
+        assert mesh.has_attribute("vertex_index")
+        assert mesh.has_attribute("facet_index")
+        assert mesh.has_attribute("corner_index")
+
+        base = hkw.layer(mesh).transform(hkw.transform.UVMesh(uv="uv"))
+        base = base.channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(data="vertex_index"),
+                roughness=hkw.texture.ScalarField(data="facet_index"),
+                metallic=hkw.texture.ScalarField(data="corner_index"),
+            )
+        )
+        scene = hkw.compiler.compile(base)
+        out_mesh = scene[0].data_frame.mesh
+
+        assert len(scene) == 1
+        assert out_mesh.num_facets == 1
+        assert np.allclose(out_mesh.vertices[:, 2], 0)
+        assert np.allclose(out_mesh.vertices[:, :2], mesh.vertices[:, :2])
+
+    def test_affine_transform(self, triangle):
+        mesh = triangle
+        normal_attr_id = lagrange.compute_facet_normal(mesh)
+        normal_attr_name = mesh.get_attribute_name(normal_attr_id)
+        matrix = np.eye(4)
+        matrix[0, 0] = 2.0  # Stretch in X direction
+        base = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Affine(matrix))
+            .channel(normal=normal_attr_name)
+        )
+        scene = hkw.compiler.compile(base)
+
+        assert len(scene) == 1
+        view = scene[0]
+        out_mesh = view.data_frame.mesh
+        assert np.all(np.amax(out_mesh.vertices, axis=0) == pytest.approx([2, 1, 1]))
+
+        n = out_mesh.attribute(normal_attr_name).data
+        d = np.dot(out_mesh.vertices, n.T)
+        assert np.allclose(d, d[[2, 0, 1]])
 
 
 class TestScale:
@@ -331,7 +377,7 @@ class TestTexture:
 
         attr = hkw.attribute(name="uv")
         attr2 = hkw.attribute(name="vertex_data")
-        tex = hkw.texture.CheckerBoard(
+        tex = hkw.texture.Checkerboard(
             uv=attr,
             texture1=hkw.texture.ScalarField(data=attr),
             texture2=hkw.texture.ScalarField(data=attr2),

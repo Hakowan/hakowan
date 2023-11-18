@@ -10,7 +10,7 @@ class Channel:
     pass
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Position(Channel):
     """Position channel
 
@@ -27,7 +27,7 @@ class Position(Channel):
     data: AttributeLike
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Normal(Channel):
     """Normal channel
 
@@ -43,7 +43,7 @@ class Normal(Channel):
     data: AttributeLike
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Size(Channel):
     """Size channel
 
@@ -58,7 +58,7 @@ class Size(Channel):
     data: AttributeLike | float
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class VectorField(Channel):
     """Vector field channel
 

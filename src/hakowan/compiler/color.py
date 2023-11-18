@@ -1,7 +1,7 @@
 from .utils import unique_name
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.texture import Texture, ScalarField, CheckerBoard, Isocontour
+from ..grammar.texture import Texture, ScalarField, Checkerboard, Isocontour
 from ..common.colormap.named_colormaps import named_colormaps
 
 import lagrange
@@ -103,6 +103,8 @@ def _apply_colormap(df: DataFrame, tex: Texture):
     match tex:
         case ScalarField():
             _apply_colormap_scalar_field(df, tex)
-        case CheckerBoard() | Isocontour():
+        case Checkerboard() | Isocontour():
+            assert isinstance(tex.texture1, Texture)
+            assert isinstance(tex.texture2, Texture)
             apply_colormap(df, tex.texture1)
             apply_colormap(df, tex.texture2)
