@@ -14,7 +14,7 @@ class Texture:
 TextureLike: TypeAlias = ColorLike | Texture
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class ScalarField(Texture):
     """The scalar field texture converts an attribute to a either a gradient field or color field.
 
@@ -31,25 +31,25 @@ class ScalarField(Texture):
     range: tuple[float, float] | None = None
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Uniform(Texture):
     color: ColorLike
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Image(Texture):
-    uv: AttributeLike | None = None
     filename: Path
+    uv: AttributeLike | None = None
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Checkerboard(Texture):
     uv: AttributeLike | None = None
     texture1: TextureLike = 0.4
     texture2: TextureLike = 0.2
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Isocontour(Texture):
     data: AttributeLike
     ratio: float = 0.1

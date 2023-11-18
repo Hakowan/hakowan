@@ -4,7 +4,7 @@ from typing import TypeAlias
 from pathlib import Path
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class DataFrame:
     """DataFrame represents data that are stored on a 3D surface.
 

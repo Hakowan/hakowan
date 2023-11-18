@@ -41,7 +41,7 @@ class Transform:
         return r
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Filter(Transform):
     """Filter data based on a condition.
 
@@ -54,7 +54,7 @@ class Filter(Transform):
     data: AttributeLike
     condition: Callable
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class UVMesh(Transform):
     """ Extract UV mesh from data.
     """

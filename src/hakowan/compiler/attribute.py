@@ -29,7 +29,7 @@ def apply_scale(df: DataFrame, attr_name: str, attr_scale: ScaleLike):
     :param attr_name:  Target attribute name
     :param attr_scale: Scale to apply
     """
-    if isinstance(attr_scale, numbers.Number):
+    if isinstance(attr_scale, (float, int)):
         attr_scale = Uniform(factor=float(attr_scale))
     assert isinstance(attr_scale, Scale)
     _apply_scale(df, attr_name, attr_scale)
@@ -125,10 +125,10 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         domain_size[zero_dim] = 1
     else:
         assert dim == 1
-        assert isinstance(scale.range_min, numbers.Number)
-        assert isinstance(scale.range_max, numbers.Number)
-        assert isinstance(domain_min, numbers.Number)
-        assert isinstance(domain_max, numbers.Number)
+        assert isinstance(scale.range_min, numbers.Real)
+        assert isinstance(scale.range_max, numbers.Real)
+        assert isinstance(domain_min, numbers.Real)
+        assert isinstance(domain_max, numbers.Real)
         assert scale.range_max >= scale.range_min
         assert domain_max >= domain_min
         domain_size = domain_max - domain_min

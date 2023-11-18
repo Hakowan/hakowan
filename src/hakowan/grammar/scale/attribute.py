@@ -4,7 +4,7 @@ from typing import TypeAlias
 from .scale import ScaleLike
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(slots=True)
 class Attribute:
     """An attribute represents a scalar or vector field that is defined on the 3D geometry.
 
