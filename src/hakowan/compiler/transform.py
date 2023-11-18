@@ -2,7 +2,7 @@ from .view import View
 from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.transform import Transform, Filter, UVMesh
+from ..grammar.transform import Transform, Filter, UVMesh, Affine
 from ..common import logger
 
 import copy
@@ -119,6 +119,16 @@ def _appply_uv_mesh_transform(view: View, transform: UVMesh):
     view.initialize_bbox()
 
 
+def _apply_affine_transform(view: View, transform: Affine):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+
+    matrix = np.array(transform.matrix).astype(np.float64)
+    lagrange.transform_mesh(mesh, matrix)
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -134,6 +144,9 @@ def apply_transform(view: View):
             case UVMesh():
                 assert view.data_frame is not None
                 _appply_uv_mesh_transform(view, t)
+            case Affine():
+                assert view.data_frame is not None
+                _apply_affine_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

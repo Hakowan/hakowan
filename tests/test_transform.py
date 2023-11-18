@@ -1,6 +1,7 @@
 import pytest
 from hakowan import transform, scale
 import copy
+import numpy as np
 
 
 class TestTransform:
@@ -30,4 +31,9 @@ class TestTransform:
     def test_uv_mesh(self):
         t = transform.UVMesh(uv="@uv")
         assert t.uv == "@uv"
+        assert t._child is None
+
+    def test_affine(self):
+        t = transform.Affine(matrix=np.eye(4))
+        assert np.all(t.matrix == np.eye(4))
         assert t._child is None

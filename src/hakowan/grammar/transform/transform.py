@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Self, Callable, Optional
 import copy
+import numpy.typing as npt
 
 from ..scale import Attribute, AttributeLike
 
@@ -54,9 +55,20 @@ class Filter(Transform):
     data: AttributeLike
     condition: Callable
 
+
 @dataclass(slots=True)
 class UVMesh(Transform):
-    """ Extract UV mesh from data.
-    """
+    """Extract UV mesh from data."""
 
     uv: AttributeLike
+
+
+@dataclass(slots=True)
+class Affine(Transform):
+    """Apply affine transformation to data.
+
+    Attributes:
+        matrix: The 4x4 affine matrix to apply.
+    """
+
+    matrix: npt.ArrayLike

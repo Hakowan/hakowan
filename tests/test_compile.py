@@ -215,6 +215,28 @@ class TestCompile:
         assert np.allclose(out_mesh.vertices[:, 2], 0)
         assert np.allclose(out_mesh.vertices[:, :2], mesh.vertices[:, :2])
 
+    def test_affine_transform(self, triangle):
+        mesh = triangle
+        normal_attr_id = lagrange.compute_facet_normal(mesh)
+        normal_attr_name = mesh.get_attribute_name(normal_attr_id)
+        matrix = np.eye(4)
+        matrix[0, 0] = 2.0  # Stretch in X direction
+        base = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Affine(matrix))
+            .channel(normal=normal_attr_name)
+        )
+        scene = hkw.compiler.compile(base)
+
+        assert len(scene) == 1
+        view = scene[0]
+        out_mesh = view.data_frame.mesh
+        assert np.all(np.amax(out_mesh.vertices, axis=0) == pytest.approx([2, 1, 1]))
+
+        n = out_mesh.attribute(normal_attr_name).data
+        d = np.dot(out_mesh.vertices, n.T)
+        assert np.allclose(d, d[[2, 0, 1]])
+
 
 class TestScale:
     def __apply_scale(
