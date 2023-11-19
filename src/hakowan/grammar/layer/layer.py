@@ -1,7 +1,8 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField, Material
+from ..channel import Channel, Position, Normal, Size, VectorField
+from ..channel.material import Material
 from ..transform import Transform
 from ..scale import Attribute
 

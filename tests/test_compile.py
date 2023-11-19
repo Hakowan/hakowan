@@ -76,7 +76,7 @@ class TestCompile:
             texture1=light_material,
             texture2=dark_material,
         )
-        l1 = base.channel(material=hkw.channel.Diffuse(reflectance=checkerboard))
+        l1 = base.channel(material=hkw.material.Diffuse(reflectance=checkerboard))
 
         scene = hkw.compiler.compile(l1)
         assert len(scene) == 1
@@ -100,7 +100,7 @@ class TestCompile:
         mesh = triangle
 
         base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
-        mat = hkw.channel.Diffuse(
+        mat = hkw.material.Diffuse(
             reflectance=hkw.texture.ScalarField(
                 data=hkw.attribute(name="vertex_data"), colormap="viridis"
             )

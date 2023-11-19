@@ -1,5 +1,5 @@
 import pytest
-from hakowan import channel, scale, texture
+from hakowan import channel, material, scale, texture
 
 
 class TestChannel:
@@ -22,5 +22,5 @@ class TestChannel:
 class TestMaterial:
     def test_uniform(self):
         t = texture.Uniform(color=(1, 1, 1))
-        m = channel.Diffuse(reflectance=t)
+        m = material.Diffuse(reflectance=t)
         assert m.reflectance is t

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from .medium import Medium
 from ..channel import Channel
 from ...texture import Texture
 from ....common.color import ColorLike
@@ -44,3 +45,21 @@ class Principled(Material):
     color: Texture | ColorLike = 0.5
     roughness: Texture | float = 0.5
     metallic: Texture | float = 0.0
+
+
+@dataclass(slots=True)
+class Dielectric(Material):
+    int_ior: str | float = "bk7"
+    ext_ior: str | float = "air"
+    medium: Medium | None = None
+
+
+@dataclass(slots=True)
+class ThinDielectric(Dielectric):
+    pass
+
+
+@dataclass(slots=True)
+class RoughDielectric(Dielectric):
+    distribution: str = "beckmann"
+    alpha: Texture | float = 0.1

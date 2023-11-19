@@ -1,7 +1,9 @@
 from .bsdf import generate_bsdf_config
+from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
 from ..grammar.scale import Attribute
+from ..grammar.channel.material import Dielectric
 
 from typing import Any
 import copy
@@ -241,4 +243,13 @@ def generate_surface_config(view: View, stamp: str, index: int):
         "bsdf": generate_bsdf_config(view, is_primitive=False),
         "to_world": mi.Transform4f(view.global_transform),
     }
+
+    # Generate medium setting for dielectric and its derived materials.
+    if (
+        view.material_channel is not None
+        and isinstance(view.material_channel, Dielectric)
+        and view.material_channel.medium is not None
+    ):
+        mi_config["interior"] = generate_medium_config(view)
+
     return mi_config

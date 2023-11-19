@@ -29,3 +29,8 @@ class AOV(Integrator):
 class VolPath(Integrator):
     max_depth: int = -1
     rr_depth: int = 5
+
+@dataclass(kw_only=True, slots=True)
+class VolPathMIS(Integrator):
+    max_depth: int = -1
+    rr_depth: int = 5

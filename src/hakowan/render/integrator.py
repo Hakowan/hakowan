@@ -1,4 +1,4 @@
-from ..setup.integrator import Integrator, Direct, Path, AOV, VolPath
+from ..setup.integrator import Integrator, Direct, Path, AOV, VolPath, VolPathMIS
 
 from typing import Any
 
@@ -32,6 +32,10 @@ def generate_integrator_config(integrator: Integrator) -> dict:
                 )
         case VolPath():
             mi_config["type"] = "volpath"
+            mi_config["max_depth"] = integrator.max_depth
+            mi_config["rr_depth"] = integrator.rr_depth
+        case VolPathMIS():
+            mi_config["type"] = "volpathmis"
             mi_config["max_depth"] = integrator.max_depth
             mi_config["rr_depth"] = integrator.rr_depth
         case _:

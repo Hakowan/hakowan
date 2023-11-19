@@ -2,14 +2,17 @@ from .texture import generate_texture_config
 from .color import generate_color_config
 
 from ..compiler import View
-from ..grammar.channel import (
+from ..grammar.channel.material import (
     Conductor,
+    Dielectric,
     Diffuse,
     Material,
     Plastic,
     Principled,
     RoughConductor,
+    RoughDielectric,
     RoughPlastic,
+    ThinDielectric,
 )
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
@@ -163,6 +166,35 @@ def generate_principled_bsdf_config(
     return mi_config
 
 
+def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric):
+    return {
+        "type": "dielectric",
+        "int_ior": mat.int_ior,
+        "ext_ior": mat.ext_ior,
+    }
+
+
+def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric):
+    return {
+        "type": "thindielectric",
+        "int_ior": mat.int_ior,
+        "ext_ior": mat.ext_ior,
+    }
+
+
+def generate_rough_dielectric_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: RoughDielectric
+):
+    mi_config: dict[str, Any] = {
+        "type": "roughdielectric",
+        "int_ior": mat.int_ior,
+        "ext_ior": mat.ext_ior,
+        "distribution": mat.distribution,
+        "alpha": generate_float_color_texture_config(mesh, mat.alpha),
+    }
+    return mi_config
+
+
 def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": "twosided",
@@ -211,6 +243,18 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
         case Principled():
             material_config = generate_principled_bsdf_config(
                 mesh, view.material_channel, is_primitive
+            )
+        case RoughDielectric():
+            material_config = generate_rough_dielectric_bsdf_config(
+                mesh, view.material_channel
+            )
+        case ThinDielectric():
+            material_config = generate_thin_dielectric_bsdf_config(
+                mesh, view.material_channel
+            )
+        case Dielectric():
+            material_config = generate_dielectric_bsdf_config(
+                mesh, view.material_channel
             )
         case _:
             raise NotImplementedError(
