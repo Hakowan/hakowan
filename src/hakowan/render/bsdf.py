@@ -3,12 +3,13 @@ from .color import generate_color_config
 
 from ..compiler import View
 from ..grammar.channel import (
-    Diffuse,
     Conductor,
-    RoughConductor,
+    Diffuse,
+    Material,
     Plastic,
-    RoughPlastic,
     Principled,
+    RoughConductor,
+    RoughPlastic,
 )
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
@@ -169,6 +170,20 @@ def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def add_bump_map(
+    mi_config: dict[str, Any],
+    mesh: lagrange.SurfaceMesh,
+    mat: Material,
+    is_primitive: bool,
+) -> dict[str, Any]:
+    assert mat.bump_map is not None
+    return {
+        "type": "bumpmap",
+        "bump_texture": generate_float_color_texture_config(mesh, mat.bump_map),
+        "bsdf": mi_config,
+    }
+
+
 def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     assert view.data_frame is not None
     assert view.material_channel is not None
@@ -203,5 +218,10 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
             )
     if view.material_channel.two_sided:
         material_config = make_material_two_sided(material_config)
+
+    if view.material_channel.bump_map is not None:
+        material_config = add_bump_map(
+            material_config, mesh, view.material_channel, is_primitive
+        )
 
     return material_config

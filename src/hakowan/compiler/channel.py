@@ -115,6 +115,11 @@ def _process_channels(view: View):
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
     if view.material_channel is not None:
+        if view.material_channel.bump_map is not None:
+            tex = view.material_channel.bump_map
+            view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+            view.uv_attribute = tex._uv
+
         match view.material_channel:
             case Diffuse():
                 if isinstance(view.material_channel.reflectance, Texture):

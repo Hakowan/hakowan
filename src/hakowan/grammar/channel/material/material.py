@@ -8,6 +8,7 @@ from ....common.color import ColorLike
 @dataclass(kw_only=True, slots=True)
 class Material(Channel):
     two_sided: bool = False
+    bump_map: Texture | None = None
 
 
 @dataclass(slots=True)

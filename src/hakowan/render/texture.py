@@ -37,7 +37,7 @@ def generate_uniform_config(tex: Uniform) -> dict:
 def generate_image_config(tex: Image) -> dict:
     mi_config: dict[str, Any] = {
         "type": "bitmap",
-        "filename": tex.filename.resolve(),
+        "filename": str(tex.filename.resolve()),
     }
     return mi_config
 
