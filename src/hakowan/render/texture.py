@@ -13,6 +13,7 @@ from ..grammar.texture import (
 
 from typing import Any
 import lagrange
+import mitsuba as mi
 
 
 def generate_texture_config(
@@ -38,6 +39,9 @@ def generate_image_config(tex: Image) -> dict:
     mi_config: dict[str, Any] = {
         "type": "bitmap",
         "filename": str(tex.filename.resolve()),
+        # Note that we need to flip the image vertically to match the
+        # orientation of the Mitsuba coordinate system.
+        "to_uv": mi.Transform3f([[1, 0, 0], [0, -1, 0], [0, 0, 1]]),
     }
     return mi_config
 

@@ -11,6 +11,7 @@ def generate_medium_config(view: View) -> dict[str, Any]:
     assert isinstance(view.material_channel, Dielectric)
     assert view.material_channel.medium is not None
     albedo = view.material_channel.medium.albedo
+    scale = view.material_channel.medium.scale
     match albedo:
         case float() | int():
             albedo = float(albedo)
@@ -20,8 +21,7 @@ def generate_medium_config(view: View) -> dict[str, Any]:
             raise NotImplementedError(f"Unsupported albedo type: {type(albedo)}")
 
     assert view.bbox is not None
-    # TODO: this is just a heuristic.
-    bbox_diag = 5 * norm(view.bbox[0] - view.bbox[1])
+    bbox_diag = scale * norm(view.bbox[0] - view.bbox[1])
     return {
         "type": "homogeneous",
         "albedo": albedo,
