@@ -237,6 +237,25 @@ class TestCompile:
         d = np.dot(out_mesh.vertices, n.T)
         assert np.allclose(d, d[[2, 0, 1]])
 
+    def test_compute_transform_component(self, triangle):
+        mesh = lagrange.combine_meshes([triangle, triangle])
+        base = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Compute(component="component"))
+            .channel(
+                material=hkw.material.Diffuse(
+                    hkw.texture.ScalarField("component", colormap=[0.0, 1.0])
+                )
+            )
+        )
+        scene = hkw.compiler.compile(base)
+
+        assert len(scene) == 1
+        view = scene[0]
+        out_mesh = view.data_frame.mesh
+        color_attr_ids = out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+        assert len(color_attr_ids) == 1
+
 
 class TestScale:
     def __apply_scale(
