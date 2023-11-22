@@ -3,6 +3,9 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
 from ..grammar.texture import Texture, ScalarField, Checkerboard, Isocontour
 from ..common.colormap.named_colormaps import named_colormaps
+from ..common.to_color import to_color
+from ..common.colormap.colormap import ColorMap
+from typing import Callable
 
 import lagrange
 import numpy as np
@@ -30,45 +33,16 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
     attr_name = tex.data._internal_name
     assert mesh.has_attribute(attr_name)
 
-    if tex.colormap == "identity":
-        # Assuming attribute is already storing color data.
-        if mesh.is_attribute_indexed(attr_name):
-            attr = mesh.indexed_attribute(attr_name)
-            assert attr.num_channels == 3
+    def attr_to_color(colormap: Callable):
+        nonlocal mesh
+        nonlocal attr_name
+        nonlocal tex
 
-            color_attr_name = unique_name(mesh, "vertex_color")
-            mesh.create_attribute(
-                color_attr_name,
-                element=attr.element_type,
-                usage=lagrange.AttributeUsage.Color,
-                initial_values=attr.values.data.copy(),
-                initial_indices=attr.indices.data.copy(),
-            )
-        else:
-            attr = mesh.attribute(attr_name)
-            assert attr.num_channels == 3
-
-            if attr.element_type == lagrange.AttributeElement.Facet:
-                color_attr_name = unique_name(mesh, "face_color")
-            else:
-                color_attr_name = unique_name(mesh, "vertex_color")
-
-            mesh.create_attribute(
-                color_attr_name,
-                element=attr.element_type,
-                usage=lagrange.AttributeUsage.Color,
-                initial_values=attr.data.copy(),
-            )
-
-        tex.data._internal_color_field = color_attr_name
-    elif tex.colormap in named_colormaps:
-        colormap = named_colormaps[tex.colormap]
         if mesh.is_attribute_indexed(attr_name):
             attr = mesh.indexed_attribute(attr_name)
             value_attr = attr.values
             index_attr = attr.indices
 
-            assert value_attr.num_channels == 1
             color_data = np.array([colormap(x).data for x in value_attr.data])
             color_attr_name = unique_name(mesh, "vertex_color")
 
@@ -81,7 +55,6 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
             )
         else:
             attr = mesh.attribute(attr_name)
-            assert attr.num_channels == 1
             color_data = np.array([colormap(x).data for x in attr.data])
 
             if attr.element_type == lagrange.AttributeElement.Facet:
@@ -95,8 +68,20 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
                 usage=lagrange.AttributeUsage.Color,
                 initial_values=color_data,
             )
-
+        assert isinstance(tex.data, Attribute)
         tex.data._internal_color_field = color_attr_name
+
+    if tex.colormap == "identity":
+        # Assuming attribute is already storing color data.
+        attr_to_color(lambda x: to_color(x.tolist()))
+    elif isinstance(tex.colormap, str):
+        assert tex.colormap in named_colormaps
+        colormap = named_colormaps[tex.colormap]
+        attr_to_color(colormap)
+    elif isinstance(tex.colormap, list):
+        colors = np.array([to_color(c).data for c in tex.colormap])
+        colormap = ColorMap(colors)
+        attr_to_color(colormap)
 
 
 def _apply_colormap(df: DataFrame, tex: Texture):

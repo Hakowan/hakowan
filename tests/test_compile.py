@@ -341,6 +341,23 @@ class TestTexture:
         assert data[1] == pytest.approx(0.5)
         assert data[2] == pytest.approx(1.0)
 
+    def test_scalar_field_with_custom_colormap(self, triangle):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        attr = hkw.attribute(name="vertex_data")
+        tex = hkw.texture.ScalarField(data=attr, colormap=["black", "white"])
+        hkw.compiler.texture.apply_texture(df, tex)
+        hkw.compiler.color.apply_colormap(df, tex)
+        assert attr._internal_name is not None
+        assert attr._internal_color_field is not None
+        assert mesh.has_attribute(attr._internal_name)
+        assert mesh.has_attribute(attr._internal_color_field)
+        data = mesh.attribute(attr._internal_color_field).data
+        assert np.allclose(data[:, 0], data[:, 1])
+        assert np.allclose(data[:, 0], data[:, 2])
+        assert not np.allclose(data[:, 0], 0)
+        assert not np.allclose(data[:, 0], 1)
+
     def test_image(self, triangle):
         import tempfile
 
