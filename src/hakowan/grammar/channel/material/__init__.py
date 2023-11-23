@@ -1,9 +1,14 @@
 from .material import (
-    Material,
-    Diffuse,
     Conductor,
-    RoughConductor,
+    Dielectric,
+    Diffuse,
+    Material,
     Plastic,
-    RoughPlastic,
     Principled,
+    RoughConductor,
+    RoughDielectric,
+    RoughPlastic,
+    ThinDielectric,
 )
+
+from .medium import Medium

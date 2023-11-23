@@ -1,3 +1,3 @@
 # Mark
 
-::: hakowan.grammar.mark.mark.Mark
+::: hakowan.grammar.mark.mark

@@ -2,7 +2,7 @@ from .view import View
 from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.transform import Transform, Filter, UVMesh, Affine
+from ..grammar.transform import Transform, Filter, UVMesh, Affine, Compute
 from ..common import logger
 
 import copy
@@ -129,6 +129,16 @@ def _apply_affine_transform(view: View, transform: Affine):
     lagrange.transform_mesh(mesh, matrix)
 
 
+def _apply_compute_transform(view: View, transform: Compute):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+
+    if transform.component is not None:
+        lagrange.compute_components(mesh, output_attribute_name=transform.component)
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -147,6 +157,9 @@ def apply_transform(view: View):
             case Affine():
                 assert view.data_frame is not None
                 _apply_affine_transform(view, t)
+            case Compute():
+                assert view.data_frame is not None
+                _apply_compute_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

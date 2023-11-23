@@ -1,4 +1,5 @@
-from ..grammar.channel import Channel, Position, Normal, Size, VectorField, Material
+from ..grammar.channel import Channel, Position, Normal, Size, VectorField
+from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute

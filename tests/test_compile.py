@@ -76,7 +76,7 @@ class TestCompile:
             texture1=light_material,
             texture2=dark_material,
         )
-        l1 = base.channel(material=hkw.channel.Diffuse(reflectance=checkerboard))
+        l1 = base.channel(material=hkw.material.Diffuse(reflectance=checkerboard))
 
         scene = hkw.compiler.compile(l1)
         assert len(scene) == 1
@@ -100,7 +100,7 @@ class TestCompile:
         mesh = triangle
 
         base = hkw.layer(data=mesh, mark=hkw.mark.Surface)
-        mat = hkw.channel.Diffuse(
+        mat = hkw.material.Diffuse(
             reflectance=hkw.texture.ScalarField(
                 data=hkw.attribute(name="vertex_data"), colormap="viridis"
             )
@@ -237,6 +237,25 @@ class TestCompile:
         d = np.dot(out_mesh.vertices, n.T)
         assert np.allclose(d, d[[2, 0, 1]])
 
+    def test_compute_transform_component(self, triangle):
+        mesh = lagrange.combine_meshes([triangle, triangle])
+        base = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Compute(component="component"))
+            .channel(
+                material=hkw.material.Diffuse(
+                    hkw.texture.ScalarField("component", colormap=[0.0, 1.0])
+                )
+            )
+        )
+        scene = hkw.compiler.compile(base)
+
+        assert len(scene) == 1
+        view = scene[0]
+        out_mesh = view.data_frame.mesh
+        color_attr_ids = out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+        assert len(color_attr_ids) == 1
+
 
 class TestScale:
     def __apply_scale(
@@ -340,6 +359,23 @@ class TestTexture:
         assert data[0] == pytest.approx(0.0)
         assert data[1] == pytest.approx(0.5)
         assert data[2] == pytest.approx(1.0)
+
+    def test_scalar_field_with_custom_colormap(self, triangle):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        attr = hkw.attribute(name="vertex_data")
+        tex = hkw.texture.ScalarField(data=attr, colormap=["black", "white"])
+        hkw.compiler.texture.apply_texture(df, tex)
+        hkw.compiler.color.apply_colormap(df, tex)
+        assert attr._internal_name is not None
+        assert attr._internal_color_field is not None
+        assert mesh.has_attribute(attr._internal_name)
+        assert mesh.has_attribute(attr._internal_color_field)
+        data = mesh.attribute(attr._internal_color_field).data
+        assert np.allclose(data[:, 0], data[:, 1])
+        assert np.allclose(data[:, 0], data[:, 2])
+        assert not np.allclose(data[:, 0], 0)
+        assert not np.allclose(data[:, 0], 1)
 
     def test_image(self, triangle):
         import tempfile

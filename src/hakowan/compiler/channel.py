@@ -7,17 +7,22 @@ from .utils import unique_name
 from ..common import logger
 from ..grammar.channel import (
     Channel,
-    Position,
     Normal,
+    Position,
     Size,
     VectorField,
-    Material,
-    Diffuse,
+)
+from ..grammar.channel.material import (
     Conductor,
-    RoughConductor,
+    Dielectric,
+    Diffuse,
+    Material,
     Plastic,
-    RoughPlastic,
     Principled,
+    RoughConductor,
+    RoughDielectric,
+    RoughPlastic,
+    ThinDielectric,
 )
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
@@ -115,6 +120,11 @@ def _process_channels(view: View):
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
     if view.material_channel is not None:
+        if view.material_channel.bump_map is not None:
+            tex = view.material_channel.bump_map
+            view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+            view.uv_attribute = tex._uv
+
         match view.material_channel:
             case Diffuse():
                 if isinstance(view.material_channel.reflectance, Texture):
@@ -122,13 +132,13 @@ def _process_channels(view: View):
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
-            case RoughConductor():
+            case RoughConductor() | RoughDielectric():
                 if isinstance(view.material_channel.alpha, Texture):
                     tex = view.material_channel.alpha
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
-            case Conductor():
+            case Conductor() | Dielectric() | ThinDielectric():
                 # Nothing to do.
                 pass
             case RoughPlastic() | Plastic():

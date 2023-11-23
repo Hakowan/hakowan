@@ -27,6 +27,29 @@ Affine transform applies an affine transformation to the given 3D mesh.
 tr = hkw.transform.Affine(matrix=np.eye(4))
 ```
 
+## Compute transform
+
+Compute transform is designed to compute a set of commonly used attributes from the data frame.
+Currently, the following attributes can be computed:
+
+* Component
+
+```py
+# Add per-facet component id attribute named "comp"
+tr = hkw.transform.Compute(component="comp")
+```
+
 ## Combining multiple transforms
 
-TODO
+Multiple transforms can be chained together using `*` operator.
+
+```py
+# Add per-facet component id attribute named "comp"
+compute_tr = hkw.transform.Compute(component="comp")
+
+# Filter transform to select the first component.
+filter_tr = hkw.transform.Filter(data="comp", condition=lambda id: id==0)
+
+# Transforms are carried out from left to right.
+tr = component * filter_tr
+```

@@ -1,7 +1,8 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField, Material
+from ..channel import Channel, Position, Normal, Size, VectorField
+from ..channel.material import Material
 from ..transform import Transform
 from ..scale import Attribute
 
@@ -26,7 +27,7 @@ class Layer:
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
     ):
-        """ Constructor of Layer.
+        """Constructor of Layer.
 
         Args:
             data (DataFrameLike | None, optional): The data component of
@@ -51,6 +52,14 @@ class Layer:
             self._spec.channels = channels
 
     def __add__(self, other: Self) -> "Layer":
+        """Combine two layers into a composite layer.
+
+        Args:
+            other (Layer): The other layer to be combined with.
+
+        Returns:
+            (Layer): The composite layer.
+        """
         parent = Layer()
         parent._children = [self, other]
         return parent
@@ -69,10 +78,10 @@ class Layer:
         *,
         in_place: bool = False,
     ) -> "Layer":
-        """ Overwrite the data component of this layer.
+        """Overwrite the data component of this layer.
 
         Args:
-            data (DataFrameLike): The data component of the layer.
+            data (DataFrameLike): The new data component.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -93,6 +102,16 @@ class Layer:
         return l
 
     def mark(self, mark: Mark, *, in_place: bool = False) -> "Layer":
+        """Overwrite the mark component of this layer.
+
+        Args:
+            mark (Mark): The new mark component.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with mark component overwritten.
+        """
         l = self.__get_working_layer(in_place)
         l._spec.mark = mark
         return l
@@ -107,6 +126,20 @@ class Layer:
         material: Material | None = None,
         in_place: bool = False,
     ) -> "Layer":
+        """Overwrite a channel component of this layer.
+
+        Args:
+            position (Position | str, optional): The new position channel.
+            normal (Normal | str, optional): The new normal channel.
+            size (float | str | Size, optional): The new size channel.
+            vector_field (VectorField | str, optional): The new vector field channel.
+            material (Material, optional): The new material channel.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with the channel component overwritten.
+        """
         l = self.__get_working_layer(in_place)
 
         convert = (
@@ -142,6 +175,16 @@ class Layer:
         return l
 
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":
+        """Overwrite the transform component of this layer.
+
+        Args:
+            transform (Transform): The new transform component.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with transform component overwritten.
+        """
         l = self.__get_working_layer(in_place)
         l._spec.transform = transform
         return l

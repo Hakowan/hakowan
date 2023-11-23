@@ -39,6 +39,8 @@ plugins:
       python:
         options:
           docstring_style: google
+          show_root_heading: false
+          show_root_toc_entry: false
           preload_modules:
           - hakowan
 - search

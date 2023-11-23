@@ -27,3 +27,8 @@ class Attribute:
 
 
 AttributeLike: TypeAlias = str | Attribute
+"""Type alias for a attribute-like objects.
+
+* A string object will be converted to an attribute with the name set to the string.
+* An attribute object will be unchanged.
+"""

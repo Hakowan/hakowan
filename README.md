@@ -12,13 +12,25 @@ capabilities. Both Hakowan and its dependencies can be simply installed via pip:
 pip install hakowan
 ```
 
+Note that hakowan requires python 3.11 and above.
+
+## Quick start
+
+```py
+import hakowan as hkw
+
+base = hkw.layer("mesh.obj")            # Create a base layer
+hkw.render(base, filename="image.exr")  # Render!
+```
+
 ## Documentation
 
 [HTML](https://qnzhou.github.io/hakowan/)
 
 ## About
 
-Hakowan is developed and maintained by Qingnan Zhou and Zhicheng Liu.
+Hakowan is developed and maintained by [Qingnan
+Zhou](https://research.adobe.com/person/qingnan-zhou/) and [Zhicheng Liu](https://www.zcliu.org/).
 
 ```bibtex
 @software{zhou2023hakowan,

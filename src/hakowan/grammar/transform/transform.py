@@ -72,3 +72,13 @@ class Affine(Transform):
     """
 
     matrix: npt.ArrayLike
+
+@dataclass(slots=True)
+class Compute(Transform):
+    """Compute new attributes from the current data frame.
+
+    Attributes:
+        component: Compute connected component ids.
+    """
+
+    component: str | None = None

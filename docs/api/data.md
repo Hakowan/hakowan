@@ -1,7 +1,4 @@
 # Data
 
-::: hakowan.grammar.dataframe.dataframe.DataFrame
+::: hakowan.grammar.dataframe.dataframe
 
-# Attribute
-
-::: hakowan.grammar.scale.attribute.Attribute
