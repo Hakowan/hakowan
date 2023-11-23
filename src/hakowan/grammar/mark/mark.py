@@ -10,5 +10,10 @@ class Mark(Enum):
 
 
 Point = Mark.Point
+"""Point is a mark for visualizing data as a point."""
+
 Curve = Mark.Curve
+"""Curve is a mark for visualizing data as a curve."""
+
 Surface = Mark.Surface
+"""Surface is a mark for visualizing data as a surface."""

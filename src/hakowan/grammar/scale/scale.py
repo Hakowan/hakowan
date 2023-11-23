@@ -76,3 +76,8 @@ class Clip(Scale):
 
 
 ScaleLike: TypeAlias = float | Scale
+"""Type alias for scale-like objects.
+
+* A scalar value will be converted to `Uniform` scale with the scalar value as the factor.
+* A Scale object will be unchanged.
+"""
