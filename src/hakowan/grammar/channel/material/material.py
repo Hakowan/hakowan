@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from .medium import Medium
 from ..channel import Channel
-from ...texture import Texture
+from ...texture import Texture, TextureLike
 from ....common.color import ColorLike
 
 
@@ -14,7 +14,7 @@ class Material(Channel):
 
 @dataclass(slots=True)
 class Diffuse(Material):
-    reflectance: Texture | ColorLike = 0.5
+    reflectance: TextureLike = 0.5
 
 
 @dataclass(slots=True)
@@ -30,7 +30,7 @@ class RoughConductor(Conductor):
 
 @dataclass(slots=True)
 class Plastic(Material):
-    diffuse_reflectance: Texture | ColorLike = 0.5
+    diffuse_reflectance: TextureLike = 0.5
     specular_reflectance: Texture | float = 1.0
 
 
@@ -42,7 +42,7 @@ class RoughPlastic(Plastic):
 
 @dataclass(slots=True)
 class Principled(Material):
-    color: Texture | ColorLike = 0.5
+    color: TextureLike = 0.5
     roughness: Texture | float = 0.5
     metallic: Texture | float = 0.0
 
