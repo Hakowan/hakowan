@@ -241,7 +241,7 @@ def generate_surface_config(view: View, stamp: str, index: int):
         "type": "ply",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
-        "to_world": mi.Transform4f(view.global_transform),
+        "to_world": mi.ScalarTransform4f(view.global_transform),
     }
 
     # Generate medium setting for dielectric and its derived materials.

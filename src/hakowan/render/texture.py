@@ -41,7 +41,7 @@ def generate_image_config(tex: Image) -> dict:
         "filename": str(tex.filename.resolve()),
         # Note that we need to flip the image vertically to match the
         # orientation of the Mitsuba coordinate system.
-        "to_uv": mi.Transform3f([[1, 0, 0], [0, -1, 0], [0, 0, 1]]),
+        "to_uv": mi.ScalarTransform3f([[1, 0, 0], [0, -1, 0], [0, 0, 1]]),
     }
     return mi_config
 
