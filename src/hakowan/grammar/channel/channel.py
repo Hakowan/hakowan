@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from typing import Optional, Union
 
+from .curvestyle import CurveStyle
 from ..scale import Attribute, AttributeLike
 
 
@@ -72,3 +73,6 @@ class VectorField(Channel):
     """
 
     data: AttributeLike
+    refinement_level: int = 0
+    style: CurveStyle | None = None
+    end_type: str = "point"

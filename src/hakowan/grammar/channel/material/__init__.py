@@ -2,6 +2,7 @@ from .material import (
     Conductor,
     Dielectric,
     Diffuse,
+    Hair,
     Material,
     Plastic,
     Principled,

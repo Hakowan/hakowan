@@ -16,6 +16,7 @@ from ..grammar.channel.material import (
     Conductor,
     Dielectric,
     Diffuse,
+    Hair,
     Material,
     Plastic,
     Principled,
@@ -24,6 +25,7 @@ from ..grammar.channel.material import (
     RoughPlastic,
     ThinDielectric,
 )
+from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
@@ -119,6 +121,13 @@ def _process_channels(view: View):
         attr = view.vector_field_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
+        match view.vector_field_channel.style:
+            case Bend():
+                style = view.vector_field_channel.style
+                if isinstance(style.direction, str):
+                    style.direction = Attribute(style.direction)
+                compute_scaled_attribute(df, style.direction)
+                view._active_attributes.append(style.direction)
     if view.material_channel is not None:
         if view.material_channel.bump_map is not None:
             tex = view.material_channel.bump_map
@@ -138,7 +147,7 @@ def _process_channels(view: View):
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
                     apply_colormap(df, tex)
-            case Conductor() | Dielectric() | ThinDielectric():
+            case Conductor() | Dielectric() | ThinDielectric() | Hair():
                 # Nothing to do.
                 pass
             case RoughPlastic() | Plastic():
