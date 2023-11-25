@@ -95,7 +95,6 @@ class View:
             ):
                 indexed_attr_names.append(attr._internal_color_field)
 
-        logger.debug(f"Indexed attributes: {indexed_attr_names}")
         # Unify all active index buffers.
         unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
 
