@@ -88,6 +88,7 @@ def render(
     filename: Path | str | None = None,
     xml_filename: Path | None = None,
 ):
+    logger.info(f"Using Mitsuba variant '{mi.variant()}'.")
     scene = compile(root)
 
     if config is None:

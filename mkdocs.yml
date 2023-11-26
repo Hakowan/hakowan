@@ -85,4 +85,8 @@ nav:
   - Material: api/material.md
   - Texture: api/texture.md
   - Layer: api/layer.md
+  - Color: api/color.md
+  - ColorMap: api/colormap.md
+  - Medium: api/medium.md
+  - CurveStyle: api/curve_style.md
   - Configuration: api/config.md

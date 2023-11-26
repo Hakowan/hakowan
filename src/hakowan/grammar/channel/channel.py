@@ -2,11 +2,13 @@ from dataclasses import dataclass
 
 from typing import Optional, Union
 
+from .curvestyle import CurveStyle
 from ..scale import Attribute, AttributeLike
 
 
 @dataclass(kw_only=True, slots=True)
 class Channel:
+    """Channel base class."""
     pass
 
 
@@ -69,6 +71,14 @@ class VectorField(Channel):
 
     Attributes:
         data (AttributeLike): The attribute used to encode the vector field.
+        refinement_level (int): The refinement level of the vector field. This parameter is used to
+            control the density of the vector field. The default value is 0.
+        style (CurveStyle | None): The style of the vector field. If None, the default style will
+            be used.
+        end_type (str): The type of the vector field end. The default value is "point".
     """
 
     data: AttributeLike
+    refinement_level: int = 0
+    style: CurveStyle | None = None
+    end_type: str = "point"

@@ -3,6 +3,7 @@ from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
 from ..grammar.scale import Attribute
+from ..grammar.channel.curvestyle import Bend
 from ..grammar.channel.material import Dielectric
 
 from typing import Any
@@ -105,7 +106,79 @@ def extract_vector_field(view: View):
                 f"Unsupported vector field element type: {attr.element_type}"
             )
     tip = attr.data + base
-    return [base, tip, size, size]
+    ctrl_pts_1: npt.NDArray | None = None
+    ctrl_pts_2: npt.NDArray | None = None
+
+    match view.vector_field_channel.style:
+        case Bend():
+            direction = view.vector_field_channel.style.direction
+            assert isinstance(direction, Attribute)
+            assert direction._internal_name is not None
+            assert mesh.has_attribute(direction._internal_name)
+            dir_attr = mesh.attribute(direction._internal_name)
+            assert (
+                dir_attr.element_type == attr.element_type
+            ), "Direction attribute must have the same element type as vector field attribute."
+            dirs = dir_attr.data
+            assert np.all(dirs.shape == base.shape)
+
+            bend_type = view.vector_field_channel.style.bend_type
+            if bend_type == "n":
+                ctrl_pts_1 = base + dirs
+                ctrl_pts_2 = tip + dirs
+            elif bend_type == "r":
+                ctrl_pts_1 = base + dirs
+                ctrl_pts_2 = base + dirs + 0.5 * (tip - base)
+                tip = tip + dirs
+            elif bend_type == "s":
+                ctrl_pts_1 = base + dirs
+                ctrl_pts_2 = tip
+                tip = tip + dirs
+            else:
+                raise NotImplementedError(f"Unsupported bend type: {bend_type}")
+
+    def refine(mesh: lagrange.SurfaceMesh, data: npt.NDArray, level: int):
+        assert mesh.is_triangle_mesh, "Only triangle mesh is supported."
+        facets = mesh.facets
+        n = level + 1
+        refined_data = []
+        B0, B1, B2 = np.mgrid[0 : n + 1, 0 : n + 1, 0 : n + 1]
+        for b0, b1, b2 in zip(B0.ravel(), B1.ravel(), B2.ravel()):
+            s = b0 + b1 + b2
+            if s != n:
+                continue
+
+            d = (
+                data[facets[:, 0]] * b0
+                + data[facets[:, 1]] * b1
+                + data[facets[:, 2]] * b2
+            )
+            d /= n
+            refined_data.append(d)
+        return np.vstack(refined_data)
+
+    if view.vector_field_channel.refinement_level > 0:
+        base = refine(mesh, base, view.vector_field_channel.refinement_level)
+        tip = refine(mesh, tip, view.vector_field_channel.refinement_level)
+        if ctrl_pts_1 is not None:
+            assert ctrl_pts_2 is not None
+            ctrl_pts_1 = refine(
+                mesh, ctrl_pts_1, view.vector_field_channel.refinement_level
+            )
+            ctrl_pts_2 = refine(
+                mesh, ctrl_pts_2, view.vector_field_channel.refinement_level
+            )
+        size = refine(
+            mesh, np.array(size), view.vector_field_channel.refinement_level
+        ).ravel()
+
+    base_size = size
+    if view.vector_field_channel.end_type == "point":
+        tip_size = np.zeros_like(size)
+    else:
+        tip_size = size
+
+    return [base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size]
 
 
 def extract_edges(view: View):
@@ -143,28 +216,46 @@ def generate_curve_config(view: View, stamp: str, index: int):
 
     # Generate curve file
     if view.vector_field_channel is not None:
-        base, tip, base_size, tip_size = extract_vector_field(view)
+        base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = extract_vector_field(view)
     else:
         # Use edges of the mesh.
         base, tip, base_size, tip_size = extract_edges(view)
+        ctrl_pts_1 = ctrl_pts_2 = None
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
-    logger.debug(f"Saving curves to {str(filename)}")
+    logger.debug(f"Saving curves to '{str(filename)}'.")
 
     assert len(base) == len(tip)
     assert len(base) == len(base_size)
     assert len(tip) == len(tip_size)
     with open(filename, "w") as fout:
-        for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
-            fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-            fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n")
+        if ctrl_pts_1 is None or ctrl_pts_2 is None:
+            curve_type = "linearcurve"
+            for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
+                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+                fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n")
+        else:
+            curve_type = "bsplinecurve"
+            for p0, p1, p2, p3, s0, s3 in zip(base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size):
+                s1 = 0.75 * s0 + 0.25 * s3
+                s2 = 0.25 * s0 + 0.75 * s3
+                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
+                fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n")
+                fout.write(f"{p2[0]} {p2[1]} {p2[2]} {s2 * scale_correction_factor}\n")
+                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
+                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
+                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
+                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n\n")
 
     mi_config = {
-        "type": "linearcurve",
+        "type": curve_type,
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
-        "to_world": mi.Transform4f(view.global_transform),
+        "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
     }
     return mi_config
 
@@ -234,14 +325,14 @@ def generate_surface_config(view: View, stamp: str, index: int):
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
-    logger.debug(f"Saving mesh to {str(filename)}")
+    logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
 
     mi_config = {
         "type": "ply",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
-        "to_world": mi.Transform4f(view.global_transform),
+        "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
     }
 
     # Generate medium setting for dielectric and its derived materials.

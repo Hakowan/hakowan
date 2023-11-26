@@ -121,3 +121,9 @@ class RoughDielectric(Dielectric):
     """
     distribution: str = "beckmann"
     alpha: Texture | float = 0.1
+
+
+@dataclass(slots=True)
+class Hair(Material):
+    eumelanin: float = 1.3
+    pheomelanin: float = 0.2

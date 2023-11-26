@@ -6,6 +6,7 @@ from ..grammar.channel.material import (
     Conductor,
     Dielectric,
     Diffuse,
+    Hair,
     Material,
     Plastic,
     Principled,
@@ -195,6 +196,17 @@ def generate_rough_dielectric_bsdf_config(
     return mi_config
 
 
+def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair):
+    mi_config: dict[str, Any] = {
+        "type": "hair",
+        "eumelanin": mat.eumelanin,
+        "pheomelanin": mat.pheomelanin,
+        "longitudinal_roughness": 0.05,
+        "azimuthal_roughness": 0.3,
+    }
+    return mi_config
+
+
 def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": "twosided",
@@ -256,6 +268,9 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
             material_config = generate_dielectric_bsdf_config(
                 mesh, view.material_channel
             )
+        case Hair():
+            assert not is_primitive
+            material_config = generate_hair_bsdf_config(mesh, view.material_channel)
         case _:
             raise NotImplementedError(
                 f"Unknown material type: {type(view.material_channel)}"
