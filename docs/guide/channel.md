@@ -77,15 +77,24 @@ Note that `Size` channel uses the same unit as the `Position` channel.
 
 ## Vector field channel
 
-![knot](../images/knot.svg)
+![Wavy torus normal](../images/wavy_torus_normal.png){: style="width:220px"}
+![Wavy torus tangent](../images/wavy_torus_tangent.png){: style="width:220px"}
+![Wavy torus bitangent](../images/wavy_torus_bitangent.png){: style="width:220px"}
 
 `VectorField` channel defines the data used for a vector field visualization. This channel is only
 relevant when the mark is `Curve` as each vector is rendered using the curve geometry.
 
-The example[^3] above shows the normal vector field visualization in different size, length and
+The example[^3] above shows the normal, tangent and bitangent vector field visualization in hair
 material.
 
-[^3]: 3D model generated with Blender's knot add-on.
+[^3]: 3D model generated with Blender.
+
+| Channel | Type | Description |
+|-----------|------|-------------|
+| `data` | `AttributeLike` | The attribute containing vector field data |
+
+
+Here is a snippet for creating a `VectorField` channel.
 
 ```py
 # To specify an attribute as the vector field channel data.
@@ -94,3 +103,14 @@ ch = hkw.channel.VectorField(data = hkw.attribute(name = "attr_name"))
 # Shorthand, same as above.
 ch = hkw.channel.VectorField(data = "attr_name")
 ```
+
+Note that each vector in the vector field is visualized as a b-spline curve. The vector field's
+magnitude determines the curve length. The `Size` channel defines the thickness of the curve.
+Vector field channel also takes the following parameters.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `refinement_level` | `int` | The refinement level (default: 0) |
+| `end_type` | `str` | The end type of each vector (options: `point` (default), `flat`) |
+| `style` | [CurveStyle][hakowan.channel.curvestyle.CurveStyle] | The curve style to use (default: None) |
+

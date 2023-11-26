@@ -1,4 +1,3 @@
 # Layer
 
-::: hakowan.grammar.layer.layer.Layer
-
+::: hakowan.grammar.layer.layer
