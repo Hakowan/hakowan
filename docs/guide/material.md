@@ -266,7 +266,7 @@ somewhat limited.
 Here are the parameters of this material.
 
 | Parameter | Type | Description |
-|---------|------|-------------|
+|-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
@@ -286,7 +286,7 @@ m = hkw.material.RoughDieletric(int_ior="water")
 expose any visual channels.
 
 | Parameter | Type | Description |
-|---------|------|-------------|
+|-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
@@ -296,3 +296,27 @@ Here is a snippet for creating a `ThinDielectric` material.
 ```py
 m = hkw.material.ThinDielectric(int_ior="water")
 ```
+
+## Hair
+
+![Hair material](../images/spot_hair.png){: style="width:200px"}
+
+`Hair` material from Mitsuba provides a hair-like look and feel. This material is designed to
+specifically work with curve mark. It does not provide any channels for encoding data.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| eumelanin | `float` | The amount of dark/black/brown pigments (default: 1.3) |
+| pheomelanin | `float` | The amount of red/yellow pigments (default: 0.2) |
+
+Here is a snippet for creating a `Hair` material.
+
+```py
+m = hkw.material.Hair(eumelanin=0.3, pheomelanin=0.1)
+```
+
+Check out the [Mitsuba
+doc](
+https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#hair-material-hair
+)
+for more details.
