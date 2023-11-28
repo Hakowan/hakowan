@@ -66,7 +66,7 @@ def generate_point_config(view: View):
 
     # Assign transform
     for shape in shapes:
-        shape["to_world"] = mi.Transform4f(view.global_transform)
+        shape["to_world"] = mi.ScalarTransform4f(view.global_transform)
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
