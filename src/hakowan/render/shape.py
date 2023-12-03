@@ -336,10 +336,18 @@ def generate_surface_config(view: View, stamp: str, index: int):
     logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
 
+    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    if len(normal_ids) > 0:
+        normal_attr = mesh.attribute(normal_ids[0])
+        use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
+    else:
+        use_facet_normal = False
+
     mi_config = {
         "type": "ply",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
+        "face_normals": use_facet_normal,
         "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
     }
 
