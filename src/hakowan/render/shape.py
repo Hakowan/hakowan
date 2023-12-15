@@ -61,12 +61,16 @@ def generate_point_config(view: View):
 
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
+    global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
     for i, v in enumerate(mesh.vertices):
-        shapes.append({"type": "sphere", "center": v.tolist(), "radius": radii[i]})
-
-    # Assign transform
-    for shape in shapes:
-        shape["to_world"] = mi.ScalarTransform4f(view.global_transform)  # type: ignore
+        shapes.append(
+            {
+                "type": "sphere",
+                "center": v.tolist(),
+                "radius": radii[i],
+                "to_world": global_transform,
+            }
+        )
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)

@@ -96,7 +96,10 @@ class View:
                 indexed_attr_names.append(attr._internal_color_field)
 
         # Unify all active index buffers.
-        unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
+        if len(indexed_attr_names) > 0:
+            unified_mesh = lagrange.unify_index_buffer(mesh, indexed_attr_names)
+        else:
+            unified_mesh = mesh
 
         # Update mesh vertices to the scaled version if needed.
         if (
