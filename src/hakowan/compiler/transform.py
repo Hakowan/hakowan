@@ -125,8 +125,16 @@ def _apply_affine_transform(view: View, transform: Affine):
     assert transform is not None
     mesh = df.mesh
 
-    matrix = np.array(transform.matrix).astype(np.float64)
+    if np.shape(transform.matrix) == (4, 4):
+        matrix = np.array(transform.matrix, order="F", dtype=np.float64)
+    elif np.shape(transform.matrix) == (3, 3):
+        matrix = np.eye(4, dtype=np.float64)
+        matrix[:3, :3] = np.array(transform.matrix, order="F", dtype=np.float64)
     lagrange.transform_mesh(mesh, matrix)
+
+    # BBox must be updated after affine transform.
+    logger.debug("Updating view bbox due to affine transform.")
+    view.initialize_bbox()
 
 
 def _apply_compute_transform(view: View, transform: Compute):
