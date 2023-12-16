@@ -58,6 +58,7 @@ markdown_extensions:
       permalink: true
   - attr_list
   - footnotes
+  - md_in_html
 
 
 nav:
