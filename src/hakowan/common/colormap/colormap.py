@@ -39,3 +39,11 @@ class ColorMap:
 
         c = c0 * (1 - t) + c1 * t
         return Color(*c)
+
+    def num_colors(self):
+        """Number of color samples stored in this color map.
+
+        Returns:
+            (int): Number of colors in the color map.
+        """
+        return len(self.samples)

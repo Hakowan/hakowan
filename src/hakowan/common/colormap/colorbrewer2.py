@@ -40,7 +40,7 @@ dark2 = ColorMap(
     / 255.0
 )
 
-paired = ColroMap(
+paired = ColorMap(
     np.array(
         [
             [166, 206, 227],
