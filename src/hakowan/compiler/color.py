@@ -33,7 +33,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
     attr_name = tex.data._internal_name
     assert mesh.has_attribute(attr_name)
 
-    def attr_to_color(colormap: Callable, categories: int | None):
+    def attr_to_color(colormap: Callable, categories: int | None = None):
         nonlocal mesh
         nonlocal attr_name
         nonlocal tex
