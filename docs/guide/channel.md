@@ -21,6 +21,10 @@ field on the right.
 use the vertex positions stored in the data frame. It is especially useful when multiple sets of
 positions are available (e.g. animation or decimation).
 
+| Channel | Type | Description |
+|---------|------|-------------|
+| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The position attribute |
+
 ```py
 # To specify an attribute as the position channel data:
 ch = hkw.channel.Position(data = hkw.attribute(name = "attr_name"))
@@ -43,6 +47,11 @@ checkerboard texture (left).
 
 [^2]: 3D model source: [Bust of Sappho](https://www.thingiverse.com/thing:14565)
 
+| Channel | Type | Description |
+|---------|------|-------------|
+| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The normal attribute |
+
+
 ```py
 # To specify an attribute as the normal channel data:
 ch = hkw.channel.Normal(data = hkw.attribute(name = "attr_name"))
@@ -61,6 +70,10 @@ the radius of the curves.
 
 On the simple star example to the right, the vertex valence of the graph is mapped to the size
 channel of the points. The edges are of uniform size.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The size attribute |
 
 ```py
 # To sepcify an attribute as the size channel data:
@@ -91,7 +104,7 @@ material.
 
 | Channel | Type | Description |
 |-----------|------|-------------|
-| `data` | `AttributeLike` | The attribute containing vector field data |
+| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The attribute containing vector field data |
 
 
 Here is a snippet for creating a `VectorField` channel.

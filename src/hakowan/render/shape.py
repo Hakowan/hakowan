@@ -61,12 +61,16 @@ def generate_point_config(view: View):
 
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
+    global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
     for i, v in enumerate(mesh.vertices):
-        shapes.append({"type": "sphere", "center": v.tolist(), "radius": radii[i]})
-
-    # Assign transform
-    for shape in shapes:
-        shape["to_world"] = mi.Transform4f(view.global_transform)
+        shapes.append(
+            {
+                "type": "sphere",
+                "center": v.tolist(),
+                "radius": radii[i],
+                "to_world": global_transform,
+            }
+        )
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
@@ -216,7 +220,9 @@ def generate_curve_config(view: View, stamp: str, index: int):
 
     # Generate curve file
     if view.vector_field_channel is not None:
-        base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = extract_vector_field(view)
+        base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = extract_vector_field(
+            view
+        )
     else:
         # Use edges of the mesh.
         base, tip, base_size, tip_size = extract_edges(view)
@@ -234,10 +240,14 @@ def generate_curve_config(view: View, stamp: str, index: int):
             curve_type = "linearcurve"
             for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
                 fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n")
+                fout.write(
+                    f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n"
+                )
         else:
             curve_type = "bsplinecurve"
-            for p0, p1, p2, p3, s0, s3 in zip(base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size):
+            for p0, p1, p2, p3, s0, s3 in zip(
+                base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size
+            ):
                 s1 = 0.75 * s0 + 0.25 * s3
                 s2 = 0.25 * s0 + 0.75 * s3
                 fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
@@ -249,7 +259,9 @@ def generate_curve_config(view: View, stamp: str, index: int):
                 fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
                 fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
                 fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n\n")
+                fout.write(
+                    f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n\n"
+                )
 
     mi_config = {
         "type": curve_type,
@@ -328,10 +340,18 @@ def generate_surface_config(view: View, stamp: str, index: int):
     logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
 
+    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    if len(normal_ids) > 0:
+        normal_attr = mesh.attribute(normal_ids[0])
+        use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
+    else:
+        use_facet_normal = False
+
     mi_config = {
         "type": "ply",
         "filename": str(filename.resolve()),
         "bsdf": generate_bsdf_config(view, is_primitive=False),
+        "face_normals": use_facet_normal,
         "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
     }
 

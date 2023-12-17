@@ -4,13 +4,12 @@ repo_url: https://github.com/qnzhou/hakowan
 
 theme:
   name: material
-  features:
-    - content.code.copy
   icon:
     repo: fontawesome/brands/github
   features:
     - search.suggest
     - search.highlight
+    - content.code.copy
   logo: images/hakowan_logo.svg
   favicon: images/hakowan_logo.svg
 
@@ -49,15 +48,21 @@ plugins:
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
+      use_pygments: true
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      url_download: true
   - pymdownx.superfences
   - toc:
       permalink: true
   - attr_list
   - footnotes
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 
 nav:

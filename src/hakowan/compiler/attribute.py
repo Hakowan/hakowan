@@ -45,8 +45,36 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
     """
     if attr.scale is not None:
         if attr._internal_name is None:
-            attr._internal_name = unique_name(df.mesh, f"_scaled_{attr.name}")
-            df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+            mesh = df.mesh
+            assert mesh is not None
+            attr._internal_name = unique_name(mesh, f"_scaled_{attr.name}")
+
+            if mesh.is_attribute_indexed(attr.name):
+                mesh_attr = mesh.indexed_attribute(attr.name)
+                if np.issubdtype(mesh_attr.values.data.dtype, np.integer):
+                    values = mesh_attr.values.data.astype(np.float64)
+                    indices = mesh_attr.indices.data.copy()
+                    mesh.create_attribute(
+                        attr._internal_name,
+                        element=mesh_attr.element_type,
+                        usage=mesh_attr.usage,
+                        initial_values=values,
+                        initial_indices=indices,
+                    )
+                else:
+                    df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+            else:
+                mesh_attr = mesh.attribute(attr.name)
+                if np.issubdtype(mesh_attr.data.dtype, np.integer):
+                    values = mesh_attr.data.astype(np.float64)
+                    mesh.create_attribute(
+                        attr._internal_name,
+                        element=mesh_attr.element_type,
+                        usage=mesh_attr.usage,
+                        initial_values=values,
+                    )
+                else:
+                    df.mesh.duplicate_attribute(attr.name, attr._internal_name)
 
             apply_scale(df, attr._internal_name, attr.scale)
     else:

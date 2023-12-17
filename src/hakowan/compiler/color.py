@@ -33,17 +33,28 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
     attr_name = tex.data._internal_name
     assert mesh.has_attribute(attr_name)
 
-    def attr_to_color(colormap: Callable):
+    def attr_to_color(colormap: Callable, categories: int | None = None):
         nonlocal mesh
         nonlocal attr_name
         nonlocal tex
+
+        def get_color(value: float):
+            if categories is None:
+                return colormap(value).data
+            else:
+                assert isinstance(categories, int)
+                assert categories > 0
+                num_colors = colormap.num_colors()
+                return colormap(
+                    np.round(value * (categories - 1)) % num_colors / (num_colors - 1)
+                ).data
 
         if mesh.is_attribute_indexed(attr_name):
             attr = mesh.indexed_attribute(attr_name)
             value_attr = attr.values
             index_attr = attr.indices
 
-            color_data = np.array([colormap(x).data for x in value_attr.data])
+            color_data = np.array([get_color(x) for x in value_attr.data])
             color_attr_name = unique_name(mesh, "vertex_color")
 
             mesh.create_attribute(
@@ -55,7 +66,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
             )
         else:
             attr = mesh.attribute(attr_name)
-            color_data = np.array([colormap(x).data for x in attr.data])
+            color_data = np.array([get_color(x) for x in attr.data])
 
             if attr.element_type == lagrange.AttributeElement.Facet:
                 color_attr_name = unique_name(mesh, "face_color")
@@ -77,11 +88,11 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
     elif isinstance(tex.colormap, str):
         assert tex.colormap in named_colormaps
         colormap = named_colormaps[tex.colormap]
-        attr_to_color(colormap)
+        attr_to_color(colormap, tex.categories)
     elif isinstance(tex.colormap, list):
         colors = np.array([to_color(c).data for c in tex.colormap])
         colormap = ColorMap(colors)
-        attr_to_color(colormap)
+        attr_to_color(colormap, tex.categories)
 
 
 def _apply_colormap(df: DataFrame, tex: Texture):

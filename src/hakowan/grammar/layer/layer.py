@@ -3,13 +3,16 @@ from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, VectorField
 from ..channel.material import Material
-from ..transform import Transform
+from ..transform import Transform, Affine
 from ..scale import Attribute
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Self
 import lagrange
+import numpy as np
+import numpy.typing as npt
+import scipy
 
 
 @dataclass(kw_only=True, slots=True)
@@ -187,4 +190,26 @@ class Layer:
         """
         l = self.__get_working_layer(in_place)
         l._spec.transform = transform
+        return l
+
+    def rotate(
+        self, axis: npt.ArrayLike, angle: float
+    ) -> "Layer":
+        """Update the transform component of the current layer by applying a rotation.
+
+        Args:
+            axis (npt.ArrayLike): The unit rotation axis.
+            angle (float): The rotation angle (in radians).
+
+        Returns:
+            result (Layer): The layer object with transform component overwritten.
+        """
+        l = self.__get_working_layer(True)
+        M = scipy.spatial.transform.Rotation.from_rotvec(
+            np.array(axis, dtype=np.float64) * angle
+        ).as_matrix()
+        if l._spec.transform is None:
+            l._spec.transform = Affine(M)
+        else:
+            l._spec.transform *= Affine(M)
         return l

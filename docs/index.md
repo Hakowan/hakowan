@@ -16,6 +16,8 @@ Hakowan can be installed via `pip` from PyPI:
 pip install hakowan
 ```
 
+Note that hakowan requires python 3.11 and above.
+
 ## Quick start
 
 Let `shape.obj` be a mesh that you would like to visualize:

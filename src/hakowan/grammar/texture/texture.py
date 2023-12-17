@@ -82,9 +82,12 @@ class ScalarField(Texture):
         colormap (str | list[ColorLike]): The name of the colormap to use or a list colors.
         domain (tuple[float, float]): The domain of the attribute to map to the colormap.
         range (tuple[float, float]): The range of the colormap to map the attribute to.
+        categories (int): The number of categories to use for the colormap.
+                          None if data is not categorical.
     """
 
     data: AttributeLike
     colormap: str | list[ColorLike] = "viridis"
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
+    categories: int | None = None
