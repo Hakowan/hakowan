@@ -193,18 +193,19 @@ class Layer:
         return l
 
     def rotate(
-        self, axis: npt.ArrayLike, angle: float
+            self, axis: npt.ArrayLike, angle: float, in_place: bool = False
     ) -> "Layer":
         """Update the transform component of the current layer by applying a rotation.
 
         Args:
             axis (npt.ArrayLike): The unit rotation axis.
             angle (float): The rotation angle (in radians).
+            in_place (bool, optional): Whether to modify the current layer in place or create new
 
         Returns:
             result (Layer): The layer object with transform component overwritten.
         """
-        l = self.__get_working_layer(True)
+        l = self.__get_working_layer(in_place)
         M = scipy.spatial.transform.Rotation.from_rotvec(
             np.array(axis, dtype=np.float64) * angle
         ).as_matrix()

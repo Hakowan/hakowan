@@ -10,4 +10,8 @@
 
 - [![The Heat Method](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.png?raw=true)](examples/heat.md)
 
+- [![Components](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Components/results/foot_top.png?raw=true)](examples/components.md)
+
+- [![Neral Skeleton](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.png?raw=true)](examples/skeleton.md)
+
 </div>
