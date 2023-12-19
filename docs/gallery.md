@@ -14,4 +14,6 @@
 
 - [![Neral Skeleton](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.png?raw=true)](examples/skeleton.md)
 
+- [![Powell Sabin Tet Subdivision](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin_explode.png?raw=true)](examples/powell-sabin.md)
+
 </div>
