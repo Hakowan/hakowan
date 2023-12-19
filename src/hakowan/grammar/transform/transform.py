@@ -73,6 +73,7 @@ class Affine(Transform):
 
     matrix: npt.ArrayLike
 
+
 @dataclass(slots=True)
 class Compute(Transform):
     """Compute new attributes from the current data frame.
@@ -82,3 +83,16 @@ class Compute(Transform):
     """
 
     component: str | None = None
+
+
+@dataclass(slots=True)
+class Explode(Transform):
+    """Explode data into multiple pieces.
+
+    Attributes:
+        pieces: The attribute defining the pieces.
+        magnitude: The magnitude of the displacement.
+    """
+
+    pieces: AttributeLike
+    magnitude: float = 1

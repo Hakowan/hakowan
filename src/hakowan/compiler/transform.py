@@ -2,7 +2,7 @@ from .view import View
 from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.transform import Transform, Filter, UVMesh, Affine, Compute
+from ..grammar.transform import Transform, Filter, UVMesh, Affine, Compute, Explode
 from ..common import logger
 
 import copy
@@ -147,6 +147,29 @@ def _apply_compute_transform(view: View, transform: Compute):
         lagrange.compute_components(mesh, output_attribute_name=transform.component)
 
 
+def _apply_explode_transform(view: View, transform: Explode):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    assert mesh.has_attribute(transform.pieces)
+    pieces_attr = mesh.attribute(transform.pieces)
+    assert pieces_attr.element_type == lagrange.AttributeElement.Facet
+    piece_index = pieces_attr.data
+    # Remove edge attribute to avoid warnings.
+    mesh.clear_edges()
+    pieces = lagrange.separate_by_facet_groups(mesh, piece_index, map_attributes=True)
+
+    center = np.average(mesh.vertices, axis=0)
+    offset_dirs = np.array([np.average(p.vertices, axis=0) - center for p in pieces])
+    offset_dirs *= transform.magnitude
+
+    for i in range(len(pieces)):
+        pieces[i].vertices = pieces[i].vertices + offset_dirs[i]
+
+    df.mesh = lagrange.combine_meshes(pieces)
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -168,6 +191,9 @@ def apply_transform(view: View):
             case Compute():
                 assert view.data_frame is not None
                 _apply_compute_transform(view, t)
+            case Explode():
+                assert view.data_frame is not None
+                _apply_explode_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 
