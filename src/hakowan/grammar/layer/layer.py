@@ -12,7 +12,6 @@ from typing import Optional, Self
 import lagrange
 import numpy as np
 import numpy.typing as npt
-import scipy
 
 
 @dataclass(kw_only=True, slots=True)
@@ -201,14 +200,38 @@ class Layer:
             axis (npt.ArrayLike): The unit rotation axis.
             angle (float): The rotation angle (in radians).
             in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
 
         Returns:
-            result (Layer): The layer object with transform component overwritten.
+            result (Layer): The layer object with transform component updated.
         """
         l = self.__get_working_layer(in_place)
-        M = scipy.spatial.transform.Rotation.from_rotvec(
-            np.array(axis, dtype=np.float64) * angle
-        ).as_matrix()
+        v = np.array(axis, dtype=np.float64)
+        I = np.eye(3)
+        H = np.outer(v, v)
+        S = np.cross(I, v)
+        M = I * np.cos(angle) + S * np.sin(angle) + H * (1 - np.cos(angle))
+        if l._spec.transform is None:
+            l._spec.transform = Affine(M)
+        else:
+            l._spec.transform *= Affine(M)
+        return l
+
+    def translate(self, offset: npt.ArrayLike, in_place: bool = False) -> "Layer":
+        """Update the transform component of the current layer by applying a translation.
+
+        Args:
+            offset (npt.ArrayLike): The translation offset.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with transform component updated.
+        """
+        l = self.__get_working_layer(in_place)
+        M = np.eye(4)
+        M[:3, 3] = np.array(offset, dtype=np.float64)
+
         if l._spec.transform is None:
             l._spec.transform = Affine(M)
         else:
