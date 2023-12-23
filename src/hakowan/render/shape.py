@@ -342,7 +342,7 @@ def generate_surface_config(view: View, stamp: str, index: int):
 
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
     if len(normal_ids) > 0:
-        normal_attr = mesh.attribute(normal_ids[0])
+        normal_attr = mesh.attribute(normal_ids[0]) # type: ignore
         use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
     else:
         use_facet_normal = False

@@ -152,8 +152,12 @@ def _apply_explode_transform(view: View, transform: Explode):
     assert df is not None
     assert transform is not None
     mesh = df.mesh
-    assert mesh.has_attribute(transform.pieces)
-    pieces_attr = mesh.attribute(transform.pieces)
+    assert mesh.has_attribute(transform.pieces) # type: ignore
+    if isinstance(transform.pieces, str):
+        attr_name = transform.pieces
+    elif isinstance(transform.pieces, Attribute):
+        attr_name = transform.pieces.name
+    pieces_attr = mesh.attribute(attr_name)
     assert pieces_attr.element_type == lagrange.AttributeElement.Facet
     piece_index = pieces_attr.data
     # Remove edge attribute to avoid warnings.
