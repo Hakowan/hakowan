@@ -13,7 +13,6 @@ dependencies=[
     "lagrange-open~=6.17",
     "mitsuba~=3.4",
     "numpy>=1.21",
-    "scipy~=1.11",
     ]
 requires-python = ">=3.11"
 
