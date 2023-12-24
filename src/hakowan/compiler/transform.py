@@ -143,6 +143,31 @@ def _apply_compute_transform(view: View, transform: Compute):
     assert transform is not None
     mesh = df.mesh
 
+    if transform.x is not None:
+        mesh.create_attribute(
+            transform.x,
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=mesh.vertices[:, 0].copy(),
+        )
+    if transform.y is not None:
+        mesh.create_attribute(
+            transform.y,
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=mesh.vertices[:, 1].copy(),
+        )
+    if transform.z is not None:
+        mesh.create_attribute(
+            transform.z,
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=mesh.vertices[:, 2].copy(),
+        )
+    if transform.normal is not None:
+        normal_opt = lagrange.NormalOptions()
+        normal_opt.output_attribute_name = transform.normal
+        lagrange.compute_normal(mesh, options=normal_opt)
     if transform.component is not None:
         lagrange.compute_components(mesh, output_attribute_name=transform.component)
 
@@ -152,7 +177,7 @@ def _apply_explode_transform(view: View, transform: Explode):
     assert df is not None
     assert transform is not None
     mesh = df.mesh
-    assert mesh.has_attribute(transform.pieces) # type: ignore
+    assert mesh.has_attribute(transform.pieces)  # type: ignore
     if isinstance(transform.pieces, str):
         attr_name = transform.pieces
     elif isinstance(transform.pieces, Attribute):
