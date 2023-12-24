@@ -74,14 +74,22 @@ class Affine(Transform):
     matrix: npt.ArrayLike
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Compute(Transform):
     """Compute new attributes from the current data frame.
 
     Attributes:
+        x: Extract the x coordinate as an attribute.
+        y: Extract the y coordinate as an attribute.
+        z: Extract the z coordinate as an attribute.
+        normal: Compute the normal vector field as an attribute.
         component: Compute connected component ids.
     """
 
+    x: str | None = None
+    y: str | None = None
+    z: str | None = None
+    normal: str | None = None
     component: str | None = None
 
 

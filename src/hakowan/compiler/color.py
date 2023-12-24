@@ -44,6 +44,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
             else:
                 assert isinstance(categories, int)
                 assert categories > 0
+                assert isinstance(colormap, ColorMap)
                 num_colors = colormap.num_colors()
                 return colormap(
                     np.round(value * (categories - 1)) % num_colors / (num_colors - 1)

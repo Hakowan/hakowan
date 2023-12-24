@@ -18,4 +18,6 @@
 
 - [![Powell Sabin Tet Subdivision](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin_explode.png?raw=true)](examples/powell-sabin.md)
 
+- [![Topographic Map](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.png?raw=true)](examples/elevation.md)
+
 </div>
