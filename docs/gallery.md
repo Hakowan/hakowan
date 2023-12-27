@@ -20,4 +20,6 @@
 
 - [![Topographic Map](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.png?raw=true)](examples/elevation.md)
 
+- [![Deformation](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.png?raw=true)](examples/deformation.md)
+
 </div>
