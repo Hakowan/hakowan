@@ -32,6 +32,8 @@ tr = hkw.transform.Affine(matrix=np.eye(4))
 Compute transform is designed to compute a set of commonly used attributes from the data frame.
 Currently, the following attributes can be computed:
 
+* X|Y|Z coordinates
+* Normal
 * Component
 
 ```py
