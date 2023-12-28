@@ -22,4 +22,6 @@
 
 - [![Deformation](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.png?raw=true)](examples/deformation.md)
 
+- [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
+
 </div>
