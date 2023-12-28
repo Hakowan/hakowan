@@ -17,6 +17,7 @@ class Material(Channel):
 
     two_sided: bool = False
     bump_map: Texture | None = None
+    bump_scale: float = 1.0
 
 
 @dataclass(slots=True)

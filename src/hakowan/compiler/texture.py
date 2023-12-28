@@ -28,7 +28,10 @@ def apply_texture(
 
     :return: A list of active attributes used by the texture.
     """
-    return _apply_texture(df, tex, uv)
+    r = _apply_texture(df, tex, uv)
+    for attr in r:
+        assert attr is not None
+    return r
 
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
@@ -91,6 +94,13 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
         assert (
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
+        tex._uv = uv
+    else:
+        assert df.mesh is not None
+        assert df.mesh.has_attribute(uv.name)
+        assert uv._internal_name is not None
+        assert df.mesh.has_attribute(uv._internal_name)
+        tex.uv = uv
         tex._uv = uv
     return [tex._uv]
 

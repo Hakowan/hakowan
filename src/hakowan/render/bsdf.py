@@ -224,6 +224,7 @@ def add_bump_map(
     return {
         "type": "bumpmap",
         "bump_texture": generate_float_color_texture_config(mesh, mat.bump_map),
+        "scale": mat.bump_scale,
         "bsdf": mi_config,
     }
 
