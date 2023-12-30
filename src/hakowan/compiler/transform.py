@@ -44,11 +44,24 @@ def _apply_filter_transform(view: View, transform: Filter):
                 map_attributes=True,
             )
         case lagrange.AttributeElement.Vertex:
-            assert view.mark == Mark.Point
-            vertices_to_remove = np.arange(mesh.num_vertices, dtype=np.uint32)[
-                np.logical_not(keep)
-            ]
-            df.mesh.remove_vertices(vertices_to_remove)
+            if view.mark == Mark.Point:
+                vertices_to_remove = np.arange(mesh.num_vertices, dtype=np.uint32)[
+                    np.logical_not(keep)
+                ]
+                df.mesh.remove_vertices(vertices_to_remove)
+            elif view.mark == Mark.Surface:
+                selected_vertices = np.zeros(mesh.num_vertices, dtype=np.uint32)
+                selected_vertices[keep] = 1
+                selected_facets = np.all(selected_vertices[mesh.facets], axis=1)
+                selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[selected_facets]
+                df.mesh = lagrange.extract_submesh(
+                    mesh,
+                    selected_facets=selected_facets,
+                    map_attributes=True,
+                )
+            else:
+                # TODO: Add curve support.
+                raise NotImplementedError(f"Filter transform does not support curve mark yet.")
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
