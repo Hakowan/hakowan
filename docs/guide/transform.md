@@ -11,6 +11,7 @@ Filter transform extracts a subset of the 3D elements based on a user provided c
 tr = hkw.transform.Filter(data="attr_name", condition=lambda value: value > 0)
 ```
 
+Note that if `data` parameter is `None`, the mesh vertex position attribute will be used by default.
 See the [Smoothed Particle Hydrodynamics example](../examples/sph.md) for an actual usage of the filter
 transform.
 
