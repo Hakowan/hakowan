@@ -231,10 +231,10 @@ def _apply_norm_transform(view: View, transform: Norm):
     assert df is not None
     assert transform is not None
     mesh = df.mesh
-    if isinstance(transform.input_vector_data, str):
-        input_attr_name = transform.input_vector_data
-    elif isinstance(transform.input_vector_data, Attribute):
-        input_attr_name = transform.input_vector_data.name
+    if isinstance(transform.data, str):
+        input_attr_name = transform.data
+    elif isinstance(transform.data, Attribute):
+        input_attr_name = transform.data.name
     else:
         raise RuntimeError("Invalid input vector data.")
     assert mesh.has_attribute(input_attr_name)  # type: ignore
@@ -243,7 +243,7 @@ def _apply_norm_transform(view: View, transform: Norm):
         assert input_attr.num_channels > 1
         norm_data = np.linalg.norm(input_attr.values.data, axis=1, ord=transform.order)
         mesh.create_attribute(
-            transform.output_attribute_name,
+            transform.norm_attr_name,
             element=input_attr.element_type,
             usage=input_attr.usage,
             initial_values=norm_data,
@@ -254,7 +254,7 @@ def _apply_norm_transform(view: View, transform: Norm):
         assert input_attr.num_channels > 1
         norm_data = np.linalg.norm(input_attr.data, axis=1, ord=transform.order)
         mesh.create_attribute(
-            transform.output_attribute_name,
+            transform.norm_attr_name,
             element=input_attr.element_type,
             usage=input_attr.usage,
             initial_values=norm_data,
