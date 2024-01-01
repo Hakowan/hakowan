@@ -297,7 +297,7 @@ Here is a snippet for creating a `ThinDielectric` material.
 m = hkw.material.ThinDielectric(int_ior="water")
 ```
 
-## Hair
+## Hair material
 
 ![Hair material](../images/spot_hair.png){: style="width:200px"}
 
@@ -320,3 +320,28 @@ doc](
 https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#hair-material-hair
 )
 for more details.
+
+## Two-sided material
+
+Sometimes, the mesh we have may not be correctly oriented. Inverted facets will appear to be black.
+To avoid such artifact, all material classes support an optional `two_sided` parameter to enabled
+two-sided normals.
+
+```py
+m = hkw.material.Diffuse("salmon", two_sided=True)
+```
+
+## Bump mapped material
+
+A bump map can be applied to any material by setting the `bump_map` texture and `bump_scale`
+parameter. The former parameters defines the raw bump map texture where the latter defines the
+multiplicative factor to scale the bump magnitude.
+
+```py
+m = hkw.material.Diffuse(
+    "salmon",
+    bump_map=hkw.texture.Image("bump_map.png"),
+    bump_scale=0.5,
+)
+```
+See the [Moon example](../examples/moon.md) for an application of bump map.

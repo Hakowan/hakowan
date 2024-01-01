@@ -111,10 +111,10 @@ class Norm(Transform):
     """Compute the row-wise norm of a given vector attribute.
 
     Attributes:
-        input_vector_data: The vector attribute to compute the norm on.
-        output_attribute_name: The name of the output norm attribute.
+        data: The vector attribute to compute the norm on.
+        norm_attr_name: The name of the output norm attribute.
     """
 
-    input_vector_data: AttributeLike
-    output_attribute_name: str
+    data: AttributeLike
+    norm_attr_name: str
     order: int = 2
