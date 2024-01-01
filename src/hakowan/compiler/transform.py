@@ -2,7 +2,15 @@ from .view import View
 from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.transform import Transform, Filter, UVMesh, Affine, Compute, Explode
+from ..grammar.transform import (
+    Transform,
+    Filter,
+    UVMesh,
+    Affine,
+    Compute,
+    Explode,
+    Norm,
+)
 from ..common import logger
 
 import copy
@@ -22,6 +30,8 @@ def _apply_filter_transform(view: View, transform: Filter):
     # Compute and store original bbox
     assert view.bbox is not None
 
+    if transform.data is None:
+        transform.data = Attribute(name=mesh.attr_name_vertex_to_position)
     if isinstance(transform.data, str):
         transform.data = Attribute(name=transform.data)
     assert isinstance(transform.data, Attribute)
@@ -53,7 +63,9 @@ def _apply_filter_transform(view: View, transform: Filter):
                 selected_vertices = np.zeros(mesh.num_vertices, dtype=np.uint32)
                 selected_vertices[keep] = 1
                 selected_facets = np.all(selected_vertices[mesh.facets], axis=1)
-                selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[selected_facets]
+                selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[
+                    selected_facets
+                ]
                 df.mesh = lagrange.extract_submesh(
                     mesh,
                     selected_facets=selected_facets,
@@ -61,7 +73,9 @@ def _apply_filter_transform(view: View, transform: Filter):
                 )
             else:
                 # TODO: Add curve support.
-                raise NotImplementedError(f"Filter transform does not support curve mark yet.")
+                raise NotImplementedError(
+                    f"Filter transform does not support curve mark yet."
+                )
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
@@ -212,6 +226,41 @@ def _apply_explode_transform(view: View, transform: Explode):
     df.mesh = lagrange.combine_meshes(pieces)
 
 
+def _apply_norm_transform(view: View, transform: Norm):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if isinstance(transform.input_vector_data, str):
+        input_attr_name = transform.input_vector_data
+    elif isinstance(transform.input_vector_data, Attribute):
+        input_attr_name = transform.input_vector_data.name
+    else:
+        raise RuntimeError("Invalid input vector data.")
+    assert mesh.has_attribute(input_attr_name)  # type: ignore
+    if mesh.is_attribute_indexed(input_attr_name):
+        input_attr = mesh.indexed_attribute(input_attr_name)
+        assert input_attr.num_channels > 1
+        norm_data = np.linalg.norm(input_attr.values.data, axis=1, ord=transform.order)
+        mesh.create_attribute(
+            transform.output_attribute_name,
+            element=input_attr.element_type,
+            usage=input_attr.usage,
+            initial_values=norm_data,
+            initial_indices=input_attr.indices.data.copy(),
+        )
+    else:
+        input_attr = mesh.attribute(input_attr_name)
+        assert input_attr.num_channels > 1
+        norm_data = np.linalg.norm(input_attr.data, axis=1, ord=transform.order)
+        mesh.create_attribute(
+            transform.output_attribute_name,
+            element=input_attr.element_type,
+            usage=input_attr.usage,
+            initial_values=norm_data,
+        )
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -236,6 +285,9 @@ def apply_transform(view: View):
             case Explode():
                 assert view.data_frame is not None
                 _apply_explode_transform(view, t)
+            case Norm():
+                assert view.data_frame is not None
+                _apply_norm_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 
