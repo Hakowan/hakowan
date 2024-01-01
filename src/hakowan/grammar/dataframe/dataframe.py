@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import lagrange
 from typing import TypeAlias
 from pathlib import Path
+import numpy.typing as npt
 
 
 @dataclass(slots=True)
@@ -15,9 +16,11 @@ class DataFrame:
 
     Attributes:
         mesh: A SurfaceMesh object that defines the 3D geometry where data are stored.
+        roi_box: A box defining the region of interest. If None, the entire mesh is considered.
     """
 
     mesh: lagrange.SurfaceMesh
+    roi_box: npt.ArrayLike | None = None
 
 
 DataFrameLike: TypeAlias = str | Path | lagrange.SurfaceMesh | DataFrame

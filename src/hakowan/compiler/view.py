@@ -32,13 +32,17 @@ class View:
 
     def initialize_bbox(self):
         assert self.data_frame is not None
-        mesh = self.data_frame.mesh
-        if mesh.num_vertices == 0:
-            return
+        if self.data_frame.roi_box is not None:
+            self.bbox = np.asarray(self.data_frame.roi_box)
+            assert self.bbox.shape == (2, 3)
+        else:
+            mesh = self.data_frame.mesh
+            if mesh.num_vertices == 0:
+                return
 
-        bbox_min = np.amin(mesh.vertices, axis=0)
-        bbox_max = np.amax(mesh.vertices, axis=0)
-        self.bbox = np.stack([bbox_min, bbox_max])
+            bbox_min = np.amin(mesh.vertices, axis=0)
+            bbox_max = np.amax(mesh.vertices, axis=0)
+            self.bbox = np.stack([bbox_min, bbox_max])
 
     def validate(self):
         """Validate the currvent view is complete.
