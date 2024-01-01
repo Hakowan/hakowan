@@ -149,8 +149,8 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         range_size = range_size[axis]
 
         # Avoid divide by zero.
-        zero_dim = np.argwhere(domain_size == 0)
-        domain_size[zero_dim] = 1
+        if domain_size == 0:
+            domain_size = 1
     else:
         assert dim == 1
         assert isinstance(scale.range_min, numbers.Real)

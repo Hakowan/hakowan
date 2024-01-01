@@ -32,7 +32,17 @@ class Scale:
 
 @dataclass(slots=True)
 class Normalize(Scale):
-    """Normalize the data so that it fits in a bounding box defined by bbox_min and bbox_max."""
+    """Normalize the data so that the box defined by `domain_min` and `domain_max` is scaled to the box
+    defined by `range_min` and `range_max`.
+
+    Attributes:
+        range_min: The minimum value of the output range.
+        range_max: The maximum value of the output range.
+        domain_min: The minimum value of the input range. If not specified, the minimum value of the
+            input data will be used.
+        domain_max: The maximum value of the input range. If not specified, the maximum value of the
+            input data will be used.
+    """
 
     range_min: npt.ArrayLike
     range_max: npt.ArrayLike
