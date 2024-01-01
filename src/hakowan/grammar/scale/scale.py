@@ -34,10 +34,10 @@ class Scale:
 class Normalize(Scale):
     """Normalize the data so that it fits in a bounding box defined by bbox_min and bbox_max."""
 
-    range_min: npt.NDArray | float
-    range_max: npt.NDArray | float
-    domain_min: npt.NDArray | float | None = None
-    domain_max: npt.NDArray | float | None = None
+    range_min: npt.ArrayLike
+    range_max: npt.ArrayLike
+    domain_min: npt.ArrayLike | None = None
+    domain_max: npt.ArrayLike | None = None
 
 
 @dataclass(slots=True)

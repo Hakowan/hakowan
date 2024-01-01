@@ -122,27 +122,27 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
         return
 
     assert np.all(np.isfinite(data))
-    domain_min: npt.NDArray | float = (
+    domain_min: npt.ArrayLike | float = (
         scale.domain_min if scale.domain_min is not None else np.amin(data, axis=0)
     )
-    domain_max: npt.NDArray | float = (
+    domain_max: npt.ArrayLike | float = (
         scale.domain_max if scale.domain_max is not None else np.amax(data, axis=0)
     )
     if dim > 1:
-        assert isinstance(scale.range_min, np.ndarray)
-        assert isinstance(scale.range_max, np.ndarray)
-        assert isinstance(domain_min, np.ndarray)
-        assert isinstance(domain_max, np.ndarray)
-        assert dim == len(scale.range_min)
-        assert dim == len(scale.range_max)
+        domain_min = np.asarray(domain_min)
+        domain_max = np.asarray(domain_max)
+        range_min = np.asarray(scale.range_min)
+        range_max = np.asarray(scale.range_max)
+        assert dim == len(range_min)
+        assert dim == len(range_max)
         assert dim == len(domain_min)
         assert dim == len(domain_max)
-        assert np.all(scale.range_max >= scale.range_min)
+        assert np.all(range_max >= range_min)
         assert np.all(domain_max >= domain_min)
         domain_size = domain_max - domain_min
-        range_size = scale.range_max - scale.range_min
+        range_size = range_max - range_min
         domain_center = (domain_min + domain_max) / 2
-        range_center = (scale.range_min + scale.range_max) / 2
+        range_center = (range_min + range_max) / 2
 
         axis = np.argmax(domain_size)
         domain_size = domain_size[axis]
