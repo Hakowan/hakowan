@@ -24,7 +24,7 @@ def generate_sensor_config(sensor: Sensor) -> dict:
             mi_config["type"] = "orthographic"
         case ThinLens():
             mi_config["type"] = "thinlens"
-            mi_config["aparture_radius"] = sensor.aparture_radius
+            mi_config["aperture_radius"] = sensor.aparture_radius
             mi_config["focus_distance"] = sensor.focus_distance
         case _:
             raise NotImplementedError(f"Sensor {sensor} not implemented.")

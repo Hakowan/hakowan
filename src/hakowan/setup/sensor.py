@@ -25,5 +25,5 @@ class Orthographic(Sensor):
 
 @dataclass(kw_only=True, slots=True)
 class ThinLens(Perspective):
-    aparture_radius: float = 0.1
+    aperture_radius: float = 0.1
     focus_distance: float = 0.0

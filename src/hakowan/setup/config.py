@@ -11,6 +11,16 @@ from dataclasses import dataclass, field
 
 @dataclass(kw_only=True, slots=True)
 class Config:
+    """Configuration for rendering.
+
+    Attributes:
+        sensor: Sensor settings.
+        film: Film settings.
+        sampler: Sampler settings.
+        emitters: Emitter settings.
+        integrator: Integrator settings.
+        albedo_only: Whether to render albedo only (i.e. without shading).
+    """
     sensor: Sensor = field(default_factory=Perspective)
     film: Film = field(default_factory=Film)
     sampler: Sampler = field(default_factory=Independent)
