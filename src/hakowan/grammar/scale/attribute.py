@@ -13,7 +13,7 @@ class Attribute:
 
     Attributes:
         name: The name of the attribute as it is defined in the data frame.
-        scale: The scale to be applied to the attribute.
+        scale: The scale to be applied to the attribute. `None` means no scale is used.
     """
 
     name: str

@@ -126,5 +126,11 @@ class RoughDielectric(Dielectric):
 
 @dataclass(slots=True)
 class Hair(Material):
+    """Hair material.
+
+    Attributes:
+        eumelanin: Eumelanin (dark/brown pigment) concentration (default: 1.3).
+        pheomelanin: Pheomelanin (reddish-yellow pigment) concentration (default: 0.2).
+    """
     eumelanin: float = 1.3
     pheomelanin: float = 0.2

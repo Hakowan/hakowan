@@ -52,35 +52,55 @@ class Normalize(Scale):
 
 @dataclass(slots=True)
 class Log(Scale):
-    """Logarithmic scale."""
+    """Logarithmic scale.
+
+    Attributes:
+        base: The base of the logarithm.
+    """
 
     base: float = 10.0
 
 
 @dataclass(slots=True)
 class Uniform(Scale):
-    """Scale the data uniformly using factor."""
+    """Scale the data uniformly by multiplying it with a factor.
+
+    Attributes:
+        factor: The scaling factor.
+    """
 
     factor: float
 
 
 @dataclass(slots=True)
 class Custom(Scale):
-    """Scale the data using a custom function."""
+    """Scale the data using a custom function.
+
+    Attributes:
+        function: The scaling function. E.g. `lambda x: x ** 2` for squaring the data.
+    """
 
     function: Callable
 
 
 @dataclass(slots=True)
 class Affine(Scale):
-    """Scale the data using an affine transformation."""
+    """Scale the data using an affine transformation.
+
+    Attributes:
+        matrix: The affine transformation matrix.
+    """
 
     matrix: npt.NDArray
 
 
 @dataclass(slots=True)
 class Clip(Scale):
-    """Clip the data to the range [min, max]."""
+    """Clip the data to the range [min, max].
+
+    Attributes:
+        domain: The clip minimum and maximum values.
+    """
 
     domain: tuple[float, float]
 
