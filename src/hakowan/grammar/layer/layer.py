@@ -16,7 +16,11 @@ import numpy.typing as npt
 
 @dataclass(kw_only=True, slots=True)
 class Layer:
-    """Layer contains the specification of data, mark, channels and transform."""
+    """Layer contains the specification of data, mark, channels and transform.
+
+    Note:
+        `hakowan.layer()` method is an alias of the constructor of this class.
+    """
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list[Self] = field(default_factory=list)
