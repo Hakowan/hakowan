@@ -58,9 +58,14 @@ class Filter(Transform):
 
 @dataclass(slots=True)
 class UVMesh(Transform):
-    """Extract UV mesh from data."""
+    """Extract UV mesh from data.
 
-    uv: AttributeLike
+    Attributes:
+        uv: The attribute defining the UV coordinates. If None, automatically deetect the UV
+            attribute from the data.
+    """
+
+    uv: AttributeLike | None = None
 
 
 @dataclass(slots=True)
@@ -83,6 +88,8 @@ class Compute(Transform):
         y: Extract the y coordinate as an attribute.
         z: Extract the z coordinate as an attribute.
         normal: Compute the normal vector field as an attribute.
+        vertex_normal: Compute the vertex normal vector field as an attribute.
+        facet_normal: Compute the facet normal vector field as an attribute.
         component: Compute connected component ids.
     """
 
@@ -90,6 +97,8 @@ class Compute(Transform):
     y: str | None = None
     z: str | None = None
     normal: str | None = None
+    vertex_normal: str | None = None
+    facet_normal: str | None = None
     component: str | None = None
 
 

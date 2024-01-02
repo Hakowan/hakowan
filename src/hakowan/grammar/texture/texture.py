@@ -49,11 +49,13 @@ class Checkerboard(Texture):
         uv (AttributeLike): The attribute to use as the texture coordinates.
         texture1 (TextureLike): The texture to use for the first color/value.
         texture2 (TextureLike): The texture to use for the second color/value.
+        size (int): The size of the checkerboard (e.g. 8 means 8x8 checkerboard).
     """
 
     uv: AttributeLike | None = None
     texture1: TextureLike = 0.8
     texture2: TextureLike = 0.2
+    size: int = 8
 
 
 @dataclass(slots=True)

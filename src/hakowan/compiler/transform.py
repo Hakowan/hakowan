@@ -92,9 +92,15 @@ def _appply_uv_mesh_transform(view: View, transform: UVMesh):
     if isinstance(transform.uv, str):
         transform.uv = Attribute(name=transform.uv)
 
-    uv_attr_name = transform.uv.name
-    if transform.uv.scale is not None:
-        logger.warning("Attribute scale is ignored when applying transform.")
+    if transform.uv is not None:
+        uv_attr_name = transform.uv.name
+        if transform.uv.scale is not None:
+            logger.warning("Attribute scale is ignored when applying transform.")
+    else:
+        uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+        assert len(uv_ids) > 0
+        uv_attr_name = mesh.get_attribute_name(uv_ids[0])
+        logger.info(f"Automatically detected UV attribute: {uv_attr_name}")
     assert mesh.has_attribute(uv_attr_name)
     if mesh.is_attribute_indexed(uv_attr_name):
         uv_attr = mesh.indexed_attribute(uv_attr_name)
@@ -195,6 +201,14 @@ def _apply_compute_transform(view: View, transform: Compute):
         normal_opt = lagrange.NormalOptions()
         normal_opt.output_attribute_name = transform.normal
         lagrange.compute_normal(mesh, options=normal_opt)
+    if transform.vertex_normal is not None:
+        vertex_normal_opt = lagrange.VertexNormalOptions()
+        vertex_normal_opt.output_attribute_name = transform.vertex_normal
+        lagrange.compute_vertex_normal(mesh, options=vertex_normal_opt)
+    if transform.facet_normal is not None:
+        facet_normal_opt = lagrange.FacetNormalOptions()
+        facet_normal_opt.output_attribute_name = transform.facet_normal
+        lagrange.compute_facet_normal(mesh, options=facet_normal_opt)
     if transform.component is not None:
         lagrange.compute_components(mesh, output_attribute_name=transform.component)
 

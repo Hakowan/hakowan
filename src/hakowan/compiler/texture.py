@@ -127,6 +127,13 @@ def _apply_checker_board(df: DataFrame, tex: Checkerboard, uv: Attribute | None 
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
         tex._uv = uv
+    else:
+        assert df.mesh is not None
+        assert df.mesh.has_attribute(uv.name)
+        assert uv._internal_name is not None
+        assert df.mesh.has_attribute(uv._internal_name)
+        tex.uv = uv
+        tex._uv = uv
 
     if not isinstance(tex.texture1, Texture):
         tex.texture1 = Uniform(color=tex.texture1)
