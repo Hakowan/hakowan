@@ -29,6 +29,7 @@ class Config:
     _albedo_only: bool = False
 
     def z_up(self):
+        """Update configuration for z-up coordinate system."""
         self.sensor.location = np.array([0, -5, 0])
         self.sensor.up = np.array([0, 0, 1])
         for emitter in self.emitters:
@@ -37,6 +38,7 @@ class Config:
                 emitter.rotation = 180.0
 
     def z_down(self):
+        """Update configuration for z-down coordinate system."""
         self.sensor.location = np.array([0, 5, 0])
         self.sensor.up = np.array([0, 0, -1])
         for emitter in self.emitters:
@@ -45,6 +47,7 @@ class Config:
                 emitter.rotation = 180.0
 
     def y_up(self):
+        """Update configuration for y-up coordinate system."""
         self.sensor.location = np.array([0, 0, 5])
         self.sensor.up = np.array([0, 1, 0])
         for emitter in self.emitters:
@@ -53,6 +56,7 @@ class Config:
                 emitter.rotation = 180
 
     def y_down(self):
+        """Update configuration for y-down coordinate system."""
         self.sensor.location = np.array([0, 0, -5])
         self.sensor.up = np.array([0, -1, 0])
         for emitter in self.emitters:
@@ -62,8 +66,7 @@ class Config:
 
     @property
     def albedo_only(self) -> bool:
-        """Whether to render albedo only (i.e. without shading).
-        """
+        """Whether to render albedo only (i.e. without shading)."""
         return self._albedo_only
 
     @albedo_only.setter
