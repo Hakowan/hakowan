@@ -20,4 +20,12 @@
 
 - [![Topographic Map](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.png?raw=true)](examples/elevation.md)
 
+- [![Deformation](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.png?raw=true)](examples/deformation.md)
+
+- [![Penny](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Penny/results/penny.png?raw=true)](examples/penny.md)
+
+- [![SPH](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.png?raw=true)](examples/sph.md)
+
+- [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
+
 </div>

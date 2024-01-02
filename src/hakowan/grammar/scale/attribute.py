@@ -13,7 +13,11 @@ class Attribute:
 
     Attributes:
         name: The name of the attribute as it is defined in the data frame.
-        scale: The scale to be applied to the attribute.
+        scale: The scale to be applied to the attribute. `None` means no scale is used.
+
+    Note:
+        The attribute object can be constructed with `hakowan.attribute()` function, which is an
+        alias of the constructor of this class.
     """
 
     name: str

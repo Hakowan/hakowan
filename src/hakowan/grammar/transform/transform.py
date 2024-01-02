@@ -47,12 +47,12 @@ class Filter(Transform):
     """Filter data based on a condition.
 
     Attributes:
-        data: The attribute to filter on.
+        data: The attribute to filter on. If None, the vertex position is used.
         condition: A callable that takes a single argument, the value of the attribute, and returns
             a boolean indicating whether the data should be kept.
     """
 
-    data: AttributeLike
+    data: AttributeLike | None
     condition: Callable
 
 
@@ -104,3 +104,17 @@ class Explode(Transform):
 
     pieces: AttributeLike
     magnitude: float = 1
+
+
+@dataclass(slots=True)
+class Norm(Transform):
+    """Compute the row-wise norm of a given vector attribute.
+
+    Attributes:
+        data: The vector attribute to compute the norm on.
+        norm_attr_name: The name of the output norm attribute.
+    """
+
+    data: AttributeLike
+    norm_attr_name: str
+    order: int = 2

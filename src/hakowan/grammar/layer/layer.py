@@ -16,7 +16,11 @@ import numpy.typing as npt
 
 @dataclass(kw_only=True, slots=True)
 class Layer:
-    """Layer contains the specification of data, mark, channels and transform."""
+    """Layer contains the specification of data, mark, channels and transform.
+
+    Note:
+        `hakowan.layer()` method is an alias of the constructor of this class.
+    """
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list[Self] = field(default_factory=list)
@@ -78,12 +82,14 @@ class Layer:
         self,
         data: DataFrameLike,
         *,
+        roi_box: npt.ArrayLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
         """Overwrite the data component of this layer.
 
         Args:
             data (DataFrameLike): The new data component.
+            roi_box (npt.ArrayLike, optional): The region of interest box of the data.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -94,11 +100,13 @@ class Layer:
         match (data):
             case str() | Path():
                 mesh = lagrange.io.load_mesh(data)  # type: ignore
-                l._spec.data = DataFrame(mesh=mesh)
+                l._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
             case lagrange.SurfaceMesh():
-                l._spec.data = DataFrame(mesh=data)
+                l._spec.data = DataFrame(mesh=data, roi_box=roi_box)
             case DataFrame():
                 l._spec.data = data
+                if roi_box is not None:
+                    l._spec.data.roi_box = roi_box
             case _:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
         return l
@@ -192,7 +200,7 @@ class Layer:
         return l
 
     def rotate(
-            self, axis: npt.ArrayLike, angle: float, in_place: bool = False
+        self, axis: npt.ArrayLike, angle: float, in_place: bool = False
     ) -> "Layer":
         """Update the transform component of the current layer by applying a rotation.
 

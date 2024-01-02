@@ -45,6 +45,8 @@ l2 = hkw.layer(mesh)
 l3 = hkw.layer().data(mesh)
 ```
 
+See the [Mesh Deformation](../examples/deformation.md) example for a use case of reusing the same
+layer specification with different data fields.
 
 <!--
 In 2D data visualization, data is often represented as a table or data frame (e.g. Excel sheet or
@@ -57,3 +59,13 @@ A "column" in a 3D data frame represents a spatically varying data field (e.g. s
 field), for which we know its value at a set of 3D spatial elements.
 -->
 
+## Region of interest
+
+When we specifying the data, we can optionally specify a region of interest. The region of interest
+is an axis-aligned box that defines the region in the center of the rendering.
+
+```py
+l0 = hkw.layer().data("shape.obj", roi_box=[[0, 0, 0], [1, 1, 1]])
+```
+
+See the [Smoothed Particle Hydrodynamics](../examples/sph.md) example for a usage of region of interest.

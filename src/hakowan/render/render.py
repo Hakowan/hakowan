@@ -103,6 +103,10 @@ def render(
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
 
+    if config.albedo_only:
+        # Select the albedo channels.
+        image = image[:, :, [4, 5, 6, 3]] # type: ignore
+
     if filename is not None:
         if isinstance(filename, str):
             filename = Path(filename)

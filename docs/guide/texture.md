@@ -28,10 +28,14 @@ One of the most common use case of texture is to map a scalar field to a color f
 | colormap | str | The colormap to use |
 | domain | tuple | The domain of the attribute |
 | range | tuple | The range of colormap |
+| categories | int | The total number of categories |
 
 ```py
 t = hkw.texture.ScalarField(data="attr_name")
 ```
+
+See the [Heat Method](../examples/heat.md) and the [Components](../examples/components.md) examples
+for application of the scalar field texture.
 
 ## Checkerboard texture
 
@@ -59,3 +63,5 @@ t = hkw.texture.Isocontour(
     texture2=hkw.texture.Uniform(color=0.8),
 )
 ```
+
+See the [Heat Method](../examples/heat.md) example for an application of the isocontour texture.
