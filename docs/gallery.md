@@ -28,4 +28,6 @@
 
 - [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
 
+- [![Face](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Face/results/face_uv.png?raw=true)](examples/face.md)
+
 </div>

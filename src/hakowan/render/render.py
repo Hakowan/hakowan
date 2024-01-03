@@ -117,7 +117,7 @@ def render(
             mi.Bitmap(image).convert( # type: ignore
                 pixel_format=mi.Bitmap.PixelFormat.RGBA,
                 component_format=mi.Struct.Type.UInt8,
-                srgb_gamma=True
+                srgb_gamma=True,
             ).write(str(filename), quality=-1) # type: ignore
 
     return image
