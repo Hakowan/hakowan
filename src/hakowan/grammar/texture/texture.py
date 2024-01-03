@@ -67,12 +67,14 @@ class Isocontour(Texture):
         ratio (float): The ratio of the isocontour thickness to non-isocontour thickness.
         texture1 (TextureLike): The texture to use for the isocontour regions.
         texture2 (TextureLike): The texture to use for the non-isocontour regions.
+        num_contours (int): The number of isocontours to generate within a unit distance.
     """
 
     data: AttributeLike
     ratio: float = 0.1
     texture1: TextureLike = 0.4
     texture2: TextureLike = 0.2
+    num_contours: int = 8
 
 
 @dataclass(slots=True)
