@@ -23,7 +23,7 @@ class Layer:
     """
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
-    _children: Sequence["Layer"] = field(default_factory=list)
+    _children: list["Layer"] = field(default_factory=list)
 
     def __init__(
         self,
@@ -247,11 +247,11 @@ class Layer:
         return l
 
     @property
-    def children(self) -> Sequence["Layer"]:
+    def children(self) -> list["Layer"]:
         """Get the child layers of this layer."""
         return self._children
 
     @children.setter
     def children(self, value: Sequence["Layer"]) -> None:
         """Set the child layers of this layer."""
-        self._children = value
+        self._children = list(value)
