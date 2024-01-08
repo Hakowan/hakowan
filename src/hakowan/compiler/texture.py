@@ -52,19 +52,17 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
             tex.data.scale = clip_scale
 
     if tex.colormap != "identity":
-        # Add a normalize scale as the first scale to the attribute.
-        domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
-        range_min, range_max = tex.range if tex.range is not None else (0, 1)
-        normalize_scale = Normalize(
-            range_min=range_min,
-            range_max=range_max,
-            domain_min=domain_min,
-            domain_max=domain_max,
-        )
-        if tex.data.scale is not None:
-            assert isinstance(tex.data.scale, Scale)
-        normalize_scale._child = tex.data.scale
-        tex.data.scale = normalize_scale
+        # Add a normalize scale as the first scale to the attribute if no scale is provided.
+        if tex.data.scale is None:
+            domain_min, domain_max = tex.domain if tex.domain is not None else (None, None)
+            range_min, range_max = tex.range if tex.range is not None else (0, 1)
+            normalize_scale = Normalize(
+                range_min=range_min,
+                range_max=range_max,
+                domain_min=domain_min,
+                domain_max=domain_max,
+            )
+            tex.data.scale = normalize_scale
 
     # Compute scaled attribute
     compute_scaled_attribute(df, tex.data)
@@ -127,6 +125,13 @@ def _apply_checker_board(df: DataFrame, tex: Checkerboard, uv: Attribute | None 
             uv.name == tex.uv.name and uv.scale == tex.uv.scale
         ), "Conflicting UV detected"
         tex._uv = uv
+    else:
+        assert df.mesh is not None
+        assert df.mesh.has_attribute(uv.name)
+        assert uv._internal_name is not None
+        assert df.mesh.has_attribute(uv._internal_name)
+        tex.uv = uv
+        tex._uv = uv
 
     if not isinstance(tex.texture1, Texture):
         tex.texture1 = Uniform(color=tex.texture1)
@@ -155,7 +160,9 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
 
     def generate_uv_values(attr_values: lagrange.Attribute):
         assert attr_values.num_channels == 1
-        uv_values = np.repeat(attr_values.data, 2).reshape((-1, 2)).astype(np.float32)  # type: ignore
+        s = tex.num_contours
+        assert s > 0
+        uv_values = np.repeat(attr_values.data * s, 2).reshape((-1, 2)).astype(np.float32)  # type: ignore
         uv_values[:, 1] += (1 - tex.ratio) / 2
         return uv_values
 

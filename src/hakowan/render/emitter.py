@@ -21,14 +21,14 @@ def generate_emitter_config(emitter: Emitter) -> dict:
     match emitter:
         case Point():
             mi_config["type"] = "point"
-            mi_config["position"] = emitter.position.tolist()
+            mi_config["position"] = list(emitter.position)
             mi_config["intensity"] = generate_spectrum_config(emitter.intensity)
         case Envmap():
             mi_config["type"] = "envmap"
             mi_config["filename"] = str(emitter.filename)
             mi_config["scale"] = emitter.scale
             mi_config["to_world"] = rotation(
-                np.array([0, 1, 0]), emitter.up
+                np.array([0, 1, 0]), np.array(emitter.up)
             ) @ mi.ScalarTransform4f.rotate( # type: ignore
                 [0, 1, 0],
                 emitter.rotation,

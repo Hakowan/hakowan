@@ -8,7 +8,7 @@ from ..scale import Attribute
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Self
+from typing import Optional, Self, Sequence
 import lagrange
 import numpy as np
 import numpy.typing as npt
@@ -23,7 +23,7 @@ class Layer:
     """
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
-    _children: list[Self] = field(default_factory=list)
+    _children: list["Layer"] = field(default_factory=list)
 
     def __init__(
         self,
@@ -245,3 +245,13 @@ class Layer:
         else:
             l._spec.transform *= Affine(M)
         return l
+
+    @property
+    def children(self) -> list["Layer"]:
+        """Get the child layers of this layer."""
+        return self._children
+
+    @children.setter
+    def children(self, value: Sequence["Layer"]) -> None:
+        """Set the child layers of this layer."""
+        self._children = list(value)

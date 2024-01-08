@@ -2,13 +2,12 @@ from ..common.color import Color
 
 from dataclasses import dataclass, field
 from pathlib import Path
-import numpy as np
-import numpy.typing as npt
 
 
 @dataclass(kw_only=True, slots=True)
 class Emitter:
     """Emitter dataclass contains lighting-related settings."""
+
     pass
 
 
@@ -20,8 +19,9 @@ class Point(Emitter):
         intensity: Light intensity.
         position: Light position.
     """
+
     intensity: Color | float
-    position: npt.NDArray
+    position: list[float]
 
 
 @dataclass(kw_only=True, slots=True)
@@ -34,9 +34,10 @@ class Envmap(Emitter):
         up: Up vector of the environment light.
         rotation: Rotation angle of the environment light around the up direction.
     """
+
     filename: Path = field(
         default_factory=lambda: Path(__file__).parents[1] / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
-    up: npt.NDArray = field(default_factory=lambda: np.array([0, 1, 0]))
+    up: list = field(default_factory=lambda: [0, 1, 0])
     rotation: float = 180.0

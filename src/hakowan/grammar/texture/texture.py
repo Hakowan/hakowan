@@ -49,11 +49,13 @@ class Checkerboard(Texture):
         uv (AttributeLike): The attribute to use as the texture coordinates.
         texture1 (TextureLike): The texture to use for the first color/value.
         texture2 (TextureLike): The texture to use for the second color/value.
+        size (int): The size of the checkerboard (e.g. 8 means 8x8 checkerboard).
     """
 
     uv: AttributeLike | None = None
     texture1: TextureLike = 0.8
     texture2: TextureLike = 0.2
+    size: int = 8
 
 
 @dataclass(slots=True)
@@ -65,12 +67,14 @@ class Isocontour(Texture):
         ratio (float): The ratio of the isocontour thickness to non-isocontour thickness.
         texture1 (TextureLike): The texture to use for the isocontour regions.
         texture2 (TextureLike): The texture to use for the non-isocontour regions.
+        num_contours (int): The number of isocontours to generate within a unit distance.
     """
 
     data: AttributeLike
     ratio: float = 0.1
     texture1: TextureLike = 0.4
     texture2: TextureLike = 0.2
+    num_contours: int = 8
 
 
 @dataclass(slots=True)
