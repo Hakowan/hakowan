@@ -10,7 +10,7 @@
 
 - [![The Heat Method](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.png?raw=true)](examples/heat.md)
 
-- [![Components](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Components/results/foot_top.png?raw=true)](examples/components.md)
+- [![Tetrahedral Meshing in the Wild](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/TetWild/results/bust.png?raw=true)](examples/tetwild.md)
 
 - [![Neral Skeleton](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.png?raw=true)](examples/skeleton.md)
 
@@ -26,16 +26,16 @@
 
 - [![SPH](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.png?raw=true)](examples/sph.md)
 
-- [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
-
 - [![Mean Curvature Flow](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Flow/results/bust.png?raw=true)](examples/flow.md)
-
-- [![Face](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Face/results/face_uv.png?raw=true)](examples/face.md)
-
-- [![Fibers](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.png?raw=true)](examples/fibers.md)
 
 - [![Developability of Triangle Meshes](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Developable/results/mask_3.png?raw=true)](examples/developable.md)
 
-- [![Tetrahedral Meshing in the Wild](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/TetWild/results/bust.png?raw=true)](examples/tetwild.md)
+- [![Components](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Components/results/foot_top.png?raw=true)](examples/components.md)
+
+- [![Fibers](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.png?raw=true)](examples/fibers.md)
+
+- [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
+
+- [![Face](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Face/results/face_uv.png?raw=true)](examples/face.md)
 
 </div>
