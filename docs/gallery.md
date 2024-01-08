@@ -34,4 +34,8 @@
 
 - [![Fibers](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.png?raw=true)](examples/fibers.md)
 
+- [![Developability of Triangle Meshes](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Developable/results/mask_3.png?raw=true)](examples/developable.md)
+
+- [![Tetrahedral Meshing in the Wild](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/TetWild/results/bust.png?raw=true)](examples/tetwild.md)
+
 </div>
