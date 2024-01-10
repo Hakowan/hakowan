@@ -24,6 +24,7 @@ from ..grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
+    ThinPrincipled,
 )
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
@@ -160,7 +161,7 @@ def _process_channels(view: View):
                     tex = view.material_channel.specular_reflectance
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
-            case Principled():
+            case Principled() | ThinPrincipled():
                 if isinstance(view.material_channel.color, Texture):
                     tex = view.material_channel.color
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)

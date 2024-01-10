@@ -14,6 +14,7 @@ from ..grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
+    ThinPrincipled,
 )
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
@@ -109,7 +110,7 @@ def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPla
 
 
 def generate_principled_bsdf_config(
-    mesh: lagrange.SurfaceMesh, mat: Principled, is_primitive: bool
+    mesh: lagrange.SurfaceMesh, mat: Principled, is_primitive: bool, thin: bool = False
 ):
     # Extract color, roughness, metallic
     colors = generate_float_color_texture_config(mesh, mat.color, True, is_primitive)
@@ -147,21 +148,35 @@ def generate_principled_bsdf_config(
     else:
         get_metallic = lambda i: metallic
 
+    mat_name = "principled" if not thin else "thinprincipled"
+    base_config: dict[str, Any] = {
+        "anisotropic": mat.anisotropic,
+        "spec_trans": mat.spec_trans,
+        "eta": mat.eta,
+        "spec_tint": mat.spec_tint,
+        "sheen": mat.sheen,
+        "sheen_tint": mat.sheen_tint,
+        "flatness": generate_color_config(mat.flatness),
+    }
+    if thin:
+        assert isinstance(mat, ThinPrincipled)
+        base_config["diff_trans"] = mat.diff_trans
     if n is None:
         mi_config: dict[str, Any] = {
-            "type": "principled",
+            "type": mat_name,
             "base_color": generate_float_color_texture_config(mesh, mat.color, True),
             "roughness": generate_float_color_texture_config(mesh, mat.roughness),
             "metallic": generate_float_color_texture_config(mesh, mat.metallic),
-        }
+        } | base_config
     else:
         mi_config = {
             f"bsdf_{i:06}": {
-                "type": "principled",
+                "type": mat_name,
                 "base_color": get_color(i),
                 "roughness": get_roughness(i),
                 "metallic": get_metallic(i),
             }
+            | base_config
             for i in range(n)
         }
     return mi_config
@@ -256,6 +271,10 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
         case Principled():
             material_config = generate_principled_bsdf_config(
                 mesh, view.material_channel, is_primitive
+            )
+        case ThinPrincipled():
+            material_config = generate_principled_bsdf_config(
+                mesh, view.material_channel, is_primitive, thin=True
             )
         case RoughDielectric():
             material_config = generate_rough_dielectric_bsdf_config(

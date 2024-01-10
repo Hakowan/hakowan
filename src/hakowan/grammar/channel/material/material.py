@@ -90,6 +90,19 @@ class Principled(Material):
     color: TextureLike = 0.5
     roughness: Texture | float = 0.5
     metallic: Texture | float = 0.0
+    anisotropic: float = 0.0
+    spec_trans: float = 0.0
+    eta: float = 1.5
+    spec_tint: float = 0.0
+    sheen: float = 0.0
+    sheen_tint: float = 0.0
+    flatness: float = 0.0
+
+
+@dataclass(slots=True)
+class ThinPrincipled(Principled):
+    """Thin Principled material."""
+    diff_trans: float = 0.0
 
 
 @dataclass(slots=True)

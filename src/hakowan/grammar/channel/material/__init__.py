@@ -10,6 +10,7 @@ from .material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
+    ThinPrincipled,
 )
 
 from .medium import Medium
