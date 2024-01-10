@@ -94,4 +94,4 @@ class ScalarField(Texture):
     colormap: str | list[ColorLike] = "viridis"
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
-    categories: int | None = None
+    categories: bool = False
