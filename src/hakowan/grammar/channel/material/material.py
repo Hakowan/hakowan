@@ -113,10 +113,13 @@ class Dielectric(Material):
         int_ior: Interior index of refraction (default: "bk7").
         ext_ior: Exterior index of refraction (default: "air").
         medium: Medium (default: None).
+        specular_reflectance: Specular reflectance texture (default: 1.0).
     """
     int_ior: str | float = "bk7"
     ext_ior: str | float = "air"
     medium: Medium | None = None
+    specular_reflectance: float = 1.0
+    specular_transmittance: float = 1.0
 
 
 @dataclass(slots=True)

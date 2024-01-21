@@ -187,6 +187,8 @@ def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric)
         "type": "dielectric",
         "int_ior": mat.int_ior,
         "ext_ior": mat.ext_ior,
+        "specular_reflectance": mat.specular_reflectance,
+        "specular_transmittance": mat.specular_transmittance,
     }
 
 
@@ -195,6 +197,7 @@ def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielec
         "type": "thindielectric",
         "int_ior": mat.int_ior,
         "ext_ior": mat.ext_ior,
+        "specular_reflectance": mat.specular_reflectance,
     }
 
 
@@ -207,6 +210,8 @@ def generate_rough_dielectric_bsdf_config(
         "ext_ior": mat.ext_ior,
         "distribution": mat.distribution,
         "alpha": generate_float_color_texture_config(mesh, mat.alpha),
+        "specular_reflectance": mat.specular_reflectance,
+        "specular_transmittance": mat.specular_transmittance,
     }
     return mi_config
 

@@ -179,6 +179,15 @@ def extract_vector_field(view: View):
     base_size = size
     if view.vector_field_channel.end_type == "point":
         tip_size = np.zeros_like(size)
+    elif view.vector_field_channel.end_type == "arrow":
+        assert ctrl_pts_1 is None
+        assert ctrl_pts_2 is None
+        stem_point = 0.25 * base + 0.75 * tip
+        base = np.vstack([base, stem_point])
+        tip = np.vstack([stem_point, tip])
+        size = np.array(size)
+        base_size = np.hstack([size, 2 * size])
+        tip_size = np.hstack([size, np.zeros_like(size)])
     else:
         tip_size = size
 
