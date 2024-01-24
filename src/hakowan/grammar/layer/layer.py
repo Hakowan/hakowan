@@ -1,7 +1,7 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField
+from ..channel import Channel, Position, Normal, Size, VectorField, BumpMap
 from ..channel.material import Material
 from ..transform import Transform, Affine
 from ..scale import Attribute
@@ -134,6 +134,7 @@ class Layer:
         size: float | str | Size | None = None,
         vector_field: VectorField | str | None = None,
         material: Material | None = None,
+        bump_map: BumpMap | None = None,
         in_place: bool = False,
     ) -> "Layer":
         """Overwrite a channel component of this layer.
@@ -182,6 +183,8 @@ class Layer:
             l._spec.channels.append(convert(vector_field, VectorField))
         if material is not None:
             l._spec.channels.append(material)
+        if bump_map is not None:
+            l._spec.channels.append(bump_map)
         return l
 
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":

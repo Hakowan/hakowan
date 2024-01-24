@@ -1,2 +1,2 @@
-from .channel import Channel, Position, Normal, Size, VectorField
+from .channel import Channel, Position, Normal, Size, VectorField, BumpMap
 from .material import Medium

@@ -16,6 +16,7 @@ from ..grammar.channel.material import (
     ThinDielectric,
     ThinPrincipled,
 )
+from ..grammar.channel import BumpMap
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
 
@@ -237,14 +238,14 @@ def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
 def add_bump_map(
     mi_config: dict[str, Any],
     mesh: lagrange.SurfaceMesh,
-    mat: Material,
+    bump_map: BumpMap,
     is_primitive: bool,
 ) -> dict[str, Any]:
-    assert mat.bump_map is not None
+    assert "type" in mi_config, "Bump map can only be applied over a single BSDF"
     return {
         "type": "bumpmap",
-        "bump_texture": generate_float_color_texture_config(mesh, mat.bump_map),
-        "scale": mat.bump_scale,
+        "bump_texture": generate_float_color_texture_config(mesh, bump_map.texture),
+        "scale": bump_map.scale,
         "bsdf": mi_config,
     }
 
@@ -303,9 +304,9 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     if view.material_channel.two_sided:
         material_config = make_material_two_sided(material_config)
 
-    if view.material_channel.bump_map is not None:
+    if view.bump_map is not None:
         material_config = add_bump_map(
-            material_config, mesh, view.material_channel, is_primitive
+            material_config, mesh, view.bump_map, is_primitive
         )
 
     return material_config
