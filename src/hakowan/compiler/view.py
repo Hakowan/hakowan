@@ -1,4 +1,4 @@
-from ..grammar.channel import Channel, Position, Normal, Size, VectorField
+from ..grammar.channel import Channel, Position, Normal, Size, VectorField, BumpMap
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
@@ -26,6 +26,7 @@ class View:
     _vector_field_channel: VectorField | None = None
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
+    _bump_map: BumpMap | None = None
 
     _active_attributes: list[Attribute] = field(default_factory=list)
     _bbox: npt.NDArray | None = None
@@ -231,6 +232,14 @@ class View:
             raise ValueError("UV attribute can only be set once.")
 
         self._uv_attribute = attribute
+
+    @property
+    def bump_map(self) -> BumpMap | None:
+        return self._bump_map
+
+    @bump_map.setter
+    def bump_map(self, bump_map: BumpMap | None):
+        self._bump_map = bump_map
 
     @property
     def bbox(self) -> npt.NDArray | None:

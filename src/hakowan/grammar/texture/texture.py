@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from pathlib import Path
+from os import PathLike
 from typing import TypeAlias
 
 from ...common.color import ColorLike
@@ -33,11 +33,11 @@ class Image(Texture):
     """The image texture uses a texture image to provide a color field.
 
     Attributes:
-        filename (Path): The path to the texture image.
+        filename (PathLike): The path to the texture image.
         uv (AttributeLike): The attribute to use as the texture coordinates.
     """
 
-    filename: Path
+    filename: PathLike
     uv: AttributeLike | None = None
 
 
@@ -94,4 +94,4 @@ class ScalarField(Texture):
     colormap: str | list[ColorLike] = "viridis"
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
-    categories: int | None = None
+    categories: bool = False

@@ -14,6 +14,7 @@ from ..grammar.texture import (
 from typing import Any
 import lagrange
 import mitsuba as mi
+from pathlib import Path
 
 
 def generate_texture_config(
@@ -36,9 +37,10 @@ def generate_uniform_config(tex: Uniform) -> dict:
 
 
 def generate_image_config(tex: Image) -> dict:
+    filename = Path(tex.filename)
     mi_config: dict[str, Any] = {
         "type": "bitmap",
-        "filename": str(tex.filename.resolve()),
+        "filename": str(filename.resolve()),
         # Note that we need to flip the image vertically to match the
         # orientation of the Mitsuba coordinate system.
         "to_uv": mi.ScalarTransform3f([[1, 0, 0], [0, -1, 0], [0, 0, 1]]),  # type: ignore

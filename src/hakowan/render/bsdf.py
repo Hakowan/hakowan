@@ -14,7 +14,9 @@ from ..grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
+    ThinPrincipled,
 )
+from ..grammar.channel import BumpMap
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
 
@@ -109,7 +111,7 @@ def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPla
 
 
 def generate_principled_bsdf_config(
-    mesh: lagrange.SurfaceMesh, mat: Principled, is_primitive: bool
+    mesh: lagrange.SurfaceMesh, mat: Principled, is_primitive: bool, thin: bool = False
 ):
     # Extract color, roughness, metallic
     colors = generate_float_color_texture_config(mesh, mat.color, True, is_primitive)
@@ -147,21 +149,35 @@ def generate_principled_bsdf_config(
     else:
         get_metallic = lambda i: metallic
 
+    mat_name = "principled" if not thin else "thinprincipled"
+    base_config: dict[str, Any] = {
+        "anisotropic": mat.anisotropic,
+        "spec_trans": mat.spec_trans,
+        "eta": mat.eta,
+        "spec_tint": mat.spec_tint,
+        "sheen": mat.sheen,
+        "sheen_tint": mat.sheen_tint,
+        "flatness": generate_color_config(mat.flatness),
+    }
+    if thin:
+        assert isinstance(mat, ThinPrincipled)
+        base_config["diff_trans"] = mat.diff_trans
     if n is None:
         mi_config: dict[str, Any] = {
-            "type": "principled",
+            "type": mat_name,
             "base_color": generate_float_color_texture_config(mesh, mat.color, True),
             "roughness": generate_float_color_texture_config(mesh, mat.roughness),
             "metallic": generate_float_color_texture_config(mesh, mat.metallic),
-        }
+        } | base_config
     else:
         mi_config = {
             f"bsdf_{i:06}": {
-                "type": "principled",
+                "type": mat_name,
                 "base_color": get_color(i),
                 "roughness": get_roughness(i),
                 "metallic": get_metallic(i),
             }
+            | base_config
             for i in range(n)
         }
     return mi_config
@@ -172,6 +188,8 @@ def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric)
         "type": "dielectric",
         "int_ior": mat.int_ior,
         "ext_ior": mat.ext_ior,
+        "specular_reflectance": mat.specular_reflectance,
+        "specular_transmittance": mat.specular_transmittance,
     }
 
 
@@ -180,6 +198,7 @@ def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielec
         "type": "thindielectric",
         "int_ior": mat.int_ior,
         "ext_ior": mat.ext_ior,
+        "specular_reflectance": mat.specular_reflectance,
     }
 
 
@@ -192,6 +211,8 @@ def generate_rough_dielectric_bsdf_config(
         "ext_ior": mat.ext_ior,
         "distribution": mat.distribution,
         "alpha": generate_float_color_texture_config(mesh, mat.alpha),
+        "specular_reflectance": mat.specular_reflectance,
+        "specular_transmittance": mat.specular_transmittance,
     }
     return mi_config
 
@@ -217,14 +238,14 @@ def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:
 def add_bump_map(
     mi_config: dict[str, Any],
     mesh: lagrange.SurfaceMesh,
-    mat: Material,
+    bump_map: BumpMap,
     is_primitive: bool,
 ) -> dict[str, Any]:
-    assert mat.bump_map is not None
+    assert "type" in mi_config, "Bump map can only be applied over a single BSDF"
     return {
         "type": "bumpmap",
-        "bump_texture": generate_float_color_texture_config(mesh, mat.bump_map),
-        "scale": mat.bump_scale,
+        "bump_texture": generate_float_color_texture_config(mesh, bump_map.texture),
+        "scale": bump_map.scale,
         "bsdf": mi_config,
     }
 
@@ -257,6 +278,10 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
             material_config = generate_principled_bsdf_config(
                 mesh, view.material_channel, is_primitive
             )
+        case ThinPrincipled():
+            material_config = generate_principled_bsdf_config(
+                mesh, view.material_channel, is_primitive, thin=True
+            )
         case RoughDielectric():
             material_config = generate_rough_dielectric_bsdf_config(
                 mesh, view.material_channel
@@ -279,9 +304,9 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     if view.material_channel.two_sided:
         material_config = make_material_two_sided(material_config)
 
-    if view.material_channel.bump_map is not None:
+    if view.bump_map is not None:
         material_config = add_bump_map(
-            material_config, mesh, view.material_channel, is_primitive
+            material_config, mesh, view.bump_map, is_primitive
         )
 
     return material_config

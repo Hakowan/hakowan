@@ -6,6 +6,7 @@ from .utils import unique_name
 
 from ..common import logger
 from ..grammar.channel import (
+    BumpMap,
     Channel,
     Normal,
     Position,
@@ -24,6 +25,7 @@ from ..grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
+    ThinPrincipled,
 )
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
@@ -83,6 +85,9 @@ def _preprocess_channels(view: View):
             case Material():
                 if view.material_channel is None:
                     view.material_channel = channel
+            case BumpMap():
+                if view.bump_map is None:
+                    view.bump_map = channel
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(channel)} is not supported"
@@ -128,12 +133,13 @@ def _process_channels(view: View):
                     style.direction = Attribute(style.direction)
                 compute_scaled_attribute(df, style.direction)
                 view._active_attributes.append(style.direction)
-    if view.material_channel is not None:
-        if view.material_channel.bump_map is not None:
-            tex = view.material_channel.bump_map
+    if view.bump_map is not None:
+        tex = view.bump_map.texture
+        assert tex is not None
+        if isinstance(tex, Texture):
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)
             view.uv_attribute = tex._uv
-
+    if view.material_channel is not None:
         match view.material_channel:
             case Diffuse():
                 if isinstance(view.material_channel.reflectance, Texture):
@@ -146,7 +152,7 @@ def _process_channels(view: View):
                     tex = view.material_channel.alpha
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
-                    apply_colormap(df, tex)
+                    apply_colormap(df, tex) # TODO: is this needed?
             case Conductor() | Dielectric() | ThinDielectric() | Hair():
                 # Nothing to do.
                 pass
@@ -160,7 +166,7 @@ def _process_channels(view: View):
                     tex = view.material_channel.specular_reflectance
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
-            case Principled():
+            case Principled() | ThinPrincipled():
                 if isinstance(view.material_channel.color, Texture):
                     tex = view.material_channel.color
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)

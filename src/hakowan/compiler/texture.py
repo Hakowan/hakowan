@@ -15,6 +15,7 @@ from ..grammar.scale import Attribute, Clip, Normalize, Scale
 import lagrange
 import math
 import numpy as np
+from pathlib import Path
 
 
 def apply_texture(
@@ -71,7 +72,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
 
 
 def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
-    assert tex.filename.exists()
+    filename = Path(tex.filename)
+    assert filename.exists()
     if uv is None:
         if tex.uv is None:
             assert df.mesh is not None

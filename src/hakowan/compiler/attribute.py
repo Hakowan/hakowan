@@ -177,6 +177,12 @@ def _apply_log(data: npt.NDArray, scale: Log):
         data.dtype, np.integer
     ), "Log scale cannot be applied to integer data"
     assert data.ndim == 1 or data.shape[1] == 1
+    if np.min(data) < 0:
+        logger.warning("Input to Log scale contains negative values. Taking the absolute value.")
+        data[:] = np.abs(data)
+    if np.min(data) == 0:
+        logger.warning("Input to Log scale contains 0. Adding a small epsilon.")
+        data[:] += 1e-6
     match scale.base:
         case np.e:
             data[:] = np.log(data)

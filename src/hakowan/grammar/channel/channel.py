@@ -4,11 +4,13 @@ from typing import Optional, Union
 
 from .curvestyle import CurveStyle
 from ..scale import Attribute, AttributeLike
+from ..texture import TextureLike
 
 
 @dataclass(kw_only=True, slots=True)
 class Channel:
     """Channel base class."""
+
     pass
 
 
@@ -82,3 +84,18 @@ class VectorField(Channel):
     refinement_level: int = 0
     style: CurveStyle | None = None
     end_type: str = "point"
+
+
+@dataclass(slots=True)
+class BumpMap(Channel):
+    """Bump map channel
+
+    This class specifies the bump map channel.
+
+    Attributes:
+        texture (TextureLike | None): The texture used to encode the bump map.
+        scale (float): The scale of the bump map. The default value is 1.0.
+    """
+
+    texture: TextureLike
+    scale: float = 1.0
