@@ -122,6 +122,7 @@ class Norm(Transform):
     Attributes:
         data: The vector attribute to compute the norm on.
         norm_attr_name: The name of the output norm attribute.
+        order: The order of the norm. Default is 2, which is the L2 norm.
     """
 
     data: AttributeLike
