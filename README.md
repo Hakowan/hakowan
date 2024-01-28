@@ -27,17 +27,11 @@ hkw.render(base, filename="image.exr")  # Render!
 
 [HTML](https://qnzhou.github.io/hakowan/)
 
-## About
-
-Hakowan is developed and maintained by [Qingnan
-Zhou](https://research.adobe.com/person/qingnan-zhou/) and [Zhicheng Liu](https://www.zcliu.org/).
-
 ```bibtex
-@software{zhou2023hakowan,
+@software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    author = {Qingnan Zhou and Zhicheng Liu}
-    version = {0.1.0},
-    year = 2023,
+    version = {0.3.2},
+    year = 2024,
 }
 ```
 

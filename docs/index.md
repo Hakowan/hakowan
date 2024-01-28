@@ -48,9 +48,8 @@ provides a specification of one or more of the following items:
 ## Citation
 
 ``` bibtex
-@software{zhou2023hakowan,
+@software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    author = {Qingnan Zhou and Zhicheng Liu}
     version = {0.1.0},
     year = 2023,
 }

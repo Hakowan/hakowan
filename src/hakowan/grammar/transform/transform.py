@@ -42,7 +42,7 @@ class Transform:
         return r
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only = True)
 class Filter(Transform):
     """Filter data based on a condition.
 
@@ -52,7 +52,7 @@ class Filter(Transform):
             a boolean indicating whether the data should be kept.
     """
 
-    data: AttributeLike | None
+    data: AttributeLike | None = None
     condition: Callable
 
 

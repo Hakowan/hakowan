@@ -283,6 +283,8 @@ def apply_transform(view: View):
     def _apply(t: Transform | None):
         if t is None:
             return
+        _apply(t._child)
+
         match (t):
             case Filter():
                 assert view.data_frame is not None
@@ -304,7 +306,5 @@ def apply_transform(view: View):
                 _apply_norm_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
-
-        _apply(t._child)
 
     _apply(view.transform)
