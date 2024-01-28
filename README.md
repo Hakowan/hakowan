@@ -25,7 +25,7 @@ hkw.render(base, filename="image.exr")  # Render!
 
 ## Documentation
 
-[HTML](https://qnzhou.github.io/hakowan/)
+[HTML](https://hakowan.github.io/hakowan/)
 
 ```bibtex
 @software{hakowan,
