@@ -14,7 +14,7 @@ dependencies=[
     "mitsuba~=3.4",
     "numpy>=1.21",
     ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 
 [mypy]
