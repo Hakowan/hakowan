@@ -8,7 +8,7 @@ from ..scale import Attribute
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Self, Sequence
+from typing import Optional, Sequence
 import lagrange
 import numpy as np
 import numpy.typing as npt
@@ -57,7 +57,7 @@ class Layer:
         if channels is not None:
             self._spec.channels = channels
 
-    def __add__(self, other: Self) -> "Layer":
+    def __add__(self, other: "Layer") -> "Layer":
         """Combine two layers into a composite layer.
 
         Args:

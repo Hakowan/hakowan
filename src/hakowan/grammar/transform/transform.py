@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self, Callable, Optional
+from typing import Callable, Optional
 import copy
 import numpy.typing as npt
 
