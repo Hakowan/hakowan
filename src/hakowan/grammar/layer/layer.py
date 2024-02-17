@@ -249,6 +249,26 @@ class Layer:
             l._spec.transform *= Affine(M)
         return l
 
+    def scale(self, factor: float, in_place: bool = False) -> "Layer":
+        """Update the transform component of the current layer by applying uniform scaling.
+
+        Args:
+            factor (float): The scaling factor.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with transform component updated.
+        """
+        l = self.__get_working_layer(in_place)
+        M = np.eye(4)
+        M[0, 0] = M[1, 1] = M[2, 2] = factor
+        if l._spec.transform is None:
+            l._spec.transform = Affine(M)
+        else:
+            l._spec.transform *= Affine(M)
+        return l
+
     @property
     def children(self) -> list["Layer"]:
         """Get the child layers of this layer."""
