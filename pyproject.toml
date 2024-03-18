@@ -12,7 +12,7 @@ dynamic = ["description", "version"]
 dependencies=[
     "lagrange-open==6.20.0",
     "mitsuba~=3.4",
-    "numpy>=1.21",
+    "numpy>=1.22",
     ]
 requires-python = ">=3.10"
 
