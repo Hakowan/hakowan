@@ -198,17 +198,15 @@ def _apply_compute_transform(view: View, transform: Compute):
             initial_values=mesh.vertices[:, 2].copy(),
         )
     if transform.normal is not None:
-        normal_opt = lagrange.NormalOptions()
-        normal_opt.output_attribute_name = transform.normal
-        lagrange.compute_normal(mesh, options=normal_opt)
+        lagrange.compute_normal(mesh, output_attribute_name=transform.normal)
     if transform.vertex_normal is not None:
-        vertex_normal_opt = lagrange.VertexNormalOptions()
-        vertex_normal_opt.output_attribute_name = transform.vertex_normal
-        lagrange.compute_vertex_normal(mesh, options=vertex_normal_opt)
+        lagrange.compute_vertex_normal(
+            mesh, output_attribute_name=transform.vertex_normal
+        )
     if transform.facet_normal is not None:
-        facet_normal_opt = lagrange.FacetNormalOptions()
-        facet_normal_opt.output_attribute_name = transform.facet_normal
-        lagrange.compute_facet_normal(mesh, options=facet_normal_opt)
+        lagrange.compute_facet_normal(
+            mesh, output_attribute_name=transform.facet_normal
+        )
     if transform.component is not None:
         lagrange.compute_components(mesh, output_attribute_name=transform.component)
 
