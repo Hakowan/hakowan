@@ -62,15 +62,15 @@ def generate_point_config(view: View):
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
     global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-    for i, v in enumerate(mesh.vertices):
-        shapes.append(
-            {
-                "type": "sphere",
-                "center": v.tolist(),
-                "radius": radii[i],
-                "to_world": global_transform,
-            }
-        )
+    shapes = list(map(
+        lambda itr: {
+            "type": "sphere",
+            "center": itr[1].tolist(),
+            "radius": radii[itr[0]],
+            "to_world": global_transform,
+        },
+        enumerate(mesh.vertices),
+    ))
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
@@ -351,7 +351,7 @@ def generate_surface_config(view: View, stamp: str, index: int):
 
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
     if len(normal_ids) > 0:
-        normal_attr = mesh.attribute(normal_ids[0]) # type: ignore
+        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
         use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
     else:
         use_facet_normal = False
