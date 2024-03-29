@@ -90,6 +90,7 @@ def render(
 ):
     logger.info(f"Using Mitsuba variant '{mi.variant()}'.")
     scene = compile(root)
+    logger.info("Compilation done")
 
     if config is None:
         config = Config()
@@ -99,25 +100,30 @@ def render(
 
     if xml_filename is not None:
         mi.xml.dict_to_xml(mi_config, xml_filename)
+        logger.info(f"Scene saved to {xml_filename}")
 
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
+    logger.info("Rendering done")
 
     if config.albedo_only:
         # Select the albedo channels.
-        image = image[:, :, [4, 5, 6, 3]] # type: ignore
+        image = image[:, :, [4, 5, 6, 3]]  # type: ignore
 
     if filename is not None:
         if isinstance(filename, str):
             filename = Path(filename)
 
         if filename.suffix == ".exr":
-            mi.util.write_bitmap(str(filename), image) # type: ignore
+            mi.util.write_bitmap(str(filename), image)  # type: ignore
         else:
-            mi.Bitmap(image).convert( # type: ignore
+            mi.Bitmap(image).convert(  # type: ignore
                 pixel_format=mi.Bitmap.PixelFormat.RGBA,
                 component_format=mi.Struct.Type.UInt8,
                 srgb_gamma=True,
-            ).write(str(filename), quality=-1) # type: ignore
+            ).write(
+                str(filename), quality=-1
+            )  # type: ignore
+        logger.info(f"Rendering saved to {filename}")
 
     return image
