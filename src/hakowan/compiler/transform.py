@@ -80,7 +80,7 @@ def _apply_filter_transform(view: View, transform: Filter):
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
 
-def _appply_uv_mesh_transform(view: View, transform: UVMesh):
+def _apply_uv_mesh_transform(view: View, transform: UVMesh):
     """Extract the UV mesh from the original mesh."""
     df = view.data_frame
     assert df is not None
@@ -289,7 +289,7 @@ def apply_transform(view: View):
                 _apply_filter_transform(view, t)
             case UVMesh():
                 assert view.data_frame is not None
-                _appply_uv_mesh_transform(view, t)
+                _apply_uv_mesh_transform(view, t)
             case Affine():
                 assert view.data_frame is not None
                 _apply_affine_transform(view, t)
