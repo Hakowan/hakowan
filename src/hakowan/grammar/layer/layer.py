@@ -111,11 +111,11 @@ class Layer:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
         return l
 
-    def mark(self, mark: Mark, *, in_place: bool = False) -> "Layer":
+    def mark(self, mark: Mark | str, *, in_place: bool = False) -> "Layer":
         """Overwrite the mark component of this layer.
 
         Args:
-            mark (Mark): The new mark component.
+            mark (Mark | str): The new mark component.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -123,7 +123,17 @@ class Layer:
             result (Layer): The layer object with mark component overwritten.
         """
         l = self.__get_working_layer(in_place)
-        l._spec.mark = mark
+        match(mark):
+            case Mark():
+                l._spec.mark = mark
+            case "point" | "Point" | "POINT":
+                l._spec.mark = Mark.Point
+            case "curve" | "Curve" | "CURVE":
+                l._spec.mark = Mark.Curve
+            case "surface" | "Surface" | "SURFACE":
+                l._spec.mark = Mark.Surface
+            case _:
+                raise ValueError(f"Unsupported mark type: {mark}!")
         return l
 
     def channel(
