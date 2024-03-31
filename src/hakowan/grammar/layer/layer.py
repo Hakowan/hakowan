@@ -2,7 +2,20 @@ from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, VectorField, BumpMap
-from ..channel.material import Material
+from ..channel.material import (
+    Material,
+    Diffuse,
+    Conductor,
+    RoughConductor,
+    Plastic,
+    RoughPlastic,
+    Principled,
+    ThinPrincipled,
+    Dielectric,
+    ThinDielectric,
+    RoughDielectric,
+    Hair,
+)
 from ..transform import Transform, Affine
 from ..scale import Attribute
 
@@ -123,7 +136,7 @@ class Layer:
             result (Layer): The layer object with mark component overwritten.
         """
         l = self.__get_working_layer(in_place)
-        match(mark):
+        match (mark):
             case Mark():
                 l._spec.mark = mark
             case "point" | "Point" | "POINT":
@@ -195,6 +208,47 @@ class Layer:
             l._spec.channels.append(material)
         if bump_map is not None:
             l._spec.channels.append(bump_map)
+        return l
+
+    def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":
+        """Overwrite material for this layer.
+
+        Args:
+            type (str): The material type.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+            *args: Variable length argument list that will be forwarded to material constructor.
+            **kwargs: Arbitrary keyword arguments that will be forwarded to material constructor.
+
+        Returns:
+            result (Layer): The layer object with the channel component overwritten.
+        """
+        l = self.__get_working_layer(in_place)
+        match type:
+            case "diffuse" | "Diffuse" | "DIFFUSE":
+                l._spec.channels.append(Diffuse(*args, **kwargs))
+            case "conductor" | "Conductor" | "CONDUCTOR":
+                l._spec.channels.append(Conductor(*args, **kwargs))
+            case "rough_conductor" | "RoughConductor" | "ROUGH_CONDUCTOR":
+                l._spec.channels.append(RoughConductor(*args, **kwargs))
+            case "plastic" | "Plastic" | "PLASTIC":
+                l._spec.channels.append(Plastic(*args, **kwargs))
+            case "rough_plastic" | "RoughPlastic" | "ROUGH_PLASTIC":
+                l._spec.channels.append(RoughPlastic(*args, **kwargs))
+            case "principled" | "Principled" | "PRINCIPLED":
+                l._spec.channels.append(Principled(*args, **kwargs))
+            case "thin_principled" | "ThinPrincipled" | "THIN_PRINCIPLED":
+                l._spec.channels.append(ThinPrincipled(*args, **kwargs))
+            case "dielectric" | "Dielectric" | "DIELECTRIC":
+                l._spec.channels.append(Dielectric(*args, **kwargs))
+            case "thin_dielectric" | "ThinDielectric" | "THIN_DIELECTRIC":
+                l._spec.channels.append(ThinDielectric(*args, **kwargs))
+            case "rough_dielectric" | "RoughDielectric" | "ROUGH_DIELECTRIC":
+                l._spec.channels.append(RoughDielectric(*args, **kwargs))
+            case "hair" | "Hair" | "HAIR":
+                l._spec.channels.append(Hair(*args, **kwargs))
+            case _:
+                raise ValueError(f"Unsupported material type: {type}!")
         return l
 
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":
