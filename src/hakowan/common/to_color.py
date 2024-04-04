@@ -15,5 +15,7 @@ def to_color(data: ColorLike):
                 raise ValueError(f"Unknown color name: {data}")
         case (r, g, b):
             return Color(r, g, b)
+        case (r, g, b, a):
+            return Color(r, g, b)
         case _:
             raise ValueError(f"Cannot convert {data} to color")
