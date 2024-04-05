@@ -163,7 +163,19 @@ def _apply_affine_transform(view: View, transform: Affine):
     elif np.shape(transform.matrix) == (3, 3):
         matrix = np.eye(4, dtype=np.float64)
         matrix[:3, :3] = np.array(transform.matrix, order="F", dtype=np.float64)
+    else:
+        raise RuntimeError(
+            f"Invalid affine transformation matrix with shape {np.shape(transform.matrix)}."
+        )
     lagrange.transform_mesh(mesh, matrix)
+
+    # Transform ROI box if it exists.
+    if df.roi_box is not None:
+        df.roi_box = np.array(df.roi_box, dtype=np.float64)
+        M = np.array(transform.matrix)[:3, :3]
+        df.roi_box = (M @ df.roi_box.T).T
+        if M.shape == (4, 4):
+            df.roi_box += M[:3, 3].T
 
     # BBox must be updated after affine transform.
     logger.debug("Updating view bbox due to affine transform.")
