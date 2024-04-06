@@ -17,4 +17,7 @@ l = hkw.layer(mark = hkw.mark.Surface)
 
 # Or use .mark overwrite method.
 l = hkw.layer().mark(hkw.mark.Surface)
+
+# Mark can also be specified via string.
+l = hkw.layer().mark("Surface")
 ```
