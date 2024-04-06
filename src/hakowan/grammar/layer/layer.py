@@ -2,13 +2,26 @@ from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
 from ..channel import Channel, Position, Normal, Size, VectorField, BumpMap
-from ..channel.material import Material
+from ..channel.material import (
+    Material,
+    Diffuse,
+    Conductor,
+    RoughConductor,
+    Plastic,
+    RoughPlastic,
+    Principled,
+    ThinPrincipled,
+    Dielectric,
+    ThinDielectric,
+    RoughDielectric,
+    Hair,
+)
 from ..transform import Transform, Affine
 from ..scale import Attribute
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Self, Sequence
+from typing import Optional, Sequence
 import lagrange
 import numpy as np
 import numpy.typing as npt
@@ -57,7 +70,7 @@ class Layer:
         if channels is not None:
             self._spec.channels = channels
 
-    def __add__(self, other: Self) -> "Layer":
+    def __add__(self, other: "Layer") -> "Layer":
         """Combine two layers into a composite layer.
 
         Args:
@@ -111,11 +124,11 @@ class Layer:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
         return l
 
-    def mark(self, mark: Mark, *, in_place: bool = False) -> "Layer":
+    def mark(self, mark: Mark | str, *, in_place: bool = False) -> "Layer":
         """Overwrite the mark component of this layer.
 
         Args:
-            mark (Mark): The new mark component.
+            mark (Mark | str): The new mark component.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -123,7 +136,17 @@ class Layer:
             result (Layer): The layer object with mark component overwritten.
         """
         l = self.__get_working_layer(in_place)
-        l._spec.mark = mark
+        match (mark):
+            case Mark():
+                l._spec.mark = mark
+            case "point" | "Point" | "POINT":
+                l._spec.mark = Mark.Point
+            case "curve" | "Curve" | "CURVE":
+                l._spec.mark = Mark.Curve
+            case "surface" | "Surface" | "SURFACE":
+                l._spec.mark = Mark.Surface
+            case _:
+                raise ValueError(f"Unsupported mark type: {mark}!")
         return l
 
     def channel(
@@ -187,6 +210,47 @@ class Layer:
             l._spec.channels.append(bump_map)
         return l
 
+    def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":
+        """Overwrite material for this layer.
+
+        Args:
+            type (str): The material type.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+            *args: Variable length argument list that will be forwarded to material constructor.
+            **kwargs: Arbitrary keyword arguments that will be forwarded to material constructor.
+
+        Returns:
+            result (Layer): The layer object with the channel component overwritten.
+        """
+        l = self.__get_working_layer(in_place)
+        match type:
+            case "diffuse" | "Diffuse" | "DIFFUSE":
+                l._spec.channels.append(Diffuse(*args, **kwargs))
+            case "conductor" | "Conductor" | "CONDUCTOR":
+                l._spec.channels.append(Conductor(*args, **kwargs))
+            case "rough_conductor" | "RoughConductor" | "ROUGH_CONDUCTOR":
+                l._spec.channels.append(RoughConductor(*args, **kwargs))
+            case "plastic" | "Plastic" | "PLASTIC":
+                l._spec.channels.append(Plastic(*args, **kwargs))
+            case "rough_plastic" | "RoughPlastic" | "ROUGH_PLASTIC":
+                l._spec.channels.append(RoughPlastic(*args, **kwargs))
+            case "principled" | "Principled" | "PRINCIPLED":
+                l._spec.channels.append(Principled(*args, **kwargs))
+            case "thin_principled" | "ThinPrincipled" | "THIN_PRINCIPLED":
+                l._spec.channels.append(ThinPrincipled(*args, **kwargs))
+            case "dielectric" | "Dielectric" | "DIELECTRIC":
+                l._spec.channels.append(Dielectric(*args, **kwargs))
+            case "thin_dielectric" | "ThinDielectric" | "THIN_DIELECTRIC":
+                l._spec.channels.append(ThinDielectric(*args, **kwargs))
+            case "rough_dielectric" | "RoughDielectric" | "ROUGH_DIELECTRIC":
+                l._spec.channels.append(RoughDielectric(*args, **kwargs))
+            case "hair" | "Hair" | "HAIR":
+                l._spec.channels.append(Hair(*args, **kwargs))
+            case _:
+                raise ValueError(f"Unsupported material type: {type}!")
+        return l
+
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":
         """Overwrite the transform component of this layer.
 
@@ -243,6 +307,26 @@ class Layer:
         M = np.eye(4)
         M[:3, 3] = np.array(offset, dtype=np.float64)
 
+        if l._spec.transform is None:
+            l._spec.transform = Affine(M)
+        else:
+            l._spec.transform *= Affine(M)
+        return l
+
+    def scale(self, factor: float, in_place: bool = False) -> "Layer":
+        """Update the transform component of the current layer by applying uniform scaling.
+
+        Args:
+            factor (float): The scaling factor.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with transform component updated.
+        """
+        l = self.__get_working_layer(in_place)
+        M = np.eye(4)
+        M[0, 0] = M[1, 1] = M[2, 2] = factor
         if l._spec.transform is None:
             l._spec.transform = Affine(M)
         else:

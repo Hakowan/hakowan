@@ -11,7 +11,11 @@ def to_color(data: ColorLike):
                 return Color.from_hex(data)
             elif data.lower() in css_colors:
                 return css_colors[data.lower()]
+            else:
+                raise ValueError(f"Unknown color name: {data}")
         case (r, g, b):
+            return Color(r, g, b)
+        case (r, g, b, a):
             return Color(r, g, b)
         case _:
             raise ValueError(f"Cannot convert {data} to color")

@@ -377,6 +377,51 @@ class TestTexture:
         assert not np.allclose(data[:, 0], 0)
         assert not np.allclose(data[:, 0], 1)
 
+    def test_scalar_field_with_domain(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.eye(3))
+        mesh.create_attribute("vertex_data", initial_values=[0, 1, 2])
+
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        attr = hkw.attribute(name="vertex_data")
+        tex = hkw.texture.ScalarField(data=attr, domain=[0, 1])
+        hkw.compiler.texture.apply_texture(df, tex)
+
+        assert attr._internal_name is not None
+        assert mesh.has_attribute(attr._internal_name)
+        scaled_data = mesh.attribute(attr._internal_name).data
+        assert np.allclose(scaled_data, [0, 1, 1])
+
+    def test_scalar_field_with_range(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.eye(3))
+        mesh.create_attribute("vertex_data", initial_values=[0, 1, 2])
+
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        attr = hkw.attribute(name="vertex_data")
+        tex = hkw.texture.ScalarField(data=attr, range=[0, 10])
+        hkw.compiler.texture.apply_texture(df, tex)
+
+        assert attr._internal_name is not None
+        assert mesh.has_attribute(attr._internal_name)
+        scaled_data = mesh.attribute(attr._internal_name).data
+        assert np.allclose(scaled_data, [0, 5, 10])
+
+    def test_scalar_field_with_both_domain_and_range(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.eye(3))
+        mesh.create_attribute("vertex_data", initial_values=[0, 1, 2])
+
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        attr = hkw.attribute(name="vertex_data")
+        tex = hkw.texture.ScalarField(data=attr, domain=[1, 2], range=[0, 10])
+        hkw.compiler.texture.apply_texture(df, tex)
+
+        assert attr._internal_name is not None
+        assert mesh.has_attribute(attr._internal_name)
+        scaled_data = mesh.attribute(attr._internal_name).data
+        assert np.allclose(scaled_data, [0, 0, 10])
+
     def test_image(self, triangle):
         import tempfile
 

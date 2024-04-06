@@ -38,17 +38,17 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
         nonlocal attr_name
         nonlocal tex
 
-        num_categories = 0
+        unique_values: list[float] = []
 
         def get_color(value: float):
             if not categories:
                 return colormap(value).data
             else:
-                assert num_categories > 0
+                assert len(unique_values) > 0
                 assert isinstance(colormap, ColorMap)
                 num_colors = colormap.num_colors()
                 return colormap(
-                    np.round(value * (num_categories - 1)) % num_colors / (num_colors - 1)
+                    unique_values.index(value) % num_colors / (num_colors - 1)
                 ).data
 
         if mesh.is_attribute_indexed(attr_name):
@@ -56,7 +56,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
             value_attr = attr.values
             index_attr = attr.indices
             if categories:
-                num_categories = len(np.unique(value_attr.data))
+                unique_values = np.unique(value_attr.data).tolist()
 
             color_data = np.array([get_color(x) for x in value_attr.data])
             color_attr_name = unique_name(mesh, "vertex_color")
@@ -71,7 +71,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
         else:
             attr = mesh.attribute(attr_name)
             if categories:
-                num_categories = len(np.unique(attr.data))
+                unique_values = np.unique(attr.data).tolist()
             color_data = np.array([get_color(x) for x in attr.data])
 
             if attr.element_type == lagrange.AttributeElement.Facet:

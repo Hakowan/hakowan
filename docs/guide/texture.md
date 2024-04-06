@@ -28,7 +28,7 @@ One of the most common use case of texture is to map a scalar field to a color f
 | colormap | str | The colormap to use |
 | domain | tuple | The domain of the attribute |
 | range | tuple | The range of colormap |
-| categories | int | The total number of categories |
+| categories | bool | Whether the data represents categories (i.e. discrete values) |
 
 ```py
 t = hkw.texture.ScalarField(data="attr_name")

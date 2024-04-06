@@ -15,6 +15,14 @@ field on the right.
 
 [^1]: 3D model generated with Blender's A.N.T.Landscape add-on.
 
+Channels can be specified via `Layer.channel()` function.
+
+```py
+# Assume `ch1` is a `Position` channel object,
+# and `ch2` is a `Normal` channel object.
+l = hkw.layer().channel(position=ch1, normal=ch2)
+```
+
 ## Position channel
 
 `Position` channel represents the position of 3D marks. By default, the position channel will

@@ -6,6 +6,25 @@ just RGB. Hakowan leverages [Mitsuba's material
 support](https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html) to provide a
 number of material-based visual channels.
 
+All materials support the following parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `two_sided` | `bool` | Wheter the material is two-sided. (default: false) |
+
+A material can be specified via the `Layer.channel()` method.
+```py
+# Assume `m` is a `Material` object
+l = hkw.layer().channel(material=m)
+```
+
+Hakowan also provides the shortcut method `Layer.material()` to specify material directly.
+```py
+l = hkw.layer().material("Diffuse", "orange", two_sided=True)
+l = hkw.layer().material("Principled", "ivory", roughness=0.2, metallic=0.8)
+```
+
+
 ## Diffuse material
 
 ![Diffuse material](../images/spot_diffuse.png){: style="width:170px"}

@@ -80,7 +80,7 @@ def _apply_filter_transform(view: View, transform: Filter):
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
 
-def _appply_uv_mesh_transform(view: View, transform: UVMesh):
+def _apply_uv_mesh_transform(view: View, transform: UVMesh):
     """Extract the UV mesh from the original mesh."""
     df = view.data_frame
     assert df is not None
@@ -163,7 +163,19 @@ def _apply_affine_transform(view: View, transform: Affine):
     elif np.shape(transform.matrix) == (3, 3):
         matrix = np.eye(4, dtype=np.float64)
         matrix[:3, :3] = np.array(transform.matrix, order="F", dtype=np.float64)
+    else:
+        raise RuntimeError(
+            f"Invalid affine transformation matrix with shape {np.shape(transform.matrix)}."
+        )
     lagrange.transform_mesh(mesh, matrix)
+
+    # Transform ROI box if it exists.
+    if df.roi_box is not None:
+        df.roi_box = np.array(df.roi_box, dtype=np.float64)
+        M = np.array(transform.matrix)[:3, :3]
+        df.roi_box = (M @ df.roi_box.T).T
+        if M.shape == (4, 4):
+            df.roi_box += M[:3, 3].T
 
     # BBox must be updated after affine transform.
     logger.debug("Updating view bbox due to affine transform.")
@@ -198,17 +210,15 @@ def _apply_compute_transform(view: View, transform: Compute):
             initial_values=mesh.vertices[:, 2].copy(),
         )
     if transform.normal is not None:
-        normal_opt = lagrange.NormalOptions()
-        normal_opt.output_attribute_name = transform.normal
-        lagrange.compute_normal(mesh, options=normal_opt)
+        lagrange.compute_normal(mesh, output_attribute_name=transform.normal)
     if transform.vertex_normal is not None:
-        vertex_normal_opt = lagrange.VertexNormalOptions()
-        vertex_normal_opt.output_attribute_name = transform.vertex_normal
-        lagrange.compute_vertex_normal(mesh, options=vertex_normal_opt)
+        lagrange.compute_vertex_normal(
+            mesh, output_attribute_name=transform.vertex_normal
+        )
     if transform.facet_normal is not None:
-        facet_normal_opt = lagrange.FacetNormalOptions()
-        facet_normal_opt.output_attribute_name = transform.facet_normal
-        lagrange.compute_facet_normal(mesh, options=facet_normal_opt)
+        lagrange.compute_facet_normal(
+            mesh, output_attribute_name=transform.facet_normal
+        )
     if transform.component is not None:
         lagrange.compute_components(mesh, output_attribute_name=transform.component)
 
@@ -291,7 +301,7 @@ def apply_transform(view: View):
                 _apply_filter_transform(view, t)
             case UVMesh():
                 assert view.data_frame is not None
-                _appply_uv_mesh_transform(view, t)
+                _apply_uv_mesh_transform(view, t)
             case Affine():
                 assert view.data_frame is not None
                 _apply_affine_transform(view, t)

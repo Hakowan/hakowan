@@ -17,7 +17,7 @@ import re
 import tempfile
 
 
-def extract_size(view: View, n: int, default_size=0.01):
+def extract_size(view: View, default_size=0.01):
     """Extract the size attribute from a view.
 
     :param view: The view to extract size from.
@@ -29,25 +29,21 @@ def extract_size(view: View, n: int, default_size=0.01):
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
 
-    radii = []
     if view.size_channel is not None:
         match view.size_channel.data:
             case float():
-                radii = [view.size_channel.data] * n
+                return view.size_channel.data
             case Attribute():
                 assert view.size_channel.data._internal_name is not None
-                radii = mesh.attribute(
+                return mesh.attribute(
                     view.size_channel.data._internal_name
                 ).data.tolist()
-                assert len(radii) == n
             case _:
                 raise NotImplementedError(
                     f"Unsupported size channel type: {type(view.size_channel.data)}"
                 )
     else:
-        radii = [default_size] * n
-
-    return radii
+        return default_size
 
 
 def generate_point_config(view: View):
@@ -57,20 +53,24 @@ def generate_point_config(view: View):
     shapes: list[dict[str, Any]] = []
 
     # Compute radii
-    radii = extract_size(view, mesh.num_vertices)
+    radii = extract_size(view)
+    if np.isscalar(radii):
+        radii = [radii] * mesh.num_vertices
 
     # Generate spheres.
     assert len(radii) == mesh.num_vertices
     global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-    for i, v in enumerate(mesh.vertices):
-        shapes.append(
-            {
+    shapes = list(
+        map(
+            lambda itr: {
                 "type": "sphere",
-                "center": v.tolist(),
-                "radius": radii[i],
+                "center": itr[1].tolist(),
+                "radius": radii[itr[0]],
                 "to_world": global_transform,
-            }
+            },
+            enumerate(mesh.vertices),
         )
+    )
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
@@ -100,11 +100,15 @@ def extract_vector_field(view: View):
     match attr.element_type:
         case lagrange.AttributeElement.Vertex:
             base = mesh.vertices
-            size = extract_size(view, mesh.num_vertices)
+            size = extract_size(view)
+            if np.isscalar(size):
+                size = [size] * mesh.num_vertices
         case lagrange.AttributeElement.Facet:
             centroid_attr_id = lagrange.compute_facet_centroid(mesh)
             base = mesh.attribute(centroid_attr_id).data  # type: ignore
-            size = extract_size(view, mesh.num_facets)
+            size = extract_size(view)
+            if np.isscalar(size):
+                size = [size] * mesh.num_facets
         case _:
             raise NotImplementedError(
                 f"Unsupported vector field element type: {attr.element_type}"
@@ -204,7 +208,10 @@ def extract_edges(view: View):
     base_size: npt.NDArray = np.ndarray(mesh.num_edges, dtype=np.float32)
     tip_size: npt.NDArray = np.ndarray(mesh.num_edges, dtype=np.float32)
 
-    sizes = extract_size(view, mesh.num_vertices)
+    sizes = extract_size(view)
+    if np.isscalar(sizes):
+        sizes = [sizes] * mesh.num_vertices
+
     vertices = mesh.vertices
     for i in range(mesh.num_edges):
         edge_vts = mesh.get_edge_vertices(i)
@@ -351,7 +358,7 @@ def generate_surface_config(view: View, stamp: str, index: int):
 
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
     if len(normal_ids) > 0:
-        normal_attr = mesh.attribute(normal_ids[0]) # type: ignore
+        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
         use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
     else:
         use_facet_normal = False

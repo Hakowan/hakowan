@@ -12,12 +12,9 @@ class Material(Channel):
 
     Attributes:
         two_sided: Whether to render both sides of the surface (default: False).
-        bump_map: Bump map texture (default: None).
     """
 
     two_sided: bool = False
-    bump_map: Texture | None = None
-    bump_scale: float = 1.0
 
 
 @dataclass(slots=True)

@@ -67,6 +67,21 @@ class View:
             if attr._internal_color_field is not None
         ]
 
+        # If input mesh contains normal and normal channel is not set,
+        # we will keep the input normal.
+        normal_attr_names = [
+            mesh.get_attribute_name(attr_id)
+            for attr_id in mesh.get_matching_attribute_ids(
+                usage=lagrange.AttributeUsage.Normal
+            )
+        ]
+        if (
+            len(normal_attr_names) > 0
+            and len(set(normal_attr_names) & set(active_attribute_names)) == 0
+        ):
+            logger.debug(f"Adding input normal attribute '{normal_attr_names[0]}'")
+            active_attribute_names.append(normal_attr_names[0])
+
         # Drop all non-active attributes
         for attr_id in mesh.get_matching_attribute_ids():
             attr_name = mesh.get_attribute_name(attr_id)
@@ -76,9 +91,7 @@ class View:
                 mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
-        for attr in self._active_attributes:
-            attr_name = attr._internal_name
-            assert attr_name is not None
+        for attr_name in active_attribute_names:
             if mesh.is_attribute_indexed(attr_name):
                 continue
 
@@ -91,14 +104,9 @@ class View:
 
         # Gather all indexed attributes
         indexed_attr_names = []
-        for attr in self._active_attributes:
-            attr_name = attr._internal_name
+        for attr_name in active_attribute_names:
             if mesh.is_attribute_indexed(attr_name):
                 indexed_attr_names.append(attr_name)
-            if attr._internal_color_field is not None and mesh.is_attribute_indexed(
-                attr._internal_color_field
-            ):
-                indexed_attr_names.append(attr._internal_color_field)
 
         # Unify all active index buffers.
         if len(indexed_attr_names) > 0:

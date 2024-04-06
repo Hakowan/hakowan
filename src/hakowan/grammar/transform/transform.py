@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self, Callable, Optional
+from typing import Callable, Optional
 import copy
 import numpy.typing as npt
 
@@ -42,7 +42,7 @@ class Transform:
         return r
 
 
-@dataclass(slots=True, kw_only = True)
+@dataclass(slots=True)
 class Filter(Transform):
     """Filter data based on a condition.
 
@@ -53,7 +53,7 @@ class Filter(Transform):
     """
 
     data: AttributeLike | None = None
-    condition: Callable
+    condition: Callable = lambda x: True
 
 
 @dataclass(slots=True)

@@ -31,6 +31,20 @@ Affine transform applies an affine transformation to the given 3D mesh.
 tr = hkw.transform.Affine(matrix=np.eye(4))
 ```
 
+Because affine transform is a very common operation, Hakowan provide the following shortcuts:
+
+```py
+# Assume `v` is a offset vector.
+l = hkw.layer().translate(v)
+
+# Assume `s` is a scaling factor.
+l = hkw.layer().scale(s)
+
+# Assume `axis` is a vector representing rotational axis,
+# and `theta` is the rotation angle in radian.
+l = hkw.layer().rotate(v, theta)
+```
+
 ## Compute transform
 
 Compute transform is designed to compute a set of commonly used attributes from the data frame.
@@ -87,4 +101,12 @@ filter_tr = hkw.transform.Filter(data="comp", condition=lambda id: id==0)
 
 # Transforms are carried out from left to right.
 tr = component * filter_tr
+```
+
+When specifying transformation via `Layer.transform()` methods, the transforms are applied in the
+order of the specification.
+
+```py
+# Transform `tr1` is applied before `tr2`.
+hkw.layer().transform(tr1).transform(tr2)
 ```
