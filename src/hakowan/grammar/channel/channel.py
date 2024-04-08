@@ -87,6 +87,21 @@ class VectorField(Channel):
 
 
 @dataclass(slots=True)
+class Covariance(Channel):
+    """ Covariance channel
+
+    This class is used to specify the mapping from an attribute to the covariance matrix channel.
+    The covariance channel only applies to point mark. It is represented as a per-vertex 3x3
+    symmetric matrix, which defines the stretch and rotation of the point marks.
+
+    Attributes:
+        data (AttributeLike): The attribute used to encode the covariance matrix.
+    """
+
+    data: AttributeLike
+
+
+@dataclass(slots=True)
 class BumpMap(Channel):
     """Bump map channel
 

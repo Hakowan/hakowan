@@ -45,6 +45,27 @@ def extract_size(view: View, default_size=0.01):
     else:
         return default_size
 
+def extract_covariances(view: View):
+    """ Extract the covariance attribute from a view.
+
+    :param view: The view to extract covariance from.
+
+    :return: A list of n 3x3 covariance matrices.
+    """
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+
+    assert view.covariance_channel is not None
+    assert isinstance(view.covariance_channel.data, Attribute)
+    attr_name = view.covariance_channel.data._internal_name
+    assert attr_name is not None
+    assert mesh.has_attribute(attr_name)
+
+    attr = mesh.attribute(attr_name)
+    assert attr.element_type == lagrange.AttributeElement.Vertex
+    assert attr.data.shape[1] == 9
+    return attr.data.reshape(-1, 3, 3)
+
 
 def generate_point_config(view: View):
     """Generate point cloud shapes from a View."""
@@ -56,21 +77,36 @@ def generate_point_config(view: View):
     radii = extract_size(view)
     if np.isscalar(radii):
         radii = [radii] * mesh.num_vertices
-
-    # Generate spheres.
     assert len(radii) == mesh.num_vertices
-    global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-    shapes = list(
-        map(
-            lambda itr: {
-                "type": "sphere",
-                "center": itr[1].tolist(),
-                "radius": radii[itr[0]],
-                "to_world": global_transform,
-            },
-            enumerate(mesh.vertices),
+
+    if view.covariance_channel is None:
+        # Generate spheres.
+        global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
+        shapes = list(
+            map(
+                lambda itr: {
+                    "type": "sphere",
+                    "center": itr[1].tolist(),
+                    "radius": radii[itr[0]],
+                    "to_world": global_transform,
+                },
+                enumerate(mesh.vertices),
+            )
         )
-    )
+    else:
+        covariances = extract_covariances(view)
+        global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
+        for i, v in enumerate(mesh.vertices):
+            local_transform = np.eye(4)
+            local_transform[:3, :3] = covariances[i] * radii[i]
+            local_transform[:3, 3] = v
+            local_transform = mi.ScalarTransform4f(local_transform)  # type: ignore
+            shapes.append(
+                {
+                    "type": "cube",
+                    "to_world": global_transform @ local_transform,
+                }
+            )
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)

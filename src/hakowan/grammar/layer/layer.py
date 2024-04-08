@@ -1,7 +1,7 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField, BumpMap
+from ..channel import Channel, Position, Normal, Size, VectorField, Covariance, BumpMap
 from ..channel.material import (
     Material,
     Diffuse,
@@ -156,6 +156,7 @@ class Layer:
         normal: Normal | str | None = None,
         size: float | str | Size | None = None,
         vector_field: VectorField | str | None = None,
+        covariance: Covariance | str | None = None,
         material: Material | None = None,
         bump_map: BumpMap | None = None,
         in_place: bool = False,
@@ -192,8 +193,8 @@ class Layer:
             ), f"Unsupported normal type: {type(normal)}!"
             l._spec.channels.append(convert(normal, Normal))
         if size is not None:
-            if isinstance(size, float):
-                l._spec.channels.append(Size(data=size))
+            if isinstance(size, (int, float)):
+                l._spec.channels.append(Size(data=float(size)))
             else:
                 assert isinstance(
                     size, (Size, str)
@@ -204,6 +205,11 @@ class Layer:
                 vector_field, (VectorField, str)
             ), f"Unsupported vector_field type: {type(vector_field)}!"
             l._spec.channels.append(convert(vector_field, VectorField))
+        if covariance is not None:
+            assert isinstance(
+                covariance, (Covariance, str)
+            ), f"Unsupported covariance type: {type(covariance)}!"
+            l._spec.channels.append(convert(covariance, Covariance))
         if material is not None:
             l._spec.channels.append(material)
         if bump_map is not None:

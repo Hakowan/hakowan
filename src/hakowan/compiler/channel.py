@@ -8,6 +8,7 @@ from ..common import logger
 from ..grammar.channel import (
     BumpMap,
     Channel,
+    Covariance,
     Normal,
     Position,
     Size,
@@ -82,6 +83,9 @@ def _preprocess_channels(view: View):
             case VectorField():
                 if view.vector_field_channel is None:
                     view.vector_field_channel = channel
+            case Covariance():
+                if view.covariance_channel is None:
+                    view.covariance_channel = channel
             case Material():
                 if view.material_channel is None:
                     view.material_channel = channel
@@ -133,6 +137,12 @@ def _process_channels(view: View):
                     style.direction = Attribute(style.direction)
                 compute_scaled_attribute(df, style.direction)
                 view._active_attributes.append(style.direction)
+    if view.covariance_channel is not None:
+        assert isinstance(view.covariance_channel, Covariance)
+        assert isinstance(view.covariance_channel.data, Attribute)
+        attr = view.covariance_channel.data
+        compute_scaled_attribute(df, attr)
+        view._active_attributes.append(attr)
     if view.bump_map is not None:
         tex = view.bump_map.texture
         assert tex is not None
@@ -152,7 +162,7 @@ def _process_channels(view: View):
                     tex = view.material_channel.alpha
                     view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                     view.uv_attribute = tex._uv
-                    apply_colormap(df, tex) # TODO: is this needed?
+                    apply_colormap(df, tex)  # TODO: is this needed?
             case Conductor() | Dielectric() | ThinDielectric() | Hair():
                 # Nothing to do.
                 pass

@@ -1,4 +1,12 @@
-from ..grammar.channel import Channel, Position, Normal, Size, VectorField, BumpMap
+from ..grammar.channel import (
+    Channel,
+    Position,
+    Normal,
+    Size,
+    VectorField,
+    Covariance,
+    BumpMap,
+)
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
@@ -24,6 +32,7 @@ class View:
     _normal_channel: Normal | None = None
     _size_channel: Size | None = None
     _vector_field_channel: VectorField | None = None
+    _covariance_channel: Covariance | None = None
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
     _bump_map: BumpMap | None = None
@@ -217,6 +226,18 @@ class View:
             channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, Attribute)
         self._vector_field_channel = channel
+
+    @property
+    def covariance_channel(self) -> Covariance | None:
+        return self._covariance_channel
+
+    @covariance_channel.setter
+    def covariance_channel(self, channel: Covariance):
+        assert isinstance(channel, Covariance)
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name=channel.data)
+        assert isinstance(channel.data, Attribute)
+        self._covariance_channel = channel
 
     @property
     def material_channel(self) -> Material | None:
