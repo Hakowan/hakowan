@@ -98,7 +98,7 @@ def generate_point_config(view: View, stamp: str, index: int):
         )
     else:
         # Generate point mark shape.
-        sphere = create_icosphere(0)
+        sphere = create_icosphere(1)
         tmp_dir = pathlib.Path(tempfile.gettempdir())
         filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
         logger.debug(f"Saving point mark shape to '{str(filename)}'.")
