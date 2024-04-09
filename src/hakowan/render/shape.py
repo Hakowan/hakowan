@@ -45,8 +45,9 @@ def extract_size(view: View, default_size=0.01):
     else:
         return default_size
 
+
 def extract_covariances(view: View):
-    """ Extract the covariance attribute from a view.
+    """Extract the covariance attribute from a view.
 
     :param view: The view to extract covariance from.
 
@@ -67,19 +68,19 @@ def extract_covariances(view: View):
     return attr.data.reshape(-1, 3, 3)
 
 
-def generate_point_config(view: View):
+def generate_point_config(view: View, stamp: str, index: int):
     """Generate point cloud shapes from a View."""
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
 
-    # Compute radii
-    radii = extract_size(view)
-    if np.isscalar(radii):
-        radii = [radii] * mesh.num_vertices
-    assert len(radii) == mesh.num_vertices
-
     if view.covariance_channel is None:
+        # Compute radii
+        radii = extract_size(view)
+        if np.isscalar(radii):
+            radii = [radii] * mesh.num_vertices
+        assert len(radii) == mesh.num_vertices
+
         # Generate spheres.
         global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
         shapes = list(
@@ -94,6 +95,12 @@ def generate_point_config(view: View):
             )
         )
     else:
+        # Compute radii, with default radii as 1.
+        radii = extract_size(view, 1)
+        if np.isscalar(radii):
+            radii = [radii] * mesh.num_vertices
+        assert len(radii) == mesh.num_vertices
+
         covariances = extract_covariances(view)
         global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
         for i, v in enumerate(mesh.vertices):
@@ -119,7 +126,11 @@ def generate_point_config(view: View):
         assert len(bsdfs) == len(shapes)
         for (bsdf_id, bsdf), shape in zip(bsdfs.items(), shapes):
             shape[bsdf_id] = bsdf
-    return shapes
+
+    mi_config: dict[str, Any] = {
+        f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)
+    }
+    return mi_config
 
 
 def extract_vector_field(view: View):
@@ -316,10 +327,12 @@ def generate_curve_config(view: View, stamp: str, index: int):
                 )
 
     mi_config = {
-        "type": curve_type,
-        "filename": str(filename.resolve()),
-        "bsdf": generate_bsdf_config(view, is_primitive=False),
-        "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
+        f"view_{index:03}_shape_000000": {
+            "type": curve_type,
+            "filename": str(filename.resolve()),
+            "bsdf": generate_bsdf_config(view, is_primitive=False),
+            "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
+        }
     }
     return mi_config
 
@@ -415,4 +428,5 @@ def generate_surface_config(view: View, stamp: str, index: int):
     ):
         mi_config["interior"] = generate_medium_config(view)
 
+    mi_config = {f"view_{index:03}_shape_000000": mi_config}
     return mi_config

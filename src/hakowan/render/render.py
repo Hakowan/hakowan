@@ -38,20 +38,16 @@ def generate_base_config(config: Config):
 
 def generate_view_config(view: View, stamp: str, index: int):
     """Generate a Mitsuba shape description dict from a View."""
-    shapes = []
 
     # Generate shape.
     match view.mark:
         case mark.Point:
-            shapes = generate_point_config(view)
+            mi_config = generate_point_config(view, stamp, index)
         case mark.Curve:
-            shapes.append(generate_curve_config(view, stamp, index))
+            mi_config = generate_curve_config(view, stamp, index)
         case mark.Surface:
-            shapes.append(generate_surface_config(view, stamp, index))
+            mi_config = generate_surface_config(view, stamp, index)
 
-    mi_config = {
-        f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)
-    }
     return mi_config
 
 
