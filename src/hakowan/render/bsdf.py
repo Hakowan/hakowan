@@ -149,7 +149,7 @@ def generate_principled_bsdf_config(
     else:
         get_metallic = lambda i: metallic
 
-    mat_name = "principled" if not thin else "thinprincipled"
+    mat_name = "principled" if not thin else "principledthin"
     base_config: dict[str, Any] = {
         "anisotropic": mat.anisotropic,
         "spec_trans": mat.spec_trans,
