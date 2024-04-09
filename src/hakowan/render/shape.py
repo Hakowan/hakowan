@@ -1,4 +1,5 @@
 from .bsdf import generate_bsdf_config
+from .icosphere import create_icosphere
 from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
@@ -73,6 +74,7 @@ def generate_point_config(view: View, stamp: str, index: int):
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
+    shape_group: dict[str, Any] = {}
 
     if view.covariance_channel is None:
         # Compute radii
@@ -95,6 +97,13 @@ def generate_point_config(view: View, stamp: str, index: int):
             )
         )
     else:
+        # Generate point mark shape.
+        sphere = create_icosphere(0)
+        tmp_dir = pathlib.Path(tempfile.gettempdir())
+        filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+        logger.debug(f"Saving point mark shape to '{str(filename)}'.")
+        lagrange.io.save_mesh(filename, sphere)  # type: ignore
+
         # Compute radii, with default radii as 1.
         radii = extract_size(view, 1)
         if np.isscalar(radii):
@@ -110,7 +119,9 @@ def generate_point_config(view: View, stamp: str, index: int):
             local_transform = mi.ScalarTransform4f(local_transform)  # type: ignore
             shapes.append(
                 {
-                    "type": "cube",
+                    "type": "ply",
+                    "filename": str(filename.resolve()),
+                    "face_normals": False,
                     "to_world": global_transform @ local_transform,
                 }
             )
