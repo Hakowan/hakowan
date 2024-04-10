@@ -97,12 +97,22 @@ def generate_point_config(view: View, stamp: str, index: int):
             )
         )
     else:
-        # Generate point mark shape.
-        sphere = create_icosphere(1)
-        tmp_dir = pathlib.Path(tempfile.gettempdir())
-        filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
-        logger.debug(f"Saving point mark shape to '{str(filename)}'.")
-        lagrange.io.save_mesh(filename, sphere)  # type: ignore
+        # Generate base shape config.
+        match view.covariance_channel.base_shape:
+            case "sphere":
+                # Generate point mark shape.
+                sphere = create_icosphere(1)
+                tmp_dir = pathlib.Path(tempfile.gettempdir())
+                filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+                logger.debug(f"Saving point mark shape to '{str(filename)}'.")
+                lagrange.io.save_mesh(filename, sphere)  # type: ignore
+                base_shape_config = {
+                    "type": "ply",
+                    "filename": str(filename.resolve()),
+                    "face_normals": False,
+                }
+            case "cube":
+                base_shape_config = {"type": "cube"}
 
         # Compute radii, with default radii as 1.
         radii = extract_size(view, 1)
@@ -117,14 +127,9 @@ def generate_point_config(view: View, stamp: str, index: int):
             local_transform[:3, :3] = covariances[i] * radii[i]
             local_transform[:3, 3] = v
             local_transform = mi.ScalarTransform4f(local_transform)  # type: ignore
-            shapes.append(
-                {
-                    "type": "ply",
-                    "filename": str(filename.resolve()),
-                    "face_normals": False,
-                    "to_world": global_transform @ local_transform,
-                }
-            )
+            shape = base_shape_config.copy()
+            shape["to_world"] = global_transform @ local_transform
+            shapes.append(shape)
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)

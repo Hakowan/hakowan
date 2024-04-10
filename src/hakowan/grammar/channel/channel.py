@@ -96,9 +96,12 @@ class Covariance(Channel):
 
     Attributes:
         data (AttributeLike): The attribute used to encode the covariance matrix.
+        base_shape (str): The base shape of the covariance matrix. Options include "sphere" and
+            "cube". The default value is "sphere".
     """
 
     data: AttributeLike
+    base_shape: str = "sphere"
 
 
 @dataclass(slots=True)
