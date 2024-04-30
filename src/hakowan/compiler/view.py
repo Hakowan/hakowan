@@ -6,6 +6,7 @@ from ..grammar.channel import (
     VectorField,
     Covariance,
     BumpMap,
+    NormalMap,
 )
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
@@ -36,6 +37,7 @@ class View:
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
     _bump_map: BumpMap | None = None
+    _normal_map: NormalMap | None = None
 
     _active_attributes: list[Attribute] = field(default_factory=list)
     _bbox: npt.NDArray | None = None
@@ -269,6 +271,14 @@ class View:
     @bump_map.setter
     def bump_map(self, bump_map: BumpMap | None):
         self._bump_map = bump_map
+
+    @property
+    def normal_map(self) -> NormalMap | None:
+        return self._normal_map
+
+    @normal_map.setter
+    def normal_map(self, normal_map: NormalMap | None):
+        self._normal_map = normal_map
 
     @property
     def bbox(self) -> npt.NDArray | None:

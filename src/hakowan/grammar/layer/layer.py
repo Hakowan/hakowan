@@ -1,7 +1,16 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField, Covariance, BumpMap
+from ..channel import (
+    Channel,
+    Position,
+    Normal,
+    Size,
+    VectorField,
+    Covariance,
+    BumpMap,
+    NormalMap,
+)
 from ..channel.material import (
     Material,
     Diffuse,
@@ -159,6 +168,7 @@ class Layer:
         covariance: Covariance | str | None = None,
         material: Material | None = None,
         bump_map: BumpMap | None = None,
+        normal_map: NormalMap | None = None,
         in_place: bool = False,
     ) -> "Layer":
         """Overwrite a channel component of this layer.
@@ -214,6 +224,8 @@ class Layer:
             l._spec.channels.append(material)
         if bump_map is not None:
             l._spec.channels.append(bump_map)
+        if normal_map is not None:
+            l._spec.channels.append(normal_map)
         return l
 
     def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":

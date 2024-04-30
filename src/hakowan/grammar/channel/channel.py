@@ -117,3 +117,15 @@ class BumpMap(Channel):
 
     texture: TextureLike
     scale: float = 1.0
+
+@dataclass(slots=True)
+class NormalMap(Channel):
+    """Normal map channel
+
+    This class specifies the normal map channel.
+
+    Attributes:
+        texture (TextureLike | None): The texture used to encode the normal map.
+    """
+
+    texture: TextureLike

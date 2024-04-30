@@ -16,7 +16,7 @@ from ..grammar.channel.material import (
     ThinDielectric,
     ThinPrincipled,
 )
-from ..grammar.channel import BumpMap
+from ..grammar.channel import BumpMap, NormalMap
 from ..grammar.texture import Texture
 from ..common.color import ColorLike
 
@@ -249,6 +249,19 @@ def add_bump_map(
         "bsdf": mi_config,
     }
 
+def add_normal_map(
+    mi_config: dict[str, Any],
+    mesh: lagrange.SurfaceMesh,
+    normal_map: NormalMap,
+    is_primitive: bool,
+) -> dict[str, Any]:
+    assert "type" in mi_config, "Normal map can only be applied over a single BSDF"
+    return {
+        "type": "normalmap",
+        "normalmap": generate_float_color_texture_config(mesh, normal_map.texture),
+        "bsdf": mi_config,
+    }
+
 
 def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     assert view.data_frame is not None
@@ -307,6 +320,11 @@ def generate_bsdf_config(view: View, is_primitive=False) -> dict[str, Any]:
     if view.bump_map is not None:
         material_config = add_bump_map(
             material_config, mesh, view.bump_map, is_primitive
+        )
+
+    if view.normal_map is not None:
+        material_config = add_normal_map(
+            material_config, mesh, view.normal_map, is_primitive
         )
 
     return material_config

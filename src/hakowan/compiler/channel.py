@@ -10,6 +10,7 @@ from ..grammar.channel import (
     Channel,
     Covariance,
     Normal,
+    NormalMap,
     Position,
     Size,
     VectorField,
@@ -92,6 +93,9 @@ def _preprocess_channels(view: View):
             case BumpMap():
                 if view.bump_map is None:
                     view.bump_map = channel
+            case NormalMap():
+                if view.normal_map is None:
+                    view.normal_map = channel
             case _:
                 raise NotImplementedError(
                     f"Channel type {type(channel)} is not supported"
