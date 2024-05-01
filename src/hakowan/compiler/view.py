@@ -45,8 +45,31 @@ class View:
     def initialize_bbox(self):
         assert self.data_frame is not None
         if self.data_frame.roi_box is not None:
-            self.bbox = np.asarray(self.data_frame.roi_box)
-            assert self.bbox.shape == (2, 3)
+            # df.roi_box remains the same in object reference frame.
+            transformed_roi_box = np.array(df.roi_box, dtype=np.float64)
+            assert transformed_roi_box.shape == (2, 3)
+            roi_min = transformed_roi_box[0]
+            roi_max = transformed_roi_box[1]
+            roi_corner = np.array(
+                [
+                    [roi_min[0], roi_min[1], roi_min[2], 1],
+                    [roi_min[0], roi_min[1], roi_max[2], 1],
+                    [roi_min[0], roi_max[1], roi_min[2], 1],
+                    [roi_min[0], roi_max[1], roi_max[2], 1],
+                    [roi_max[0], roi_min[1], roi_min[2], 1],
+                    [roi_max[0], roi_min[1], roi_max[2], 1],
+                    [roi_max[0], roi_max[1], roi_min[2], 1],
+                    [roi_max[0], roi_max[1], roi_max[2], 1],
+                ]
+            )
+            roi_corner = (self.global_transform @ roi_corner.T).T[:, :3]
+            self.bbox = np.array(
+                [
+                    np.amin(roi_corner, axis=0),
+                    np.amax(roi_corner, axis=0),
+                ],
+                dtype=np.float64,
+            )
         else:
             mesh = self.data_frame.mesh
             if mesh.num_vertices == 0:

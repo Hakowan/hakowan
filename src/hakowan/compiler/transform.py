@@ -156,7 +156,6 @@ def _apply_affine_transform(view: View, transform: Affine):
     df = view.data_frame
     assert df is not None
     assert transform is not None
-    mesh = df.mesh
 
     if np.shape(transform.matrix) == (4, 4):
         matrix = np.array(transform.matrix, order="F", dtype=np.float64)
@@ -168,15 +167,6 @@ def _apply_affine_transform(view: View, transform: Affine):
             f"Invalid affine transformation matrix with shape {np.shape(transform.matrix)}."
         )
     view.global_transform = matrix @ view.global_transform
-
-    # Transform ROI box if it exists.
-    if df.roi_box is not None:
-        # TODO: change this.
-        df.roi_box = np.array(df.roi_box, dtype=np.float64)
-        M = np.array(transform.matrix)[:3, :3]
-        df.roi_box = (M @ df.roi_box.T).T
-        if M.shape == (4, 4):
-            df.roi_box += M[:3, 3].T
 
     # BBox must be updated after affine transform.
     logger.debug("Updating view bbox due to affine transform.")
