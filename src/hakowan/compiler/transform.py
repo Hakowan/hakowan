@@ -167,10 +167,11 @@ def _apply_affine_transform(view: View, transform: Affine):
         raise RuntimeError(
             f"Invalid affine transformation matrix with shape {np.shape(transform.matrix)}."
         )
-    lagrange.transform_mesh(mesh, matrix)
+    view.global_transform = matrix @ view.global_transform
 
     # Transform ROI box if it exists.
     if df.roi_box is not None:
+        # TODO: change this.
         df.roi_box = np.array(df.roi_box, dtype=np.float64)
         M = np.array(transform.matrix)[:3, :3]
         df.roi_box = (M @ df.roi_box.T).T

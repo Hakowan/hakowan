@@ -52,8 +52,10 @@ class View:
             if mesh.num_vertices == 0:
                 return
 
-            bbox_min = np.amin(mesh.vertices, axis=0)
-            bbox_max = np.amax(mesh.vertices, axis=0)
+            vertices = mesh.vertices
+            vertices = (self.global_transform[:3, :3] @ vertices.T).T + self.global_transform[:3, 3].T
+            bbox_min = np.amin(vertices, axis=0)
+            bbox_max = np.amax(vertices, axis=0)
             self.bbox = np.stack([bbox_min, bbox_max])
 
     def validate(self):
