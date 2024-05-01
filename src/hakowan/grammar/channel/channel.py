@@ -96,11 +96,15 @@ class Covariance(Channel):
 
     Attributes:
         data (AttributeLike): The attribute used to encode the covariance matrix.
+        full: (bool): If True, the full covariance matrix is stored in the attribute.
+            If False, its "square root", M, is stored. The full covariance matrix is ∑ := M @ M^T.
+            The matrix M represenst the stretch and rotation transform applied on each mark.
         base_shape (str): The base shape of the covariance matrix. Options include "sphere" and
             "cube". The default value is "sphere".
     """
 
     data: AttributeLike
+    full: bool = False
     base_shape: str = "sphere"
 
 

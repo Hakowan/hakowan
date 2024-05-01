@@ -47,12 +47,13 @@ def extract_size(view: View, default_size=0.01):
         return default_size
 
 
-def extract_covariances(view: View):
-    """Extract the covariance attribute from a view.
+def extract_transform_from_covariances(view: View):
+    """Extract the affine transform from covariance attribute from a view.
 
     :param view: The view to extract covariance from.
 
-    :return: A list of n 3x3 covariance matrices.
+    :return: A list of n 3x3 affine transform matrices, M,
+        where the covariance matrix is M @ M^T.
     """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
@@ -66,7 +67,13 @@ def extract_covariances(view: View):
     attr = mesh.attribute(attr_name)
     assert attr.element_type == lagrange.AttributeElement.Vertex
     assert attr.data.shape[1] == 9
-    return attr.data.reshape(-1, 3, 3)
+    if view.covariance_channel.full:
+        sigma = attr.data.reshape(-1, 3, 3)
+        U, S, Vh = np.linalg.svd(sigma)
+        S_diag = np.apply_along_axis(lambda _s: np.diag(_s), 1, S)
+        return U @ np.sqrt(S_diag)
+    else:
+        return attr.data.reshape(-1, 3, 3)
 
 
 def generate_point_config(view: View, stamp: str, index: int):
@@ -120,11 +127,11 @@ def generate_point_config(view: View, stamp: str, index: int):
             radii = [radii] * mesh.num_vertices
         assert len(radii) == mesh.num_vertices
 
-        covariances = extract_covariances(view)
+        M = extract_transform_from_covariances(view)
         global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
         for i, v in enumerate(mesh.vertices):
             local_transform = np.eye(4)
-            local_transform[:3, :3] = covariances[i] * radii[i]
+            local_transform[:3, :3] = M[i] * radii[i]
             local_transform[:3, 3] = v
             local_transform = mi.ScalarTransform4f(local_transform)  # type: ignore
             shape = base_shape_config.copy()
