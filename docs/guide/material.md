@@ -294,7 +294,7 @@ Here are the parameters of this material.
 Here is a snippet for creating a `RoughDielectric` material.
 
 ```py
-m = hkw.material.RoughDieletric(int_ior="water")
+m = hkw.material.RoughDielectric(int_ior="water")
 ```
 
 ## Thin dielectric material
