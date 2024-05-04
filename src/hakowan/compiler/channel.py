@@ -153,6 +153,12 @@ def _process_channels(view: View):
         if isinstance(tex, Texture):
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)
             view.uv_attribute = tex._uv
+    if view.normal_map is not None:
+        tex = view.normal_map.texture
+        assert tex is not None
+        if isinstance(tex, Texture):
+            view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+            view.uv_attribute = tex._uv
     if view.material_channel is not None:
         match view.material_channel:
             case Diffuse():
