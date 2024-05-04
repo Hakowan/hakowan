@@ -85,8 +85,8 @@ class View:
         """Validate the currvent view is complete.
         A view is complete if data_frame and mark are both not None
         """
-        assert self.data_frame is not None, "View must have data_frame"
-        assert self.mark is not None, "View must have mark"
+        assert self.data_frame is not None, "Data component is not specified"
+        assert self.mark is not None, "Mark component is not specified"
 
     def finalize(self):
         """Finalize the view by updating the data frame.

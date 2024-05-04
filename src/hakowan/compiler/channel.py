@@ -34,7 +34,7 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
 from ..grammar.scale import Attribute, Normalize
-from ..grammar.texture import Texture, Uniform, ScalarField
+from ..grammar.texture import Texture, Uniform, ScalarField, Image
 
 import lagrange
 import numpy as np
@@ -157,6 +157,9 @@ def _process_channels(view: View):
         tex = view.normal_map.texture
         assert tex is not None
         if isinstance(tex, Texture):
+            if isinstance(tex, Image):
+                if not tex.raw:
+                    logger.warn("Normal map texture image not in raw format may lead to incorrect result")
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)
             view.uv_attribute = tex._uv
     if view.material_channel is not None:
