@@ -27,6 +27,7 @@ from ..channel.material import (
 )
 from ..transform import Transform, Affine
 from ..scale import Attribute
+from ..texture import TextureLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -167,8 +168,8 @@ class Layer:
         vector_field: VectorField | str | None = None,
         covariance: Covariance | str | None = None,
         material: Material | None = None,
-        bump_map: BumpMap | None = None,
-        normal_map: NormalMap | None = None,
+        bump_map: BumpMap | TextureLike | None = None,
+        normal_map: NormalMap | TextureLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
         """Overwrite a channel component of this layer.
@@ -179,6 +180,8 @@ class Layer:
             size (float | str | Size, optional): The new size channel.
             vector_field (VectorField | str, optional): The new vector field channel.
             material (Material, optional): The new material channel.
+            bump_map (BumpMap | TextureLike, optional): The new bump map channel.
+            normal_map (NormalMap | TextureLike, optional): The new normal map channel.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -223,9 +226,15 @@ class Layer:
         if material is not None:
             l._spec.channels.append(material)
         if bump_map is not None:
-            l._spec.channels.append(bump_map)
+            if isinstance(bump_map, BumpMap):
+                l._spec.channels.append(bump_map)
+            else:
+                l._spec.channels.append(BumpMap(bump_map))
         if normal_map is not None:
-            l._spec.channels.append(normal_map)
+            if isinstance(normal_map, NormalMap):
+                l._spec.channels.append(normal_map)
+            else:
+                l._spec.channels.append(NormalMap(normal_map))
         return l
 
     def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":

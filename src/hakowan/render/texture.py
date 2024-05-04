@@ -44,9 +44,9 @@ def generate_image_config(tex: Image) -> dict:
         "raw": tex.raw,
         # Note that we need to flip the image vertically to match the
         # orientation of the Mitsuba coordinate system.
-        "to_uv": mi.ScalarTransform4f(
+        "to_uv": mi.ScalarTransform4f(  # type: ignore
             [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
-        ),  # type: ignore
+        ),
     }
     return mi_config
 
