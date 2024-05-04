@@ -35,10 +35,13 @@ class Image(Texture):
     Attributes:
         filename (PathLike): The path to the texture image.
         uv (AttributeLike): The attribute to use as the texture coordinates.
+        raw (bool): Whether to use the raw image data, i.e. use linear color transfer function.
+            This should be set to True for normal maps.
     """
 
     filename: PathLike
     uv: AttributeLike | None = None
+    raw: bool = False
 
 
 @dataclass(slots=True)

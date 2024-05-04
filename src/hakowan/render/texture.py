@@ -41,9 +41,12 @@ def generate_image_config(tex: Image) -> dict:
     mi_config: dict[str, Any] = {
         "type": "bitmap",
         "filename": str(filename.resolve()),
+        "raw": tex.raw,
         # Note that we need to flip the image vertically to match the
         # orientation of the Mitsuba coordinate system.
-        "to_uv": mi.ScalarTransform3f([[1, 0, 0], [0, -1, 0], [0, 0, 1]]),  # type: ignore
+        "to_uv": mi.ScalarTransform4f(  # type: ignore
+            [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        ),
     }
     return mi_config
 

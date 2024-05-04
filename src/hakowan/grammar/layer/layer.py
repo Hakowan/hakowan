@@ -1,7 +1,16 @@
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
-from ..channel import Channel, Position, Normal, Size, VectorField, BumpMap
+from ..channel import (
+    Channel,
+    Position,
+    Normal,
+    Size,
+    VectorField,
+    Covariance,
+    BumpMap,
+    NormalMap,
+)
 from ..channel.material import (
     Material,
     Diffuse,
@@ -18,6 +27,7 @@ from ..channel.material import (
 )
 from ..transform import Transform, Affine
 from ..scale import Attribute
+from ..texture import TextureLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -156,8 +166,10 @@ class Layer:
         normal: Normal | str | None = None,
         size: float | str | Size | None = None,
         vector_field: VectorField | str | None = None,
+        covariance: Covariance | str | None = None,
         material: Material | None = None,
-        bump_map: BumpMap | None = None,
+        bump_map: BumpMap | TextureLike | None = None,
+        normal_map: NormalMap | TextureLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
         """Overwrite a channel component of this layer.
@@ -168,6 +180,8 @@ class Layer:
             size (float | str | Size, optional): The new size channel.
             vector_field (VectorField | str, optional): The new vector field channel.
             material (Material, optional): The new material channel.
+            bump_map (BumpMap | TextureLike, optional): The new bump map channel.
+            normal_map (NormalMap | TextureLike, optional): The new normal map channel.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -192,8 +206,8 @@ class Layer:
             ), f"Unsupported normal type: {type(normal)}!"
             l._spec.channels.append(convert(normal, Normal))
         if size is not None:
-            if isinstance(size, float):
-                l._spec.channels.append(Size(data=size))
+            if isinstance(size, (int, float)):
+                l._spec.channels.append(Size(data=float(size)))
             else:
                 assert isinstance(
                     size, (Size, str)
@@ -204,10 +218,23 @@ class Layer:
                 vector_field, (VectorField, str)
             ), f"Unsupported vector_field type: {type(vector_field)}!"
             l._spec.channels.append(convert(vector_field, VectorField))
+        if covariance is not None:
+            assert isinstance(
+                covariance, (Covariance, str)
+            ), f"Unsupported covariance type: {type(covariance)}!"
+            l._spec.channels.append(convert(covariance, Covariance))
         if material is not None:
             l._spec.channels.append(material)
         if bump_map is not None:
-            l._spec.channels.append(bump_map)
+            if isinstance(bump_map, BumpMap):
+                l._spec.channels.append(bump_map)
+            else:
+                l._spec.channels.append(BumpMap(bump_map))
+        if normal_map is not None:
+            if isinstance(normal_map, NormalMap):
+                l._spec.channels.append(normal_map)
+            else:
+                l._spec.channels.append(NormalMap(normal_map))
         return l
 
     def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":

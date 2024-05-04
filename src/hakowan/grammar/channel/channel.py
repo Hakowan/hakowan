@@ -87,6 +87,28 @@ class VectorField(Channel):
 
 
 @dataclass(slots=True)
+class Covariance(Channel):
+    """ Covariance channel
+
+    This class is used to specify the mapping from an attribute to the covariance matrix channel.
+    The covariance channel only applies to point mark. It is represented as a per-vertex 3x3
+    symmetric matrix, which defines the stretch and rotation of the point marks.
+
+    Attributes:
+        data (AttributeLike): The attribute used to encode the covariance matrix.
+        full: (bool): If True, the full covariance matrix is stored in the attribute.
+            If False, its "square root", M, is stored. The full covariance matrix is ∑ := M @ M^T.
+            The matrix M represenst the stretch and rotation transform applied on each mark.
+        base_shape (str): The base shape of the covariance matrix. Options include "sphere" and
+            "cube". The default value is "sphere".
+    """
+
+    data: AttributeLike
+    full: bool = False
+    base_shape: str = "sphere"
+
+
+@dataclass(slots=True)
 class BumpMap(Channel):
     """Bump map channel
 
@@ -99,3 +121,15 @@ class BumpMap(Channel):
 
     texture: TextureLike
     scale: float = 1.0
+
+@dataclass(slots=True)
+class NormalMap(Channel):
+    """Normal map channel
+
+    This class specifies the normal map channel.
+
+    Attributes:
+        texture (TextureLike | None): The texture used to encode the normal map.
+    """
+
+    texture: TextureLike

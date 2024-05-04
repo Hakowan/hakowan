@@ -1,4 +1,13 @@
-from ..grammar.channel import Channel, Position, Normal, Size, VectorField, BumpMap
+from ..grammar.channel import (
+    Channel,
+    Position,
+    Normal,
+    Size,
+    VectorField,
+    Covariance,
+    BumpMap,
+    NormalMap,
+)
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
@@ -24,9 +33,11 @@ class View:
     _normal_channel: Normal | None = None
     _size_channel: Size | None = None
     _vector_field_channel: VectorField | None = None
+    _covariance_channel: Covariance | None = None
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
     _bump_map: BumpMap | None = None
+    _normal_map: NormalMap | None = None
 
     _active_attributes: list[Attribute] = field(default_factory=list)
     _bbox: npt.NDArray | None = None
@@ -34,23 +45,48 @@ class View:
     def initialize_bbox(self):
         assert self.data_frame is not None
         if self.data_frame.roi_box is not None:
-            self.bbox = np.asarray(self.data_frame.roi_box)
-            assert self.bbox.shape == (2, 3)
+            # df.roi_box remains the same in object reference frame.
+            transformed_roi_box = np.array(df.roi_box, dtype=np.float64)
+            assert transformed_roi_box.shape == (2, 3)
+            roi_min = transformed_roi_box[0]
+            roi_max = transformed_roi_box[1]
+            roi_corner = np.array(
+                [
+                    [roi_min[0], roi_min[1], roi_min[2], 1],
+                    [roi_min[0], roi_min[1], roi_max[2], 1],
+                    [roi_min[0], roi_max[1], roi_min[2], 1],
+                    [roi_min[0], roi_max[1], roi_max[2], 1],
+                    [roi_max[0], roi_min[1], roi_min[2], 1],
+                    [roi_max[0], roi_min[1], roi_max[2], 1],
+                    [roi_max[0], roi_max[1], roi_min[2], 1],
+                    [roi_max[0], roi_max[1], roi_max[2], 1],
+                ]
+            )
+            roi_corner = (self.global_transform @ roi_corner.T).T[:, :3]
+            self.bbox = np.array(
+                [
+                    np.amin(roi_corner, axis=0),
+                    np.amax(roi_corner, axis=0),
+                ],
+                dtype=np.float64,
+            )
         else:
             mesh = self.data_frame.mesh
             if mesh.num_vertices == 0:
                 return
 
-            bbox_min = np.amin(mesh.vertices, axis=0)
-            bbox_max = np.amax(mesh.vertices, axis=0)
+            vertices = mesh.vertices
+            vertices = (self.global_transform[:3, :3] @ vertices.T).T + self.global_transform[:3, 3].T
+            bbox_min = np.amin(vertices, axis=0)
+            bbox_max = np.amax(vertices, axis=0)
             self.bbox = np.stack([bbox_min, bbox_max])
 
     def validate(self):
         """Validate the currvent view is complete.
         A view is complete if data_frame and mark are both not None
         """
-        assert self.data_frame is not None, "View must have data_frame"
-        assert self.mark is not None, "View must have mark"
+        assert self.data_frame is not None, "Data component is not specified"
+        assert self.mark is not None, "Mark component is not specified"
 
     def finalize(self):
         """Finalize the view by updating the data frame.
@@ -219,6 +255,18 @@ class View:
         self._vector_field_channel = channel
 
     @property
+    def covariance_channel(self) -> Covariance | None:
+        return self._covariance_channel
+
+    @covariance_channel.setter
+    def covariance_channel(self, channel: Covariance):
+        assert isinstance(channel, Covariance)
+        if isinstance(channel.data, str):
+            channel.data = Attribute(name=channel.data)
+        assert isinstance(channel.data, Attribute)
+        self._covariance_channel = channel
+
+    @property
     def material_channel(self) -> Material | None:
         return self._material_channel
 
@@ -248,6 +296,14 @@ class View:
     @bump_map.setter
     def bump_map(self, bump_map: BumpMap | None):
         self._bump_map = bump_map
+
+    @property
+    def normal_map(self) -> NormalMap | None:
+        return self._normal_map
+
+    @normal_map.setter
+    def normal_map(self, normal_map: NormalMap | None):
+        self._normal_map = normal_map
 
     @property
     def bbox(self) -> npt.NDArray | None:

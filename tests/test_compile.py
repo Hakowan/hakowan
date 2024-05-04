@@ -221,21 +221,32 @@ class TestCompile:
         normal_attr_name = mesh.get_attribute_name(normal_attr_id)
         matrix = np.eye(4)
         matrix[0, 0] = 2.0  # Stretch in X direction
-        base = (
-            hkw.layer(mesh)
-            .transform(hkw.transform.Affine(matrix))
-            .channel(normal=normal_attr_name)
-        )
-        scene = hkw.compiler.compile(base)
+        l0 = hkw.layer(mesh).channel(normal=normal_attr_name)
 
-        assert len(scene) == 1
-        view = scene[0]
-        out_mesh = view.data_frame.mesh
-        assert np.all(np.amax(out_mesh.vertices, axis=0) == pytest.approx([2, 1, 1]))
+        l1 = l0.transform(hkw.transform.Affine(matrix))
+        scene0 = hkw.compiler.compile(l0)
+        scene1 = hkw.compiler.compile(l1)
 
-        n = out_mesh.attribute(normal_attr_name).data
-        d = np.dot(out_mesh.vertices, n.T)
-        assert np.allclose(d, d[[2, 0, 1]])
+        assert len(scene0) == 1
+        assert len(scene1) == 1
+
+        view0 = scene0[0]
+        view1 = scene1[0]
+
+        vertices0 = view0.global_transform[:3, :3] @ view0.data_frame.mesh.vertices
+        vertices1 = view1.global_transform[:3, :3] @ view1.data_frame.mesh.vertices
+
+        bbox_min0 = np.amin(vertices0, axis=0)
+        bbox_max0 = np.amax(vertices0, axis=0)
+        bbox_size0 = bbox_max0 - bbox_min0
+        bbox_min1 = np.amin(vertices1, axis=0)
+        bbox_max1 = np.amax(vertices1, axis=0)
+        bbox_size1 = bbox_max1 - bbox_min1
+
+        # Bounding box size should be the same for X and Y direction.
+        assert bbox_size0[0] == pytest.approx(bbox_size0[1])
+        # Bounding box size in X should be twice as large as in Y direction.
+        assert bbox_size1[0] == pytest.approx(bbox_size1[1] * 2)
 
     def test_compute_transform_component(self, triangle):
         mesh = lagrange.combine_meshes([triangle, triangle])
@@ -253,7 +264,9 @@ class TestCompile:
         assert len(scene) == 1
         view = scene[0]
         out_mesh = view.data_frame.mesh
-        color_attr_ids = out_mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+        color_attr_ids = out_mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Color
+        )
         assert len(color_attr_ids) == 1
 
 

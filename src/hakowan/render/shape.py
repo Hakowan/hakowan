@@ -1,4 +1,5 @@
 from .bsdf import generate_bsdf_config
+from .icosphere import create_icosphere
 from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
@@ -46,31 +47,96 @@ def extract_size(view: View, default_size=0.01):
         return default_size
 
 
-def generate_point_config(view: View):
+def extract_transform_from_covariances(view: View):
+    """Extract the affine transform from covariance attribute from a view.
+
+    :param view: The view to extract covariance from.
+
+    :return: A list of n 3x3 affine transform matrices, M,
+        where the covariance matrix is M @ M^T.
+    """
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+
+    assert view.covariance_channel is not None
+    assert isinstance(view.covariance_channel.data, Attribute)
+    attr_name = view.covariance_channel.data._internal_name
+    assert attr_name is not None
+    assert mesh.has_attribute(attr_name)
+
+    attr = mesh.attribute(attr_name)
+    assert attr.element_type == lagrange.AttributeElement.Vertex
+    assert attr.data.shape[1] == 9
+    if view.covariance_channel.full:
+        sigma = attr.data.reshape(-1, 3, 3)
+        U, S, Vh = np.linalg.svd(sigma)
+        S_diag = np.apply_along_axis(lambda _s: np.diag(_s), 1, S)
+        return U @ np.sqrt(S_diag)
+    else:
+        return attr.data.reshape(-1, 3, 3)
+
+
+def generate_point_config(view: View, stamp: str, index: int):
     """Generate point cloud shapes from a View."""
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
+    shape_group: dict[str, Any] = {}
 
-    # Compute radii
-    radii = extract_size(view)
-    if np.isscalar(radii):
-        radii = [radii] * mesh.num_vertices
+    if view.covariance_channel is None:
+        # Compute radii
+        radii = extract_size(view)
+        if np.isscalar(radii):
+            radii = [radii] * mesh.num_vertices
+        assert len(radii) == mesh.num_vertices
 
-    # Generate spheres.
-    assert len(radii) == mesh.num_vertices
-    global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-    shapes = list(
-        map(
-            lambda itr: {
-                "type": "sphere",
-                "center": itr[1].tolist(),
-                "radius": radii[itr[0]],
-                "to_world": global_transform,
-            },
-            enumerate(mesh.vertices),
+        # Generate spheres.
+        global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
+        shapes = list(
+            map(
+                lambda itr: {
+                    "type": "sphere",
+                    "center": itr[1].tolist(),
+                    "radius": radii[itr[0]],
+                    "to_world": global_transform,
+                },
+                enumerate(mesh.vertices),
+            )
         )
-    )
+    else:
+        # Generate base shape config.
+        match view.covariance_channel.base_shape:
+            case "sphere":
+                # Generate point mark shape.
+                sphere = create_icosphere(1)
+                tmp_dir = pathlib.Path(tempfile.gettempdir())
+                filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+                logger.debug(f"Saving point mark shape to '{str(filename)}'.")
+                lagrange.io.save_mesh(filename, sphere)  # type: ignore
+                base_shape_config = {
+                    "type": "ply",
+                    "filename": str(filename.resolve()),
+                    "face_normals": False,
+                }
+            case "cube":
+                base_shape_config = {"type": "cube"}
+
+        # Compute radii, with default radii as 1.
+        radii = extract_size(view, 1)
+        if np.isscalar(radii):
+            radii = [radii] * mesh.num_vertices
+        assert len(radii) == mesh.num_vertices
+
+        M = extract_transform_from_covariances(view)
+        global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
+        for i, v in enumerate(mesh.vertices):
+            local_transform = np.eye(4)
+            local_transform[:3, :3] = M[i] * radii[i]
+            local_transform[:3, 3] = v
+            local_transform = mi.ScalarTransform4f(local_transform)  # type: ignore
+            shape = base_shape_config.copy()
+            shape["to_world"] = global_transform @ local_transform
+            shapes.append(shape)
 
     # Generate bsdf
     bsdfs = generate_bsdf_config(view, is_primitive=True)
@@ -83,7 +149,11 @@ def generate_point_config(view: View):
         assert len(bsdfs) == len(shapes)
         for (bsdf_id, bsdf), shape in zip(bsdfs.items(), shapes):
             shape[bsdf_id] = bsdf
-    return shapes
+
+    mi_config: dict[str, Any] = {
+        f"view_{index:03}_shape_{i:06}": shape for i, shape in enumerate(shapes)
+    }
+    return mi_config
 
 
 def extract_vector_field(view: View):
@@ -280,10 +350,12 @@ def generate_curve_config(view: View, stamp: str, index: int):
                 )
 
     mi_config = {
-        "type": curve_type,
-        "filename": str(filename.resolve()),
-        "bsdf": generate_bsdf_config(view, is_primitive=False),
-        "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
+        f"view_{index:03}_shape_000000": {
+            "type": curve_type,
+            "filename": str(filename.resolve()),
+            "bsdf": generate_bsdf_config(view, is_primitive=False),
+            "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
+        }
     }
     return mi_config
 
@@ -379,4 +451,5 @@ def generate_surface_config(view: View, stamp: str, index: int):
     ):
         mi_config["interior"] = generate_medium_config(view)
 
+    mi_config = {f"view_{index:03}_shape_000000": mi_config}
     return mi_config

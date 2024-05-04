@@ -73,4 +73,4 @@ class Scene:
         global_transform = scale @ translation
 
         for view in self.views:
-            view.global_transform = global_transform
+            view.global_transform = global_transform @ view.global_transform
