@@ -110,3 +110,27 @@ def create_icosphere(refinement_level):
         initial_values=np.array(vertices, dtype=np.float64),
     )
     return icosphere
+
+def create_disk(vertex_count):
+    """ Generate a disk centered at the origin with radius 1 facing z direction.
+
+    Args:
+        vertex_count (int): Number of vertices on the disk boundary.
+
+    Returns:
+        lagrange.SurfaceMesh: The generated disk mesh.
+    """
+    vertices = np.zeros((vertex_count + 1, 3))
+    angle = np.linspace(0, 2 * np.pi, vertex_count, endpoint=False)
+    vertices[1:, 0] = np.cos(angle)
+    vertices[1:, 1] = np.sin(angle)
+
+    disk = lagrange.SurfaceMesh()
+    disk.add_vertices(vertices)
+
+    triangles = np.zeros((vertex_count, 3), dtype=np.uint32)
+    triangles[:, 1] = np.arange(1, vertex_count + 1)
+    triangles[:, 2] = np.roll(np.arange(1, vertex_count + 1), -1)
+    disk.add_triangles(triangles)
+
+    return disk

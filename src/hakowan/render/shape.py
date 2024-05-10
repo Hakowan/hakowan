@@ -1,5 +1,5 @@
 from .bsdf import generate_bsdf_config
-from .icosphere import create_icosphere
+from .base_shapes import create_icosphere, create_disk
 from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
@@ -22,11 +22,12 @@ import tempfile
 def extract_size(view: View, default_size=0.01):
     """Extract the size attribute from a view.
 
-    :param view: The view to extract size from.
-    :param n: The cardinality of size attribute.
-    :param default_size: The default size if size attribute is not specified.
+    Args:
+        view: The view to extract size from.
+        default_size: The default size if size attribute is not specified.
 
-    :return: A list of size values of length n.
+    Returns:
+        A list of size values of length n.
     """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
@@ -51,10 +52,11 @@ def extract_size(view: View, default_size=0.01):
 def extract_transform_from_covariances(view: View):
     """Extract the affine transform from covariance attribute from a view.
 
-    :param view: The view to extract covariance from.
+    Args:
+        view: The view to extract covariance from.
 
-    :return: A list of n 3x3 affine transform matrices, M,
-        where the covariance matrix is M @ M^T.
+    Returns:
+        A list of n 3x3 affine transform matrices, M, where the covariance matrix is M @ M^T.
     """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
@@ -112,7 +114,7 @@ def generate_point_config(view: View, stamp: str, index: int):
                         enumerate(mesh.vertices),
                     )
                 )
-            case "cube":
+            case "cube" | "disk":
                 local_transforms = [
                     np.array(
                         [
@@ -141,16 +143,32 @@ def generate_point_config(view: View, stamp: str, index: int):
                     for i, m in enumerate(local_transforms):
                         m[:, :] = m @ rotation(z, normals[i])
 
-                # Generate cubes.
-                shapes = list(
-                    map(
-                        lambda itr: {
-                            "type": "cube",
-                            "to_world": global_transform @ local_transforms[itr[0]],
-                        },
-                        enumerate(mesh.vertices),
+                if base_shape == "cube":
+                    # Generate cubes.
+                    shapes = list(
+                        map(
+                            lambda itr: {
+                                "type": "cube",
+                                "to_world": global_transform @ local_transforms[itr[0]],
+                            },
+                            enumerate(mesh.vertices),
+                        )
                     )
-                )
+                elif base_shape == "disk":
+                    disk = create_disk(16)
+                    tmp_dir = pathlib.Path(tempfile.gettempdir())
+                    filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+                    logger.debug(f"Saving point mark shape to '{str(filename)}'.")
+                    lagrange.io.save_mesh(filename, disk)  # type: ignore
+                    base_shape_config = {
+                        "type": "ply",
+                        "filename": str(filename.resolve()),
+                        "face_normals": True,
+                    }
+                    shapes = [
+                        base_shape_config | {"to_world": global_transform @ m}
+                        for m in local_transforms
+                    ]
     else:  # with covariance
         # Generate base shape config.
         match base_shape:

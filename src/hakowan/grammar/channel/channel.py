@@ -113,10 +113,11 @@ class Shape(Channel):
     This channel is only used for point mark.
 
     Attributes:
-        base_shape (str): The base shape used to represent a point. Options include "sphere" and
-            "cube". The default value is "sphere".
-        orientation (AttributeLike | None): The attribute used to encode the orientation of the
-            shape. If None, the orientation is not specified.
+        base_shape (str): The base shape used to represent a point.
+            Options include "sphere", "disk" and "cube".
+            The default value is "sphere".
+        orientation (AttributeLike | None): The attribute used to encode the normal orientation
+            of the shape. If None, orientation will be identity (i.e. normal along z-axis).
     """
 
     base_shape: str = "sphere"

@@ -153,7 +153,7 @@ def _process_channels(view: View):
         view._active_attributes.append(attr)
     if view.shape_channel is not None:
         assert isinstance(view.shape_channel, Shape)
-        assert view.shape_channel.base_shape in ["sphere", "cube"]
+        assert view.shape_channel.base_shape in ["sphere", "cube", "disk"]
         if view.shape_channel.orientation is not None:
             if isinstance(view.shape_channel.orientation, str):
                 view.shape_channel.orientation = Attribute(view.shape_channel.orientation)
