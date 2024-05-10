@@ -80,7 +80,16 @@ def extract_transform_from_covariances(view: View):
 
 
 def generate_point_config(view: View, stamp: str, index: int):
-    """Generate point cloud shapes from a View."""
+    """Generate point cloud shapes from a View.
+
+    Args:
+        view: The view to generate point cloud shapes from.
+        stamp: The time stamp string used for creating a unique filename.
+        index: The index of the view.
+
+    Returns:
+        The mitsuba config for the point cloud shapes.
+    """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
@@ -430,8 +439,9 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
     """Rename generic scalar and vector attribute with suffix "_0". This is required by mitsuba to
     correct parse them from a ply file.
 
-    :param mesh: The mesh to rename attributes.
-    :param active_attributes: The list of active attributes.
+    Args:
+        mesh: The mesh to rename attributes.
+        active_attributes: The list of active attributes.
     """
     processed_names = set()
     for attr in active_attributes:
@@ -468,11 +478,13 @@ def generate_surface_config(view: View, stamp: str, index: int):
     2. Save the mesh and all active attributes in ply format in a temp directory.
     3. Generate the bsdf config associated with the shape.
 
-    :param view: The view to generate mesh config from.
-    :param stamp: The time stamp string used for creating a unique filename.
-    :param index: The index of the view.
+    Args:
+        view: The view to generate mesh config from.
+        stamp: The time stamp string used for creating a unique filename.
+        index: The index of the view.
 
-    :return: The mitsuba config for the mesh view.
+    Returns:
+        The mitsuba config for the mesh view.
     """
     assert view.data_frame is not None
     mesh = copy.copy(view.data_frame.mesh)  # Shallow copy

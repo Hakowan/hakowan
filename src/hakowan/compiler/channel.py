@@ -51,7 +51,8 @@ def preprocess_channels(view: View):
     normal and uv channels can be automatically generate from data frame if not specified. Size and
     material will be set to default if not specified.
 
-    :param view: The view to be pre-processed. Update will be made in place.
+    Args:
+        view (View): The view to be pre-processed. Update will be made in place.
     """
     _preprocess_channels(view)
 
@@ -61,7 +62,8 @@ def process_channels(view: View):
 
     This step applies scales and textures on the corresponding data.
 
-    :param view: The view to be processed. Update will be made in place.
+    Args:
+        view (View): The view to be processed. Update will be made in place.
     """
     _process_channels(view)
 
