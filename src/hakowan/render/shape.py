@@ -6,6 +6,7 @@ from ..compiler import View
 from ..grammar.scale import Attribute
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.channel.material import Dielectric
+from .utils import rotation
 
 from typing import Any
 import copy
@@ -83,6 +84,11 @@ def generate_point_config(view: View, stamp: str, index: int):
     shapes: list[dict[str, Any]] = []
     shape_group: dict[str, Any] = {}
 
+    # Extract shape
+    base_shape = "sphere"
+    if view.shape_channel is not None:
+        base_shape = view.shape_channel.base_shape
+
     if view.covariance_channel is None:
         # Compute radii
         radii = extract_size(view)
@@ -92,20 +98,62 @@ def generate_point_config(view: View, stamp: str, index: int):
 
         # Generate spheres.
         global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-        shapes = list(
-            map(
-                lambda itr: {
-                    "type": "sphere",
-                    "center": itr[1].tolist(),
-                    "radius": radii[itr[0]],
-                    "to_world": global_transform,
-                },
-                enumerate(mesh.vertices),
-            )
-        )
-    else:
+        match base_shape:
+            case "sphere":
+                # Ignore normal as sphere is invariant under rotation.
+                shapes = list(
+                    map(
+                        lambda itr: {
+                            "type": "sphere",
+                            "center": itr[1].tolist(),
+                            "radius": radii[itr[0]],
+                            "to_world": global_transform,
+                        },
+                        enumerate(mesh.vertices),
+                    )
+                )
+            case "cube":
+                local_transforms = [
+                    np.array(
+                        [
+                            [radii[i], 0, 0, mesh.vertices[i][0]],
+                            [0, radii[i], 0, mesh.vertices[i][1]],
+                            [0, 0, radii[i], mesh.vertices[i][2]],
+                            [0, 0, 0, 1],
+                        ]
+                    )
+                    for i in range(mesh.num_vertices)
+                ]
+
+                # Apply normal rotation if necessary
+                if (
+                    view.shape_channel is not None
+                    and view.shape_channel.orientation is not None
+                ):
+                    assert isinstance(view.shape_channel.orientation, Attribute)
+                    normal_attr_name = view.shape_channel.orientation._internal_name
+                    assert normal_attr_name is not None
+                    assert mesh.has_attribute(normal_attr_name)
+
+                    z = np.array([0, 0, 1])
+                    normals = mesh.attribute(normal_attr_name).data  # type: ignore
+
+                    for i, m in enumerate(local_transforms):
+                        m[:, :] = m @ rotation(z, normals[i])
+
+                # Generate cubes.
+                shapes = list(
+                    map(
+                        lambda itr: {
+                            "type": "cube",
+                            "to_world": global_transform @ local_transforms[itr[0]],
+                        },
+                        enumerate(mesh.vertices),
+                    )
+                )
+    else:  # with covariance
         # Generate base shape config.
-        match view.covariance_channel.base_shape:
+        match base_shape:
             case "sphere":
                 # Generate point mark shape.
                 sphere = create_icosphere(1)

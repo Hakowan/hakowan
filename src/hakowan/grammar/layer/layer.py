@@ -2,28 +2,29 @@ from .layer_spec import LayerSpec
 from ..dataframe import DataFrame, DataFrameLike
 from ..mark import Mark
 from ..channel import (
+    BumpMap,
     Channel,
-    Position,
+    Covariance,
     Normal,
+    NormalMap,
+    Position,
+    Shape,
     Size,
     VectorField,
-    Covariance,
-    BumpMap,
-    NormalMap,
 )
 from ..channel.material import (
-    Material,
-    Diffuse,
     Conductor,
-    RoughConductor,
-    Plastic,
-    RoughPlastic,
-    Principled,
-    ThinPrincipled,
     Dielectric,
-    ThinDielectric,
-    RoughDielectric,
+    Diffuse,
     Hair,
+    Material,
+    Plastic,
+    Principled,
+    RoughConductor,
+    RoughDielectric,
+    RoughPlastic,
+    ThinDielectric,
+    ThinPrincipled,
 )
 from ..transform import Transform, Affine
 from ..scale import Attribute
@@ -165,6 +166,7 @@ class Layer:
         position: Position | str | None = None,
         normal: Normal | str | None = None,
         size: float | str | Size | None = None,
+        shape: str | Shape | None = None,
         vector_field: VectorField | str | None = None,
         covariance: Covariance | str | None = None,
         material: Material | None = None,
@@ -213,6 +215,14 @@ class Layer:
                     size, (Size, str)
                 ), f"Unsupported size type: {type(size)}!"
                 l._spec.channels.append(convert(size, Size))
+        if shape is not None:
+            if isinstance(shape, str):
+                l._spec.channels.append(Shape(base_shape=shape))
+            else:
+                assert isinstance(
+                    shape, Shape
+                ), f"Unsupported shape type: {type(shape)}!"
+                l._spec.channels.append(shape)
         if vector_field is not None:
             assert isinstance(
                 vector_field, (VectorField, str)
