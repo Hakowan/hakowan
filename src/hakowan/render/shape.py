@@ -377,7 +377,9 @@ def generate_curve_config(view: View, stamp: str, index: int):
     # `to_world` transform. This seems to be a bug on Mitsuba's part. Thus, we use a temporary fix
     # to bypass this bug.
     # TODO: Update once Mitsuba fixed the bug.
-    scale_correction_factor = np.trace(view.global_transform[:3, :3]) / 3
+    scale_correction_factor = np.absolute(
+        np.cbrt(np.linalg.det(view.global_transform[:3, :3]))
+    )
 
     # Generate curve file
     if view.vector_field_channel is not None:

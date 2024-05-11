@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 import copy
 import numpy.typing as npt
@@ -128,3 +128,14 @@ class Norm(Transform):
     data: AttributeLike
     norm_attr_name: str
     order: int = 2
+
+
+@dataclass(slots=True)
+class Boundary(Transform):
+    """ Compute the boundary of a mesh.
+
+    Attributes:
+        attributes: The attributes to take into account when computing the boundary.
+            i.e. discontinuities in these attributes will be considered as boundaries.
+    """
+    attributes: list[str] = field(default_factory=list)
