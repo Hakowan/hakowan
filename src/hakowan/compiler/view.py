@@ -47,8 +47,8 @@ class View:
     def initialize_bbox(self):
         assert self.data_frame is not None
         if self.data_frame.roi_box is not None:
-            # df.roi_box remains the same in object reference frame.
-            transformed_roi_box = np.array(df.roi_box, dtype=np.float64)
+            # self.data_frame.roi_box remains the same in object reference frame.
+            transformed_roi_box = np.array(self.data_frame.roi_box, dtype=np.float64)
             assert transformed_roi_box.shape == (2, 3)
             roi_min = transformed_roi_box[0]
             roi_max = transformed_roi_box[1]
