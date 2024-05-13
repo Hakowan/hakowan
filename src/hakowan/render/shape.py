@@ -1,11 +1,12 @@
 from .bsdf import generate_bsdf_config
-from .icosphere import create_icosphere
+from .base_shapes import create_icosphere, create_disk
 from .medium import generate_medium_config
 from ..common import logger
 from ..compiler import View
 from ..grammar.scale import Attribute
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.channel.material import Dielectric
+from .utils import rotation
 
 from typing import Any
 import copy
@@ -21,11 +22,12 @@ import tempfile
 def extract_size(view: View, default_size=0.01):
     """Extract the size attribute from a view.
 
-    :param view: The view to extract size from.
-    :param n: The cardinality of size attribute.
-    :param default_size: The default size if size attribute is not specified.
+    Args:
+        view: The view to extract size from.
+        default_size: The default size if size attribute is not specified.
 
-    :return: A list of size values of length n.
+    Returns:
+        A list of size values of length n.
     """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
@@ -50,10 +52,11 @@ def extract_size(view: View, default_size=0.01):
 def extract_transform_from_covariances(view: View):
     """Extract the affine transform from covariance attribute from a view.
 
-    :param view: The view to extract covariance from.
+    Args:
+        view: The view to extract covariance from.
 
-    :return: A list of n 3x3 affine transform matrices, M,
-        where the covariance matrix is M @ M^T.
+    Returns:
+        A list of n 3x3 affine transform matrices, M, where the covariance matrix is M @ M^T.
     """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
@@ -77,11 +80,25 @@ def extract_transform_from_covariances(view: View):
 
 
 def generate_point_config(view: View, stamp: str, index: int):
-    """Generate point cloud shapes from a View."""
+    """Generate point cloud shapes from a View.
+
+    Args:
+        view: The view to generate point cloud shapes from.
+        stamp: The time stamp string used for creating a unique filename.
+        index: The index of the view.
+
+    Returns:
+        The mitsuba config for the point cloud shapes.
+    """
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
     shape_group: dict[str, Any] = {}
+
+    # Extract shape
+    base_shape = "sphere"
+    if view.shape_channel is not None:
+        base_shape = view.shape_channel.base_shape
 
     if view.covariance_channel is None:
         # Compute radii
@@ -92,20 +109,78 @@ def generate_point_config(view: View, stamp: str, index: int):
 
         # Generate spheres.
         global_transform = mi.ScalarTransform4f(view.global_transform)  # type: ignore
-        shapes = list(
-            map(
-                lambda itr: {
-                    "type": "sphere",
-                    "center": itr[1].tolist(),
-                    "radius": radii[itr[0]],
-                    "to_world": global_transform,
-                },
-                enumerate(mesh.vertices),
-            )
-        )
-    else:
+        match base_shape:
+            case "sphere":
+                # Ignore normal as sphere is invariant under rotation.
+                shapes = list(
+                    map(
+                        lambda itr: {
+                            "type": "sphere",
+                            "center": itr[1].tolist(),
+                            "radius": radii[itr[0]],
+                            "to_world": global_transform,
+                        },
+                        enumerate(mesh.vertices),
+                    )
+                )
+            case "cube" | "disk":
+                local_transforms = [
+                    np.array(
+                        [
+                            [radii[i], 0, 0, mesh.vertices[i][0]],
+                            [0, radii[i], 0, mesh.vertices[i][1]],
+                            [0, 0, radii[i], mesh.vertices[i][2]],
+                            [0, 0, 0, 1],
+                        ]
+                    )
+                    for i in range(mesh.num_vertices)
+                ]
+
+                # Apply normal rotation if necessary
+                if (
+                    view.shape_channel is not None
+                    and view.shape_channel.orientation is not None
+                ):
+                    assert isinstance(view.shape_channel.orientation, Attribute)
+                    normal_attr_name = view.shape_channel.orientation._internal_name
+                    assert normal_attr_name is not None
+                    assert mesh.has_attribute(normal_attr_name)
+
+                    z = np.array([0, 0, 1])
+                    normals = mesh.attribute(normal_attr_name).data  # type: ignore
+
+                    for i, m in enumerate(local_transforms):
+                        m[:, :] = m @ rotation(z, normals[i])
+
+                if base_shape == "cube":
+                    # Generate cubes.
+                    shapes = list(
+                        map(
+                            lambda itr: {
+                                "type": "cube",
+                                "to_world": global_transform @ local_transforms[itr[0]],
+                            },
+                            enumerate(mesh.vertices),
+                        )
+                    )
+                elif base_shape == "disk":
+                    disk = create_disk(16)
+                    tmp_dir = pathlib.Path(tempfile.gettempdir())
+                    filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
+                    logger.debug(f"Saving point mark shape to '{str(filename)}'.")
+                    lagrange.io.save_mesh(filename, disk)  # type: ignore
+                    base_shape_config = {
+                        "type": "ply",
+                        "filename": str(filename.resolve()),
+                        "face_normals": True,
+                    }
+                    shapes = [
+                        base_shape_config | {"to_world": global_transform @ m}
+                        for m in local_transforms
+                    ]
+    else:  # with covariance
         # Generate base shape config.
-        match view.covariance_channel.base_shape:
+        match base_shape:
             case "sphere":
                 # Generate point mark shape.
                 sphere = create_icosphere(1)
@@ -302,7 +377,9 @@ def generate_curve_config(view: View, stamp: str, index: int):
     # `to_world` transform. This seems to be a bug on Mitsuba's part. Thus, we use a temporary fix
     # to bypass this bug.
     # TODO: Update once Mitsuba fixed the bug.
-    scale_correction_factor = np.trace(view.global_transform[:3, :3]) / 3
+    scale_correction_factor = np.absolute(
+        np.cbrt(np.linalg.det(view.global_transform[:3, :3]))
+    )
 
     # Generate curve file
     if view.vector_field_channel is not None:
@@ -364,8 +441,9 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
     """Rename generic scalar and vector attribute with suffix "_0". This is required by mitsuba to
     correct parse them from a ply file.
 
-    :param mesh: The mesh to rename attributes.
-    :param active_attributes: The list of active attributes.
+    Args:
+        mesh: The mesh to rename attributes.
+        active_attributes: The list of active attributes.
     """
     processed_names = set()
     for attr in active_attributes:
@@ -402,11 +480,13 @@ def generate_surface_config(view: View, stamp: str, index: int):
     2. Save the mesh and all active attributes in ply format in a temp directory.
     3. Generate the bsdf config associated with the shape.
 
-    :param view: The view to generate mesh config from.
-    :param stamp: The time stamp string used for creating a unique filename.
-    :param index: The index of the view.
+    Args:
+        view: The view to generate mesh config from.
+        stamp: The time stamp string used for creating a unique filename.
+        index: The index of the view.
 
-    :return: The mitsuba config for the mesh view.
+    Returns:
+        The mitsuba config for the mesh view.
     """
     assert view.data_frame is not None
     mesh = copy.copy(view.data_frame.mesh)  # Shallow copy

@@ -3,13 +3,14 @@ from ..grammar.mark import Mark
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
 from ..grammar.transform import (
-    Transform,
-    Filter,
-    UVMesh,
     Affine,
+    Boundary,
     Compute,
     Explode,
+    Filter,
     Norm,
+    Transform,
+    UVMesh,
 )
 from ..common import logger
 
@@ -276,6 +277,33 @@ def _apply_norm_transform(view: View, transform: Norm):
         )
 
 
+def _apply_boundary_transform(view: View, transform: Boundary):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+
+    unified_mesh = lagrange.unify_index_buffer(
+        mesh, attribute_names=transform.attributes
+    )
+    unified_mesh.initialize_edges()
+
+    is_boundary = np.array(
+        [unified_mesh.is_boundary_edge(e) for e in range(unified_mesh.num_edges)]
+    )
+    bd_edge_indices = np.arange(unified_mesh.num_edges)[is_boundary == 1]
+    bd_edges = np.array(
+        [unified_mesh.get_edge_vertices(ei) for ei in bd_edge_indices], dtype=np.uint32
+    )
+
+    bd_mesh = lagrange.SurfaceMesh()
+    bd_mesh.add_vertices(unified_mesh.vertices)
+    bd_mesh.add_polygons(bd_edges)
+    lagrange.remove_isolated_vertices(bd_mesh)
+
+    df.mesh = bd_mesh
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -305,6 +333,9 @@ def apply_transform(view: View):
             case Norm():
                 assert view.data_frame is not None
                 _apply_norm_transform(view, t)
+            case Boundary():
+                assert view.data_frame is not None
+                _apply_boundary_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

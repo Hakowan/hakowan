@@ -88,7 +88,7 @@ class VectorField(Channel):
 
 @dataclass(slots=True)
 class Covariance(Channel):
-    """ Covariance channel
+    """Covariance channel
 
     This class is used to specify the mapping from an attribute to the covariance matrix channel.
     The covariance channel only applies to point mark. It is represented as a per-vertex 3x3
@@ -99,13 +99,29 @@ class Covariance(Channel):
         full: (bool): If True, the full covariance matrix is stored in the attribute.
             If False, its "square root", M, is stored. The full covariance matrix is ∑ := M @ M^T.
             The matrix M represenst the stretch and rotation transform applied on each mark.
-        base_shape (str): The base shape of the covariance matrix. Options include "sphere" and
-            "cube". The default value is "sphere".
     """
 
     data: AttributeLike
     full: bool = False
+
+
+@dataclass(slots=True)
+class Shape(Channel):
+    """Shape channel
+
+    This class is used to specify the mapping from an attribute to the shape channel.
+    This channel is only used for point mark.
+
+    Attributes:
+        base_shape (str): The base shape used to represent a point.
+            Options include "sphere", "disk" and "cube".
+            The default value is "sphere".
+        orientation (AttributeLike | None): The attribute used to encode the normal orientation
+            of the shape. If None, orientation will be identity (i.e. normal along z-axis).
+    """
+
     base_shape: str = "sphere"
+    orientation: Optional[AttributeLike] = None
 
 
 @dataclass(slots=True)
@@ -121,6 +137,7 @@ class BumpMap(Channel):
 
     texture: TextureLike
     scale: float = 1.0
+
 
 @dataclass(slots=True)
 class NormalMap(Channel):

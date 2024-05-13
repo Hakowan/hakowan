@@ -1,12 +1,13 @@
 from ..grammar.channel import (
+    BumpMap,
     Channel,
-    Position,
+    Covariance,
     Normal,
+    NormalMap,
+    Position,
+    Shape,
     Size,
     VectorField,
-    Covariance,
-    BumpMap,
-    NormalMap,
 )
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
@@ -34,6 +35,7 @@ class View:
     _size_channel: Size | None = None
     _vector_field_channel: VectorField | None = None
     _covariance_channel: Covariance | None = None
+    _shape_channel: Shape | None = None
     _material_channel: Material | None = None
     _uv_attribute: Attribute | None = None
     _bump_map: BumpMap | None = None
@@ -45,8 +47,8 @@ class View:
     def initialize_bbox(self):
         assert self.data_frame is not None
         if self.data_frame.roi_box is not None:
-            # df.roi_box remains the same in object reference frame.
-            transformed_roi_box = np.array(df.roi_box, dtype=np.float64)
+            # self.data_frame.roi_box remains the same in object reference frame.
+            transformed_roi_box = np.array(self.data_frame.roi_box, dtype=np.float64)
             assert transformed_roi_box.shape == (2, 3)
             roi_min = transformed_roi_box[0]
             roi_max = transformed_roi_box[1]
@@ -76,7 +78,9 @@ class View:
                 return
 
             vertices = mesh.vertices
-            vertices = (self.global_transform[:3, :3] @ vertices.T).T + self.global_transform[:3, 3].T
+            vertices = (
+                self.global_transform[:3, :3] @ vertices.T
+            ).T + self.global_transform[:3, 3].T
             bbox_min = np.amin(vertices, axis=0)
             bbox_max = np.amax(vertices, axis=0)
             self.bbox = np.stack([bbox_min, bbox_max])
@@ -265,6 +269,15 @@ class View:
             channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, Attribute)
         self._covariance_channel = channel
+
+    @property
+    def shape_channel(self) -> Shape | None:
+        return self._shape_channel
+
+    @shape_channel.setter
+    def shape_channel(self, channel: Shape):
+        assert isinstance(channel, Shape)
+        self._shape_channel = channel
 
     @property
     def material_channel(self) -> Material | None:

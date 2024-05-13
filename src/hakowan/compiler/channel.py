@@ -12,6 +12,7 @@ from ..grammar.channel import (
     Normal,
     NormalMap,
     Position,
+    Shape,
     Size,
     VectorField,
 )
@@ -50,7 +51,8 @@ def preprocess_channels(view: View):
     normal and uv channels can be automatically generate from data frame if not specified. Size and
     material will be set to default if not specified.
 
-    :param view: The view to be pre-processed. Update will be made in place.
+    Args:
+        view (View): The view to be pre-processed. Update will be made in place.
     """
     _preprocess_channels(view)
 
@@ -60,7 +62,8 @@ def process_channels(view: View):
 
     This step applies scales and textures on the corresponding data.
 
-    :param view: The view to be processed. Update will be made in place.
+    Args:
+        view (View): The view to be processed. Update will be made in place.
     """
     _process_channels(view)
 
@@ -87,6 +90,9 @@ def _preprocess_channels(view: View):
             case Covariance():
                 if view.covariance_channel is None:
                     view.covariance_channel = channel
+            case Shape():
+                if view.shape_channel is None:
+                    view.shape_channel = channel
             case Material():
                 if view.material_channel is None:
                     view.material_channel = channel
@@ -147,6 +153,16 @@ def _process_channels(view: View):
         attr = view.covariance_channel.data
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
+    if view.shape_channel is not None:
+        assert isinstance(view.shape_channel, Shape)
+        assert view.shape_channel.base_shape in ["sphere", "cube", "disk"]
+        if view.shape_channel.orientation is not None:
+            if isinstance(view.shape_channel.orientation, str):
+                view.shape_channel.orientation = Attribute(view.shape_channel.orientation)
+            assert isinstance(view.shape_channel.orientation, Attribute)
+            attr = view.shape_channel.orientation
+            compute_scaled_attribute(df, attr)
+            view._active_attributes.append(attr)
     if view.bump_map is not None:
         tex = view.bump_map.texture
         assert tex is not None
