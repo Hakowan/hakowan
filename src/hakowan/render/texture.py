@@ -62,7 +62,7 @@ def generate_checker_board_config(
         "type": "checkerboard",
         "color0": generate_texture_config(mesh, tex.texture1, is_color),
         "color1": generate_texture_config(mesh, tex.texture2, is_color),
-        "to_uv": mi.ScalarTransform3f([[s, 0, 0], [0, s, 0], [0, 0, 1]]),  # type: ignore
+        "to_uv": mi.ScalarTransform4f([[s, 0, 0, 0], [0, s, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),  # type: ignore
     }
     return mi_config
 
