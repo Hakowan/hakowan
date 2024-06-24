@@ -229,7 +229,8 @@ def _apply_explode_transform(view: View, transform: Explode):
     assert pieces_attr.element_type == lagrange.AttributeElement.Facet
     piece_index = pieces_attr.data
     # Remove edge attribute to avoid warnings.
-    mesh.clear_edges()
+    if mesh.has_edges:
+        mesh.clear_edges()
     pieces = lagrange.separate_by_facet_groups(mesh, piece_index, map_attributes=True)
 
     center = np.average(mesh.vertices, axis=0)
