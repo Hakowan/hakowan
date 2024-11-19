@@ -196,7 +196,7 @@ def _apply_log(data: npt.NDArray, scale: Log):
 
 
 def _apply_uniform(data: npt.NDArray, scale: Uniform):
-    data *= np.cast[data.dtype](scale.factor)
+    data *= np.asarray(scale.factor, dtype=data.dtype)
 
 
 def _apply_custom(data: npt.NDArray, scale: Custom):
