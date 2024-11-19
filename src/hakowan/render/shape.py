@@ -503,17 +503,21 @@ def generate_surface_config(view: View, stamp: str, index: int):
         assert name is not None
         assert view.data_frame.mesh.has_attribute(name)
 
+    # Mitsuba's ply plugin offer limited support normmal attributes.
+    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    if len(normal_ids) > 0:
+        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
+        use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
+        for normal_id in normal_ids:
+            mesh.delete_attribute(normal_id)
+    else:
+        use_facet_normal = False
+
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
     logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
 
-    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
-    if len(normal_ids) > 0:
-        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
-        use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
-    else:
-        use_facet_normal = False
 
     mi_config = {
         "type": "ply",
