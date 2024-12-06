@@ -24,7 +24,7 @@ def generate_emitter_config(emitter: Emitter) -> dict:
             mi_config["scale"] = emitter.scale
             mi_config["to_world"] = mi.ScalarTransform4f(  # type: ignore
                 rotation(np.array([0, 1, 0]), np.array(emitter.up))
-            ) @ mi.ScalarTransform4f.rotate(  # type: ignore
+            ) @ mi.ScalarTransform4f().rotate(  # type: ignore
                 [0, 1, 0],
                 emitter.rotation,
             )

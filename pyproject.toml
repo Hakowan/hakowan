@@ -10,8 +10,8 @@ readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "lagrange-open>=6.27",
-    "mitsuba~=3.5",
+    "lagrange-open>=6.28",
+    "mitsuba~=3.6",
     "numpy>=1.22",
     ]
 requires-python = ">=3.10"
