@@ -104,7 +104,8 @@ def render(
 
     if config.albedo_only:
         # Select the albedo channels.
-        image = image[:, :, [4, 5, 6, 3]]  # type: ignore
+        print(image.shape)
+        image = image[:, :, mi.ArrayXi([4, 5, 6, 3])]  # type: ignore
 
     if filename is not None:
         if isinstance(filename, str):
