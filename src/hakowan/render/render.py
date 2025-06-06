@@ -13,8 +13,10 @@ from ..grammar import layer
 
 import datetime
 import mitsuba as mi
+import drjit
 from typing import Any
 from pathlib import Path
+import numpy as np
 
 
 def generate_base_config(config: Config):
@@ -78,6 +80,20 @@ def dump_dict(data: dict, indent: int = 0):
     return lines
 
 
+def save_image(image: drjit.ArrayBase, filename: Path):
+    if filename.suffix == ".exr":
+        mi.util.write_bitmap(str(filename), image)  # type: ignore
+    else:
+        mi.Bitmap(image).convert(  # type: ignore
+            pixel_format=mi.Bitmap.PixelFormat.RGBA,
+            component_format=mi.Struct.Type.UInt8,
+            srgb_gamma=True,
+        ).write(
+            str(filename), quality=-1
+        )  # type: ignore
+    logger.info(f"Rendering saved to {filename}")
+
+
 def render(
     root: layer.Layer,
     config: Config | None = None,
@@ -101,25 +117,47 @@ def render(
     mi_scene = mi.load_dict(mi_config)
     image = mi.render(scene=mi_scene)  # type: ignore
     logger.info("Rendering done")
+    image_layers = image
 
-    if config.albedo_only:
+    if config.albedo:
         # Select the albedo channels.
-        image = image[:, :, [4, 5, 6, 3]]  # type: ignore
+        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
+        albedo_image = image_layers[:, :, mi.ArrayXi([4, 5, 6, 3])]  # type: ignore
+
+    if config.depth:
+        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
+        alpha = image_layers[:, :, 3]
+        depth = image_layers[:, :, 4]
+        min_depth = np.min(depth)
+        max_depth = np.max(depth)
+        depth = (depth - min_depth) / (max_depth - min_depth)
+        depth_image = mi.TensorXf(np.stack([depth, depth, depth, alpha], axis=2))
+
+    if config.normal:
+        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]
+        normal_image = image_layers[:, :, mi.ArrayXi([4, 5, 6, 3])]
 
     if filename is not None:
         if isinstance(filename, str):
             filename = Path(filename)
+        save_image(image, filename)
 
-        if filename.suffix == ".exr":
-            mi.util.write_bitmap(str(filename), image)  # type: ignore
-        else:
-            mi.Bitmap(image).convert(  # type: ignore
-                pixel_format=mi.Bitmap.PixelFormat.RGBA,
-                component_format=mi.Struct.Type.UInt8,
-                srgb_gamma=True,
-            ).write(
-                str(filename), quality=-1
-            )  # type: ignore
-        logger.info(f"Rendering saved to {filename}")
+        if config.albedo:
+            albedo_filename = filename.with_name(
+                filename.stem + "_albedo" + filename.suffix
+            )
+            save_image(albedo_image, albedo_filename)
+
+        if config.depth:
+            depth_filename = filename.with_name(
+                filename.stem + "_depth" + filename.suffix
+            )
+            save_image(depth_image, depth_filename)
+
+        if config.normal:
+            normal_filename = filename.with_name(
+                filename.stem + "_normal" + filename.suffix
+            )
+            save_image(normal_image, normal_filename)
 
     return image
