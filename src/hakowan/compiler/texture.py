@@ -58,6 +58,9 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
             range_min=range_min,
             range_max=range_max,
         )
+        if tex.domain is not None:
+            normalize_scale.domain_min, normalize_scale.domain_max = tex.domain
+
         if tex.data.scale is not None:
             assert isinstance(tex.data.scale, Scale)
             s = tex.data.scale
