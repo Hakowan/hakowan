@@ -19,14 +19,17 @@ class Config:
         sampler: Sampler settings.
         emitters: Emitter settings.
         integrator: Integrator settings.
-        albedo_only: Whether to render albedo only (i.e. without shading).
+        albedo: Whether to render albedo (i.e. without shading).
+        depth: Whether to render depth.
     """
     sensor: Sensor = field(default_factory=Perspective)
     film: Film = field(default_factory=Film)
     sampler: Sampler = field(default_factory=Independent)
     emitters: list[Emitter] = field(default_factory=lambda: [Envmap()])
     integrator: Integrator = field(default_factory=Path)
-    _albedo_only: bool = False
+    _albedo: bool = False
+    _depth: bool = False
+    _normal: bool = False
 
     def z_up(self):
         """Update configuration for z-up coordinate system."""
@@ -65,29 +68,70 @@ class Config:
                 emitter.rotation = 180
 
     @property
-    def albedo_only(self) -> bool:
-        """Whether to render albedo only (i.e. without shading)."""
-        return self._albedo_only
+    def albedo(self) -> bool:
+        """Whether to render albedo (i.e. without shading)."""
+        return self._albedo
 
-    @albedo_only.setter
-    def albedo_only(self, value: bool):
-        """Whether to render albedo only (i.e. without shading).
+    @albedo.setter
+    def albedo(self, value: bool):
+        """Whether to render albedo (i.e. without shading).
 
         Note that this setting will modify Config.integrator property.
         """
-        self._albedo_only = value
-        if self._albedo_only:
-            if not isinstance(self.integrator, AOV):
-                self.integrator = AOV(
-                    aovs=["albedo:albedo"], integrator=self.integrator
-                )
-            else:
-                logger.warning("Albedo only is already enabled!")
+        self._albedo = value
+        if self._albedo:
+            self.__add_aov("albedo:albedo")
         else:
-            if isinstance(self.integrator, AOV):
-                if self.integrator.integrator is not None:
-                    self.integrator = self.integrator.integrator
-                else:
-                    self.integrator = Path()
+            self.__reset_aov()
+
+    @property
+    def depth(self) -> bool:
+        """Whether to render depth."""
+        return self._depth
+
+    @depth.setter
+    def depth(self, value: bool):
+        """Whether to render depth.
+
+        Note that this setting will modify Config.integrator property.
+        """
+        self._depth = value
+        if self._depth:
+            self.__add_aov("depth:depth")
+        else:
+            self.__reset_aov()
+
+    @property
+    def normal(self) -> bool:
+        """Whether to render normal."""
+        return self._normal
+
+    @normal.setter
+    def normal(self, value: bool):
+        """Whether to render normal.
+
+        Note that this setting will modify Config.integrator property.
+        """
+        self._normal = value
+        if self._normal:
+            self.__add_aov("sh_normal:sh_normal")
+        else:
+            self.__reset_aov()
+
+    def __add_aov(self, aov: str):
+        """ Add an AOV to the integrator.
+
+        An AOV integrator is created if one does not already exist. Otherwise, the specific output
+        variable will be added to the existing AOV integrator.
+        """
+        if not isinstance(self.integrator, AOV):
+            self.integrator = AOV(aovs=[aov], integrator=self.integrator)
+        elif aov not in self.integrator.aovs:
+            self.integrator.aovs.append(aov)
+
+    def __reset_aov(self):
+        if isinstance(self.integrator, AOV):
+            if self.integrator.integrator is not None:
+                self.integrator = self.integrator.integrator
             else:
-                logger.warning("Albedo only is already disabled!")
+                self.integrator = Path()
