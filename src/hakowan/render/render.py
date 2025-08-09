@@ -128,8 +128,8 @@ def render(
         image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
         alpha = image_layers[:, :, 3]
         depth = image_layers[:, :, 4]
-        min_depth = np.min(depth)
-        max_depth = np.max(depth)
+        min_depth = drjit.min(depth)
+        max_depth = drjit.max(depth)
         depth = (depth - min_depth) / (max_depth - min_depth)
         depth_image = mi.TensorXf(np.stack([depth, depth, depth, alpha], axis=2))
 

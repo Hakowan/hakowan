@@ -80,19 +80,9 @@ class Config:
         """
         self._albedo = value
         if self._albedo:
-            if not isinstance(self.integrator, AOV):
-                self.integrator = AOV(
-                    aovs=["albedo:albedo"], integrator=self.integrator
-                )
-            else:
-                if "albedo:albedo" not in self.integrator.aovs:
-                    self.integrator.aovs.append("albedo:albedo")
+            self.__add_aov("albedo:albedo")
         else:
-            if isinstance(self.integrator, AOV):
-                if self.integrator.integrator is not None:
-                    self.integrator = self.integrator.integrator
-                else:
-                    self.integrator = Path()
+            self.__reset_aov()
 
     @property
     def depth(self) -> bool:
@@ -107,16 +97,9 @@ class Config:
         """
         self._depth = value
         if self._depth:
-            if not isinstance(self.integrator, AOV):
-                self.integrator = AOV(aovs=["depth:depth"], integrator=self.integrator)
-            elif "depth:depth" not in self.integrator.aovs:
-                self.integrator.aovs.append("depth:depth")
+            self.__add_aov("depth:depth")
         else:
-            if isinstance(self.integrator, AOV):
-                if self.integrator.integrator is not None:
-                    self.integrator = self.integrator.integrator
-                else:
-                    self.integrator = Path()
+            self.__reset_aov()
 
     @property
     def normal(self) -> bool:
@@ -131,13 +114,24 @@ class Config:
         """
         self._normal = value
         if self._normal:
-            if not isinstance(self.integrator, AOV):
-                self.integrator = AOV(aovs=["sh_normal:sh_normal"], integrator=self.integrator)
-            elif "sh_normal:sh_normal" not in self.integrator.aovs:
-                self.integrator.aovs.append("sh_normal:sh_normal")
+            self.__add_aov("sh_normal:sh_normal")
         else:
-            if isinstance(self.integrator, AOV):
-                if self.integrator.integrator is not None:
-                    self.integrator = self.integrator.integrator
-                else:
-                    self.integrator = Path()
+            self.__reset_aov()
+
+    def __add_aov(self, aov: str):
+        """ Add an AOV to the integrator.
+
+        An AOV integrator is created if one does not already exist. Otherwise, the specific output
+        variable will be added to the existing AOV integrator.
+        """
+        if not isinstance(self.integrator, AOV):
+            self.integrator = AOV(aovs=[aov], integrator=self.integrator)
+        elif aov not in self.integrator.aovs:
+            self.integrator.aovs.append(aov)
+
+    def __reset_aov(self):
+        if isinstance(self.integrator, AOV):
+            if self.integrator.integrator is not None:
+                self.integrator = self.integrator.integrator
+            else:
+                self.integrator = Path()
