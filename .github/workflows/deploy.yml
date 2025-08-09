@@ -32,7 +32,6 @@ jobs:
         run: pipx run twine check dist/*
 
   upload_pypi:
-    if: ${{ false }}
     name: Upload release to PyPI
     runs-on: ubuntu-latest
     needs: [build_wheel]
