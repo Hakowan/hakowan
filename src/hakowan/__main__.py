@@ -35,7 +35,7 @@ def parse_args():
     )
     parser.add_argument(
         "--wire-thickness",
-        help="Wireframe/seam thickness relative to bbox diagnal",
+        help="Wireframe/seam thickness relative to bbox diagonal",
         type=float,
         default=0.001,
     )
@@ -123,7 +123,6 @@ def extract_material(scene: lagrange.scene.Scene):
             tex = scene.textures[tex_info.index]
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
-                tex_file = tex_img.uri
                 tex_file = get_tmp_image_name()
                 im = Image.fromarray(tex_img.image.data)
                 im.save(str(tex_file))
@@ -144,7 +143,7 @@ def extract_material(scene: lagrange.scene.Scene):
                 diffuse_file = diffuse_img.uri
                 if diffuse_file is None:
                     diffuse_file = get_tmp_image_name()
-                im = Image.fromarray(diffuse_img.image.data, "RGBA")
+                im = Image.fromarray(diffuse_img.image.data)
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(diffuse_file),
@@ -177,7 +176,7 @@ def embed_texture(glb_file):
 def main():
     args = parse_args()
 
-    mesh = lagrange.io.load_mesh(args.input_mesh)
+    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True)
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
     bbox_diag = np.linalg.norm(bbox_max - bbox_min)
@@ -234,7 +233,11 @@ def main():
                 normal_attr = mesh.attribute(normal_attr_id)
 
             normal_attr_name = mesh.get_attribute_name(normal_attr_id)
-            scale = hkw.scale.Custom(lambda n: (np.array([-n[0], n[2], n[1]]) + 1) / 2)
+
+            def normal_to_color(n):
+                return (np.array([-n[0], n[2], n[1]]) + 1) / 2
+
+            scale = hkw.scale.Custom(normal_to_color)
             layer = layer.material(
                 "Diffuse",
                 hkw.texture.ScalarField(
@@ -293,8 +296,6 @@ def main():
                 texture_file = Path(args.material)
                 assert texture_file.is_file(), f"Texture file {texture_file} not found"
                 layer = layer.material("Principled", hkw.texture.Image(texture_file))
-
-            # raise ValueError(f"Unknown material type: {args.material}")
 
     if args.point_cloud:
         assert not args.comp
