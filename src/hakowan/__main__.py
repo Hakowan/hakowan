@@ -80,6 +80,7 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
+    parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     return parser.parse_args()
 
 
@@ -256,7 +257,10 @@ def main():
             uv_name = mesh.get_attribute_name(uv_id)
             base = hkw.layer(mesh)
             surface = base.material(
-                "Principled", hkw.texture.Checkerboard(uv=uv_name, size=64)
+                "Principled",
+                hkw.texture.Checkerboard(
+                    uv=hkw.attribute(uv_name, scale=args.uv_scale), size=64
+                ),
             )
             boundary = (
                 base.transform(hkw.transform.Boundary())
