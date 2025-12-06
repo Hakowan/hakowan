@@ -12,6 +12,12 @@ import tempfile
 
 
 def parse_args():
+    """
+    Parse command-line arguments for the mesh renderer.
+
+    Returns:
+        argparse.Namespace: The parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(description="Render a mesh.")
     parser.add_argument("--point-cloud", help="Render point cloud", action="store_true")
     parser.add_argument(
@@ -85,6 +91,18 @@ def parse_args():
 
 
 def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Material]):
+    """
+    Recursively converts a scene node and its children into a composited Layer.
+
+    Parameters:
+        scene (lagrange.scene.Scene): The scene containing the nodes and meshes.
+        node (lagrange.scene.Node): The current node to process.
+        mats (list[hkw.material.Material]): List of materials used for mesh instances.
+
+    Returns:
+        hkw.layer.Layer or None: The composited Layer for this node and its children,
+        or None if no layers are created.
+    """
     layers = []
     if len(node.children) > 0:
         layers = [
@@ -110,11 +128,26 @@ def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Mate
 
 
 def get_tmp_image_name():
+    """
+    Generate a temporary file path for an image in the system's temporary directory.
+
+    Returns:
+        Path: A Path object pointing to a unique PNG file in the temp directory.
+    """
     tmp_dir = Path(tempfile.gettempdir())
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
 def extract_material(scene: lagrange.scene.Scene):
+    """
+    Extracts materials from a Lagrange scene and converts them to hakowan material objects.
+
+    Parameters:
+        scene (lagrange.scene.Scene): The scene object containing materials, textures, and images.
+
+    Returns:
+        list[hkw.material.Material]: A list of hakowan material objects corresponding to the scene's materials.
+    """
     mats = []
 
     for material in scene.materials:
@@ -166,15 +199,28 @@ def extract_material(scene: lagrange.scene.Scene):
 
 
 def embed_texture(glb_file):
+    """
+    Loads a GLB file, extracts its materials and textures, and constructs a composite layer representation.
+
+    Parameters:
+        glb_file (str or Path): Path to the GLB file to load.
+
+    Returns:
+        hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
+    """
     scene = lagrange.io.load_scene(glb_file)
     mats = extract_material(scene)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
-    assert len(layers) > 0
+    assert len(layers) > 0, "No valid layers found in scene"
     return np.sum(layers)
 
 
 def main():
+    """
+    Entry point for the command-line interface for mesh rendering.
+    Parses command-line arguments and orchestrates the mesh rendering process.
+    """
     args = parse_args()
 
     mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True)
@@ -194,13 +240,13 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.1)
         case "texture":
-            assert Path(args.input_mesh).suffix in [".glb", ".gltf"]
+            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
             layer = embed_texture(args.input_mesh)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
             )
-            assert len(color_attr_ids) > 0
+            assert len(color_attr_ids) > 0, "No color attributes found in mesh for vertex_color material"
             color_attr_id = color_attr_ids[0]
             color_attr_name = mesh.get_attribute_name(color_attr_id)
             layer = layer.material(
@@ -252,7 +298,7 @@ def main():
             bbox_max = np.amax(mesh.vertices, axis=0)
             diag_len = np.linalg.norm(bbox_max - bbox_min)
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-            assert len(uv_ids) > 0
+            assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
             uv_id = uv_ids[0]
             uv_name = mesh.get_attribute_name(uv_id)
             base = hkw.layer(mesh)
@@ -302,7 +348,7 @@ def main():
                 layer = layer.material("Principled", hkw.texture.Image(texture_file))
 
     if args.point_cloud:
-        assert not args.comp
+        assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
         layer = layer.mark("Point").channel(size=args.point_size)
 
     if args.comp:
@@ -330,9 +376,8 @@ def main():
     if args.seams:
         mesh = lagrange.unify_index_buffer(mesh)
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-        assert len(uv_ids) > 0
+        assert len(uv_ids) > 0, "No UV attributes found in mesh for seams rendering"
         uv_id = uv_ids[0]
-        uv_name = mesh.get_attribute_name(uv_id)
         base = hkw.layer(mesh)
         seams = (
             base.transform(hkw.transform.Boundary())
@@ -343,7 +388,7 @@ def main():
         layer = layer + seams
 
     if args.singularity:
-        assert mesh.is_quad_mesh
+        assert mesh.is_quad_mesh, "Singularity visualization requires a quad mesh"
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
 
         base = hkw.layer(mesh)

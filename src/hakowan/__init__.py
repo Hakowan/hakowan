@@ -1,4 +1,4 @@
-""" Hakowan: A 3D data visualization grammer """
+""" Hakowan: A 3D data visualization grammar """
 
 __version__ = "0.3.9"
 
