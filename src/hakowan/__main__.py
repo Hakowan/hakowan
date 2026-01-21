@@ -388,7 +388,6 @@ def main():
         layer = layer + seams
 
     if args.singularity:
-        assert mesh.is_quad_mesh, "Singularity visualization requires a quad mesh"
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
 
         base = hkw.layer(mesh)
