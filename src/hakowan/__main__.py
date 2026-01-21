@@ -240,13 +240,17 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.1)
         case "texture":
-            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
+            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
+                f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
+            )
             layer = embed_texture(args.input_mesh)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
             )
-            assert len(color_attr_ids) > 0, "No color attributes found in mesh for vertex_color material"
+            assert len(color_attr_ids) > 0, (
+                "No color attributes found in mesh for vertex_color material"
+            )
             color_attr_id = color_attr_ids[0]
             color_attr_name = mesh.get_attribute_name(color_attr_id)
             layer = layer.material(
@@ -389,6 +393,14 @@ def main():
 
     if args.singularity:
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
+        num_triangles = 0
+        num_quads = 0
+        for fid in range(mesh.num_facets):
+            fsize = mesh.get_facet_size(fid)
+            if fsize == 3:
+                num_triangles += 1
+            elif fsize == 4:
+                num_quads += 1
 
         base = hkw.layer(mesh)
         valence_view = (
@@ -404,9 +416,18 @@ def main():
                 roughness=0.0,
                 metallic=0.2,
             )
-            .transform(hkw.transform.Filter("valence", lambda d: d != 4))
             .channel(size=0.005 * bbox_diag)
         )
+        if mesh.is_triangle_mesh or num_triangles > 0.9 * mesh.num_facets:
+            # Triangle dominant mesh
+            valence_view = valence_view.transform(
+                hkw.transform.Filter("valence", lambda d: d != 6)
+            )
+        elif mesh.is_quad_mesh or num_quads > 0.9 * mesh.num_facets:
+            # Quad dominant mesh
+            valence_view = valence_view.transform(
+                hkw.transform.Filter("valence", lambda d: d != 4)
+            )
         layer = layer + valence_view
 
     if args.rotate:
