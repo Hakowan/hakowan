@@ -402,32 +402,39 @@ def main():
             elif fsize == 4:
                 num_quads += 1
 
-        base = hkw.layer(mesh)
-        valence_view = (
-            base.mark("Point")
-            .material(
-                "Principled",
-                hkw.texture.ScalarField(
-                    "valence",
-                    colormap=["#27A6DE", "#FFC24F", "#FF0046", "#C77DDB", "#E68445"],
-                    domain=[3, 7],
-                    categories=True,
-                ),
-                roughness=0.0,
-                metallic=0.2,
-            )
-            .channel(size=0.005 * bbox_diag)
-        )
         if mesh.is_triangle_mesh or num_triangles > 0.9 * mesh.num_facets:
-            # Triangle dominant mesh
+            triangle_dominant = True
+            quad_dominant = False
+        elif mesh.is_quad_mesh or num_quads > 0.9 * mesh.num_facets:
+            triangle_dominant = False
+            quad_dominant = True
+
+        base = hkw.layer(mesh)
+        valence_view = base.mark("Point").channel(size=0.005 * bbox_diag)
+
+        if triangle_dominant:
             valence_view = valence_view.transform(
                 hkw.transform.Filter("valence", lambda d: d != 6)
             )
-        elif mesh.is_quad_mesh or num_quads > 0.9 * mesh.num_facets:
-            # Quad dominant mesh
+            colormap = ["#C77DDB", "#E68445", "#27A6DE", "#FFC24F", "#FF0046"]
+        elif quad_dominant:
             valence_view = valence_view.transform(
                 hkw.transform.Filter("valence", lambda d: d != 4)
             )
+            colormap = ["#27A6DE", "#FFC24F", "#FF0046", "#C77DDB", "#E68445"]
+
+        valence_view = valence_view.material(
+            "Principled",
+            hkw.texture.ScalarField(
+                "valence",
+                colormap=colormap,
+                domain=[3, 7],
+                categories=True,
+            ),
+            roughness=0.0,
+            metallic=0.2,
+        )
+
         layer = layer + valence_view
 
     if args.rotate:
