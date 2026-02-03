@@ -208,7 +208,7 @@ def embed_texture(glb_file):
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
-    scene = lagrange.io.load_scene(glb_file)
+    scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
     mats = extract_material(scene)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
@@ -223,10 +223,11 @@ def main():
     """
     args = parse_args()
 
-    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True)
+    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
-    bbox_diag = np.linalg.norm(bbox_max - bbox_min)
+    bbox_size = bbox_max - bbox_min
+    bbox_diag = np.linalg.norm(bbox_size)
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
@@ -298,9 +299,7 @@ def main():
             )
         case "uv":
             mesh = lagrange.unify_index_buffer(mesh)
-            bbox_min = np.amin(mesh.vertices, axis=0)
-            bbox_max = np.amax(mesh.vertices, axis=0)
-            diag_len = np.linalg.norm(bbox_max - bbox_min)
+            diag_len = bbox_diag
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
             assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
             uv_id = uv_ids[0]
@@ -445,39 +444,37 @@ def main():
         layer = layer.rotate(axis=axis, angle=args.rotate * math.pi / 180)
 
     if args.clip is not None:
-        bbox_min = np.amin(mesh.vertices, axis=0)
-        bbox_max = np.amax(mesh.vertices, axis=0)
-        bbox_size = bbox_max - bbox_min
+        clip_value = args.clip_value
         match args.clip:
             case "x":
 
                 def condition(x):
-                    return x[0] - bbox_min[0] >= args.clip_value * bbox_size[0]
+                    return x[0] - bbox_min[0] >= clip_value * bbox_size[0]
 
             case "-x":
 
                 def condition(x):
-                    return x[0] - bbox_min[0] <= args.clip_value * bbox_size[0]
+                    return x[0] - bbox_min[0] <= clip_value * bbox_size[0]
 
             case "y":
 
                 def condition(x):
-                    return x[1] - bbox_min[1] >= args.clip_value * bbox_size[1]
+                    return x[1] - bbox_min[1] >= clip_value * bbox_size[1]
 
             case "-y":
 
                 def condition(x):
-                    return x[1] - bbox_min[1] <= args.clip_value * bbox_size[1]
+                    return x[1] - bbox_min[1] <= clip_value * bbox_size[1]
 
             case "z":
 
                 def condition(x):
-                    return x[2] - bbox_min[2] >= args.clip_value * bbox_size[2]
+                    return x[2] - bbox_min[2] >= clip_value * bbox_size[2]
 
             case "-z":
 
                 def condition(x):
-                    return x[2] - bbox_min[2] <= args.clip_value * bbox_size[2]
+                    return x[2] - bbox_min[2] <= clip_value * bbox_size[2]
 
             case _:
                 raise ValueError("Invalid clip axis")

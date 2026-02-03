@@ -123,7 +123,7 @@ class Layer:
         l = self.__get_working_layer(in_place)
         match (data):
             case str() | Path():
-                mesh = lagrange.io.load_mesh(data, quiet=True)  # type: ignore
+                mesh = lagrange.io.load_mesh(data, quiet=True, stitch_vertices=True)  # type: ignore
                 l._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
             case lagrange.SurfaceMesh():
                 l._spec.data = DataFrame(mesh=data, roi_box=roi_box)
