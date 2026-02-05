@@ -59,6 +59,8 @@ class BlenderBackend(RenderBackend):
                 - samples (int): Number of render samples
                 - engine (str): Render engine ("CYCLES" or "BLENDER_EEVEE")
                 - blend_file (str|Path): Optional .blend file path for debugging
+                - transparent_background (bool): Use transparent background (default: False)
+                  When enabled, environment maps still provide lighting but background is transparent
 
         Returns:
             None (Blender renders to file).
@@ -76,7 +78,7 @@ class BlenderBackend(RenderBackend):
         self._setup_camera(config)
 
         # Setup lighting
-        self._setup_lighting(config)
+        self._setup_lighting(config, **kwargs)
 
         # Setup render settings
         self._setup_render_settings(config, **kwargs)
@@ -298,28 +300,138 @@ class BlenderBackend(RenderBackend):
 
         logger.debug(f"Camera set at {location}")
 
-    def _setup_lighting(self, config: Config):
+    def _setup_lighting(self, config: Config, **kwargs):
         """Setup Blender lighting from config.
 
         Args:
             config: Rendering configuration.
+            **kwargs: Additional options (currently unused).
         """
-        # For minimal implementation, add a simple sun light
-        light_data = bpy.data.lights.new(name="Sun", type="SUN")
-        light_data.energy = 1.0
-        light_obj = bpy.data.objects.new("Sun", light_data)
-        bpy.context.collection.objects.link(light_obj)
-        light_obj.location = (0, 0, 10)
+        from ...setup.emitter import Envmap, Point
 
-        # TODO: Handle config.emitters for more sophisticated lighting
-        logger.debug("Added default sun light")
+        if not config.emitters:
+            # No emitters specified, add default sun light
+            light_data = bpy.data.lights.new(name="Sun", type="SUN")
+            light_data.energy = 1.0
+            light_obj = bpy.data.objects.new("Sun", light_data)
+            bpy.context.collection.objects.link(light_obj)
+            light_obj.location = (0, 0, 10)
+            logger.debug("Added default sun light")
+            return
+
+        # Process emitters from config
+        for i, emitter in enumerate(config.emitters):
+            if isinstance(emitter, Envmap):
+                self._setup_environment_light(emitter)
+            elif isinstance(emitter, Point):
+                self._setup_point_light(emitter, i)
+            else:
+                logger.warning(f"Emitter type {type(emitter)} not supported in Blender backend")
+
+    def _setup_environment_light(self, envmap):
+        """Setup environment lighting using world shader.
+
+        Args:
+            envmap: Envmap emitter configuration.
+        """
+        world = bpy.context.scene.world
+        world.use_nodes = True
+        nodes = world.node_tree.nodes
+        links = world.node_tree.links
+
+        # Clear default nodes
+        nodes.clear()
+
+        # Create Environment Texture node
+        env_tex = nodes.new(type="ShaderNodeTexEnvironment")
+        env_tex.location = (-300, 300)
+
+        # Load environment map image
+        if envmap.filename.exists():
+            env_tex.image = bpy.data.images.load(str(envmap.filename))
+            logger.info(f"Loaded environment map: {envmap.filename}")
+        else:
+            logger.warning(f"Environment map not found: {envmap.filename}")
+
+        # Create Background shader
+        background = nodes.new(type="ShaderNodeBackground")
+        background.location = (0, 300)
+        background.inputs["Strength"].default_value = envmap.scale
+
+        # Create Mapping node for rotation
+        mapping = nodes.new(type="ShaderNodeMapping")
+        mapping.location = (-600, 300)
+        
+        # Apply rotation around up vector
+        # Convert rotation from degrees to radians
+        rotation_rad = np.radians(envmap.rotation + 180)
+        
+        # Determine rotation axis based on up vector
+        up = np.array(envmap.up)
+        if np.allclose(up, [0, 1, 0]):
+            # Y-up: rotate around Y axis
+            mapping.inputs["Rotation"].default_value = (0, rotation_rad, 0)
+        elif np.allclose(up, [0, 0, 1]):
+            # Z-up: rotate around Z axis
+            mapping.inputs["Rotation"].default_value = (0, 0, rotation_rad)
+        elif np.allclose(up, [1, 0, 0]):
+            # X-up: rotate around X axis
+            mapping.inputs["Rotation"].default_value = (rotation_rad, 0, 0)
+        else:
+            logger.warning(f"Non-standard up vector {up}, defaulting to Y-axis rotation")
+            mapping.inputs["Rotation"].default_value = (0, rotation_rad, 0)
+
+        # Create Texture Coordinate node
+        tex_coord = nodes.new(type="ShaderNodeTexCoord")
+        tex_coord.location = (-900, 300)
+
+        # Create World Output node
+        world_output = nodes.new(type="ShaderNodeOutputWorld")
+        world_output.location = (300, 300)
+
+        # Connect nodes
+        links.new(tex_coord.outputs["Generated"], mapping.inputs["Vector"])
+        links.new(mapping.outputs["Vector"], env_tex.inputs["Vector"])
+        links.new(env_tex.outputs["Color"], background.inputs["Color"])
+        links.new(background.outputs["Background"], world_output.inputs["Surface"])
+
+        logger.debug(f"Environment light configured with scale={envmap.scale}, rotation={envmap.rotation}°")
+
+    def _setup_point_light(self, point_light, index: int):
+        """Setup a point light source.
+
+        Args:
+            point_light: Point emitter configuration.
+            index: Light index for naming.
+        """
+        light_data = bpy.data.lights.new(name=f"Point_{index:03d}", type="POINT")
+        
+        # Set intensity
+        if isinstance(point_light.intensity, (int, float)):
+            light_data.energy = float(point_light.intensity)
+        else:
+            # If intensity is a color, use its average as energy
+            light_data.energy = 1.0
+            logger.warning("Color intensity for point lights not fully supported, using default energy")
+
+        # Create light object
+        light_obj = bpy.data.objects.new(f"Point_{index:03d}", light_data)
+        bpy.context.collection.objects.link(light_obj)
+        
+        # Set position
+        light_obj.location = point_light.position
+
+        logger.debug(f"Point light {index} added at {point_light.position}")
 
     def _setup_render_settings(self, config: Config, **kwargs):
         """Setup Blender render settings.
 
         Args:
             config: Rendering configuration.
-            **kwargs: Additional options (samples, engine, etc.).
+            **kwargs: Additional options:
+                - samples (int): Number of samples
+                - engine (str): Render engine
+                - transparent_background (bool): Use transparent background (default: True)
         """
         scene = bpy.context.scene
 
@@ -341,6 +453,14 @@ class BlenderBackend(RenderBackend):
         # File format
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
+
+        # Transparent background option
+        transparent_bg = kwargs.get("transparent_background", True)
+        if transparent_bg:
+            scene.render.film_transparent = True
+            logger.debug("Transparent background enabled")
+        else:
+            scene.render.film_transparent = False
 
         logger.debug(f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}")
 
