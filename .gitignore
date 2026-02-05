@@ -6,3 +6,6 @@ dist/
 .tox/
 *.pyc
 *.egg-info
+# pixi environments
+.pixi/*
+!.pixi/config.toml

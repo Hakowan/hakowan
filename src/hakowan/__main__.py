@@ -517,7 +517,7 @@ def main():
         output_file = Path(args.input_mesh).with_suffix(".png")
 
     if args.turn_table == 0:
-        hkw.render(layer, config, filename=output_file, backend=args.backend)
+        hkw.render(layer, config, filename=output_file, backend=args.backend, blend_file="debug.blend")
     else:
         if args.z_up:
             axis = [0, 0, 1]

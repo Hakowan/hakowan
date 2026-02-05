@@ -55,7 +55,10 @@ class BlenderBackend(RenderBackend):
             scene: Compiled scene.
             config: Rendering configuration.
             filename: Output image filename.
-            **kwargs: Additional options (e.g., samples, engine).
+            **kwargs: Additional options:
+                - samples (int): Number of render samples
+                - engine (str): Render engine ("CYCLES" or "BLENDER_EEVEE")
+                - blend_file (str|Path): Optional .blend file path for debugging
 
         Returns:
             None (Blender renders to file).
@@ -77,6 +80,13 @@ class BlenderBackend(RenderBackend):
 
         # Setup render settings
         self._setup_render_settings(config, **kwargs)
+
+        # Save .blend file if requested (for debugging)
+        blend_file = kwargs.get("blend_file")
+        if blend_file is not None:
+            if isinstance(blend_file, str):
+                blend_file = Path(blend_file)
+            self._save_blend_file(blend_file)
 
         # Render
         if filename is not None:
@@ -149,6 +159,13 @@ class BlenderBackend(RenderBackend):
         obj = bpy.data.objects.new(f"object_{index:03d}", mesh)
         bpy.context.collection.objects.link(obj)
 
+        # Apply global transformation
+        if hasattr(view, 'global_transform') and view.global_transform is not None:
+            # Convert numpy 4x4 matrix to Blender Matrix
+            transform_matrix = mathutils.Matrix(view.global_transform.tolist())
+            obj.matrix_world = transform_matrix
+            logger.debug(f"Applied global transform to object {index}")
+
         # Apply material
         if view.material_channel is not None:
             mat = self._create_material(view, index)
@@ -170,7 +187,7 @@ class BlenderBackend(RenderBackend):
         if view.material_channel is None:
             return None
 
-        mat_data = view.material_channel.data
+        mat_data = view.material_channel
         mat = bpy.data.materials.new(name=f"material_{index:03d}")
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
@@ -326,3 +343,16 @@ class BlenderBackend(RenderBackend):
         scene.render.image_settings.color_mode = "RGBA"
 
         logger.debug(f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}")
+
+    def _save_blend_file(self, filepath: Path):
+        """Save the current Blender scene to a .blend file for debugging.
+
+        Args:
+            filepath: Path to save the .blend file.
+        """
+        # Ensure parent directory exists
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save the file
+        bpy.ops.wm.save_as_mainfile(filepath=str(filepath))
+        logger.info(f"Blender scene saved to {filepath} for debugging")
