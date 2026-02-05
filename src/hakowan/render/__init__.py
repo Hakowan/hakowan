@@ -11,6 +11,7 @@ from typing import Any
 # Initialize Mitsuba variant if using mitsuba backend
 try:
     import mitsuba as mi
+
     if mi.variant() is None:
         for variant in ["scalar_rgb", "cuda_ad_rgb", "llvm_ad_rgb"]:
             if variant in mi.variants():

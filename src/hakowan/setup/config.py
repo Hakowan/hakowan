@@ -22,6 +22,7 @@ class Config:
         albedo: Whether to render albedo (i.e. without shading).
         depth: Whether to render depth.
     """
+
     sensor: Sensor = field(default_factory=Perspective)
     film: Film = field(default_factory=Film)
     sampler: Sampler = field(default_factory=Independent)
@@ -119,7 +120,7 @@ class Config:
             self.__reset_aov()
 
     def __add_aov(self, aov: str):
-        """ Add an AOV to the integrator.
+        """Add an AOV to the integrator.
 
         An AOV integrator is created if one does not already exist. Otherwise, the specific output
         variable will be added to the existing AOV integrator.

@@ -96,9 +96,9 @@ def _apply_image(df: DataFrame, tex: Image, uv: Attribute | None = None):
             assert df.mesh.has_attribute(tex.uv)
             tex.uv = Attribute(name=tex.uv)
         assert isinstance(tex.uv, Attribute)
-        assert (
-            uv.name == tex.uv.name and uv.scale == tex.uv.scale
-        ), "Conflicting UV detected"
+        assert uv.name == tex.uv.name and uv.scale == tex.uv.scale, (
+            "Conflicting UV detected"
+        )
         tex._uv = uv
     else:
         assert df.mesh is not None
@@ -128,9 +128,9 @@ def _apply_checker_board(df: DataFrame, tex: Checkerboard, uv: Attribute | None 
             assert df.mesh.has_attribute(tex.uv)
             tex.uv = Attribute(name=tex.uv)
         assert isinstance(tex.uv, Attribute)
-        assert (
-            uv.name == tex.uv.name and uv.scale == tex.uv.scale
-        ), "Conflicting UV detected"
+        assert uv.name == tex.uv.name and uv.scale == tex.uv.scale, (
+            "Conflicting UV detected"
+        )
         tex._uv = uv
     else:
         assert df.mesh is not None
@@ -169,7 +169,9 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
         assert attr_values.num_channels == 1
         s = tex.num_contours
         assert s > 0
-        uv_values = np.repeat(attr_values.data * s, 2).reshape((-1, 2)).astype(np.float32)  # type: ignore
+        uv_values = (
+            np.repeat(attr_values.data * s, 2).reshape((-1, 2)).astype(np.float32)
+        )  # type: ignore
         uv_values[:, 1] += (1 - tex.ratio) / 2
         return uv_values
 
@@ -186,7 +188,6 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
         active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
         active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
         return active_attrs_1 + active_attrs_2
-
 
     if mesh.is_attribute_indexed(attr_name):
         attr = mesh.indexed_attribute(attr_name)

@@ -19,6 +19,7 @@ import numpy as np
 try:
     import bpy
     import mathutils
+
     BLENDER_AVAILABLE = True
 except ImportError:
     BLENDER_AVAILABLE = False
@@ -162,7 +163,7 @@ class BlenderBackend(RenderBackend):
         bpy.context.collection.objects.link(obj)
 
         # Apply global transformation
-        if hasattr(view, 'global_transform') and view.global_transform is not None:
+        if hasattr(view, "global_transform") and view.global_transform is not None:
             # Convert numpy 4x4 matrix to Blender Matrix
             transform_matrix = mathutils.Matrix(view.global_transform.tolist())
             obj.matrix_world = transform_matrix
@@ -238,7 +239,9 @@ class BlenderBackend(RenderBackend):
                     bsdf.inputs["Base Color"].default_value = color
 
             case _:
-                logger.warning(f"Material type {type(mat_data)} not fully supported, using default")
+                logger.warning(
+                    f"Material type {type(mat_data)} not fully supported, using default"
+                )
                 bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
 
         return mat
@@ -326,7 +329,9 @@ class BlenderBackend(RenderBackend):
             elif isinstance(emitter, Point):
                 self._setup_point_light(emitter, i)
             else:
-                logger.warning(f"Emitter type {type(emitter)} not supported in Blender backend")
+                logger.warning(
+                    f"Emitter type {type(emitter)} not supported in Blender backend"
+                )
 
     def _setup_environment_light(self, envmap):
         """Setup environment lighting using world shader.
@@ -361,11 +366,11 @@ class BlenderBackend(RenderBackend):
         # Create Mapping node for rotation
         mapping = nodes.new(type="ShaderNodeMapping")
         mapping.location = (-600, 300)
-        
+
         # Apply rotation around up vector
         # Convert rotation from degrees to radians
         rotation_rad = np.radians(envmap.rotation + 180)
-        
+
         # Determine rotation axis based on up vector
         up = np.array(envmap.up)
         if np.allclose(up, [0, 1, 0]):
@@ -378,7 +383,9 @@ class BlenderBackend(RenderBackend):
             # X-up: rotate around X axis
             mapping.inputs["Rotation"].default_value = (rotation_rad, 0, 0)
         else:
-            logger.warning(f"Non-standard up vector {up}, defaulting to Y-axis rotation")
+            logger.warning(
+                f"Non-standard up vector {up}, defaulting to Y-axis rotation"
+            )
             mapping.inputs["Rotation"].default_value = (0, rotation_rad, 0)
 
         # Create Texture Coordinate node
@@ -395,7 +402,9 @@ class BlenderBackend(RenderBackend):
         links.new(env_tex.outputs["Color"], background.inputs["Color"])
         links.new(background.outputs["Background"], world_output.inputs["Surface"])
 
-        logger.debug(f"Environment light configured with scale={envmap.scale}, rotation={envmap.rotation}°")
+        logger.debug(
+            f"Environment light configured with scale={envmap.scale}, rotation={envmap.rotation}°"
+        )
 
     def _setup_point_light(self, point_light, index: int):
         """Setup a point light source.
@@ -405,19 +414,21 @@ class BlenderBackend(RenderBackend):
             index: Light index for naming.
         """
         light_data = bpy.data.lights.new(name=f"Point_{index:03d}", type="POINT")
-        
+
         # Set intensity
         if isinstance(point_light.intensity, (int, float)):
             light_data.energy = float(point_light.intensity)
         else:
             # If intensity is a color, use its average as energy
             light_data.energy = 1.0
-            logger.warning("Color intensity for point lights not fully supported, using default energy")
+            logger.warning(
+                "Color intensity for point lights not fully supported, using default energy"
+            )
 
         # Create light object
         light_obj = bpy.data.objects.new(f"Point_{index:03d}", light_data)
         bpy.context.collection.objects.link(light_obj)
-        
+
         # Set position
         light_obj.location = point_light.position
 
@@ -462,7 +473,9 @@ class BlenderBackend(RenderBackend):
         else:
             scene.render.film_transparent = False
 
-        logger.debug(f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}")
+        logger.debug(
+            f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
+        )
 
     def _save_blend_file(self, filepath: Path):
         """Save the current Blender scene to a .blend file for debugging.

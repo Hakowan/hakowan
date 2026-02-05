@@ -87,9 +87,18 @@ def parse_args():
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
-    parser.add_argument("--backend", choices=hkw.list_backends(), default="mitsuba", help="Rendering backend to use")
-    parser.add_argument("--log-level", choices=["debug", "info", "warning", "error"],
-                        default="warn", help="Logging level")
+    parser.add_argument(
+        "--backend",
+        choices=hkw.list_backends(),
+        default="mitsuba",
+        help="Rendering backend to use",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "warning", "error"],
+        default="warn",
+        help="Logging level",
+    )
     return parser.parse_args()
 
 
@@ -517,7 +526,13 @@ def main():
         output_file = Path(args.input_mesh).with_suffix(".png")
 
     if args.turn_table == 0:
-        hkw.render(layer, config, filename=output_file, backend=args.backend, blend_file="debug.blend")
+        hkw.render(
+            layer,
+            config,
+            filename=output_file,
+            backend=args.backend,
+            blend_file="debug.blend",
+        )
     else:
         if args.z_up:
             axis = [0, 0, 1]

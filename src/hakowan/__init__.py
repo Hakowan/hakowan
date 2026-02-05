@@ -1,4 +1,4 @@
-""" Hakowan: A 3D data visualization grammar """
+"""Hakowan: A 3D data visualization grammar"""
 
 __version__ = "0.4.0"
 
@@ -17,6 +17,7 @@ from .backends import register_backend
 # Try to register Mitsuba backend
 try:
     from .backends.mitsuba import MitsubaBackend
+
     register_backend("mitsuba", MitsubaBackend)
 except (ImportError, Exception) as e:
     logger.debug(f"Mitsuba backend not available: {e}")
@@ -24,6 +25,7 @@ except (ImportError, Exception) as e:
 # Try to register Blender backend
 try:
     from .backends.blender import BlenderBackend
+
     register_backend("blender", BlenderBackend)
 except ImportError:
     logger.debug("Blender backend not available (bpy not installed)")

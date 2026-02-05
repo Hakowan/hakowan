@@ -132,10 +132,11 @@ class Norm(Transform):
 
 @dataclass(slots=True)
 class Boundary(Transform):
-    """ Compute the boundary of a mesh.
+    """Compute the boundary of a mesh.
 
     Attributes:
         attributes: The attributes to take into account when computing the boundary.
             i.e. discontinuities in these attributes will be considered as boundaries.
     """
+
     attributes: list[str] = field(default_factory=list)

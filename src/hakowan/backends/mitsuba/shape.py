@@ -269,9 +269,9 @@ def extract_vector_field(view: View):
             assert direction._internal_name is not None
             assert mesh.has_attribute(direction._internal_name)
             dir_attr = mesh.attribute(direction._internal_name)
-            assert (
-                dir_attr.element_type == attr.element_type
-            ), "Direction attribute must have the same element type as vector field attribute."
+            assert dir_attr.element_type == attr.element_type, (
+                "Direction attribute must have the same element type as vector field attribute."
+            )
             dirs = dir_attr.data
             assert np.all(dirs.shape == base.shape)
 
@@ -517,7 +517,6 @@ def generate_surface_config(view: View, stamp: str, index: int):
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
     logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
-
 
     mi_config = {
         "type": "ply",

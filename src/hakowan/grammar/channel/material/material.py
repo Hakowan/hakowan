@@ -47,6 +47,7 @@ class RoughConductor(Conductor):
         distribution: Microfacet distribution (default: "beckmann").
         alpha: Roughness value (default: 0.1).
     """
+
     distribution: str = "beckmann"
     alpha: Texture | float = 0.1
 
@@ -59,6 +60,7 @@ class Plastic(Material):
         diffuse_reflectance: Diffuse reflectance (i.e. base color) texture (default: 0.5).
         specular_reflectance: Specular reflectance texture (default: 1.0).
     """
+
     diffuse_reflectance: TextureLike = 0.5
     specular_reflectance: Texture | float = 1.0
 
@@ -71,6 +73,7 @@ class RoughPlastic(Plastic):
         distribution: Microfacet distribution (default: "beckmann").
         alpha: Roughness value (default: 0.1).
     """
+
     distribution: str = "beckmann"
     alpha: float = 0.1
 
@@ -84,6 +87,7 @@ class Principled(Material):
         roughness: Roughness texture (default: 0.5).
         metallic: Metallic texture (default: 0.0).
     """
+
     color: TextureLike = 0.5
     roughness: Texture | float = 0.5
     metallic: Texture | float = 0.0
@@ -99,6 +103,7 @@ class Principled(Material):
 @dataclass(slots=True)
 class ThinPrincipled(Principled):
     """Thin Principled material."""
+
     diff_trans: float = 0.0
 
 
@@ -112,6 +117,7 @@ class Dielectric(Material):
         medium: Medium (default: None).
         specular_reflectance: Specular reflectance texture (default: 1.0).
     """
+
     int_ior: str | float = "bk7"
     ext_ior: str | float = "air"
     medium: Medium | None = None
@@ -122,6 +128,7 @@ class Dielectric(Material):
 @dataclass(slots=True)
 class ThinDielectric(Dielectric):
     """Thin dielectric material."""
+
     pass
 
 
@@ -133,6 +140,7 @@ class RoughDielectric(Dielectric):
         distribution: Microfacet distribution (default: "beckmann").
         alpha: Roughness value (default: 0.1).
     """
+
     distribution: str = "beckmann"
     alpha: Texture | float = 0.1
 
@@ -145,5 +153,6 @@ class Hair(Material):
         eumelanin: Eumelanin (dark/brown pigment) concentration (default: 1.3).
         pheomelanin: Pheomelanin (reddish-yellow pigment) concentration (default: 0.2).
     """
+
     eumelanin: float = 1.3
     pheomelanin: float = 0.2

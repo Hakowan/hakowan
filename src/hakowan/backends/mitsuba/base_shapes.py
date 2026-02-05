@@ -111,8 +111,9 @@ def create_icosphere(refinement_level):
     )
     return icosphere
 
+
 def create_disk(vertex_count):
-    """ Generate a disk centered at the origin with radius 1 facing z direction.
+    """Generate a disk centered at the origin with radius 1 facing z direction.
 
     Args:
         vertex_count (int): Number of vertices on the disk boundary.

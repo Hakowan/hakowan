@@ -88,9 +88,7 @@ def save_image(image: drjit.ArrayBase, filename: Path):
             pixel_format=mi.Bitmap.PixelFormat.RGBA,
             component_format=mi.Struct.Type.UInt8,
             srgb_gamma=True,
-        ).write(
-            str(filename), quality=-1
-        )  # type: ignore
+        ).write(str(filename), quality=-1)  # type: ignore
     logger.info(f"Rendering saved to {filename}")
 
 

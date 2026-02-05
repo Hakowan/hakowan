@@ -249,6 +249,7 @@ def add_bump_map(
         "bsdf": mi_config,
     }
 
+
 def add_normal_map(
     mi_config: dict[str, Any],
     mesh: lagrange.SurfaceMesh,

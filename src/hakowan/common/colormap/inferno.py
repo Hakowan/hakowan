@@ -1,8 +1,9 @@
-""" Inferno color map.
+"""Inferno color map.
 
 The colormap contained in this file is distributed under a CC0 license.
 Source: https://bids.github.io/colormap/
 """
+
 import numpy as np
 from .colormap import ColorMap
 
