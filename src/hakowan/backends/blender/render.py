@@ -57,11 +57,8 @@ class BlenderBackend(RenderBackend):
             config: Rendering configuration.
             filename: Output image filename.
             **kwargs: Additional options:
-                - samples (int): Number of render samples
                 - engine (str): Render engine ("CYCLES" or "BLENDER_EEVEE")
                 - blend_file (str|Path): Optional .blend file path for debugging
-                - transparent_background (bool): Use transparent background (default: False)
-                  When enabled, environment maps still provide lighting but background is transparent
 
         Returns:
             None (Blender renders to file).
@@ -440,9 +437,7 @@ class BlenderBackend(RenderBackend):
         Args:
             config: Rendering configuration.
             **kwargs: Additional options:
-                - samples (int): Number of samples
                 - engine (str): Render engine
-                - transparent_background (bool): Use transparent background (default: True)
         """
         scene = bpy.context.scene
 
@@ -457,21 +452,16 @@ class BlenderBackend(RenderBackend):
 
         # Samples
         if engine == "CYCLES":
-            scene.cycles.samples = kwargs.get("samples", 128)
+            scene.cycles.samples = config.sampler.sample_count
         elif engine == "BLENDER_EEVEE":
-            scene.eevee.taa_render_samples = kwargs.get("samples", 64)
+            scene.eevee.taa_render_samples = config.sampler.sample_count
 
         # File format
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
 
-        # Transparent background option
-        transparent_bg = kwargs.get("transparent_background", True)
-        if transparent_bg:
-            scene.render.film_transparent = True
-            logger.debug("Transparent background enabled")
-        else:
-            scene.render.film_transparent = False
+        # Transparent background
+        scene.render.film_transparent = True
 
         logger.debug(
             f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
