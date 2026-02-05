@@ -10,11 +10,13 @@ from ...grammar.channel.material import (
     Principled,
     RoughPlastic,
 )
+from ...grammar.scale import Attribute
 from .. import RenderBackend
 
 from pathlib import Path
 from typing import Any
 import numpy as np
+import lagrange
 
 try:
     import bpy
@@ -114,6 +116,55 @@ class BlenderBackend(RenderBackend):
         for light in bpy.data.lights:
             bpy.data.lights.remove(light)
 
+    def _extract_size(self, view: View, default_size: float = 0.01):
+        """Extract size attribute from a view (scalar or per-vertex).
+
+        Returns:
+            Either a float (uniform size) or a list of floats (per-vertex).
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+
+        if view.size_channel is not None:
+            data = view.size_channel.data
+            if isinstance(data, (int, float)):
+                return float(data)
+            if isinstance(data, Attribute):
+                assert data._internal_name is not None
+                return mesh.attribute(data._internal_name).data.tolist()
+            raise NotImplementedError(f"Unsupported size channel type: {type(data)}")
+        return default_size
+
+    def _extract_edges(self, view: View):
+        """Extract edge segments with base, tip, base_size, tip_size.
+
+        Returns:
+            Tuple (base, tip, base_size, tip_size) as numpy arrays.
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+        mesh.initialize_edges()
+
+        sizes = self._extract_size(view)
+        if np.isscalar(sizes):
+            sizes = [float(sizes)] * mesh.num_vertices
+
+        n_edges = mesh.num_edges
+        vertices = mesh.vertices
+        base = np.zeros((n_edges, 3), dtype=np.float64)
+        tip = np.zeros((n_edges, 3), dtype=np.float64)
+        base_size = np.zeros(n_edges, dtype=np.float64)
+        tip_size = np.zeros(n_edges, dtype=np.float64)
+
+        for i in range(n_edges):
+            edge_vts = mesh.get_edge_vertices(i)
+            base[i] = vertices[edge_vts[0]]
+            tip[i] = vertices[edge_vts[1]]
+            base_size[i] = sizes[edge_vts[0]]
+            tip_size[i] = sizes[edge_vts[1]]
+
+        return base, tip, base_size, tip_size
+
     def _create_view_object(self, view: View, index: int):
         """Create Blender object from a view.
 
@@ -125,9 +176,9 @@ class BlenderBackend(RenderBackend):
             case mark.Surface:
                 self._create_surface_object(view, index)
             case mark.Point:
-                logger.warning("Point mark not yet supported in Blender backend")
+                self._create_point_object(view, index)
             case mark.Curve:
-                logger.warning("Curve mark not yet supported in Blender backend")
+                self._create_curve_object(view, index)
             case _:
                 logger.warning(f"Unknown mark type: {view.mark}")
 
@@ -173,6 +224,100 @@ class BlenderBackend(RenderBackend):
                 obj.data.materials.append(mat)
 
         logger.debug(f"Created surface object {index} with {len(vertices)} vertices")
+
+    def _create_point_object(self, view: View, index: int):
+        """Create Blender point cloud (spheres at each vertex) from a view.
+
+        Args:
+            view: Point view.
+            index: Object index.
+        """
+        if view.data_frame is None:
+            return
+
+        mesh_data = view.data_frame.mesh
+        vertices = mesh_data.vertices
+        n_points = mesh_data.num_vertices
+
+        radii = self._extract_size(view, default_size=0.01)
+        if np.isscalar(radii):
+            radii = [float(radii)] * n_points
+        radii = np.atleast_1d(radii)
+        assert len(radii) == n_points
+
+        # Base icosphere mesh (subdivisions=1 for lightweight spheres)
+        ico_name = f"ico_sphere_{index:03d}"
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=1.0)
+        base_sphere = bpy.context.active_object
+        base_sphere.name = "base_ico"
+        base_mesh = base_sphere.data
+        base_mesh.name = ico_name
+
+        # Parent empty to apply global transform
+        empty = bpy.data.objects.new(f"points_empty_{index:03d}", None)
+        bpy.context.collection.objects.link(empty)
+        if hasattr(view, "global_transform") and view.global_transform is not None:
+            empty.matrix_world = mathutils.Matrix(view.global_transform.tolist())
+
+        # Create one sphere per point, parent to empty
+        for i in range(n_points):
+            obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh)
+            bpy.context.collection.objects.link(obj)
+            obj.location = mathutils.Vector(vertices[i].tolist())
+            r = float(radii[i])
+            obj.scale = (r, r, r)
+            obj.parent = empty
+            #obj.matrix_parent_inverse = empty.matrix_world.inverted()
+
+            if view.material_channel is not None:
+                mat = self._create_material(view, index)
+                if mat:
+                    obj.data.materials.append(mat)
+
+        # Remove the temporary base sphere object (mesh is still used by instances)
+        bpy.data.objects.remove(base_sphere, do_unlink=True)
+
+        logger.debug(f"Created point object {index} with {n_points} points")
+
+    def _create_curve_object(self, view: View, index: int):
+        """Create Blender curve object from view (mesh edges as linear segments).
+
+        Args:
+            view: Curve view.
+            index: Object index.
+        """
+        if view.data_frame is None:
+            return
+
+        base, tip, base_size, tip_size = self._extract_edges(view)
+        n_edges = len(base)
+
+        curve_data = bpy.data.curves.new(name=f"curve_{index:03d}", type="CURVE")
+        curve_data.dimensions = "3D"
+        curve_data.bevel_mode = "ROUND"
+        curve_data.bevel_depth = 1.0
+        curve_data.fill_mode = "FULL"
+
+        for i in range(n_edges):
+            spline = curve_data.splines.new("POLY")
+            spline.points.add(1)  # POLY starts with 1 point, add(1) gives 2
+            spline.points[0].co = (base[i][0], base[i][1], base[i][2], 1.0)
+            spline.points[1].co = (tip[i][0], tip[i][1], tip[i][2], 1.0)
+            spline.points[0].radius = float(base_size[i])
+            spline.points[1].radius = float(tip_size[i])
+
+        obj = bpy.data.objects.new(f"curve_{index:03d}", curve_data)
+        bpy.context.collection.objects.link(obj)
+
+        if hasattr(view, "global_transform") and view.global_transform is not None:
+            obj.matrix_world = mathutils.Matrix(view.global_transform.tolist())
+
+        if view.material_channel is not None:
+            mat = self._create_material(view, index)
+            if mat:
+                obj.data.materials.append(mat)
+
+        logger.debug(f"Created curve object {index} with {n_edges} segments")
 
     def _create_material(self, view: View, index: int):
         """Create Blender material from view's material channel.
