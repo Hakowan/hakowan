@@ -158,7 +158,7 @@ def extract_material(scene: lagrange.scene.Scene):
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
                 tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data)
+                im = Image.fromarray(tex_img.image.data, "RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(Path(tex_file)),
@@ -170,14 +170,17 @@ def extract_material(scene: lagrange.scene.Scene):
                 raise ValueError("Texture image not found")
         elif "KHR_materials_pbrSpecularGlossiness" in material.extensions.data:
             pbr = material.extensions.data["KHR_materials_pbrSpecularGlossiness"]
-            diffuse_tex_idx = pbr["diffuseTexture"]["index"]
+            if "diffuseTexture" in pbr and "index" in pbr["diffuseTexture"]:
+                diffuse_tex_idx = pbr["diffuseTexture"]["index"]
+            else:
+                diffuse_tex_idx = -1
             if diffuse_tex_idx >= 0:
                 diffuse_tex = scene.textures[diffuse_tex_idx]
                 diffuse_img = scene.images[diffuse_tex.image]
                 diffuse_file = diffuse_img.uri
                 if diffuse_file is None:
                     diffuse_file = get_tmp_image_name()
-                im = Image.fromarray(diffuse_img.image.data)
+                im = Image.fromarray(diffuse_img.image.data, "RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(diffuse_file),
@@ -208,7 +211,7 @@ def embed_texture(glb_file):
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
-    scene = lagrange.io.load_scene(glb_file)
+    scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
     mats = extract_material(scene)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
@@ -223,10 +226,11 @@ def main():
     """
     args = parse_args()
 
-    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True)
+    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
-    bbox_diag = np.linalg.norm(bbox_max - bbox_min)
+    bbox_size = bbox_max - bbox_min
+    bbox_diag = np.linalg.norm(bbox_size)
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
@@ -240,13 +244,17 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.1)
         case "texture":
-            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
+            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
+                f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
+            )
             layer = embed_texture(args.input_mesh)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
             )
-            assert len(color_attr_ids) > 0, "No color attributes found in mesh for vertex_color material"
+            assert len(color_attr_ids) > 0, (
+                "No color attributes found in mesh for vertex_color material"
+            )
             color_attr_id = color_attr_ids[0]
             color_attr_name = mesh.get_attribute_name(color_attr_id)
             layer = layer.material(
@@ -294,9 +302,7 @@ def main():
             )
         case "uv":
             mesh = lagrange.unify_index_buffer(mesh)
-            bbox_min = np.amin(mesh.vertices, axis=0)
-            bbox_max = np.amax(mesh.vertices, axis=0)
-            diag_len = np.linalg.norm(bbox_max - bbox_min)
+            diag_len = bbox_diag
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
             assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
             uv_id = uv_ids[0]
@@ -388,26 +394,57 @@ def main():
         layer = layer + seams
 
     if args.singularity:
-        assert mesh.is_quad_mesh, "Singularity visualization requires a quad mesh"
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
+        num_triangles = 0
+        num_quads = 0
+        for fid in range(mesh.num_facets):
+            fsize = mesh.get_facet_size(fid)
+            if fsize == 3:
+                num_triangles += 1
+            elif fsize == 4:
+                num_quads += 1
+
+        if mesh.is_triangle_mesh or num_triangles > 0.9 * mesh.num_facets:
+            triangle_dominant = True
+            quad_dominant = False
+        elif mesh.is_quad_mesh or num_quads > 0.9 * mesh.num_facets:
+            triangle_dominant = False
+            quad_dominant = True
+        else:
+            # Mixed mesh - default to triangle mode
+            triangle_dominant = True
+            quad_dominant = False
 
         base = hkw.layer(mesh)
-        valence_view = (
-            base.mark("Point")
-            .material(
-                "Principled",
-                hkw.texture.ScalarField(
-                    "valence",
-                    colormap=["#27A6DE", "#FFC24F", "#FF0046", "#C77DDB", "#E68445"],
-                    domain=[3, 7],
-                    categories=True,
-                ),
-                roughness=0.0,
-                metallic=0.2,
+        valence_view = base.mark("Point").channel(size=0.005 * bbox_diag)
+
+        if triangle_dominant:
+            valence_view = valence_view.transform(
+                hkw.transform.Filter("valence", lambda d: d != 6)
             )
-            .transform(hkw.transform.Filter("valence", lambda d: d != 4))
-            .channel(size=0.005 * bbox_diag)
+            colormap = ["#C77DDB", "#E68445", "#27A6DE", "#FFC24F", "#FF0046"]
+        elif quad_dominant:
+            valence_view = valence_view.transform(
+                hkw.transform.Filter("valence", lambda d: d != 4)
+            )
+            colormap = ["#27A6DE", "#FFC24F", "#FF0046", "#C77DDB", "#E68445"]
+        else:
+            raise NotImplementedError(
+                "Singularity visualization for mixed meshes is not implemented"
+            )
+
+        valence_view = valence_view.material(
+            "Principled",
+            hkw.texture.ScalarField(
+                "valence",
+                colormap=colormap,
+                domain=[3, 7],
+                categories=True,
+            ),
+            roughness=0.0,
+            metallic=0.2,
         )
+
         layer = layer + valence_view
 
     if args.rotate:
@@ -418,39 +455,37 @@ def main():
         layer = layer.rotate(axis=axis, angle=args.rotate * math.pi / 180)
 
     if args.clip is not None:
-        bbox_min = np.amin(mesh.vertices, axis=0)
-        bbox_max = np.amax(mesh.vertices, axis=0)
-        bbox_size = bbox_max - bbox_min
+        clip_value = args.clip_value
         match args.clip:
             case "x":
 
                 def condition(x):
-                    return x[0] - bbox_min[0] >= args.clip_value * bbox_size[0]
+                    return x[0] - bbox_min[0] >= clip_value * bbox_size[0]
 
             case "-x":
 
                 def condition(x):
-                    return x[0] - bbox_min[0] <= args.clip_value * bbox_size[0]
+                    return x[0] - bbox_min[0] <= clip_value * bbox_size[0]
 
             case "y":
 
                 def condition(x):
-                    return x[1] - bbox_min[1] >= args.clip_value * bbox_size[1]
+                    return x[1] - bbox_min[1] >= clip_value * bbox_size[1]
 
             case "-y":
 
                 def condition(x):
-                    return x[1] - bbox_min[1] <= args.clip_value * bbox_size[1]
+                    return x[1] - bbox_min[1] <= clip_value * bbox_size[1]
 
             case "z":
 
                 def condition(x):
-                    return x[2] - bbox_min[2] >= args.clip_value * bbox_size[2]
+                    return x[2] - bbox_min[2] >= clip_value * bbox_size[2]
 
             case "-z":
 
                 def condition(x):
-                    return x[2] - bbox_min[2] <= args.clip_value * bbox_size[2]
+                    return x[2] - bbox_min[2] <= clip_value * bbox_size[2]
 
             case _:
                 raise ValueError("Invalid clip axis")
