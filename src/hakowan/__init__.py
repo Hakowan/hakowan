@@ -9,7 +9,38 @@ from .grammar.layer import Layer as layer
 from .grammar.scale import Attribute as attribute
 from .grammar.channel import material
 from .compiler import compile
-from .render import render
+from .render import render, set_default_backend, list_backends
 
-__all__ = ["logger", "config", "dataframe", "mark", "channel", "scale",
-           "texture", "transform", "layer", "material", "compile", "render"]
+# Register backends
+from .backends import register_backend
+
+# Try to register Mitsuba backend
+try:
+    from .backends.mitsuba import MitsubaBackend
+    register_backend("mitsuba", MitsubaBackend)
+except (ImportError, Exception) as e:
+    logger.debug(f"Mitsuba backend not available: {e}")
+
+# Try to register Blender backend
+try:
+    from .backends.blender import BlenderBackend
+    register_backend("blender", BlenderBackend)
+except ImportError:
+    logger.debug("Blender backend not available (bpy not installed)")
+
+__all__ = [
+    "logger",
+    "config",
+    "dataframe",
+    "mark",
+    "channel",
+    "scale",
+    "texture",
+    "transform",
+    "layer",
+    "material",
+    "compile",
+    "render",
+    "set_default_backend",
+    "list_backends",
+]

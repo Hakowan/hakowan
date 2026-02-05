@@ -11,11 +11,15 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
     "lagrange-open>=6.39",
-    "mitsuba~=3.7",
     "numpy>=1.22",
     "Pillow~=11.0"
     ]
 requires-python = ">=3.10"
+
+[project.optional-dependencies]
+mitsuba = ["mitsuba~=3.7"]
+blender = ["bpy>=5.0"]
+all = ["mitsuba", "blender"]
 
 
 [mypy]

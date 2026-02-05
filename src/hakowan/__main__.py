@@ -87,6 +87,7 @@ def parse_args():
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
+    parser.add_argument("--backend", choices=hkw.list_backends(), default="mitsuba", help="Rendering backend to use")
     return parser.parse_args()
 
 
@@ -521,7 +522,7 @@ def main():
         for i in range(args.turn_table):
             frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
             frame_file = output_file.with_stem(f"{output_file.stem}_{i:03d}")
-            hkw.render(frame, config, filename=frame_file)
+            hkw.render(frame, config, filename=frame_file, backend=args.backend)
 
 
 if __name__ == "__main__":
