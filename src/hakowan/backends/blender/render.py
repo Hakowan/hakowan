@@ -216,13 +216,19 @@ class BlenderBackend(RenderBackend):
                     bsdf.inputs["Base Color"].default_value = color
 
             case Plastic() | RoughPlastic():
-                # Plastic: some roughness, no metallic
-                if isinstance(mat_data, RoughPlastic):
-                    roughness = getattr(mat_data, "alpha", 0.1)
-                else:
-                    roughness = 0.01
-                bsdf.inputs["Roughness"].default_value = roughness
+                # Plastic: diffuse base + smooth coating
+                bsdf.inputs["Roughness"].default_value = 1
                 bsdf.inputs["Metallic"].default_value = 0.0
+
+                # Coating layer
+                bsdf.inputs["Coat Weight"].default_value = 1
+                bsdf.inputs["Coat IOR"].default_value = 1.49
+                if isinstance(mat_data, RoughPlastic):
+                    bsdf.inputs["Coat Roughness"].default_value = 1
+                else:
+                    bsdf.inputs["Coat Roughness"].default_value = 0
+
+                # Diffuse color
                 color = self._extract_color(mat_data.diffuse_reflectance)
                 if color:
                     bsdf.inputs["Base Color"].default_value = color
