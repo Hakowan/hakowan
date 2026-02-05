@@ -423,11 +423,15 @@ def main():
                 hkw.transform.Filter("valence", lambda d: d != 6)
             )
             colormap = ["#C77DDB", "#E68445", "#27A6DE", "#FFC24F", "#FF0046"]
-        else:  # quad_dominant
+        elif quad_dominant:
             valence_view = valence_view.transform(
                 hkw.transform.Filter("valence", lambda d: d != 4)
             )
             colormap = ["#27A6DE", "#FFC24F", "#FF0046", "#C77DDB", "#E68445"]
+        else:
+            raise NotImplementedError(
+                "Singularity visualization for mixed meshes is not implemented"
+            )
 
         valence_view = valence_view.material(
             "Principled",
