@@ -158,7 +158,7 @@ def extract_material(scene: lagrange.scene.Scene):
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
                 tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data)
+                im = Image.fromarray(tex_img.image.data, "RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(Path(tex_file)),
@@ -170,14 +170,17 @@ def extract_material(scene: lagrange.scene.Scene):
                 raise ValueError("Texture image not found")
         elif "KHR_materials_pbrSpecularGlossiness" in material.extensions.data:
             pbr = material.extensions.data["KHR_materials_pbrSpecularGlossiness"]
-            diffuse_tex_idx = pbr["diffuseTexture"]["index"]
+            if "diffuseTexture" in pbr and "index" in pbr["diffuseTexture"]:
+                diffuse_tex_idx = pbr["diffuseTexture"]["index"]
+            else:
+                diffuse_tex_idx = -1
             if diffuse_tex_idx >= 0:
                 diffuse_tex = scene.textures[diffuse_tex_idx]
                 diffuse_img = scene.images[diffuse_tex.image]
                 diffuse_file = diffuse_img.uri
                 if diffuse_file is None:
                     diffuse_file = get_tmp_image_name()
-                im = Image.fromarray(diffuse_img.image.data)
+                im = Image.fromarray(diffuse_img.image.data, "RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(diffuse_file),
@@ -407,6 +410,10 @@ def main():
         elif mesh.is_quad_mesh or num_quads > 0.9 * mesh.num_facets:
             triangle_dominant = False
             quad_dominant = True
+        else:
+            # Mixed mesh - default to triangle mode
+            triangle_dominant = True
+            quad_dominant = False
 
         base = hkw.layer(mesh)
         valence_view = base.mark("Point").channel(size=0.005 * bbox_diag)
@@ -416,7 +423,7 @@ def main():
                 hkw.transform.Filter("valence", lambda d: d != 6)
             )
             colormap = ["#C77DDB", "#E68445", "#27A6DE", "#FFC24F", "#FF0046"]
-        elif quad_dominant:
+        else:  # quad_dominant
             valence_view = valence_view.transform(
                 hkw.transform.Filter("valence", lambda d: d != 4)
             )
