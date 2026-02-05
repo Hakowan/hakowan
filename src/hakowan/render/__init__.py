@@ -61,6 +61,7 @@ def render(
         config = Config()
 
     # Get backend and render
+    logger.info(f"Using backend: {backend or 'default'}")
     backend_impl = get_backend(backend)
     return backend_impl.render(scene, config, filename, **kwargs)
 

@@ -88,6 +88,8 @@ def parse_args():
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument("--backend", choices=hkw.list_backends(), default="mitsuba", help="Rendering backend to use")
+    parser.add_argument("--log-level", choices=["debug", "info", "warning", "error"],
+                        default="warn", help="Logging level")
     return parser.parse_args()
 
 
@@ -226,6 +228,9 @@ def main():
     Parses command-line arguments and orchestrates the mesh rendering process.
     """
     args = parse_args()
+
+    hkw.logger.setLevel(args.log_level.upper())
+    lagrange.logger.setLevel(args.log_level.upper())
 
     mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
     bbox_min = np.amin(mesh.vertices, axis=0)
@@ -512,7 +517,7 @@ def main():
         output_file = Path(args.input_mesh).with_suffix(".png")
 
     if args.turn_table == 0:
-        hkw.render(layer, config, filename=output_file)
+        hkw.render(layer, config, filename=output_file, backend=args.backend)
     else:
         if args.z_up:
             axis = [0, 0, 1]
