@@ -635,6 +635,7 @@ class BlenderBackend(RenderBackend):
         if hasattr(sensor, "fov"):
             camera_data.lens_unit = "FOV"
             camera_data.angle = np.radians(sensor.fov)
+            camera_data.sensor_fit = "AUTO"
 
         logger.debug(f"Camera set at {location}")
 
