@@ -263,7 +263,7 @@ class BlenderBackend(RenderBackend):
 
         # Base icosphere mesh (subdivisions=1 for lightweight spheres)
         ico_name = f"ico_sphere_{index:03d}"
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=1.0)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
         base_sphere = bpy.context.active_object
         base_sphere.name = "base_ico"
         base_mesh = base_sphere.data
@@ -299,6 +299,10 @@ class BlenderBackend(RenderBackend):
             r = float(radii[i])
             obj.scale = (r, r, r)
             obj.parent = empty
+
+            subd_mod = obj.modifiers.new(name="Subdiv", type='SUBSURF')
+            subd_mod.levels = 1        # viewport
+            subd_mod.render_levels = 3 # render
 
             if view.material_channel is not None:
                 mat = self._create_material(
