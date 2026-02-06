@@ -11,6 +11,7 @@ from ...grammar.channel.material import (
     RoughPlastic,
 )
 from ...grammar.scale import Attribute
+from ...grammar.texture import ScalarField
 from .. import RenderBackend
 
 from pathlib import Path
@@ -94,7 +95,7 @@ class BlenderBackend(RenderBackend):
         if filename is not None:
             if isinstance(filename, str):
                 filename = Path(filename)
-            bpy.context.scene.render.filepath = str(filename)
+            bpy.context.scene.render.filepath = str(filename.resolve())
 
         logger.info("Rendering with Blender...")
         bpy.ops.render.render(write_still=True)
@@ -136,10 +137,11 @@ class BlenderBackend(RenderBackend):
         return default_size
 
     def _extract_edges(self, view: View):
-        """Extract edge segments with base, tip, base_size, tip_size.
+        """Extract edge segments with base, tip, base_size, tip_size and vertex indices.
 
         Returns:
-            Tuple (base, tip, base_size, tip_size) as numpy arrays.
+            Tuple (base, tip, base_size, tip_size, base_idx, tip_idx).
+            base/tip are (n_edges, 3) positions; base_idx/tip_idx are (n_edges,) vertex indices.
         """
         assert view.data_frame is not None
         mesh = view.data_frame.mesh
@@ -155,15 +157,19 @@ class BlenderBackend(RenderBackend):
         tip = np.zeros((n_edges, 3), dtype=np.float64)
         base_size = np.zeros(n_edges, dtype=np.float64)
         tip_size = np.zeros(n_edges, dtype=np.float64)
+        base_idx = np.zeros(n_edges, dtype=np.int32)
+        tip_idx = np.zeros(n_edges, dtype=np.int32)
 
         for i in range(n_edges):
             edge_vts = mesh.get_edge_vertices(i)
+            base_idx[i] = edge_vts[0]
+            tip_idx[i] = edge_vts[1]
             base[i] = vertices[edge_vts[0]]
             tip[i] = vertices[edge_vts[1]]
             base_size[i] = sizes[edge_vts[0]]
             tip_size[i] = sizes[edge_vts[1]]
 
-        return base, tip, base_size, tip_size
+        return base, tip, base_size, tip_size, base_idx, tip_idx
 
     def _create_view_object(self, view: View, index: int):
         """Create Blender object from a view.
@@ -206,6 +212,16 @@ class BlenderBackend(RenderBackend):
         mesh.from_pydata(vertices.tolist(), [], facets)
         mesh.update()
 
+        # Scalar field texture: copy vertex/face color attribute to Blender mesh
+        color_layer_name = None
+        scalar_info = self._get_scalar_field_color_attr(view)
+        if scalar_info is not None:
+            attr_name, element_type = scalar_info
+            self._copy_mesh_color_to_blender(
+                mesh_data, mesh, attr_name, element_type, color_layer_name="Color"
+            )
+            color_layer_name = "Color"
+
         # Create object
         obj = bpy.data.objects.new(f"object_{index:03d}", mesh)
         bpy.context.collection.objects.link(obj)
@@ -219,7 +235,7 @@ class BlenderBackend(RenderBackend):
 
         # Apply material
         if view.material_channel is not None:
-            mat = self._create_material(view, index)
+            mat = self._create_material(view, index, color_layer_name=color_layer_name)
             if mat:
                 obj.data.materials.append(mat)
 
@@ -253,6 +269,22 @@ class BlenderBackend(RenderBackend):
         base_mesh = base_sphere.data
         base_mesh.name = ico_name
 
+        # Scalar field: get per-vertex color array for points
+        point_colors = None
+        scalar_info = self._get_scalar_field_color_attr(view)
+        if scalar_info is not None:
+            attr_name, element_type = scalar_info
+            if element_type == lagrange.AttributeElement.Vertex:
+                attr = mesh_data.attribute(attr_name)
+                data = np.asarray(attr.data)
+                if data.ndim == 2 and data.shape[0] == n_points and data.shape[1] >= 3:
+                    rgb = data[:, :3]
+                    a = data[:, 3] if data.shape[1] >= 4 else np.ones(n_points)
+                    point_colors = [
+                        (float(rgb[i, 0]), float(rgb[i, 1]), float(rgb[i, 2]), float(a[i]))
+                        for i in range(n_points)
+                    ]
+
         # Parent empty to apply global transform
         empty = bpy.data.objects.new(f"points_empty_{index:03d}", None)
         bpy.context.collection.objects.link(empty)
@@ -261,16 +293,20 @@ class BlenderBackend(RenderBackend):
 
         # Create one sphere per point, parent to empty
         for i in range(n_points):
-            obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh)
+            obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh.copy())
             bpy.context.collection.objects.link(obj)
             obj.location = mathutils.Vector(vertices[i].tolist())
             r = float(radii[i])
             obj.scale = (r, r, r)
             obj.parent = empty
-            #obj.matrix_parent_inverse = empty.matrix_world.inverted()
 
             if view.material_channel is not None:
-                mat = self._create_material(view, index)
+                mat = self._create_material(
+                    view,
+                    index,
+                    override_color=point_colors[i] if point_colors else None,
+                    material_suffix=f"{i:06d}" if point_colors else None,
+                )
                 if mat:
                     obj.data.materials.append(mat)
 
@@ -289,8 +325,9 @@ class BlenderBackend(RenderBackend):
         if view.data_frame is None:
             return
 
-        base, tip, base_size, tip_size = self._extract_edges(view)
+        base, tip, base_size, tip_size, base_idx, tip_idx = self._extract_edges(view)
         n_edges = len(base)
+        mesh_data = view.data_frame.mesh
 
         curve_data = bpy.data.curves.new(name=f"curve_{index:03d}", type="CURVE")
         curve_data.dimensions = "3D"
@@ -306,6 +343,36 @@ class BlenderBackend(RenderBackend):
             spline.points[0].radius = float(base_size[i])
             spline.points[1].radius = float(tip_size[i])
 
+        # Scalar field: set per-point colors on curve (2 points per segment)
+        color_layer_name = None
+        scalar_info = self._get_scalar_field_color_attr(view)
+        if scalar_info is not None:
+            attr_name, element_type = scalar_info
+            if element_type == lagrange.AttributeElement.Vertex:
+                attr = mesh_data.attribute(attr_name)
+                data = np.asarray(attr.data)
+                if data.ndim == 2 and data.shape[1] >= 3:
+                    try:
+                        if hasattr(curve_data, "color_attributes"):
+                            curve_data.color_attributes.new(
+                                name="Color",
+                                type="FLOAT_COLOR",
+                                domain="POINT",
+                            )
+                            layer = curve_data.color_attributes["Color"]
+                            point_idx = 0
+                            for i in range(n_edges):
+                                for vi in (base_idx[i], tip_idx[i]):
+                                    c = data[vi]
+                                    r, g, b = float(c[0]), float(c[1]), float(c[2])
+                                    a = float(c[3]) if c.shape[0] >= 4 else 1.0
+                                    if point_idx < len(layer.data):
+                                        layer.data[point_idx].color = (r, g, b, a)
+                                    point_idx += 1
+                            color_layer_name = "Color"
+                    except (AttributeError, TypeError):
+                        pass
+
         obj = bpy.data.objects.new(f"curve_{index:03d}", curve_data)
         bpy.context.collection.objects.link(obj)
 
@@ -313,18 +380,29 @@ class BlenderBackend(RenderBackend):
             obj.matrix_world = mathutils.Matrix(view.global_transform.tolist())
 
         if view.material_channel is not None:
-            mat = self._create_material(view, index)
+            mat = self._create_material(view, index, color_layer_name=color_layer_name)
             if mat:
                 obj.data.materials.append(mat)
 
         logger.debug(f"Created curve object {index} with {n_edges} segments")
 
-    def _create_material(self, view: View, index: int):
+    def _create_material(
+        self,
+        view: View,
+        index: int,
+        *,
+        color_layer_name: str | None = None,
+        override_color: tuple[float, float, float, float] | None = None,
+        material_suffix: str | None = None,
+    ):
         """Create Blender material from view's material channel.
 
         Args:
             view: View with material channel.
             index: Material index.
+            color_layer_name: If set, use mesh/curve color attribute (ScalarField).
+            override_color: If set, use this RGBA as base color (e.g. per-point).
+            material_suffix: Optional suffix for material name (e.g. point index).
 
         Returns:
             Blender material or None.
@@ -333,7 +411,10 @@ class BlenderBackend(RenderBackend):
             return None
 
         mat_data = view.material_channel
-        mat = bpy.data.materials.new(name=f"material_{index:03d}")
+        mat_name = f"material_{index:03d}"
+        if material_suffix is not None:
+            mat_name = f"{mat_name}_{material_suffix}"
+        mat = bpy.data.materials.new(name=mat_name)
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
@@ -350,22 +431,39 @@ class BlenderBackend(RenderBackend):
         output.location = (300, 0)
         links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
-        # Configure based on material type
+        # Base color: scalar field attribute, override, or from material
+        if color_layer_name is not None:
+            attr_node = nodes.new(type="ShaderNodeAttribute")
+            attr_node.location = (-200, 0)
+            attr_node.attribute_name = color_layer_name
+            links.new(attr_node.outputs["Color"], bsdf.inputs["Base Color"])
+        elif override_color is not None:
+            bsdf.inputs["Base Color"].default_value = override_color
+        else:
+            color = None
+            match mat_data:
+                case Diffuse():
+                    color = self._extract_color(mat_data.reflectance)
+                case Plastic() | RoughPlastic():
+                    color = self._extract_color(mat_data.diffuse_reflectance)
+                case Principled():
+                    color = self._extract_color(mat_data.color)
+                case _:
+                    pass
+            if color is not None:
+                bsdf.inputs["Base Color"].default_value = color
+            else:
+                bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+
+        # Configure based on material type (non-color inputs)
         match mat_data:
             case Diffuse():
-                # Diffuse: zero roughness and metallic
                 bsdf.inputs["Roughness"].default_value = 1.0
                 bsdf.inputs["Metallic"].default_value = 0.0
-                color = self._extract_color(mat_data.reflectance)
-                if color:
-                    bsdf.inputs["Base Color"].default_value = color
 
             case Plastic() | RoughPlastic():
-                # Plastic: diffuse base + smooth coating
                 bsdf.inputs["Roughness"].default_value = 1
                 bsdf.inputs["Metallic"].default_value = 0.0
-
-                # Coating layer
                 bsdf.inputs["Coat Weight"].default_value = 1
                 bsdf.inputs["Coat IOR"].default_value = 1.49
                 if isinstance(mat_data, RoughPlastic):
@@ -373,24 +471,15 @@ class BlenderBackend(RenderBackend):
                 else:
                     bsdf.inputs["Coat Roughness"].default_value = 0
 
-                # Diffuse color
-                color = self._extract_color(mat_data.diffuse_reflectance)
-                if color:
-                    bsdf.inputs["Base Color"].default_value = color
-
             case Principled():
-                # Principled material
                 bsdf.inputs["Roughness"].default_value = mat_data.roughness
                 bsdf.inputs["Metallic"].default_value = mat_data.metallic
-                color = self._extract_color(mat_data.color)
-                if color:
-                    bsdf.inputs["Base Color"].default_value = color
 
             case _:
-                logger.warning(
-                    f"Material type {type(mat_data)} not fully supported, using default"
-                )
-                bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+                if color_layer_name is None and override_color is None:
+                    logger.warning(
+                        f"Material type {type(mat_data)} not fully supported, using default"
+                    )
 
         return mat
 
@@ -413,8 +502,102 @@ class BlenderBackend(RenderBackend):
                 return (color_data[0], color_data[1], color_data[2], 1.0)
             elif len(color_data) == 4:
                 return tuple(color_data)
-        # TODO: Handle texture types
+        # Texture types (e.g. ScalarField) are handled via mesh color attributes
         return None
+
+    def _get_scalar_field_color_attr(self, view: View):
+        """If the view's material uses a ScalarField color, return (attr_name, element_type).
+
+        Returns:
+            (attr_name, element_type) from the mesh, or None if not a scalar field color.
+        """
+        if view.material_channel is None or view.data_frame is None:
+            return None
+        mat_data = view.material_channel
+        mesh = view.data_frame.mesh
+
+        def check(tex):
+            if not isinstance(tex, ScalarField):
+                return None
+            if not isinstance(tex.data, Attribute) or not getattr(
+                tex.data, "_internal_color_field", None
+            ):
+                return None
+            name = tex.data._internal_color_field
+            if not mesh.has_attribute(name):
+                return None
+            attr = mesh.attribute(name)
+            return (name, attr.element_type)
+
+        match mat_data:
+            case Diffuse():
+                out = check(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                out = check(mat_data.diffuse_reflectance)
+            case Principled():
+                out = check(mat_data.color)
+            case _:
+                out = None
+        return out
+
+    def _copy_mesh_color_to_blender(
+        self,
+        lagrange_mesh,
+        bpy_mesh,
+        attr_name: str,
+        element_type,
+        color_layer_name: str = "Color",
+    ):
+        """Copy Lagrange mesh color attribute to a Blender mesh color attribute."""
+        attr = lagrange_mesh.attribute(attr_name)
+        data = np.asarray(attr.data)
+        if data.ndim == 2 and data.shape[1] >= 3:
+            colors = (
+                data[:, :4]
+                if data.shape[1] >= 4
+                else np.column_stack([data[:, :3], np.ones(len(data))])
+            )
+        else:
+            return
+
+        if element_type == lagrange.AttributeElement.Vertex:
+            bpy_mesh.color_attributes.new(
+                name=color_layer_name,
+                type="FLOAT_COLOR",
+                domain="POINT",
+            )
+            layer = bpy_mesh.color_attributes[color_layer_name]
+            for i, c in enumerate(colors):
+                if i < len(layer.data):
+                    layer.data[i].color = (
+                        float(c[0]),
+                        float(c[1]),
+                        float(c[2]),
+                        float(c[3]),
+                    )
+        elif element_type == lagrange.AttributeElement.Facet:
+            bpy_mesh.color_attributes.new(
+                name=color_layer_name,
+                type="FLOAT_COLOR",
+                domain="CORNER",
+            )
+            layer = bpy_mesh.color_attributes[color_layer_name]
+            loop_idx = 0
+            for face in bpy_mesh.polygons:
+                c = colors[face.index]
+                for _ in range(face.loop_total):
+                    if loop_idx < len(layer.data):
+                        layer.data[loop_idx].color = (
+                            float(c[0]),
+                            float(c[1]),
+                            float(c[2]),
+                            float(c[3]),
+                        )
+                    loop_idx += 1
+        else:
+            logger.warning(
+                f"Blender backend: unsupported color element type {element_type}"
+            )
 
     def _setup_camera(self, config: Config):
         """Setup Blender camera from config.
