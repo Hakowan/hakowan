@@ -106,7 +106,7 @@ class MitsubaBackend(RenderBackend):
         scene: Scene,
         config: Config,
         filename: Path | str | None = None,
-        scene_file: Path | str | None = None,
+        yaml_file: Path | str | None = None,
         **kwargs,
     ):
         """Render scene using Mitsuba.
@@ -115,7 +115,7 @@ class MitsubaBackend(RenderBackend):
             scene: Compiled scene.
             config: Rendering configuration.
             filename: Output image filename.
-            scene_file: Optional YAML scene export filename (mi_config).
+            yaml_file: Optional YAML scene export filename (mi_config).
             **kwargs: Additional backend-specific options.
 
         Returns:
@@ -126,14 +126,14 @@ class MitsubaBackend(RenderBackend):
         mi_config = generate_base_config(config)
         mi_config |= generate_scene_config(scene)
 
-        if scene_file is not None:
-            if isinstance(scene_file, str):
-                scene_file = Path(scene_file)
-            scene_file.parent.mkdir(parents=True, exist_ok=True)
+        if yaml_file is not None:
+            if isinstance(yaml_file, str):
+                yaml_file = Path(yaml_file)
+            yaml_file.parent.mkdir(parents=True, exist_ok=True)
             serializable = _mi_config_to_serializable(mi_config)
-            with open(scene_file, "w") as f:
+            with open(yaml_file, "w") as f:
                 yaml.dump(serializable, f, default_flow_style=False, sort_keys=False)
-            logger.info(f"Scene saved to {scene_file}")
+            logger.info(f"Scene saved to {yaml_file}")
 
         mi_scene = mi.load_dict(mi_config)
         image = mi.render(scene=mi_scene)  # type: ignore
