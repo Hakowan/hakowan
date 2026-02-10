@@ -636,11 +636,20 @@ class BlenderBackend(RenderBackend):
             # TODO: Properly handle up vector
             pass
 
-        # Set focal length / FOV
+        # Set focal length / FOV (sensor.fov is the shorter dimension)
         if hasattr(sensor, "fov"):
             camera_data.lens_unit = "FOV"
-            camera_data.angle = np.radians(sensor.fov)
-            camera_data.sensor_fit = "AUTO"
+            width = config.film.width
+            height = config.film.height
+            aspect = width / height
+            if aspect >= 1:
+                # Shorter is height
+                camera_data.sensor_fit = "VERTICAL"
+                camera_data.angle = np.radians(sensor.fov)
+            else:
+                # Shorter is width
+                camera_data.sensor_fit = "HORIZONTAL"
+                camera_data.angle = np.radians(sensor.fov)
 
         logger.debug(f"Camera set at {location}")
 
