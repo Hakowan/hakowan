@@ -531,7 +531,6 @@ def main():
             config,
             filename=output_file,
             backend=args.backend,
-            blend_file="debug.blend",
         )
     else:
         if args.z_up:
