@@ -17,6 +17,7 @@ import drjit
 from typing import Any
 from pathlib import Path
 import numpy as np
+import yaml
 
 
 def generate_base_config(config: Config):
@@ -62,22 +63,27 @@ def generate_scene_config(scene: Scene) -> dict:
     return scene_config
 
 
-def dump_dict(data: dict, indent: int = 0):
-    lines = []
-    for key, value in data.items():
-        lines.append(" " * indent + f"{key}:")
-        if isinstance(value, dict):
-            lines.append(" " * indent + "{")
-            lines += dump_dict(value, indent + 4)
-            lines.append(" " * indent + "}")
-        else:
-            sublines = value.__repr__().split("\n")
-            if len(sublines) == 1:
-                lines[-1] += f" {sublines[0]}"
-            else:
-                sublines = [" " * indent + line for line in sublines]
-                lines += sublines
-    return lines
+def _mi_config_to_serializable(obj: Any) -> Any:
+    """Recursively convert mi_config to YAML-serializable types (e.g. convert mi.ScalarTransform4f)."""
+    if isinstance(obj, dict):
+        return {k: _mi_config_to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_mi_config_to_serializable(x) for x in obj]
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+
+    # Mitsuba ScalarTransform4f and similar: convert 4x4 matrix to list of lists
+    if isinstance(obj, mi.ScalarTransform4f):
+        m = getattr(obj, "matrix", None)
+        return m.numpy().tolist()
+
+    try:
+        arr = np.array(obj)
+        if arr.ndim <= 2 and arr.size <= 16:
+            return arr.tolist()
+    except (TypeError, ValueError):
+        pass
+    return obj
 
 
 def save_image(image: drjit.ArrayBase, filename: Path):
@@ -100,7 +106,7 @@ class MitsubaBackend(RenderBackend):
         scene: Scene,
         config: Config,
         filename: Path | str | None = None,
-        xml_filename: Path | None = None,
+        scene_file: Path | str | None = None,
         **kwargs,
     ):
         """Render scene using Mitsuba.
@@ -109,7 +115,7 @@ class MitsubaBackend(RenderBackend):
             scene: Compiled scene.
             config: Rendering configuration.
             filename: Output image filename.
-            xml_filename: Optional XML scene export filename.
+            scene_file: Optional YAML scene export filename (mi_config).
             **kwargs: Additional backend-specific options.
 
         Returns:
@@ -120,9 +126,14 @@ class MitsubaBackend(RenderBackend):
         mi_config = generate_base_config(config)
         mi_config |= generate_scene_config(scene)
 
-        if xml_filename is not None:
-            mi.xml.dict_to_xml(mi_config, xml_filename)
-            logger.info(f"Scene saved to {xml_filename}")
+        if scene_file is not None:
+            if isinstance(scene_file, str):
+                scene_file = Path(scene_file)
+            scene_file.parent.mkdir(parents=True, exist_ok=True)
+            serializable = _mi_config_to_serializable(mi_config)
+            with open(scene_file, "w") as f:
+                yaml.dump(serializable, f, default_flow_style=False, sort_keys=False)
+            logger.info(f"Scene saved to {scene_file}")
 
         mi_scene = mi.load_dict(mi_config)
         image = mi.render(scene=mi_scene)  # type: ignore

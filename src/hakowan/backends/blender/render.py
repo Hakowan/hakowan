@@ -281,7 +281,12 @@ class BlenderBackend(RenderBackend):
                     rgb = data[:, :3]
                     a = data[:, 3] if data.shape[1] >= 4 else np.ones(n_points)
                     point_colors = [
-                        (float(rgb[i, 0]), float(rgb[i, 1]), float(rgb[i, 2]), float(a[i]))
+                        (
+                            float(rgb[i, 0]),
+                            float(rgb[i, 1]),
+                            float(rgb[i, 2]),
+                            float(a[i]),
+                        )
                         for i in range(n_points)
                     ]
 
@@ -300,9 +305,9 @@ class BlenderBackend(RenderBackend):
             obj.scale = (r, r, r)
             obj.parent = empty
 
-            subd_mod = obj.modifiers.new(name="Subdiv", type='SUBSURF')
-            subd_mod.levels = 1        # viewport
-            subd_mod.render_levels = 3 # render
+            subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
+            subd_mod.levels = 1  # viewport
+            subd_mod.render_levels = 3  # render
 
             if view.material_channel is not None:
                 mat = self._create_material(

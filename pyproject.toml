@@ -18,7 +18,7 @@ dependencies=[
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
-mitsuba = ["mitsuba~=3.7"]
+mitsuba = ["mitsuba~=3.7", "PyYAML>=6.0"]
 blender = [
     "bpy>=5.0.1,<6; python_version == '3.11'",
 ]
@@ -49,3 +49,4 @@ mitsuba = { features = ["mitsuba"], solve-group = "default" }
 
 [tool.pixi.dependencies]
 python = "==3.11"
+dicttoxml = ">=1.7.16,<2"

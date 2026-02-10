@@ -19,8 +19,8 @@ try:
     from .backends.mitsuba import MitsubaBackend
 
     register_backend("mitsuba", MitsubaBackend)
-except (ImportError, Exception) as e:
-    logger.debug(f"Mitsuba backend not available: {e}")
+except ImportError as e:
+    logger.info(f"Mitsuba backend not available: {e}")
 
 # Try to register Blender backend
 try:
@@ -28,7 +28,7 @@ try:
 
     register_backend("blender", BlenderBackend)
 except ImportError:
-    logger.debug("Blender backend not available (bpy not installed)")
+    logger.info("Blender backend not available (bpy not installed)")
 
 __all__ = [
     "logger",
