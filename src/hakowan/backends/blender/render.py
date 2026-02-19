@@ -219,15 +219,19 @@ class BlenderBackend(RenderBackend):
         # Override materials with flat facet-ID emission shaders.
         self._setup_facet_id_mode()
 
-        # Save engine / filter / color-management state so nothing leaks back.
+        # Save engine / filter / color-management / compositor state.
         prev_engine = scene.render.engine
         prev_filter = scene.render.filter_size
         prev_transform = scene.view_settings.view_transform
+        prev_compositor = scene.compositing_node_group
 
         scene.render.engine = "BLENDER_EEVEE"
         scene.eevee.taa_render_samples = 1
         scene.render.filter_size = 0.0
         scene.view_settings.view_transform = "Raw"
+        # Disconnect the compositor so albedo/depth/normal passes are not
+        # re-rendered and do not overwrite the outputs from the main render.
+        scene.compositing_node_group = None
 
         # Derive output path: <stem>_facet_id<suffix>
         facet_id_path = filename.parent / (filename.stem + "_facet_id" + filename.suffix)
@@ -237,10 +241,11 @@ class BlenderBackend(RenderBackend):
         bpy.ops.render.render(write_still=True)
         logger.info(f"Facet-ID pass saved to {facet_id_path}")
 
-        # Restore render settings for any subsequent operations.
+        # Restore render settings and compositor for any subsequent operations.
         scene.render.engine = prev_engine
         scene.render.filter_size = prev_filter
         scene.view_settings.view_transform = prev_transform
+        scene.compositing_node_group = prev_compositor
 
     def _extract_size(self, view: View, default_size: float = 0.01):
         """Extract size attribute from a view (scalar or per-vertex).
