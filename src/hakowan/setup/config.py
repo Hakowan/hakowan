@@ -36,7 +36,7 @@ class Config:
     sampler: Sampler = field(default_factory=Independent)
     emitters: list[Emitter] = field(default_factory=lambda: [Envmap()])
     integrator: Integrator = field(default_factory=Path)
-    _render_passes: set = field(default_factory=set)
+    _render_passes: set[str] = field(default_factory=set)
 
     def z_up(self):
         """Update configuration for z-up coordinate system."""
@@ -63,7 +63,7 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, 1, 0])
-                emitter.rotation = 180
+                emitter.rotation = 180.0
 
     def y_down(self):
         """Update configuration for y-down coordinate system."""
@@ -72,7 +72,7 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, -1, 0])
-                emitter.rotation = 180
+                emitter.rotation = 180.0
 
     # ------------------------------------------------------------------ #
     # render_passes – primary interface                                    #

@@ -29,7 +29,7 @@ def generate_float_color_texture_config(
     tex: ColorLike | Texture,
     is_color: bool = False,
     is_primitive: bool = False,
-):
+) -> dict | float:
     match tex:
         case float() | int():
             return float(tex)
@@ -44,7 +44,7 @@ def generate_float_color_texture_config(
 
 def generate_diffuse_bsdf_config(
     mesh: lagrange.SurfaceMesh, mat: Diffuse, is_primitive
-):
+) -> dict[str, Any]:
     reflectance = generate_float_color_texture_config(
         mesh, mat.reflectance, True, is_primitive
     )
@@ -62,7 +62,7 @@ def generate_diffuse_bsdf_config(
     return mi_config
 
 
-def generate_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Conductor):
+def generate_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Conductor) -> dict[str, Any]:
     mi_config = {
         "type": "conductor",
         "material": mat.material,
@@ -72,7 +72,7 @@ def generate_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Conductor):
 
 def generate_rough_conductor_bsdf_config(
     mesh: lagrange.SurfaceMesh, mat: RoughConductor
-):
+) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "roughconductor",
         "material": mat.material,
@@ -82,7 +82,7 @@ def generate_rough_conductor_bsdf_config(
     return mi_config
 
 
-def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic):
+def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "plastic",
         "diffuse_reflectance": generate_float_color_texture_config(
@@ -95,7 +95,7 @@ def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic):
     return mi_config
 
 
-def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPlastic):
+def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPlastic) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "roughplastic",
         "diffuse_reflectance": generate_float_color_texture_config(
@@ -112,7 +112,7 @@ def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPla
 
 def generate_principled_bsdf_config(
     mesh: lagrange.SurfaceMesh, mat: Principled, is_primitive: bool, thin: bool = False
-):
+) -> dict[str, Any]:
     # Extract color, roughness, metallic
     colors = generate_float_color_texture_config(mesh, mat.color, True, is_primitive)
     roughness = generate_float_color_texture_config(
@@ -183,7 +183,7 @@ def generate_principled_bsdf_config(
     return mi_config
 
 
-def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric):
+def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric) -> dict[str, Any]:
     return {
         "type": "dielectric",
         "int_ior": mat.int_ior,
@@ -193,7 +193,7 @@ def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric)
     }
 
 
-def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric):
+def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric) -> dict[str, Any]:
     return {
         "type": "thindielectric",
         "int_ior": mat.int_ior,
@@ -204,7 +204,7 @@ def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielec
 
 def generate_rough_dielectric_bsdf_config(
     mesh: lagrange.SurfaceMesh, mat: RoughDielectric
-):
+) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "roughdielectric",
         "int_ior": mat.int_ior,
@@ -217,7 +217,7 @@ def generate_rough_dielectric_bsdf_config(
     return mi_config
 
 
-def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair):
+def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "hair",
         "eumelanin": mat.eumelanin,

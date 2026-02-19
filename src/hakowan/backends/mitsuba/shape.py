@@ -79,7 +79,7 @@ def extract_transform_from_covariances(view: View):
         return attr.data.reshape(-1, 3, 3)
 
 
-def generate_point_config(view: View, stamp: str, index: int):
+def generate_point_config(view: View, stamp: str, index: int) -> dict:
     """Generate point cloud shapes from a View.
 
     Args:
@@ -368,7 +368,7 @@ def extract_edges(view: View):
     return [base, tip, base_size, tip_size]
 
 
-def generate_curve_config(view: View, stamp: str, index: int):
+def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
@@ -472,7 +472,7 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
         # Note that we will keep attr._internal_name the same.
 
 
-def generate_surface_config(view: View, stamp: str, index: int):
+def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     """Generate the mitsuba config for a mesh.
 
     It does the following things:

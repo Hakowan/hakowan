@@ -182,7 +182,7 @@ def extract_material(scene: lagrange.scene.Scene):
     """
     mats = []
 
-    for material in scene.materials:
+    for mat_idx, material in enumerate(scene.materials):
         mat: hkw.material.Material
         tex_info = material.base_color_texture
         if tex_info.index is not None:
@@ -199,7 +199,10 @@ def extract_material(scene: lagrange.scene.Scene):
                     two_sided=True,
                 )
             else:
-                raise ValueError("Texture image not found")
+                raise ValueError(
+                    f"Material[{mat_idx}] '{material.name}': texture index "
+                    f"{tex_info.index} has no associated image data."
+                )
         elif "KHR_materials_pbrSpecularGlossiness" in material.extensions.data:
             pbr = material.extensions.data["KHR_materials_pbrSpecularGlossiness"]
             if "diffuseTexture" in pbr and "index" in pbr["diffuseTexture"]:

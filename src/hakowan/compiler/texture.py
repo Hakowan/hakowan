@@ -30,8 +30,6 @@ def apply_texture(
     :return: A list of active attributes used by the texture.
     """
     r = _apply_texture(df, tex, uv)
-    for attr in r:
-        assert attr is not None
     return r
 
 

@@ -3,6 +3,10 @@ from typing import Callable, Optional
 import copy
 import numpy.typing as npt
 
+
+def _default_condition(x) -> bool:  # module-level so it is picklable
+    return True
+
 from ..scale import Attribute, AttributeLike
 
 
@@ -53,7 +57,7 @@ class Filter(Transform):
     """
 
     data: AttributeLike | None = None
-    condition: Callable = lambda x: True
+    condition: Callable = field(default=_default_condition)
 
 
 @dataclass(slots=True)

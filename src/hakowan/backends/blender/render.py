@@ -269,6 +269,7 @@ class BlenderBackend(RenderBackend):
         prev_filter = scene.render.filter_size
         prev_transform = scene.view_settings.view_transform
         prev_compositor = scene.compositing_node_group
+        prev_taa_samples = scene.eevee.taa_render_samples
 
         scene.render.engine = "BLENDER_EEVEE"
         scene.eevee.taa_render_samples = 1
@@ -291,6 +292,7 @@ class BlenderBackend(RenderBackend):
         scene.render.filter_size = prev_filter
         scene.view_settings.view_transform = prev_transform
         scene.compositing_node_group = prev_compositor
+        scene.eevee.taa_render_samples = prev_taa_samples
 
     def _extract_size(self, view: View, default_size: float = 0.01):
         """Extract size attribute from a view (scalar or per-vertex).
@@ -751,14 +753,18 @@ class BlenderBackend(RenderBackend):
                 domain="POINT",
             )
             layer = bpy_mesh.color_attributes[color_layer_name]
-            for i, c in enumerate(colors):
-                if i < len(layer.data):
-                    layer.data[i].color = (
-                        float(c[0]),
-                        float(c[1]),
-                        float(c[2]),
-                        float(c[3]),
-                    )
+            if len(colors) != len(layer.data):
+                logger.warning(
+                    f"Color attribute '{attr_name}' has {len(colors)} entries but "
+                    f"Blender mesh has {len(layer.data)} vertices; truncating to the shorter length."
+                )
+            for i, c in enumerate(colors[:len(layer.data)]):
+                layer.data[i].color = (
+                    float(c[0]),
+                    float(c[1]),
+                    float(c[2]),
+                    float(c[3]),
+                )
         elif element_type == lagrange.AttributeElement.Facet:
             bpy_mesh.color_attributes.new(
                 name=color_layer_name,
@@ -865,6 +871,9 @@ class BlenderBackend(RenderBackend):
             envmap: Envmap emitter configuration.
         """
         world = bpy.context.scene.world
+        if world is None:
+            world = bpy.data.worlds.new("World")
+            bpy.context.scene.world = world
         world.use_nodes = True
         nodes = world.node_tree.nodes
         links = world.node_tree.links

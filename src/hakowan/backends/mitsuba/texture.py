@@ -84,7 +84,7 @@ def generate_isocontour_config(
 
 def generate_scalar_field_config(
     mesh: lagrange.SurfaceMesh, tex: ScalarField, is_color: bool, is_primitive: bool
-) -> dict:
+) -> dict[str, Any]:
     assert isinstance(tex.data, Attribute)
     assert tex.data._internal_name is not None
     if is_primitive and is_color:

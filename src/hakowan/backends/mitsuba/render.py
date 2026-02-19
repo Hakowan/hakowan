@@ -20,7 +20,7 @@ import numpy as np
 import yaml
 
 
-def generate_base_config(config: Config):
+def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
     sensor_config = generate_sensor_config(config.sensor)
     sensor_config["film"] = generate_film_config(config.film)
@@ -39,7 +39,7 @@ def generate_base_config(config: Config):
     return mi_config
 
 
-def generate_view_config(view: View, stamp: str, index: int):
+def generate_view_config(view: View, stamp: str, index: int) -> dict:
     """Generate a Mitsuba shape description dict from a View."""
 
     # Generate shape.
@@ -86,7 +86,7 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     return obj
 
 
-def save_image(image: drjit.ArrayBase, filename: Path):
+def save_image(image: drjit.ArrayBase, filename: Path) -> None:
     if filename.suffix == ".exr":
         mi.util.write_bitmap(str(filename), image)  # type: ignore
     else:
