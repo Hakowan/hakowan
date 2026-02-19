@@ -177,7 +177,7 @@ def _process_channels(view: View):
         if isinstance(tex, Texture):
             if isinstance(tex, Image):
                 if not tex.raw:
-                    logger.warn(
+                    logger.warning(
                         "Normal map texture image not in raw format may lead to incorrect result"
                     )
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)

@@ -346,7 +346,9 @@ def save_camera_matrix(data: dict, output_path: Path):
             json.dumps({k: _to_python(v) for k, v in data.items()}, indent=2)
         )
     else:
-        np.savez(str(output_path.with_suffix(".npz")), **data)
+        # Ensure the file has the .npz extension that numpy requires.
+        out = output_path if output_path.suffix.lower() == ".npz" else output_path.with_suffix(".npz")
+        np.savez(str(out), **data)
 
 
 def main():
@@ -653,7 +655,8 @@ def main():
         kwargs = {}
         if args.serialize:
             kwargs["yaml_file"] = output_file.with_suffix(".yaml")
-            kwargs["blend_file"] = output_file.with_suffix(".blend")
+            if args.backend == "blender":
+                kwargs["blend_file"] = output_file.with_suffix(".blend")
         hkw.render(
             layer,
             config,
