@@ -75,6 +75,10 @@ class BlenderBackend(RenderBackend):
         for i, view in enumerate(scene):
             self._create_view_object(view, i)
 
+        # In facet-ID mode replace all materials with flat ID-color shaders.
+        if config.facet_id:
+            self._setup_facet_id_mode()
+
         # Setup camera
         self._setup_camera(config)
 
@@ -143,6 +147,60 @@ class BlenderBackend(RenderBackend):
             bpy.data.materials.remove(material)
         for light in bpy.data.lights:
             bpy.data.lights.remove(light)
+
+    def _setup_facet_id_mode(self):
+        """Replace all mesh object materials with flat facet-ID colors.
+
+        Each face is tinted with the RGB encoding of its zero-based index:
+            R = (fid >> 16) & 0xFF
+            G = (fid >>  8) & 0xFF
+            B =  fid        & 0xFF
+        All values are stored as linear floats in [0, 1] (no gamma) so that
+        the pixel values in the "Raw" output image can be decoded directly.
+        """
+        for obj in bpy.context.scene.objects:
+            if obj.type != "MESH":
+                continue
+            mesh = obj.data
+            if len(mesh.polygons) == 0:
+                continue
+
+            # Build a CORNER-domain color attribute (one color per loop index).
+            attr_name = "_hakowan_facet_id"
+            if attr_name in mesh.color_attributes:
+                mesh.color_attributes.remove(mesh.color_attributes[attr_name])
+            color_attr = mesh.color_attributes.new(
+                name=attr_name, type="FLOAT_COLOR", domain="CORNER"
+            )
+
+            for poly in mesh.polygons:
+                fid = poly.index
+                r = ((fid >> 16) & 0xFF) / 255.0
+                g = ((fid >> 8) & 0xFF) / 255.0
+                b = (fid & 0xFF) / 255.0
+                for loop_idx in range(
+                    poly.loop_start, poly.loop_start + poly.loop_total
+                ):
+                    color_attr.data[loop_idx].color = (r, g, b, 1.0)
+
+            # Flat Emission shader — reads the attribute color, ignores lighting.
+            mat = bpy.data.materials.new(name=f"_hakowan_facet_id_{obj.name}")
+            mat.use_nodes = True
+            ntree = mat.node_tree
+            ntree.nodes.clear()
+
+            out_node = ntree.nodes.new(type="ShaderNodeOutputMaterial")
+            emit_node = ntree.nodes.new(type="ShaderNodeEmission")
+            emit_node.inputs["Strength"].default_value = 1.0
+            attr_node = ntree.nodes.new(type="ShaderNodeAttribute")
+            attr_node.attribute_name = attr_name
+            attr_node.attribute_type = "GEOMETRY"
+
+            ntree.links.new(attr_node.outputs["Color"], emit_node.inputs["Color"])
+            ntree.links.new(emit_node.outputs["Emission"], out_node.inputs["Surface"])
+
+            obj.data.materials.clear()
+            obj.data.materials.append(mat)
 
     def _extract_size(self, view: View, default_size: float = 0.01):
         """Extract size attribute from a view (scalar or per-vertex).
@@ -842,6 +900,17 @@ class BlenderBackend(RenderBackend):
 
         # Transparent background
         scene.render.film_transparent = True
+
+        # Facet-ID mode: flat colors, no gamma correction, no AA / blending.
+        if config.facet_id:
+            # Always use EEVEE for deterministic rasterization.
+            scene.render.engine = "BLENDER_EEVEE"
+            scene.eevee.taa_render_samples = 1
+            # Disable the pixel filter (Gaussian spread between pixels).
+            scene.render.filter_size = 0.0
+            # Raw view transform skips all gamma / tone-mapping transforms.
+            scene.view_settings.view_transform = "Raw"
+            logger.debug("Facet-ID mode: EEVEE, 1 sample, Raw color, no filter")
 
         logger.debug(
             f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"

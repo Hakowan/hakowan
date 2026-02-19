@@ -71,6 +71,15 @@ def parse_args():
     parser.add_argument("--albedo", help="Render albedo", action="store_true")
     parser.add_argument("--depth", help="Render depth", action="store_true")
     parser.add_argument("--shading-normal", help="Render normal", action="store_true")
+    parser.add_argument(
+        "--facet-id",
+        help=(
+            "Render each facet colored by its index (RGB-encoded). "
+            "No gamma correction, no blending, no anti-aliasing. "
+            "Blender backend only."
+        ),
+        action="store_true",
+    )
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
@@ -628,6 +637,8 @@ def main():
         config.depth = True
     if args.shading_normal:
         config.normal = True
+    if args.facet_id:
+        config.facet_id = True
 
     if args.output:
         output_file = Path(args.output)

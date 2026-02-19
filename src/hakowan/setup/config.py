@@ -31,6 +31,7 @@ class Config:
     _albedo: bool = False
     _depth: bool = False
     _normal: bool = False
+    _facet_id: bool = False
 
     def z_up(self):
         """Update configuration for z-up coordinate system."""
@@ -118,6 +119,15 @@ class Config:
             self.__add_aov("sh_normal:sh_normal")
         else:
             self.__reset_aov()
+
+    @property
+    def facet_id(self) -> bool:
+        """Whether to render each facet colored by its index (no gamma, no AA)."""
+        return self._facet_id
+
+    @facet_id.setter
+    def facet_id(self, value: bool):
+        self._facet_id = value
 
     def __add_aov(self, aov: str):
         """Add an AOV to the integrator.
