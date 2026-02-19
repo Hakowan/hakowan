@@ -7,6 +7,7 @@ import numpy.typing as npt
 def _default_condition(x) -> bool:  # module-level so it is picklable
     return True
 
+
 from ..scale import Attribute, AttributeLike
 
 

@@ -62,7 +62,9 @@ def generate_diffuse_bsdf_config(
     return mi_config
 
 
-def generate_conductor_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Conductor) -> dict[str, Any]:
+def generate_conductor_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: Conductor
+) -> dict[str, Any]:
     mi_config = {
         "type": "conductor",
         "material": mat.material,
@@ -82,7 +84,9 @@ def generate_rough_conductor_bsdf_config(
     return mi_config
 
 
-def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic) -> dict[str, Any]:
+def generate_plastic_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: Plastic
+) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "plastic",
         "diffuse_reflectance": generate_float_color_texture_config(
@@ -95,7 +99,9 @@ def generate_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Plastic) -> di
     return mi_config
 
 
-def generate_rough_plastic_bsdf_config(mesh: lagrange.SurfaceMesh, mat: RoughPlastic) -> dict[str, Any]:
+def generate_rough_plastic_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: RoughPlastic
+) -> dict[str, Any]:
     mi_config: dict[str, Any] = {
         "type": "roughplastic",
         "diffuse_reflectance": generate_float_color_texture_config(
@@ -183,7 +189,9 @@ def generate_principled_bsdf_config(
     return mi_config
 
 
-def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric) -> dict[str, Any]:
+def generate_dielectric_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: Dielectric
+) -> dict[str, Any]:
     return {
         "type": "dielectric",
         "int_ior": mat.int_ior,
@@ -193,7 +201,9 @@ def generate_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric)
     }
 
 
-def generate_thin_dielectric_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Dielectric) -> dict[str, Any]:
+def generate_thin_dielectric_bsdf_config(
+    mesh: lagrange.SurfaceMesh, mat: Dielectric
+) -> dict[str, Any]:
     return {
         "type": "thindielectric",
         "int_ior": mat.int_ior,

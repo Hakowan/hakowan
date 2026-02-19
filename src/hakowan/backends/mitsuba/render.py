@@ -172,14 +172,18 @@ class MitsubaBackend(RenderBackend):
 
         if config.albedo:
             if albedo_offset is None:
-                logger.warning("Albedo pass requested but no albedo AOV found in integrator")
+                logger.warning(
+                    "Albedo pass requested but no albedo AOV found in integrator"
+                )
             else:
                 o = albedo_offset
                 albedo_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]  # type: ignore
 
         if config.depth:
             if depth_offset is None:
-                logger.warning("Depth pass requested but no depth AOV found in integrator")
+                logger.warning(
+                    "Depth pass requested but no depth AOV found in integrator"
+                )
             else:
                 alpha = np.array(image_layers[:, :, 3])
                 depth = np.array(image_layers[:, :, depth_offset])
@@ -190,11 +194,15 @@ class MitsubaBackend(RenderBackend):
                     depth = (depth - min_depth) / depth_range
                 else:
                     depth = np.zeros_like(depth)
-                depth_image = mi.TensorXf(np.stack([depth, depth, depth, alpha], axis=2))
+                depth_image = mi.TensorXf(
+                    np.stack([depth, depth, depth, alpha], axis=2)
+                )
 
         if config.normal:
             if normal_offset is None:
-                logger.warning("Normal pass requested but no normal AOV found in integrator")
+                logger.warning(
+                    "Normal pass requested but no normal AOV found in integrator"
+                )
             else:
                 o = normal_offset
                 normal_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]

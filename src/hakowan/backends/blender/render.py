@@ -129,6 +129,7 @@ class BlenderBackend(RenderBackend):
         # Move pass files if needed (src == final means already in the right place).
         if renames:
             import shutil
+
             output_dir = filename.parent
             for pass_name, final in renames:
                 src = output_dir / pass_name
@@ -280,7 +281,9 @@ class BlenderBackend(RenderBackend):
         scene.compositing_node_group = None
 
         # Derive output path: <stem>_facet_id<suffix>
-        facet_id_path = filename.parent / (filename.stem + "_facet_id" + filename.suffix)
+        facet_id_path = filename.parent / (
+            filename.stem + "_facet_id" + filename.suffix
+        )
         scene.render.filepath = str(facet_id_path.resolve())
 
         logger.info("Rendering facet-ID pass...")
@@ -758,7 +761,7 @@ class BlenderBackend(RenderBackend):
                     f"Color attribute '{attr_name}' has {len(colors)} entries but "
                     f"Blender mesh has {len(layer.data)} vertices; truncating to the shorter length."
                 )
-            for i, c in enumerate(colors[:len(layer.data)]):
+            for i, c in enumerate(colors[: len(layer.data)]):
                 layer.data[i].color = (
                     float(c[0]),
                     float(c[1]),

@@ -108,9 +108,7 @@ def parse_args():
         default="warn",
         help="Logging level",
     )
-    parser.add_argument(
-        "--serialize", help="Serialize the config", action="store_true"
-    )
+    parser.add_argument("--serialize", help="Serialize the config", action="store_true")
     parser.add_argument(
         "--camera-matrix",
         help=(
@@ -350,7 +348,11 @@ def save_camera_matrix(data: dict, output_path: Path):
         )
     else:
         # Ensure the file has the .npz extension that numpy requires.
-        out = output_path if output_path.suffix.lower() == ".npz" else output_path.with_suffix(".npz")
+        out = (
+            output_path
+            if output_path.suffix.lower() == ".npz"
+            else output_path.with_suffix(".npz")
+        )
         np.savez(str(out), **data)
 
 
