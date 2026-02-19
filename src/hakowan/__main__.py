@@ -99,6 +99,9 @@ def parse_args():
         default="warn",
         help="Logging level",
     )
+    parser.add_argument(
+        "--serialize", help="Serialize the config", action="store_true"
+    )
     return parser.parse_args()
 
 
@@ -526,11 +529,16 @@ def main():
         output_file = Path(args.input_mesh).with_suffix(".png")
 
     if args.turn_table == 0:
+        kwargs = {}
+        if args.serialize:
+            kwargs["yaml_file"] = output_file.with_suffix(".yaml")
+            kwargs["blend_file"] = output_file.with_suffix(".blend")
         hkw.render(
             layer,
             config,
             filename=output_file,
             backend=args.backend,
+            **kwargs,
         )
     else:
         if args.z_up:
