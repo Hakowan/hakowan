@@ -13,19 +13,16 @@ dependencies=[
     "lagrange-open>=6.39",
     "numpy>=1.22",
     "Pillow~=11.0",
-#"bpy>=5.0.1,<6"
+    "PyYAML>=6.0",
+    "mitsuba~=3.7",
+    "bpy>=5.0.1,<6; python_version == '3.11'",
 ]
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
-mitsuba = ["mitsuba~=3.7", "PyYAML>=6.0"]
-blender = [
-    "bpy>=5.0.1,<6; python_version == '3.11'",
-]
-all = [
-    "mitsuba~=3.7",
-    "bpy>=5.0.1,<6; python_version == '3.11'",
-]
+mitsuba = []
+blender = []
+all = []
 
 
 [mypy]
