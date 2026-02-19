@@ -75,10 +75,6 @@ class BlenderBackend(RenderBackend):
         for i, view in enumerate(scene):
             self._create_view_object(view, i)
 
-        # In facet-ID mode replace all materials with flat ID-color shaders.
-        if config.facet_id:
-            self._setup_facet_id_mode()
-
         # Setup camera
         self._setup_camera(config)
 
@@ -127,6 +123,10 @@ class BlenderBackend(RenderBackend):
                     logger.info(f"Pass saved to {final}")
                 else:
                     logger.warning(f"Pass file not found: {pass_name}")
+
+        # Facet-ID pass: second render with flat ID-color materials.
+        if config.facet_id and filename is not None:
+            self._render_facet_id_pass(filename)
 
         # Remove the temporary .blend file used to anchor '//' path resolution.
         if _temp_blend is not None and _temp_blend.exists():
@@ -201,6 +201,46 @@ class BlenderBackend(RenderBackend):
 
             obj.data.materials.clear()
             obj.data.materials.append(mat)
+
+    def _render_facet_id_pass(self, filename: Path):
+        """Run a second Blender render that outputs per-facet ID colors.
+
+        The output file is placed next to *filename* with a ``_facet_id``
+        suffix, e.g. ``bust.png`` → ``bust_facet_id.png``.
+
+        Settings applied for this pass only:
+        - EEVEE engine (deterministic rasterization, no noise)
+        - 1 TAA sample (no temporal blending)
+        - Pixel filter disabled (``filter_size = 0``)
+        - Raw view transform (no gamma / tone-mapping)
+        """
+        scene = bpy.context.scene
+
+        # Override materials with flat facet-ID emission shaders.
+        self._setup_facet_id_mode()
+
+        # Save engine / filter / color-management state so nothing leaks back.
+        prev_engine = scene.render.engine
+        prev_filter = scene.render.filter_size
+        prev_transform = scene.view_settings.view_transform
+
+        scene.render.engine = "BLENDER_EEVEE"
+        scene.eevee.taa_render_samples = 1
+        scene.render.filter_size = 0.0
+        scene.view_settings.view_transform = "Raw"
+
+        # Derive output path: <stem>_facet_id<suffix>
+        facet_id_path = filename.parent / (filename.stem + "_facet_id" + filename.suffix)
+        scene.render.filepath = str(facet_id_path.resolve())
+
+        logger.info("Rendering facet-ID pass...")
+        bpy.ops.render.render(write_still=True)
+        logger.info(f"Facet-ID pass saved to {facet_id_path}")
+
+        # Restore render settings for any subsequent operations.
+        scene.render.engine = prev_engine
+        scene.render.filter_size = prev_filter
+        scene.view_settings.view_transform = prev_transform
 
     def _extract_size(self, view: View, default_size: float = 0.01):
         """Extract size attribute from a view (scalar or per-vertex).
@@ -900,17 +940,6 @@ class BlenderBackend(RenderBackend):
 
         # Transparent background
         scene.render.film_transparent = True
-
-        # Facet-ID mode: flat colors, no gamma correction, no AA / blending.
-        if config.facet_id:
-            # Always use EEVEE for deterministic rasterization.
-            scene.render.engine = "BLENDER_EEVEE"
-            scene.eevee.taa_render_samples = 1
-            # Disable the pixel filter (Gaussian spread between pixels).
-            scene.render.filter_size = 0.0
-            # Raw view transform skips all gamma / tone-mapping transforms.
-            scene.view_settings.view_transform = "Raw"
-            logger.debug("Facet-ID mode: EEVEE, 1 sample, Raw color, no filter")
 
         logger.debug(
             f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
