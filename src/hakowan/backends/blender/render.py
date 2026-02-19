@@ -92,14 +92,41 @@ class BlenderBackend(RenderBackend):
             self._save_blend_file(blend_file)
 
         # Render
+        renames = []
+        _temp_blend: Path | None = None
         if filename is not None:
             if isinstance(filename, str):
                 filename = Path(filename)
+            filename.parent.mkdir(parents=True, exist_ok=True)
             bpy.context.scene.render.filepath = str(filename.resolve())
+            # In headless bpy, bpy.data.filepath is empty so Blender has no
+            # "home directory" and the compositor File Output node writes bare
+            # filenames with no directory.  Save a temporary .blend file into
+            # the output directory so that '//' resolves to filename.parent.
+            _temp_blend = filename.parent / ".hakowan_compositor.blend"
+            bpy.ops.wm.save_as_mainfile(filepath=str(_temp_blend), compress=False)
+            renames = self._setup_compositor_passes(config, filename)
 
         logger.info("Rendering with Blender...")
         bpy.ops.render.render(write_still=True)
         logger.info(f"Rendering saved to {filename}")
+
+        # Move pass files if needed (src == final means already in the right place).
+        if renames:
+            import shutil
+            output_dir = filename.parent
+            for pass_name, final in renames:
+                src = output_dir / pass_name
+                if src.exists():
+                    if src != final:
+                        shutil.move(str(src), str(final))
+                    logger.info(f"Pass saved to {final}")
+                else:
+                    logger.warning(f"Pass file not found: {pass_name}")
+
+        # Remove the temporary .blend file used to anchor '//' path resolution.
+        if _temp_blend is not None and _temp_blend.exists():
+            _temp_blend.unlink()
 
         return None
 
@@ -819,6 +846,137 @@ class BlenderBackend(RenderBackend):
         logger.debug(
             f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
         )
+
+    def _setup_compositor_passes(
+        self, config: Config, filename: Path
+    ) -> list[tuple[Path, Path]]:
+        """Set up compositor nodes for albedo, depth, and normal passes.
+
+        Enables the relevant view layer passes and routes each through a
+        File Output node.  Returns a list of (temp_path, final_path) pairs
+        that must be renamed after the render completes (Blender appends a
+        4-digit frame number to File Output paths).
+
+        Args:
+            config: Rendering configuration.
+            filename: Main output image path (used to derive pass filenames).
+
+        Returns:
+            List of (temp_path, final_path) rename pairs.
+        """
+        renames: list[tuple[Path, Path]] = []
+        if not (config.albedo or config.depth or config.normal):
+            return renames
+
+        scene = bpy.context.scene
+
+        # Enable passes on the view layer first so the Render Layers
+        # node exposes the right output sockets when added below.
+        view_layer = scene.view_layers[0]
+        if config.albedo:
+            view_layer.use_pass_diffuse_color = True
+        if config.depth:
+            view_layer.use_pass_z = True
+        if config.normal:
+            view_layer.use_pass_normal = True
+
+        # Blender 5.0: compositor node tree is now an independent data block.
+        # Create it via bpy.data.node_groups and assign to scene.compositing_node_group.
+        tree = bpy.data.node_groups.new("hakowan_compositor", "CompositorNodeTree")
+        scene.compositing_node_group = tree
+        nodes = tree.nodes
+        links = tree.links
+
+        rl_node = nodes.new(type="CompositorNodeRLayers")
+        rl_node.location = (-400, 200)
+
+        # Blender 5.0: CompositorNodeComposite was removed; use NodeGroupOutput
+        # with an interface socket for the main image output.
+        output = nodes.new(type="NodeGroupOutput")
+        output.location = (400, 200)
+        tree.interface.new_socket(
+            name="Image", in_out="OUTPUT", socket_type="NodeSocketColor"
+        )
+        links.new(rl_node.outputs["Image"], output.inputs["Image"])
+
+        stem = filename.stem
+        suffix = filename.suffix.lower()
+        parent = filename.parent
+
+        # Map the user's output suffix to a Blender file-format token.
+        fmt_map = {".exr": "OPEN_EXR", ".png": "PNG", ".jpg": "JPEG"}
+        file_format = fmt_map.get(suffix, "PNG")
+
+        y = -100
+
+        # '//' resolves to filename.parent because we saved a temp .blend there
+        # in render() before calling this method.
+        output_dir = filename.parent
+
+        if config.albedo:
+            fo = nodes.new(type="CompositorNodeOutputFile")
+            # Use '//' so Blender resolves to output_dir (the temp .blend location).
+            # Clear file_name to avoid a spurious prefix in the output path.
+            fo.directory = "//"
+            fo.file_name = ""
+            # Blender 5.0: media_type must be set to "IMAGE" before file_format.
+            fo.format.media_type = "IMAGE"
+            fo.format.file_format = file_format
+            fo.format.color_mode = "RGB"
+            fo.file_output_items.new("RGBA", stem + "_albedo")
+            fo.location = (400, y)
+            # Blender 5.0: "DiffCol" renamed to "Diffuse Color"
+            links.new(rl_node.outputs["Diffuse Color"], fo.inputs[0])
+            pass_name = f"{stem}_albedo{suffix}"
+            renames.append((pass_name, filename.with_name(pass_name)))
+            y -= 200
+
+        if config.depth:
+            # Normalize the floating-point depth to [0, 1] before saving.
+            normalize = nodes.new(type="CompositorNodeNormalize")
+            normalize.location = (0, y)
+            links.new(rl_node.outputs["Depth"], normalize.inputs[0])
+            fo = nodes.new(type="CompositorNodeOutputFile")
+            fo.directory = "//"
+            fo.file_name = ""
+            fo.format.media_type = "IMAGE"
+            fo.format.file_format = file_format
+            fo.format.color_mode = "BW"
+            fo.file_output_items.new("FLOAT", stem + "_depth")
+            fo.location = (400, y)
+            links.new(normalize.outputs[0], fo.inputs[0])
+            pass_name = f"{stem}_depth{suffix}"
+            renames.append((pass_name, filename.with_name(pass_name)))
+            y -= 200
+
+        if config.normal:
+            # Remap world-space normals from [-1, 1] to [0, 1]: out = N * 0.5 + 0.5
+            # CompositorNodeColorBalance was redesigned in Blender 5.0 (LGG mode removed).
+            # Use VectorMath nodes instead since the Normal pass is a Vector type.
+            mul_node = nodes.new(type="ShaderNodeVectorMath")
+            mul_node.operation = "MULTIPLY"
+            mul_node.inputs[1].default_value = (0.5, 0.5, 0.5)
+            mul_node.location = (-200, y)
+            links.new(rl_node.outputs["Normal"], mul_node.inputs[0])
+            add_node = nodes.new(type="ShaderNodeVectorMath")
+            add_node.operation = "ADD"
+            add_node.inputs[1].default_value = (0.5, 0.5, 0.5)
+            add_node.location = (0, y)
+            links.new(mul_node.outputs["Vector"], add_node.inputs[0])
+            fo = nodes.new(type="CompositorNodeOutputFile")
+            fo.directory = "//"
+            fo.file_name = ""
+            fo.format.media_type = "IMAGE"
+            fo.format.file_format = file_format
+            fo.format.color_mode = "RGB"
+            fo.file_output_items.new("RGBA", stem + "_normal")
+            fo.location = (400, y)
+            links.new(add_node.outputs["Vector"], fo.inputs[0])
+            pass_name = f"{stem}_normal{suffix}"
+            renames.append((pass_name, filename.with_name(pass_name)))
+            y -= 200
+
+        return renames
 
     def _save_blend_file(self, filepath: Path):
         """Save the current Blender scene to a .blend file for debugging.
