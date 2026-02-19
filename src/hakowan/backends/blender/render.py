@@ -55,16 +55,31 @@ class BlenderBackend(RenderBackend):
     ) -> Any:
         """Render scene using Blender.
 
+        The main image is always rendered first.  When ``config`` enables
+        optional passes, additional outputs are written alongside it:
+
+        - **albedo / depth / normal** – extracted from view-layer passes via
+          the Blender compositor in the *same* render call.
+        - **facet_id** – a second, independent render pass using flat
+          Emission shaders and EEVEE (no gamma, no AA).  Written to
+          ``<stem>_facet_id<ext>``.
+
         Args:
-            scene: Compiled scene.
-            config: Rendering configuration.
-            filename: Output image filename.
-            **kwargs: Additional options:
-                - engine (str): Render engine ("CYCLES" or "BLENDER_EEVEE")
-                - blend_file (str|Path): Optional .blend file path for debugging
+            scene: Compiled scene (iterable of :class:`View` objects).
+            config: Rendering configuration, including pass flags and camera
+                / film / sampler settings.
+            filename: Output image path.  Parent directories are created
+                automatically.  Pass ``None`` to render without saving.
+            **kwargs: Additional backend options:
+                - ``engine`` (str): Render engine for the main pass;
+                  ``"CYCLES"`` (default) or ``"BLENDER_EEVEE"``.
+                - ``blend_file`` (str | Path): If provided, save the Blender
+                  scene to this path before rendering (useful for debugging).
+                - ``yaml_file`` (str | Path): If provided, serialize the
+                  scene configuration to a YAML file at this path.
 
         Returns:
-            None (Blender renders to file).
+            ``None`` — Blender writes directly to *filename*.
         """
         logger.info("Starting Blender rendering...")
 
@@ -149,14 +164,29 @@ class BlenderBackend(RenderBackend):
             bpy.data.lights.remove(light)
 
     def _setup_facet_id_mode(self):
-        """Replace all mesh object materials with flat facet-ID colors.
+        """Replace every mesh object's materials with flat facet-ID shaders.
 
-        Each face is tinted with the RGB encoding of its zero-based index:
-            R = (fid >> 16) & 0xFF
-            G = (fid >>  8) & 0xFF
-            B =  fid        & 0xFF
-        All values are stored as linear floats in [0, 1] (no gamma) so that
-        the pixel values in the "Raw" output image can be decoded directly.
+        For each ``MESH`` object in the scene:
+
+        1. A ``FLOAT_COLOR`` / ``CORNER``-domain color attribute named
+           ``_hakowan_facet_id`` is created on the mesh data block (or
+           recreated if it already exists).
+        2. Every loop corner of each polygon is set to the linear-float RGB
+           encoding of that polygon's zero-based index::
+
+               R = ((fid >> 16) & 0xFF) / 255.0
+               G = ((fid >>  8) & 0xFF) / 255.0
+               B = ( fid        & 0xFF) / 255.0
+
+        3. All existing materials are replaced by a single ``ShaderNodeEmission``
+           material that reads the attribute through ``ShaderNodeAttribute``
+           (``attribute_type = "GEOMETRY"``), so lighting has no effect on the
+           output color.
+
+        Values are stored as linear floats so that when rendered with the
+        ``"Raw"`` view transform the 8-bit PNG channel values equal the
+        original byte components of the face index, allowing lossless
+        round-trip recovery via ``fid = (R << 16) | (G << 8) | B``.
         """
         for obj in bpy.context.scene.objects:
             if obj.type != "MESH":
@@ -203,16 +233,31 @@ class BlenderBackend(RenderBackend):
             obj.data.materials.append(mat)
 
     def _render_facet_id_pass(self, filename: Path):
-        """Run a second Blender render that outputs per-facet ID colors.
+        """Perform a second Blender render that writes per-facet ID colors.
+
+        Called automatically by :meth:`render` when ``config.facet_id`` is
+        ``True``, *after* the main render has completed.
 
         The output file is placed next to *filename* with a ``_facet_id``
         suffix, e.g. ``bust.png`` → ``bust_facet_id.png``.
 
-        Settings applied for this pass only:
-        - EEVEE engine (deterministic rasterization, no noise)
-        - 1 TAA sample (no temporal blending)
-        - Pixel filter disabled (``filter_size = 0``)
-        - Raw view transform (no gamma / tone-mapping)
+        The following settings are applied exclusively for this pass and
+        restored afterward so they do not affect any subsequent call:
+
+        - **Engine**: ``BLENDER_EEVEE`` — deterministic rasterisation, no
+          path-tracing noise.
+        - **TAA samples**: 1 — disables temporal anti-aliasing / blending.
+        - **Pixel filter** (``filter_size``): 0.0 — no Gaussian spread across
+          pixel boundaries.
+        - **View transform**: ``"Raw"`` — bypasses all gamma and tone-mapping
+          so pixel channel values equal the stored linear float values.
+        - **Compositor node group**: ``None`` — disconnects the compositor so
+          albedo / depth / normal file-output nodes are not re-triggered and
+          do not overwrite the outputs from the main render.
+
+        Args:
+            filename: Main output image path used to derive the facet-ID
+                output path (``<stem>_facet_id<ext>``).
         """
         scene = bpy.context.scene
 
@@ -915,12 +960,18 @@ class BlenderBackend(RenderBackend):
         logger.debug(f"Point light {index} added at {point_light.position}")
 
     def _setup_render_settings(self, config: Config, **kwargs):
-        """Setup Blender render settings.
+        """Configure Blender render settings for the *main* render pass.
+
+        Sets resolution, render engine, sample count, output format, and
+        background transparency based on *config* and *kwargs*.  These
+        settings apply to the main image render only; the facet-ID pass
+        manages its own settings inside :meth:`_render_facet_id_pass`.
 
         Args:
-            config: Rendering configuration.
-            **kwargs: Additional options:
-                - engine (str): Render engine
+            config: Rendering configuration (film size, sampler, etc.).
+            **kwargs: Additional backend options:
+                - ``engine`` (str): Blender render engine to use;
+                  ``"CYCLES"`` (default) or ``"BLENDER_EEVEE"``.
         """
         scene = bpy.context.scene
 

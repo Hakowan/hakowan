@@ -19,8 +19,15 @@ class Config:
         sampler: Sampler settings.
         emitters: Emitter settings.
         integrator: Integrator settings.
-        albedo: Whether to render albedo (i.e. without shading).
-        depth: Whether to render depth.
+        albedo: Whether to render albedo (i.e. diffuse color without shading).
+        depth: Whether to render a depth pass.
+        normal: Whether to render a shading-normal pass.
+        facet_id: Whether to render a facet-ID pass (Blender backend only).
+            Each face is colored by its zero-based index encoded as RGB so that
+            the original index can be recovered from the output pixel values.
+            The pass is written as ``<stem>_facet_id<ext>`` alongside the main
+            image.  Gamma correction, blending, and anti-aliasing are all
+            disabled for this pass.
     """
 
     sensor: Sensor = field(default_factory=Perspective)
@@ -122,11 +129,26 @@ class Config:
 
     @property
     def facet_id(self) -> bool:
-        """Whether to render each facet colored by its index (no gamma, no AA)."""
+        """Whether to render a facet-ID pass alongside the main image.
+
+        When ``True`` the Blender backend performs a second render after the
+        main one.  Every mesh face is colored with the RGB encoding of its
+        zero-based index (R = high byte, G = mid byte, B = low byte) using a
+        flat Emission shader so lighting has no effect.  The output is written
+        to ``<stem>_facet_id<ext>`` with gamma correction, temporal blending,
+        and pixel filtering all disabled so pixel values can be decoded
+        directly::
+
+            fid = (R << 16) | (G << 8) | B
+
+        Background pixels have ``A = 0`` and can be masked out.  Supports up
+        to 2**24 − 1 ≈ 16.7 M faces.
+        """
         return self._facet_id
 
     @facet_id.setter
     def facet_id(self, value: bool):
+        """Enable or disable the facet-ID render pass."""
         self._facet_id = value
 
     def __add_aov(self, aov: str):
