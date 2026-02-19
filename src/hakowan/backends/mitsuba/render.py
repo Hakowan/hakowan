@@ -140,42 +140,83 @@ class MitsubaBackend(RenderBackend):
         logger.info("Rendering done")
         image_layers = image
 
+        # Always extract the main RGBA image from the first 4 channels.
+        # When an AOV integrator is active the remaining channels hold pass
+        # data; without one, image_layers already has exactly 4 channels.
+        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
+
+        # Compute per-pass channel offsets by walking the AOV list in order.
+        # Mitsuba lays out AOV channels sequentially after the 4 RGBA channels.
+        # Known widths: RGB AOVs contribute 3 channels, scalar AOVs 1 channel.
+        _aov_width = {
+            "albedo:albedo": 3,
+            "depth:depth": 1,
+            "sh_normal:sh_normal": 3,
+        }
+        albedo_offset: int | None = None
+        depth_offset: int | None = None
+        normal_offset: int | None = None
+
+        from ...setup.integrator import AOV as AOVIntegrator
+
+        if isinstance(config.integrator, AOVIntegrator):
+            _offset = 4
+            for aov_str in config.integrator.aovs:
+                if aov_str == "albedo:albedo":
+                    albedo_offset = _offset
+                elif aov_str == "depth:depth":
+                    depth_offset = _offset
+                elif aov_str == "sh_normal:sh_normal":
+                    normal_offset = _offset
+                _offset += _aov_width.get(aov_str, 1)
+
         if config.albedo:
-            # Select the albedo channels.
-            image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
-            albedo_image = image_layers[:, :, mi.ArrayXi([4, 5, 6, 3])]  # type: ignore
+            if albedo_offset is None:
+                logger.warning("Albedo pass requested but no albedo AOV found in integrator")
+            else:
+                o = albedo_offset
+                albedo_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]  # type: ignore
 
         if config.depth:
-            image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
-            alpha = image_layers[:, :, 3]
-            depth = image_layers[:, :, 4]
-            min_depth = drjit.min(depth)
-            max_depth = drjit.max(depth)
-            depth = (depth - min_depth) / (max_depth - min_depth)
-            depth_image = mi.TensorXf(np.stack([depth, depth, depth, alpha], axis=2))
+            if depth_offset is None:
+                logger.warning("Depth pass requested but no depth AOV found in integrator")
+            else:
+                alpha = np.array(image_layers[:, :, 3])
+                depth = np.array(image_layers[:, :, depth_offset])
+                min_depth = float(depth.min())
+                max_depth = float(depth.max())
+                depth_range = max_depth - min_depth
+                if depth_range > 1e-9:
+                    depth = (depth - min_depth) / depth_range
+                else:
+                    depth = np.zeros_like(depth)
+                depth_image = mi.TensorXf(np.stack([depth, depth, depth, alpha], axis=2))
 
         if config.normal:
-            image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]
-            normal_image = image_layers[:, :, mi.ArrayXi([4, 5, 6, 3])]
+            if normal_offset is None:
+                logger.warning("Normal pass requested but no normal AOV found in integrator")
+            else:
+                o = normal_offset
+                normal_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]
 
         if filename is not None:
             if isinstance(filename, str):
                 filename = Path(filename)
             save_image(image, filename)
 
-            if config.albedo:
+            if config.albedo and albedo_offset is not None:
                 albedo_filename = filename.with_name(
                     filename.stem + "_albedo" + filename.suffix
                 )
                 save_image(albedo_image, albedo_filename)
 
-            if config.depth:
+            if config.depth and depth_offset is not None:
                 depth_filename = filename.with_name(
                     filename.stem + "_depth" + filename.suffix
                 )
                 save_image(depth_image, depth_filename)
 
-            if config.normal:
+            if config.normal and normal_offset is not None:
                 normal_filename = filename.with_name(
                     filename.stem + "_normal" + filename.suffix
                 )

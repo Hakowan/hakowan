@@ -90,7 +90,8 @@ def generate_scalar_field_config(
     if is_primitive and is_color:
         # Primitive color field.
         name = tex.data._internal_color_field
-        assert name in ["vertex_color", "face_color"]
+        assert name is not None, "ScalarField has no resolved color field name"
+        assert mesh.has_attribute(name), f"Mesh has no color attribute '{name}'"
         colors = mesh.attribute(name).data
         return {"colors": colors.tolist()}
     elif is_primitive:
@@ -101,7 +102,8 @@ def generate_scalar_field_config(
         return {"values": values}
     elif is_color:
         name = tex.data._internal_color_field
-        assert name in ["vertex_color", "face_color"]
+        assert name is not None, "ScalarField has no resolved color field name"
+        assert mesh.has_attribute(name), f"Mesh has no color attribute '{name}'"
     else:
         assert mesh.has_attribute(tex.data._internal_name)
         attr = mesh.attribute(tex.data._internal_name)

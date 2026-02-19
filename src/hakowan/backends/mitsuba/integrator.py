@@ -27,7 +27,7 @@ def generate_integrator_config(integrator: Integrator) -> dict:
             mi_config["type"] = "aov"
             mi_config["aovs"] = ",".join(integrator.aovs)
             if integrator.integrator is not None:
-                mi_config["aov_image"] = generate_integrator_config(
+                mi_config["integrator"] = generate_integrator_config(
                     integrator.integrator
                 )
         case VolPath():
