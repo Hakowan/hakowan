@@ -6,8 +6,6 @@ import numpy as np
 import numpy.typing as npt
 import pathlib
 
-from .asset import triangle, two_triangles
-
 
 class TestCompile:
     def test_compile(self):
@@ -190,6 +188,19 @@ class TestCompile:
         bbox = scene[0].bbox
         assert np.all(bbox[0] == pytest.approx(bbox_min))
         assert np.all(bbox[1] == pytest.approx(bbox_max))
+
+    def test_filter_default_condition_keeps_all(self, two_triangles):
+        """Filter with default condition (no lambda) must keep every facet."""
+        mesh = two_triangles
+        base = (
+            hkw.layer()
+            .data(mesh)
+            .mark(hkw.mark.Surface)
+            .transform(hkw.transform.Filter())
+        )
+        scene = hkw.compiler.compile(base)
+        assert len(scene) == 1
+        assert scene[0].data_frame.mesh.num_facets == mesh.num_facets
 
     def test_uv_mesh_transform(self, triangle):
         mesh = triangle

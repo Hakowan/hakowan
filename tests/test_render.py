@@ -1,11 +1,9 @@
 import pytest
 import pathlib
 import hakowan as hkw
-from hakowan.render.render import generate_scene_config
+from hakowan.backends.mitsuba.render import generate_scene_config
 import lagrange
 import numpy as np
-
-from .asset import triangle, two_triangles
 
 
 class TestRender:

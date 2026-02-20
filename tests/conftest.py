@@ -3,7 +3,7 @@ import lagrange
 import numpy as np
 
 
-def add_attributes(mesh: lagrange.SurfaceMesh):
+def _add_attributes(mesh: lagrange.SurfaceMesh):
     mesh.create_attribute(
         "vertex_index",
         element=lagrange.AttributeElement.Vertex,
@@ -29,7 +29,6 @@ def add_attributes(mesh: lagrange.SurfaceMesh):
             usage=lagrange.AttributeUsage.Scalar,
             initial_values=np.arange(mesh.num_edges, dtype=np.uint32),
         )
-
     mesh.create_attribute(
         "uv",
         element=lagrange.AttributeElement.Indexed,
@@ -37,7 +36,6 @@ def add_attributes(mesh: lagrange.SurfaceMesh):
         initial_values=mesh.vertices[:, :2].copy(),
         initial_indices=mesh.facets,
     )
-
     mesh.create_attribute(
         "vertex_data",
         element=lagrange.AttributeElement.Vertex,
@@ -51,7 +49,7 @@ def triangle():
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(np.eye(3))
     mesh.add_triangle(0, 1, 2)
-    add_attributes(mesh)
+    _add_attributes(mesh)
     return mesh
 
 
@@ -64,5 +62,5 @@ def two_triangles():
     mesh.add_vertex([0, 1, 0])
     mesh.add_triangle(0, 1, 2)
     mesh.add_triangle(0, 2, 3)
-    add_attributes(mesh)
+    _add_attributes(mesh)
     return mesh

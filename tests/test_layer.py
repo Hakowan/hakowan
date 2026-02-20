@@ -3,8 +3,6 @@ import hakowan as hkw
 from hakowan import channel, dataframe, layer, scale
 import lagrange
 
-from .asset import triangle
-
 
 class TestLayer:
     def test_empty_layer(self):
