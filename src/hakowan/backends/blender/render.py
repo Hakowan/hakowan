@@ -19,14 +19,8 @@ from typing import Any
 import numpy as np
 import lagrange
 
-try:
-    import bpy
-    import mathutils
-
-    BLENDER_AVAILABLE = True
-except ImportError:
-    BLENDER_AVAILABLE = False
-    # Don't warn at import time, only when trying to use the backend
+import bpy
+import mathutils
 
 
 class BlenderBackend(RenderBackend):
@@ -38,13 +32,6 @@ class BlenderBackend(RenderBackend):
     - Camera setup
     - Basic lighting
     """
-
-    def __init__(self):
-        if not BLENDER_AVAILABLE:
-            raise ImportError(
-                "Blender (bpy) is not available. "
-                "Install with: pip install bpy or use Blender's Python."
-            )
 
     def render(
         self,
