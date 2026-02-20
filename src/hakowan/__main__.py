@@ -105,7 +105,7 @@ def parse_args():
     parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error"],
-        default="warn",
+        default="warning",
         help="Logging level",
     )
     parser.add_argument("--serialize", help="Serialize the config", action="store_true")
