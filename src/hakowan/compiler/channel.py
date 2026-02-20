@@ -158,7 +158,9 @@ def _process_channels(view: View):
         assert view.shape_channel.base_shape in ["sphere", "cube", "disk"]
         if view.shape_channel.orientation is not None:
             if isinstance(view.shape_channel.orientation, str):
-                view.shape_channel.orientation = Attribute(view.shape_channel.orientation)
+                view.shape_channel.orientation = Attribute(
+                    view.shape_channel.orientation
+                )
             assert isinstance(view.shape_channel.orientation, Attribute)
             attr = view.shape_channel.orientation
             compute_scaled_attribute(df, attr)
@@ -175,7 +177,9 @@ def _process_channels(view: View):
         if isinstance(tex, Texture):
             if isinstance(tex, Image):
                 if not tex.raw:
-                    logger.warn("Normal map texture image not in raw format may lead to incorrect result")
+                    logger.warning(
+                        "Normal map texture image not in raw format may lead to incorrect result"
+                    )
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)
             view.uv_attribute = tex._uv
     if view.material_channel is not None:

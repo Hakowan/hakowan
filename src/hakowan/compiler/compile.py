@@ -12,7 +12,7 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
     scene = Scene()
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
-        """ Generate a view from a path in the layer tree.
+        """Generate a view from a path in the layer tree.
 
         :param ancestors: A list of layers from the root layer to a leaf layer. Layers closer to the
                           root have precedence over layers closer to the leaf.

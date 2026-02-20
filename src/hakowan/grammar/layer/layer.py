@@ -121,7 +121,7 @@ class Layer:
             result (Layer): The layer object with data component overwritten.
         """
         l = self.__get_working_layer(in_place)
-        match (data):
+        match data:
             case str() | Path():
                 mesh = lagrange.io.load_mesh(data, quiet=True, stitch_vertices=True)  # type: ignore
                 l._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
@@ -147,7 +147,7 @@ class Layer:
             result (Layer): The layer object with mark component overwritten.
         """
         l = self.__get_working_layer(in_place)
-        match (mark):
+        match mark:
             case Mark():
                 l._spec.mark = mark
             case "point" | "Point" | "POINT":
@@ -198,40 +198,40 @@ class Layer:
             else value
         )
         if position is not None:
-            assert isinstance(
-                position, (Position, str)
-            ), f"Unsupported position type: {type(position)}!"
+            assert isinstance(position, (Position, str)), (
+                f"Unsupported position type: {type(position)}!"
+            )
             l._spec.channels.append(convert(position, Position))
         if normal is not None:
-            assert isinstance(
-                normal, (Normal, str)
-            ), f"Unsupported normal type: {type(normal)}!"
+            assert isinstance(normal, (Normal, str)), (
+                f"Unsupported normal type: {type(normal)}!"
+            )
             l._spec.channels.append(convert(normal, Normal))
         if size is not None:
             if isinstance(size, (int, float)):
                 l._spec.channels.append(Size(data=float(size)))
             else:
-                assert isinstance(
-                    size, (Size, str)
-                ), f"Unsupported size type: {type(size)}!"
+                assert isinstance(size, (Size, str)), (
+                    f"Unsupported size type: {type(size)}!"
+                )
                 l._spec.channels.append(convert(size, Size))
         if shape is not None:
             if isinstance(shape, str):
                 l._spec.channels.append(Shape(base_shape=shape))
             else:
-                assert isinstance(
-                    shape, Shape
-                ), f"Unsupported shape type: {type(shape)}!"
+                assert isinstance(shape, Shape), (
+                    f"Unsupported shape type: {type(shape)}!"
+                )
                 l._spec.channels.append(shape)
         if vector_field is not None:
-            assert isinstance(
-                vector_field, (VectorField, str)
-            ), f"Unsupported vector_field type: {type(vector_field)}!"
+            assert isinstance(vector_field, (VectorField, str)), (
+                f"Unsupported vector_field type: {type(vector_field)}!"
+            )
             l._spec.channels.append(convert(vector_field, VectorField))
         if covariance is not None:
-            assert isinstance(
-                covariance, (Covariance, str)
-            ), f"Unsupported covariance type: {type(covariance)}!"
+            assert isinstance(covariance, (Covariance, str)), (
+                f"Unsupported covariance type: {type(covariance)}!"
+            )
             l._spec.channels.append(convert(covariance, Covariance))
         if material is not None:
             l._spec.channels.append(material)

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import numpy.typing as npt
 
+
 @dataclass(kw_only=True, slots=True)
 class Film:
     """Film dataclass stores specifications of the output image.
@@ -20,6 +21,7 @@ class Film:
     `file_format`, `pixel_format` and `component_format` are for advanced user only. The default
     values should work in most cases.
     """
+
     width: int = 1024
     height: int = 800
     file_format: str = "openexr"
@@ -27,4 +29,3 @@ class Film:
     component_format: str = "float16"
     crop_offset: npt.NDArray | None = None
     crop_size: npt.NDArray | None = None
-

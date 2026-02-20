@@ -1,8 +1,9 @@
-""" Turbo color map.
+"""Turbo color map.
 
 The colormap contained in this file is distributed under Apache-2.0 license.
 Source: https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html
 """
+
 import numpy as np
 from .colormap import ColorMap
 

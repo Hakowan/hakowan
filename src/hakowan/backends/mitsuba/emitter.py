@@ -1,4 +1,4 @@
-from ..setup.emitter import Emitter, Point, Envmap
+from ...setup.emitter import Emitter, Point, Envmap
 from .spectrum import generate_spectrum_config
 from .utils import rotation
 

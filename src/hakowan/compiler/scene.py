@@ -33,7 +33,7 @@ class Scene:
         return self
 
     def compute_global_transform(self):
-        """ Compute the global transformation matrix to fit all views in a unit sphere.
+        """Compute the global transformation matrix to fit all views in a unit sphere.
 
         The global transformation matrix is stored in each view.
         """

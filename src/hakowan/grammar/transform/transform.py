@@ -3,6 +3,11 @@ from typing import Callable, Optional
 import copy
 import numpy.typing as npt
 
+
+def _default_condition(x) -> bool:  # module-level so it is picklable
+    return True
+
+
 from ..scale import Attribute, AttributeLike
 
 
@@ -53,7 +58,7 @@ class Filter(Transform):
     """
 
     data: AttributeLike | None = None
-    condition: Callable = lambda x: True
+    condition: Callable = field(default=_default_condition)
 
 
 @dataclass(slots=True)
@@ -132,10 +137,11 @@ class Norm(Transform):
 
 @dataclass(slots=True)
 class Boundary(Transform):
-    """ Compute the boundary of a mesh.
+    """Compute the boundary of a mesh.
 
     Attributes:
         attributes: The attributes to take into account when computing the boundary.
             i.e. discontinuities in these attributes will be considered as boundaries.
     """
+
     attributes: list[str] = field(default_factory=list)

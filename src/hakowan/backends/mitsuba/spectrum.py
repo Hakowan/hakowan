@@ -1,4 +1,4 @@
-from ..common.color import Color
+from ...common.color import Color
 
 from typing import Any
 

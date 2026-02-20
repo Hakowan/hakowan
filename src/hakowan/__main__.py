@@ -71,6 +71,15 @@ def parse_args():
     parser.add_argument("--albedo", help="Render albedo", action="store_true")
     parser.add_argument("--depth", help="Render depth", action="store_true")
     parser.add_argument("--shading-normal", help="Render normal", action="store_true")
+    parser.add_argument(
+        "--facet-id",
+        help=(
+            "Render each facet colored by its index (RGB-encoded). "
+            "No gamma correction, no blending, no anti-aliasing. "
+            "Blender backend only."
+        ),
+        action="store_true",
+    )
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
@@ -87,6 +96,27 @@ def parse_args():
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
+    parser.add_argument(
+        "--backend",
+        choices=hkw.list_backends(),
+        default="mitsuba",
+        help="Rendering backend to use",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["debug", "info", "warning", "error"],
+        default="warning",
+        help="Logging level",
+    )
+    parser.add_argument("--serialize", help="Serialize the config", action="store_true")
+    parser.add_argument(
+        "--camera-matrix",
+        help=(
+            "Save the world-to-camera transform and intrinsic matrix to this file "
+            "(.npz or .json) for use in back-projecting pixels onto the mesh."
+        ),
+        default=None,
+    )
     return parser.parse_args()
 
 
@@ -150,7 +180,7 @@ def extract_material(scene: lagrange.scene.Scene):
     """
     mats = []
 
-    for material in scene.materials:
+    for mat_idx, material in enumerate(scene.materials):
         mat: hkw.material.Material
         tex_info = material.base_color_texture
         if tex_info.index is not None:
@@ -167,7 +197,10 @@ def extract_material(scene: lagrange.scene.Scene):
                     two_sided=True,
                 )
             else:
-                raise ValueError("Texture image not found")
+                raise ValueError(
+                    f"Material[{mat_idx}] '{material.name}': texture index "
+                    f"{tex_info.index} has no associated image data."
+                )
         elif "KHR_materials_pbrSpecularGlossiness" in material.extensions.data:
             pbr = material.extensions.data["KHR_materials_pbrSpecularGlossiness"]
             if "diffuseTexture" in pbr and "index" in pbr["diffuseTexture"]:
@@ -219,12 +252,119 @@ def embed_texture(glb_file):
     return np.sum(layers)
 
 
+def compute_camera_matrix(config) -> dict:
+    """Compute the world-to-camera view matrix and camera intrinsics.
+
+    Convention:
+      - Camera space: right-handed, camera looks down **-Z**, Y is up.
+      - Pixel space: (0, 0) at top-left, u increases right, v increases down.
+      - Back-projection of pixel (u, v) to a camera-space ray direction:
+            d_cam = normalize([(u - cx)/f, -(v - cy)/f, -1])
+        then rotate to world space with the 3x3 upper-left block of view_matrix^-1
+        (= view_matrix[:3,:3].T).
+
+    Args:
+        config: hakowan Config whose sensor/film are already fully configured.
+
+    Returns:
+        dict with keys:
+          view_matrix      – 4x4 float64 world-to-camera transform
+          intrinsic_matrix – 3x3 float64 K matrix (fx=fy, cx, cy)
+          camera_location  – (3,) world-space eye position
+          camera_target    – (3,) world-space look-at point
+          camera_up        – (3,) orthogonalised up vector in world space
+          fov_deg          – scalar FOV applied to the shorter image dimension
+          width, height    – image dimensions (int32)
+    """
+    sensor = config.sensor
+    eye = np.asarray(sensor.location, dtype=np.float64)
+    target = np.asarray(getattr(sensor, "target", [0.0, 0.0, 0.0]), dtype=np.float64)
+    up_hint = np.asarray(getattr(sensor, "up", [0.0, 1.0, 0.0]), dtype=np.float64)
+
+    # Orthonormal camera basis
+    fwd = target - eye
+    fwd /= np.linalg.norm(fwd)
+    right = np.cross(fwd, up_hint)
+    right /= np.linalg.norm(right)
+    up = np.cross(right, fwd)  # guaranteed orthogonal to both
+
+    # 4x4 view matrix  (world → camera, camera looks down -Z)
+    # [ right  | -dot(right, eye) ]
+    # [ up     | -dot(up, eye)    ]
+    # [ -fwd   |  dot(fwd, eye)   ]
+    # [ 0 0 0  |  1               ]
+    view = np.array(
+        [
+            [right[0], right[1], right[2], -np.dot(right, eye)],
+            [up[0], up[1], up[2], -np.dot(up, eye)],
+            [-fwd[0], -fwd[1], -fwd[2], np.dot(fwd, eye)],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    # Intrinsic matrix K  (FOV applies to the shorter image dimension)
+    width = config.film.width
+    height = config.film.height
+    fov_deg = float(getattr(sensor, "fov", 28.8415))
+    f = (min(width, height) / 2.0) / math.tan(math.radians(fov_deg) / 2.0)
+    cx, cy = width / 2.0, height / 2.0
+    K = np.array([[f, 0.0, cx], [0.0, f, cy], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+    return {
+        "view_matrix": view,
+        "intrinsic_matrix": K,
+        "camera_location": eye,
+        "camera_target": target,
+        "camera_up": up,
+        "fov_deg": np.float64(fov_deg),
+        "width": np.int32(width),
+        "height": np.int32(height),
+    }
+
+
+def save_camera_matrix(data: dict, output_path: Path):
+    """Save camera matrix data produced by compute_camera_matrix.
+
+    Supported formats (determined by file extension):
+      .npz  – NumPy compressed archive (default / recommended)
+      .json – JSON for interoperability with non-Python tools
+    """
+    suffix = output_path.suffix.lower()
+    if suffix == ".json":
+        import json
+
+        def _to_python(v):
+            if isinstance(v, np.ndarray):
+                return v.tolist()
+            if isinstance(v, (np.integer,)):
+                return int(v)
+            if isinstance(v, (np.floating,)):
+                return float(v)
+            return v
+
+        output_path.write_text(
+            json.dumps({k: _to_python(v) for k, v in data.items()}, indent=2)
+        )
+    else:
+        # Ensure the file has the .npz extension that numpy requires.
+        out = (
+            output_path
+            if output_path.suffix.lower() == ".npz"
+            else output_path.with_suffix(".npz")
+        )
+        np.savez(str(out), **data)
+
+
 def main():
     """
     Entry point for the command-line interface for mesh rendering.
     Parses command-line arguments and orchestrates the mesh rendering process.
     """
     args = parse_args()
+
+    hkw.logger.setLevel(args.log_level.upper())
+    lagrange.logger.setLevel(args.log_level.upper())
 
     mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
     bbox_min = np.amin(mesh.vertices, axis=0)
@@ -504,14 +644,31 @@ def main():
         config.depth = True
     if args.shading_normal:
         config.normal = True
+    if args.facet_id:
+        config.facet_id = True
 
     if args.output:
         output_file = Path(args.output)
     else:
         output_file = Path(args.input_mesh).with_suffix(".png")
 
+    if args.camera_matrix:
+        cam_data = compute_camera_matrix(config)
+        save_camera_matrix(cam_data, Path(args.camera_matrix))
+
     if args.turn_table == 0:
-        hkw.render(layer, config, filename=output_file)
+        kwargs = {}
+        if args.serialize:
+            kwargs["yaml_file"] = output_file.with_suffix(".yaml")
+            if args.backend == "blender":
+                kwargs["blend_file"] = output_file.with_suffix(".blend")
+        hkw.render(
+            layer,
+            config,
+            filename=output_file,
+            backend=args.backend,
+            **kwargs,
+        )
     else:
         if args.z_up:
             axis = [0, 0, 1]
@@ -521,7 +678,7 @@ def main():
         for i in range(args.turn_table):
             frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
             frame_file = output_file.with_stem(f"{output_file.stem}_{i:03d}")
-            hkw.render(frame, config, filename=frame_file)
+            hkw.render(frame, config, filename=frame_file, backend=args.backend)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ class Sampler:
         sample_count: Number of samples per pixel.
         seed: Seed for random number generate.
     """
+
     sample_count: int = 256  # Samples per pixel.
     seed: int = 0
 
@@ -23,6 +24,7 @@ class Independent(Sampler):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_samplers.html#independent-sampler-independent)
         for more details.
     """
+
     pass
 
 
@@ -38,4 +40,5 @@ class Stratified(Sampler):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_samplers.html#stratified-sampler-stratified)
         for more details.
     """
+
     jitter: bool = True

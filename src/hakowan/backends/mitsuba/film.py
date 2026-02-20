@@ -1,4 +1,4 @@
-from ..setup.film import Film
+from ...setup.film import Film
 
 import mitsuba as mi
 

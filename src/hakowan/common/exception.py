@@ -1,4 +1,4 @@
-""" Hakowan-specific exceptions. """
+"""Hakowan-specific exceptions."""
 
 
 class InvalidSetting(Exception):

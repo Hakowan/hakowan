@@ -1,8 +1,9 @@
-""" Coolwarm color map.
+"""Coolwarm color map.
 
 The colormap contained in this file is distributed under a BSD license.
 Source: http://www.kennethmoreland.com/color-advice/
 """
+
 import numpy as np
 from .colormap import ColorMap
 

@@ -173,12 +173,14 @@ def _apply_normalize(data: npt.NDArray, scale: Normalize):
 
 
 def _apply_log(data: npt.NDArray, scale: Log):
-    assert not np.issubdtype(
-        data.dtype, np.integer
-    ), "Log scale cannot be applied to integer data"
+    assert not np.issubdtype(data.dtype, np.integer), (
+        "Log scale cannot be applied to integer data"
+    )
     assert data.ndim == 1 or data.shape[1] == 1
     if np.min(data) < 0:
-        logger.warning("Input to Log scale contains negative values. Taking the absolute value.")
+        logger.warning(
+            "Input to Log scale contains negative values. Taking the absolute value."
+        )
         data[:] = np.abs(data)
     if np.min(data) == 0:
         logger.warning("Input to Log scale contains 0. Adding a small epsilon.")
@@ -303,9 +305,9 @@ def _apply_scale_indexed_attribute(df: DataFrame, attr_name: str, attr_scale: Sc
 
 def _apply_scale(df: DataFrame, attr_name: str, attr_scale: Scale):
     mesh = df.mesh
-    assert mesh.has_attribute(
-        attr_name
-    ), f"Attribute {attr_name} does not exist in the mesh"
+    assert mesh.has_attribute(attr_name), (
+        f"Attribute {attr_name} does not exist in the mesh"
+    )
 
     if mesh.is_attribute_indexed(attr_name):
         _apply_scale_indexed_attribute(df, attr_name, attr_scale)

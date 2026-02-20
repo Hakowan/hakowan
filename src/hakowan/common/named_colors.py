@@ -1,7 +1,8 @@
-""" Named color module """
+"""Named color module"""
+
 from .color import Color
 
-css_colors : dict[str, Color] = {
+css_colors: dict[str, Color] = {
     "aliceblue": Color.from_hex("#f0f8ff"),
     "antiquewhite": Color.from_hex("#faebd7"),
     "aqua": Color.from_hex("#00ffff"),

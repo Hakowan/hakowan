@@ -1,11 +1,11 @@
 from .bsdf import generate_bsdf_config
 from .base_shapes import create_icosphere, create_disk
 from .medium import generate_medium_config
-from ..common import logger
-from ..compiler import View
-from ..grammar.scale import Attribute
-from ..grammar.channel.curvestyle import Bend
-from ..grammar.channel.material import Dielectric
+from ...common import logger
+from ...compiler import View
+from ...grammar.scale import Attribute
+from ...grammar.channel.curvestyle import Bend
+from ...grammar.channel.material import Dielectric
 from .utils import rotation
 
 from typing import Any
@@ -79,7 +79,7 @@ def extract_transform_from_covariances(view: View):
         return attr.data.reshape(-1, 3, 3)
 
 
-def generate_point_config(view: View, stamp: str, index: int):
+def generate_point_config(view: View, stamp: str, index: int) -> dict:
     """Generate point cloud shapes from a View.
 
     Args:
@@ -269,9 +269,9 @@ def extract_vector_field(view: View):
             assert direction._internal_name is not None
             assert mesh.has_attribute(direction._internal_name)
             dir_attr = mesh.attribute(direction._internal_name)
-            assert (
-                dir_attr.element_type == attr.element_type
-            ), "Direction attribute must have the same element type as vector field attribute."
+            assert dir_attr.element_type == attr.element_type, (
+                "Direction attribute must have the same element type as vector field attribute."
+            )
             dirs = dir_attr.data
             assert np.all(dirs.shape == base.shape)
 
@@ -368,7 +368,7 @@ def extract_edges(view: View):
     return [base, tip, base_size, tip_size]
 
 
-def generate_curve_config(view: View, stamp: str, index: int):
+def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
@@ -472,7 +472,7 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
         # Note that we will keep attr._internal_name the same.
 
 
-def generate_surface_config(view: View, stamp: str, index: int):
+def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     """Generate the mitsuba config for a mesh.
 
     It does the following things:
@@ -517,7 +517,6 @@ def generate_surface_config(view: View, stamp: str, index: int):
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"
     logger.debug(f"Saving mesh to '{str(filename)}'.")
     lagrange.io.save_mesh(filename, mesh)  # type: ignore
-
 
     mi_config = {
         "type": "ply",

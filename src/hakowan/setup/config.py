@@ -19,17 +19,24 @@ class Config:
         sampler: Sampler settings.
         emitters: Emitter settings.
         integrator: Integrator settings.
-        albedo: Whether to render albedo (i.e. without shading).
-        depth: Whether to render depth.
+        render_passes: Set of active render passes.  Recognised values:
+
+            - ``"albedo"``    – diffuse color without shading.
+            - ``"depth"``     – depth buffer.
+            - ``"normal"``    – shading-normal pass.
+            - ``"facet_id"``  – per-face index encoded as RGB (Blender only).
+
+            The convenience properties :attr:`albedo`, :attr:`depth`,
+            :attr:`normal`, and :attr:`facet_id` are thin aliases that add or
+            remove the corresponding string from this set.
     """
+
     sensor: Sensor = field(default_factory=Perspective)
     film: Film = field(default_factory=Film)
     sampler: Sampler = field(default_factory=Independent)
     emitters: list[Emitter] = field(default_factory=lambda: [Envmap()])
     integrator: Integrator = field(default_factory=Path)
-    _albedo: bool = False
-    _depth: bool = False
-    _normal: bool = False
+    _render_passes: set[str] = field(default_factory=set)
 
     def z_up(self):
         """Update configuration for z-up coordinate system."""
@@ -56,7 +63,7 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, 1, 0])
-                emitter.rotation = 180
+                emitter.rotation = 180.0
 
     def y_down(self):
         """Update configuration for y-down coordinate system."""
@@ -65,73 +72,129 @@ class Config:
         for emitter in self.emitters:
             if isinstance(emitter, Envmap):
                 emitter.up = np.array([0, -1, 0])
-                emitter.rotation = 180
+                emitter.rotation = 180.0
+
+    # ------------------------------------------------------------------ #
+    # render_passes – primary interface                                    #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def render_passes(self) -> set[str]:
+        """Set of active render passes.
+
+        Valid pass names are ``"albedo"``, ``"depth"``, ``"normal"``, and
+        ``"facet_id"``.  Assigning a new collection replaces the entire set
+        and re-synchronises the Mitsuba AOV integrator accordingly.
+
+        Example::
+
+            config.render_passes = {"albedo", "depth"}
+        """
+        return self._render_passes
+
+    @render_passes.setter
+    def render_passes(self, value: set[str] | list[str]):
+        """Replace the active render-pass set and re-sync AOV integrator."""
+        self._render_passes = set(value)
+        self.__sync_aovs()
+
+    # ------------------------------------------------------------------ #
+    # Convenience boolean aliases                                          #
+    # ------------------------------------------------------------------ #
 
     @property
     def albedo(self) -> bool:
-        """Whether to render albedo (i.e. without shading)."""
-        return self._albedo
+        """Whether the albedo pass is active.  Alias for ``"albedo" in render_passes``."""
+        return "albedo" in self._render_passes
 
     @albedo.setter
     def albedo(self, value: bool):
-        """Whether to render albedo (i.e. without shading).
-
-        Note that this setting will modify Config.integrator property.
-        """
-        self._albedo = value
-        if self._albedo:
-            self.__add_aov("albedo:albedo")
+        """Add or remove the albedo pass.  Also updates the Mitsuba AOV integrator."""
+        if value:
+            self._render_passes.add("albedo")
         else:
-            self.__reset_aov()
+            self._render_passes.discard("albedo")
+        self.__sync_aovs()
 
     @property
     def depth(self) -> bool:
-        """Whether to render depth."""
-        return self._depth
+        """Whether the depth pass is active.  Alias for ``"depth" in render_passes``."""
+        return "depth" in self._render_passes
 
     @depth.setter
     def depth(self, value: bool):
-        """Whether to render depth.
-
-        Note that this setting will modify Config.integrator property.
-        """
-        self._depth = value
-        if self._depth:
-            self.__add_aov("depth:depth")
+        """Add or remove the depth pass.  Also updates the Mitsuba AOV integrator."""
+        if value:
+            self._render_passes.add("depth")
         else:
-            self.__reset_aov()
+            self._render_passes.discard("depth")
+        self.__sync_aovs()
 
     @property
     def normal(self) -> bool:
-        """Whether to render normal."""
-        return self._normal
+        """Whether the shading-normal pass is active.  Alias for ``"normal" in render_passes``."""
+        return "normal" in self._render_passes
 
     @normal.setter
     def normal(self, value: bool):
-        """Whether to render normal.
-
-        Note that this setting will modify Config.integrator property.
-        """
-        self._normal = value
-        if self._normal:
-            self.__add_aov("sh_normal:sh_normal")
+        """Add or remove the normal pass.  Also updates the Mitsuba AOV integrator."""
+        if value:
+            self._render_passes.add("normal")
         else:
-            self.__reset_aov()
+            self._render_passes.discard("normal")
+        self.__sync_aovs()
 
-    def __add_aov(self, aov: str):
-        """ Add an AOV to the integrator.
+    @property
+    def facet_id(self) -> bool:
+        """Whether the facet-ID pass is active.  Alias for ``"facet_id" in render_passes``.
 
-        An AOV integrator is created if one does not already exist. Otherwise, the specific output
-        variable will be added to the existing AOV integrator.
+        When active the Blender backend performs a second render after the
+        main one.  Every mesh face is colored with the RGB encoding of its
+        zero-based index (R = high byte, G = mid byte, B = low byte) using a
+        flat Emission shader so lighting has no effect.  The output is written
+        to ``<stem>_facet_id<ext>`` with gamma correction, temporal blending,
+        and pixel filtering all disabled so pixel values can be decoded
+        directly::
+
+            fid = (R << 16) | (G << 8) | B
+
+        Background pixels have ``A = 0`` and can be masked out.  Supports up
+        to 2**24 − 1 ≈ 16.7 M faces.
         """
-        if not isinstance(self.integrator, AOV):
-            self.integrator = AOV(aovs=[aov], integrator=self.integrator)
-        elif aov not in self.integrator.aovs:
-            self.integrator.aovs.append(aov)
+        return "facet_id" in self._render_passes
 
-    def __reset_aov(self):
+    @facet_id.setter
+    def facet_id(self, value: bool):
+        """Add or remove the facet-ID pass."""
+        if value:
+            self._render_passes.add("facet_id")
+        else:
+            self._render_passes.discard("facet_id")
+
+    # ------------------------------------------------------------------ #
+    # Internal helpers                                                     #
+    # ------------------------------------------------------------------ #
+
+    def __sync_aovs(self):
+        """Rebuild the Mitsuba AOV integrator from the current render-pass set.
+
+        Strips any existing AOV wrapper and re-adds only the passes that are
+        currently active, ensuring the integrator always reflects the exact
+        state of ``_render_passes``.
+        """
+        # Strip the AOV wrapper (if any) to start from the base integrator.
         if isinstance(self.integrator, AOV):
-            if self.integrator.integrator is not None:
-                self.integrator = self.integrator.integrator
-            else:
-                self.integrator = Path()
+            self.integrator = self.integrator.integrator or Path()
+
+        # Re-add AOVs for every active pass that has a Mitsuba counterpart.
+        _pass_to_aov = {
+            "albedo": "albedo:albedo",
+            "depth": "depth:depth",
+            "normal": "sh_normal:sh_normal",
+        }
+        for pass_name, aov_str in _pass_to_aov.items():
+            if pass_name in self._render_passes:
+                if not isinstance(self.integrator, AOV):
+                    self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
+                elif aov_str not in self.integrator.aovs:
+                    self.integrator.aovs.append(aov_str)

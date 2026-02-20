@@ -3,8 +3,6 @@ import hakowan as hkw
 from hakowan import channel, dataframe, layer, scale
 import lagrange
 
-from .asset import triangle
-
 
 class TestLayer:
     def test_empty_layer(self):
@@ -22,7 +20,7 @@ class TestLayer:
         assert l0 in l1._children
 
         position = hkw.attribute(name="position")
-        l2 = l0.channel(position = hkw.channel.Position(data=position))
+        l2 = l0.channel(position=hkw.channel.Position(data=position))
         assert l0 in l2._children
 
         l = l1 + l2

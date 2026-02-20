@@ -1,9 +1,10 @@
-""" Accent color map.
+"""Accent color map.
 
 This file contains colormaps proposed by ColorBrewer (v1.0) project.
 
 Source: https://colorbrewer2.org/
 """
+
 import numpy as np
 from .colormap import ColorMap
 from ..color import Color

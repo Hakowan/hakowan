@@ -40,13 +40,13 @@ def _apply_filter_transform(view: View, transform: Filter):
     attr_name = transform.data.name
     if transform.data.scale is not None:
         logger.warning("Attribute scale is ignored when applying transform.")
-    assert mesh.has_attribute(
-        attr_name
-    ), f"Attribute {attr_name} does not exist in data"
+    assert mesh.has_attribute(attr_name), (
+        f"Attribute {attr_name} does not exist in data"
+    )
     attr = mesh.attribute(attr_name)
     keep = [transform.condition(value) for value in attr.data]
 
-    match (attr.element_type):
+    match attr.element_type:
         case lagrange.AttributeElement.Facet:
             selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[keep]
             df.mesh = lagrange.extract_submesh(
@@ -315,7 +315,7 @@ def apply_transform(view: View):
             return
         _apply(t._child)
 
-        match (t):
+        match t:
             case Filter():
                 assert view.data_frame is not None
                 _apply_filter_transform(view, t)

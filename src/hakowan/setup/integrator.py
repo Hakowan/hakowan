@@ -8,6 +8,7 @@ class Integrator:
     Attributes:
         hide_emitters: Whether to hide emitters from the camera.
     """
+
     hide_emitters: bool = True
 
 
@@ -25,6 +26,7 @@ class Direct(Integrator):
         [Mitsuba doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#direct-illumination-integrator-direct)
         for more details.
     """
+
     shading_samples: int | None = None
     emitter_samples: int | None = None
     bsdf_samples: int | None = None
@@ -45,6 +47,7 @@ class Path(Integrator):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#path-tracer-path)
         for more details.
     """
+
     max_depth: int = -1
     rr_depth: int = 5
 
@@ -63,6 +66,7 @@ class AOV(Integrator):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#arbitrary-output-variables-integrator-aov)
         for supported AOV types and other details.
     """
+
     aovs: list[str]
     integrator: Integrator | None = None
 
@@ -85,8 +89,10 @@ class VolPath(Integrator):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#volumetric-path-tracer-volpath)
         for more details.
     """
+
     max_depth: int = -1
     rr_depth: int = 5
+
 
 @dataclass(kw_only=True, slots=True)
 class VolPathMIS(Integrator):
@@ -102,5 +108,6 @@ class VolPathMIS(Integrator):
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#volumetric-path-tracer-with-spectral-mis-volpathmis)
         for more details.
     """
+
     max_depth: int = -1
     rr_depth: int = 5

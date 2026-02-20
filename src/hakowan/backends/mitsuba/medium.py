@@ -1,6 +1,6 @@
 from .color import generate_color_config
-from ..compiler import View
-from ..grammar.channel.material import Dielectric
+from ...compiler import View
+from ...grammar.channel.material import Dielectric
 
 from typing import Any
 from numpy.linalg import norm

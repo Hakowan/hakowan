@@ -10,14 +10,25 @@ readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "lagrange-open>=6.39",
-    "mitsuba~=3.7",
+    "lagrange-open>=6.40",
     "numpy>=1.22",
-    "Pillow~=11.0"
-    ]
+    "Pillow~=11.0",
+    "PyYAML>=6.0",
+    "mitsuba~=3.7",
+    "bpy>=5.0.1,<6; python_version == '3.11'",
+]
 requires-python = ">=3.10"
 
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
 
-[mypy]
-plugins = "numpy.typing.mypy_plugin"
-follow_imports = "skip"
+[tool.pixi.pypi-dependencies]
+hakowan = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+
+[tool.pixi.dependencies]
+python = "==3.11"
+dicttoxml = ">=1.7.16,<2"

@@ -1,5 +1,4 @@
-""" Default parameters
-"""
+"""Default parameters"""
 
 DEFAULT_POSITION = "@geometry"
 DEFAULT_UV = "@uv"

@@ -231,7 +231,7 @@ class View:
             channel.data = Attribute(name=channel.data)
         assert isinstance(channel.data, (Attribute, float))
 
-        match (channel.data):
+        match channel.data:
             case Attribute():
                 assert self.data_frame is not None
                 attr = channel.data

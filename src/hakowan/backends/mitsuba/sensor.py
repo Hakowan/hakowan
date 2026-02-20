@@ -1,4 +1,4 @@
-from ..setup.sensor import Sensor, Perspective, Orthographic, ThinLens
+from ...setup.sensor import Sensor, Perspective, Orthographic, ThinLens
 
 import mitsuba as mi
 import numpy as np
