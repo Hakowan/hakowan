@@ -10,7 +10,7 @@ readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "lagrange-open>=6.39",
+    "lagrange-open>=6.40",
     "numpy>=1.22",
     "Pillow~=11.0",
     "PyYAML>=6.0",
@@ -18,16 +18,6 @@ dependencies=[
     "bpy>=5.0.1,<6; python_version == '3.11'",
 ]
 requires-python = ">=3.10"
-
-[project.optional-dependencies]
-mitsuba = []
-blender = []
-all = []
-
-
-[mypy]
-plugins = "numpy.typing.mypy_plugin"
-follow_imports = "skip"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -38,11 +28,6 @@ hakowan = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
-all = { features = ["all"], solve-group = "default" }
-blender = { features = ["blender"], solve-group = "default" }
-mitsuba = { features = ["mitsuba"], solve-group = "default" }
-
-[tool.pixi.tasks]
 
 [tool.pixi.dependencies]
 python = "==3.11"
