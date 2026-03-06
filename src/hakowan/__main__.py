@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 import uuid
 import tempfile
+from tqdm import tqdm
 
 
 def parse_args():
@@ -95,6 +96,7 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
+    parser.add_argument("--quad-only", help="Only render quad facets", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
         "--backend",
@@ -367,6 +369,19 @@ def main():
     lagrange.logger.setLevel(args.log_level.upper())
 
     mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
+
+    if args.quad_only:
+        # Filter to only keep quad facets
+        facets_to_keep = []
+        for fid in range(mesh.num_facets):
+            if mesh.get_facet_size(fid) == 4:
+                facets_to_keep.append(fid)
+
+        if len(facets_to_keep) == 0:
+            raise ValueError("No quad facets found in mesh")
+
+        mesh = lagrange.extract_submesh(mesh, np.array(facets_to_keep))
+
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
     bbox_size = bbox_max - bbox_min
@@ -678,12 +693,20 @@ def main():
         # Render frames to temporary files
         frames = []
         temp_files = []
-        for i in range(args.turn_table):
+        for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
             frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
             frame_file = get_tmp_image_name()
             temp_files.append(frame_file)
             hkw.render(frame, config, filename=frame_file, backend=args.backend)
-            frames.append(Image.open(frame_file))
+            # Load frame and ensure solid white background
+            img = Image.open(frame_file)
+            if img.mode == 'RGBA':
+                # Create a white background
+                white_bg = Image.new('RGB', img.size, (255, 255, 255))
+                white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                frames.append(white_bg)
+            else:
+                frames.append(img.convert('RGB'))
 
         # Save as animated GIF
         gif_file = output_file.with_suffix(".gif")
