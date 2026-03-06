@@ -675,10 +675,29 @@ def main():
         else:
             axis = [0, 1, 0]
 
+        # Render frames to temporary files
+        frames = []
+        temp_files = []
         for i in range(args.turn_table):
             frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
-            frame_file = output_file.with_stem(f"{output_file.stem}_{i:03d}")
+            frame_file = get_tmp_image_name()
+            temp_files.append(frame_file)
             hkw.render(frame, config, filename=frame_file, backend=args.backend)
+            frames.append(Image.open(frame_file))
+
+        # Save as animated GIF
+        gif_file = output_file.with_suffix(".gif")
+        frames[0].save(
+            gif_file,
+            save_all=True,
+            append_images=frames[1:],
+            duration=100,  # milliseconds per frame
+            loop=0,
+        )
+
+        # Clean up temporary files
+        for temp_file in temp_files:
+            temp_file.unlink()
 
 
 if __name__ == "__main__":
