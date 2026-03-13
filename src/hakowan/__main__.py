@@ -686,18 +686,51 @@ def main():
         )
     else:
         if args.z_up:
-            axis = [0, 0, 1]
+            axis = np.array([0, 0, 1], dtype=float)
         else:
-            axis = [0, 1, 0]
+            axis = np.array([0, 1, 0], dtype=float)
+
+        # Get initial camera position in normalized coordinates
+        # (object is at origin with bounding radius 1)
+        initial_camera = np.array(config.sensor.location, dtype=float)
 
         # Render frames to temporary files
         frames = []
         temp_files = []
         for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
-            frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
+            # Rotate camera position around origin in normalized coordinates
+            angle = i * 2 * math.pi / args.turn_table
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+
+            # Rodrigues' rotation formula to rotate camera position around axis
+            rotated_camera = (
+                initial_camera * cos_a +
+                np.cross(axis, initial_camera) * sin_a +
+                axis * np.dot(axis, initial_camera) * (1 - cos_a)
+            )
+
+            # Update camera position for this frame
+            frame_config = hkw.config()
+            frame_config.film.width = config.film.width
+            frame_config.film.height = config.film.height
+            if args.z_up:
+                frame_config.z_up()
+            frame_config.sensor.location = list(rotated_camera)
+            frame_config.sensor.target = [0.0, 0.0, 0.0]  # Look at origin
+
+            if args.albedo:
+                frame_config.albedo = True
+            if args.depth:
+                frame_config.depth = True
+            if args.shading_normal:
+                frame_config.normal = True
+            if args.facet_id:
+                frame_config.facet_id = True
+
             frame_file = get_tmp_image_name()
             temp_files.append(frame_file)
-            hkw.render(frame, config, filename=frame_file, backend=args.backend)
+            hkw.render(layer, frame_config, filename=frame_file, backend=args.backend)
             # Load frame and ensure solid white background
             img = Image.open(frame_file)
             if img.mode == 'RGBA':
