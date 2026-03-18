@@ -697,63 +697,64 @@ def main():
         # Render frames to temporary files
         frames = []
         temp_files = []
-        for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
-            # Rotate camera position around origin in normalized coordinates
-            angle = i * 2 * math.pi / args.turn_table
-            cos_a = math.cos(angle)
-            sin_a = math.sin(angle)
+        try:
+            for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
+                # Rotate camera position around origin in normalized coordinates
+                angle = i * 2 * math.pi / args.turn_table
+                cos_a = math.cos(angle)
+                sin_a = math.sin(angle)
 
-            # Rodrigues' rotation formula to rotate camera position around axis
-            rotated_camera = (
-                initial_camera * cos_a +
-                np.cross(axis, initial_camera) * sin_a +
-                axis * np.dot(axis, initial_camera) * (1 - cos_a)
+                # Rodrigues' rotation formula to rotate camera position around axis
+                rotated_camera = (
+                    initial_camera * cos_a +
+                    np.cross(axis, initial_camera) * sin_a +
+                    axis * np.dot(axis, initial_camera) * (1 - cos_a)
+                )
+
+                # Update camera position for this frame
+                frame_config = hkw.config()
+                frame_config.film.width = config.film.width
+                frame_config.film.height = config.film.height
+                if args.z_up:
+                    frame_config.z_up()
+                frame_config.sensor.location = list(rotated_camera)
+                frame_config.sensor.target = [0.0, 0.0, 0.0]  # Look at origin
+
+                if args.albedo:
+                    frame_config.albedo = True
+                if args.depth:
+                    frame_config.depth = True
+                if args.shading_normal:
+                    frame_config.normal = True
+                if args.facet_id:
+                    frame_config.facet_id = True
+
+                frame_file = get_tmp_image_name()
+                temp_files.append(frame_file)
+                hkw.render(layer, frame_config, filename=frame_file, backend=args.backend)
+                # Load frame and ensure solid white background
+                with Image.open(frame_file) as img:
+                    if img.mode == 'RGBA':
+                        # Create a white background
+                        white_bg = Image.new('RGB', img.size, (255, 255, 255))
+                        white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                        frames.append(white_bg)
+                    else:
+                        frames.append(img.convert('RGB'))
+
+            # Save as animated GIF
+            gif_file = output_file.with_suffix(".gif")
+            frames[0].save(
+                gif_file,
+                save_all=True,
+                append_images=frames[1:],
+                duration=100,  # milliseconds per frame
+                loop=0,
             )
-
-            # Update camera position for this frame
-            frame_config = hkw.config()
-            frame_config.film.width = config.film.width
-            frame_config.film.height = config.film.height
-            if args.z_up:
-                frame_config.z_up()
-            frame_config.sensor.location = list(rotated_camera)
-            frame_config.sensor.target = [0.0, 0.0, 0.0]  # Look at origin
-
-            if args.albedo:
-                frame_config.albedo = True
-            if args.depth:
-                frame_config.depth = True
-            if args.shading_normal:
-                frame_config.normal = True
-            if args.facet_id:
-                frame_config.facet_id = True
-
-            frame_file = get_tmp_image_name()
-            temp_files.append(frame_file)
-            hkw.render(layer, frame_config, filename=frame_file, backend=args.backend)
-            # Load frame and ensure solid white background
-            img = Image.open(frame_file)
-            if img.mode == 'RGBA':
-                # Create a white background
-                white_bg = Image.new('RGB', img.size, (255, 255, 255))
-                white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
-                frames.append(white_bg)
-            else:
-                frames.append(img.convert('RGB'))
-
-        # Save as animated GIF
-        gif_file = output_file.with_suffix(".gif")
-        frames[0].save(
-            gif_file,
-            save_all=True,
-            append_images=frames[1:],
-            duration=100,  # milliseconds per frame
-            loop=0,
-        )
-
-        # Clean up temporary files
-        for temp_file in temp_files:
-            temp_file.unlink()
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
+                temp_file.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

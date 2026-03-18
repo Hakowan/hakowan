@@ -851,14 +851,16 @@ class BlenderBackend(RenderBackend):
                 bsdf.inputs["Roughness"].default_value = 0.0
 
             case RoughDielectric():
-                bsdf.inputs["Transmission Weight"].default_value = 1.0
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
                 bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
                 alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
                 bsdf.inputs["Roughness"].default_value = float(alpha)
                 bsdf.inputs["Metallic"].default_value = 0.0
 
             case Dielectric():
-                bsdf.inputs["Transmission Weight"].default_value = 1.0
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
                 bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
                 bsdf.inputs["Roughness"].default_value = 0.0
                 bsdf.inputs["Metallic"].default_value = 0.0
@@ -987,9 +989,8 @@ class BlenderBackend(RenderBackend):
         output.location = (200, 0)
         links.new(mix.outputs["Shader"], output.inputs["Surface"])
 
+        # Thin dielectric is inherently two-sided
         mat.use_backface_culling = False
-        if mat_data.two_sided:
-            mat.use_backface_culling = False
 
         return mat
 
