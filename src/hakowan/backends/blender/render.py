@@ -961,10 +961,11 @@ class BlenderBackend(RenderBackend):
         transparent = nodes.new(type="ShaderNodeBsdfTransparent")
         transparent.location = (-200, 100)
 
-        # Glossy BSDF: Fresnel reflections on the surface
-        glossy = nodes.new(type="ShaderNodeBsdfGlossy")
-        glossy.location = (-200, -100)
-        glossy.inputs["Roughness"].default_value = 0.0
+        # Glass BSDF: reflection + refraction for a thicker glass appearance
+        glass = nodes.new(type="ShaderNodeBsdfGlass")
+        glass.location = (-200, -100)
+        glass.inputs["Roughness"].default_value = 0.0
+        glass.inputs["IOR"].default_value = ior
 
         # Fresnel node drives the mix based on viewing angle and IOR
         fresnel = nodes.new(type="ShaderNodeFresnel")
@@ -978,12 +979,12 @@ class BlenderBackend(RenderBackend):
         links.new(fresnel.outputs["Fac"], scale.inputs[0])
         scale.inputs[1].default_value = mat_data.specular_reflectance
 
-        # Mix Shader: factor=0 → transparent, factor=1 → glossy
+        # Mix Shader: factor=0 → transparent, factor=1 → glass
         mix = nodes.new(type="ShaderNodeMixShader")
         mix.location = (0, 0)
         links.new(scale.outputs["Value"], mix.inputs["Fac"])
         links.new(transparent.outputs["BSDF"], mix.inputs[1])
-        links.new(glossy.outputs["BSDF"], mix.inputs[2])
+        links.new(glass.outputs["BSDF"], mix.inputs[2])
 
         output = nodes.new(type="ShaderNodeOutputMaterial")
         output.location = (200, 0)

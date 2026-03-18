@@ -397,7 +397,7 @@ def main():
         case "roughplastic":
             layer = layer.material("RoughPlastic", args.color, two_sided=args.two_sided)
         case "glass":
-            layer = layer.material("ThinDielectric", specular_reflectance=0.1)
+            layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
             assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
                 f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
