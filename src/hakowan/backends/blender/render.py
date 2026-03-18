@@ -5,10 +5,17 @@ from ...compiler import Scene, View
 from ...setup import Config
 from ...grammar import mark
 from ...grammar.channel.material import (
+    Conductor,
+    Dielectric,
     Diffuse,
+    Hair,
     Plastic,
     Principled,
+    RoughConductor,
+    RoughDielectric,
     RoughPlastic,
+    ThinDielectric,
+    ThinPrincipled,
 )
 from ...grammar.scale import Attribute
 from ...grammar.texture import ScalarField
@@ -25,12 +32,14 @@ import mathutils
 
 
 class BlenderBackend(RenderBackend):
-    """Blender rendering backend with minimal features.
+    """Blender rendering backend.
 
     Currently supports:
     - Surface marks (meshes)
     - Curve marks (edges and vector fields)
-    - Basic materials: Diffuse, Plastic, RoughPlastic, Principled
+    - Materials: Diffuse, Plastic, RoughPlastic, Principled, ThinPrincipled,
+      Conductor, RoughConductor, Dielectric, ThinDielectric, RoughDielectric, Hair
+    - Two-sided materials
     - Camera setup
     - Basic lighting
     """
@@ -711,6 +720,45 @@ class BlenderBackend(RenderBackend):
 
         logger.debug(f"Created curve object {index} with {n_segments} segments")
 
+    # Approximate base colors for common Mitsuba conductor presets.
+    _conductor_colors: dict[str, tuple[float, float, float]] = {
+        "Au": (1.0, 0.78, 0.34),
+        "Ag": (0.97, 0.96, 0.91),
+        "Cu": (0.95, 0.64, 0.54),
+        "Al": (0.91, 0.92, 0.92),
+        "Fe": (0.56, 0.57, 0.58),
+        "Cr": (0.55, 0.55, 0.55),
+        "Pt": (0.67, 0.64, 0.59),
+        "W": (0.50, 0.50, 0.50),
+        "Ti": (0.62, 0.58, 0.54),
+        "Ni": (0.66, 0.63, 0.58),
+        "V": (0.55, 0.55, 0.55),
+        "none": (0.8, 0.8, 0.8),
+    }
+
+    # Common IOR values for named Mitsuba dielectric presets.
+    _ior_presets: dict[str, float] = {
+        "vacuum": 1.0,
+        "air": 1.000277,
+        "water": 1.333,
+        "ice": 1.31,
+        "glass": 1.5,
+        "bk7": 1.5046,
+        "diamond": 2.419,
+        "fused_quartz": 1.458,
+        "polycarbonate": 1.584,
+        "acrylic": 1.49,
+        "sodium_chloride": 1.544,
+        "amber": 1.55,
+        "pet": 1.575,
+    }
+
+    def _resolve_ior(self, ior: str | float) -> float:
+        """Resolve an IOR value from a string preset name or float."""
+        if isinstance(ior, (int, float)):
+            return float(ior)
+        return self._ior_presets.get(ior, 1.5)
+
     def _create_material(
         self,
         view: View,
@@ -747,6 +795,12 @@ class BlenderBackend(RenderBackend):
         # Clear default nodes
         nodes.clear()
 
+        # Hair and ThinDielectric use dedicated shader node graphs
+        if isinstance(mat_data, Hair):
+            return self._create_hair_material(mat, mat_data, nodes, links)
+        if isinstance(mat_data, ThinDielectric):
+            return self._create_thin_dielectric_material(mat, mat_data, nodes, links)
+
         # Create Principled BSDF
         bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location = (0, 0)
@@ -765,16 +819,7 @@ class BlenderBackend(RenderBackend):
         elif override_color is not None:
             bsdf.inputs["Base Color"].default_value = override_color
         else:
-            color = None
-            match mat_data:
-                case Diffuse():
-                    color = self._extract_color(mat_data.reflectance)
-                case Plastic() | RoughPlastic():
-                    color = self._extract_color(mat_data.diffuse_reflectance)
-                case Principled():
-                    color = self._extract_color(mat_data.color)
-                case _:
-                    pass
+            color = self._extract_material_color(mat_data)
             if color is not None:
                 bsdf.inputs["Base Color"].default_value = color
             else:
@@ -796,9 +841,58 @@ class BlenderBackend(RenderBackend):
                 else:
                     bsdf.inputs["Coat Roughness"].default_value = 0
 
+            case RoughConductor():
+                bsdf.inputs["Metallic"].default_value = 1.0
+                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                bsdf.inputs["Roughness"].default_value = float(alpha)
+
+            case Conductor():
+                bsdf.inputs["Metallic"].default_value = 1.0
+                bsdf.inputs["Roughness"].default_value = 0.0
+
+            case RoughDielectric():
+                bsdf.inputs["Transmission Weight"].default_value = 1.0
+                bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
+                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                bsdf.inputs["Roughness"].default_value = float(alpha)
+                bsdf.inputs["Metallic"].default_value = 0.0
+
+            case Dielectric():
+                bsdf.inputs["Transmission Weight"].default_value = 1.0
+                bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
+                bsdf.inputs["Roughness"].default_value = 0.0
+                bsdf.inputs["Metallic"].default_value = 0.0
+
+            case ThinPrincipled():
+                bsdf.inputs["Roughness"].default_value = float(
+                    mat_data.roughness
+                    if isinstance(mat_data.roughness, (int, float))
+                    else 0.5
+                )
+                bsdf.inputs["Metallic"].default_value = float(
+                    mat_data.metallic
+                    if isinstance(mat_data.metallic, (int, float))
+                    else 0.0
+                )
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.spec_trans
+                bsdf.inputs["IOR"].default_value = mat_data.eta
+                mat.use_backface_culling = False
+
             case Principled():
-                bsdf.inputs["Roughness"].default_value = mat_data.roughness
-                bsdf.inputs["Metallic"].default_value = mat_data.metallic
+                bsdf.inputs["Roughness"].default_value = float(
+                    mat_data.roughness
+                    if isinstance(mat_data.roughness, (int, float))
+                    else 0.5
+                )
+                bsdf.inputs["Metallic"].default_value = float(
+                    mat_data.metallic
+                    if isinstance(mat_data.metallic, (int, float))
+                    else 0.0
+                )
+                bsdf.inputs["Anisotropic"].default_value = mat_data.anisotropic
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.spec_trans
+                bsdf.inputs["IOR"].default_value = mat_data.eta
+                bsdf.inputs["Sheen Weight"].default_value = mat_data.sheen
 
             case _:
                 if color_layer_name is None and override_color is None:
@@ -806,7 +900,124 @@ class BlenderBackend(RenderBackend):
                         f"Material type {type(mat_data)} not fully supported, using default"
                     )
 
+        # Two-sided rendering: disable backface culling
+        if mat_data.two_sided:
+            mat.use_backface_culling = False
+
         return mat
+
+    def _create_hair_material(self, mat, mat_data: Hair, nodes, links):
+        """Create a Principled Hair BSDF material.
+
+        Args:
+            mat: Blender material.
+            mat_data: Hair material data.
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+
+        Returns:
+            Blender material.
+        """
+        hair_bsdf = nodes.new(type="ShaderNodeBsdfHairPrincipled")
+        hair_bsdf.location = (0, 0)
+        # Use melanin concentration parametrization
+        hair_bsdf.parametrization = "MELANIN"
+        hair_bsdf.inputs["Melanin"].default_value = mat_data.eumelanin / 8.0
+        hair_bsdf.inputs["Melanin Redness"].default_value = (
+            mat_data.pheomelanin / (mat_data.eumelanin + mat_data.pheomelanin)
+            if (mat_data.eumelanin + mat_data.pheomelanin) > 0
+            else 0.5
+        )
+        hair_bsdf.inputs["Roughness"].default_value = 0.3
+        hair_bsdf.inputs["Coat"].default_value = 0.0
+
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        output.location = (300, 0)
+        links.new(hair_bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+        return mat
+
+    def _create_thin_dielectric_material(self, mat, mat_data: ThinDielectric, nodes, links):
+        """Create a thin dielectric (thin glass) material.
+
+        Models a thin sheet of glass where the two refractions cancel out:
+        light passes straight through while Fresnel reflections are preserved.
+        Built as a Fresnel-driven mix of Transparent BSDF and Glossy BSDF.
+
+        Args:
+            mat: Blender material.
+            mat_data: ThinDielectric material data.
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+
+        Returns:
+            Blender material.
+        """
+        ior = self._resolve_ior(mat_data.int_ior)
+
+        # Transparent BSDF: light passes straight through
+        transparent = nodes.new(type="ShaderNodeBsdfTransparent")
+        transparent.location = (-200, 100)
+
+        # Glossy BSDF: Fresnel reflections on the surface
+        glossy = nodes.new(type="ShaderNodeBsdfGlossy")
+        glossy.location = (-200, -100)
+        glossy.inputs["Roughness"].default_value = 0.0
+
+        # Fresnel node drives the mix based on viewing angle and IOR
+        fresnel = nodes.new(type="ShaderNodeFresnel")
+        fresnel.location = (-400, 0)
+        fresnel.inputs["IOR"].default_value = ior
+
+        # Scale Fresnel by specular_reflectance to control reflection intensity
+        scale = nodes.new(type="ShaderNodeMath")
+        scale.location = (-200, 0)
+        scale.operation = "MULTIPLY"
+        links.new(fresnel.outputs["Fac"], scale.inputs[0])
+        scale.inputs[1].default_value = mat_data.specular_reflectance
+
+        # Mix Shader: factor=0 → transparent, factor=1 → glossy
+        mix = nodes.new(type="ShaderNodeMixShader")
+        mix.location = (0, 0)
+        links.new(scale.outputs["Value"], mix.inputs["Fac"])
+        links.new(transparent.outputs["BSDF"], mix.inputs[1])
+        links.new(glossy.outputs["BSDF"], mix.inputs[2])
+
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        output.location = (200, 0)
+        links.new(mix.outputs["Shader"], output.inputs["Surface"])
+
+        mat.use_backface_culling = False
+        if mat_data.two_sided:
+            mat.use_backface_culling = False
+
+        return mat
+
+    def _extract_material_color(self, mat_data) -> tuple[float, float, float, float] | None:
+        """Extract base color from any supported material type.
+
+        Args:
+            mat_data: Material channel data.
+
+        Returns:
+            RGBA tuple or None.
+        """
+        match mat_data:
+            case Diffuse():
+                return self._extract_color(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                return self._extract_color(mat_data.diffuse_reflectance)
+            case Principled() | ThinPrincipled():
+                return self._extract_color(mat_data.color)
+            case RoughConductor() | Conductor():
+                name = mat_data.material
+                rgb = self._conductor_colors.get(name, (0.8, 0.8, 0.8))
+                return (rgb[0], rgb[1], rgb[2], 1.0)
+            case Dielectric() | ThinDielectric() | RoughDielectric():
+                # Glass-like materials: white/clear base
+                return (1.0, 1.0, 1.0, 1.0)
+            case _:
+                return None
 
     def _extract_color(self, color_data) -> tuple[float, float, float, float] | None:
         """Extract RGBA color from various color representations.
@@ -859,7 +1070,7 @@ class BlenderBackend(RenderBackend):
                 out = check(mat_data.reflectance)
             case Plastic() | RoughPlastic():
                 out = check(mat_data.diffuse_reflectance)
-            case Principled():
+            case Principled() | ThinPrincipled():
                 out = check(mat_data.color)
             case _:
                 out = None
