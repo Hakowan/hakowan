@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 import uuid
 import tempfile
+from tqdm import tqdm
 
 
 def parse_args():
@@ -95,6 +96,7 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
+    parser.add_argument("--quad-only", help="Only render quad facets", action="store_true")
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
         "--backend",
@@ -367,6 +369,19 @@ def main():
     lagrange.logger.setLevel(args.log_level.upper())
 
     mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
+
+    if args.quad_only:
+        # Filter to only keep quad facets
+        facets_to_keep = []
+        for fid in range(mesh.num_facets):
+            if mesh.get_facet_size(fid) == 4:
+                facets_to_keep.append(fid)
+
+        if len(facets_to_keep) == 0:
+            raise ValueError("No quad facets found in mesh")
+
+        mesh = lagrange.extract_submesh(mesh, np.array(facets_to_keep))
+
     bbox_min = np.amin(mesh.vertices, axis=0)
     bbox_max = np.amax(mesh.vertices, axis=0)
     bbox_size = bbox_max - bbox_min
@@ -382,7 +397,7 @@ def main():
         case "roughplastic":
             layer = layer.material("RoughPlastic", args.color, two_sided=args.two_sided)
         case "glass":
-            layer = layer.material("ThinDielectric", specular_reflectance=0.1)
+            layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
             assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
                 f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
@@ -671,14 +686,75 @@ def main():
         )
     else:
         if args.z_up:
-            axis = [0, 0, 1]
+            axis = np.array([0, 0, 1], dtype=float)
         else:
-            axis = [0, 1, 0]
+            axis = np.array([0, 1, 0], dtype=float)
 
-        for i in range(args.turn_table):
-            frame = layer.rotate(axis=axis, angle=i * 2 * math.pi / args.turn_table)
-            frame_file = output_file.with_stem(f"{output_file.stem}_{i:03d}")
-            hkw.render(frame, config, filename=frame_file, backend=args.backend)
+        # Get initial camera position in normalized coordinates
+        # (object is at origin with bounding radius 1)
+        initial_camera = np.array(config.sensor.location, dtype=float)
+
+        # Render frames to temporary files
+        frames = []
+        temp_files = []
+        try:
+            for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
+                # Rotate camera position around origin in normalized coordinates
+                angle = i * 2 * math.pi / args.turn_table
+                cos_a = math.cos(angle)
+                sin_a = math.sin(angle)
+
+                # Rodrigues' rotation formula to rotate camera position around axis
+                rotated_camera = (
+                    initial_camera * cos_a +
+                    np.cross(axis, initial_camera) * sin_a +
+                    axis * np.dot(axis, initial_camera) * (1 - cos_a)
+                )
+
+                # Update camera position for this frame
+                frame_config = hkw.config()
+                frame_config.film.width = config.film.width
+                frame_config.film.height = config.film.height
+                if args.z_up:
+                    frame_config.z_up()
+                frame_config.sensor.location = list(rotated_camera)
+                frame_config.sensor.target = [0.0, 0.0, 0.0]  # Look at origin
+
+                if args.albedo:
+                    frame_config.albedo = True
+                if args.depth:
+                    frame_config.depth = True
+                if args.shading_normal:
+                    frame_config.normal = True
+                if args.facet_id:
+                    frame_config.facet_id = True
+
+                frame_file = get_tmp_image_name()
+                temp_files.append(frame_file)
+                hkw.render(layer, frame_config, filename=frame_file, backend=args.backend)
+                # Load frame and ensure solid white background
+                with Image.open(frame_file) as img:
+                    if img.mode == 'RGBA':
+                        # Create a white background
+                        white_bg = Image.new('RGB', img.size, (255, 255, 255))
+                        white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                        frames.append(white_bg)
+                    else:
+                        frames.append(img.convert('RGB'))
+
+            # Save as animated GIF
+            gif_file = output_file.with_suffix(".gif")
+            frames[0].save(
+                gif_file,
+                save_all=True,
+                append_images=frames[1:],
+                duration=100,  # milliseconds per frame
+                loop=0,
+            )
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
+                temp_file.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

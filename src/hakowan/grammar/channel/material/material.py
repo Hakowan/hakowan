@@ -86,6 +86,13 @@ class Principled(Material):
         color: Base color texture (default: 0.5).
         roughness: Roughness texture (default: 0.5).
         metallic: Metallic texture (default: 0.0).
+        anisotropic: Anisotropy amount (default: 0.0).
+        spec_trans: Specular transmission / transparency (default: 0.0).
+        eta: Interior index of refraction (default: 1.5).
+        spec_tint: Specular tint towards base color (default: 0.0).
+        sheen: Sheen amount (default: 0.0).
+        sheen_tint: Sheen tint towards base color (default: 0.0).
+        flatness: Blend between thin and volumetric subsurface scattering (default: 0.0).
     """
 
     color: TextureLike = 0.5
@@ -102,7 +109,11 @@ class Principled(Material):
 
 @dataclass(slots=True)
 class ThinPrincipled(Principled):
-    """Thin Principled material."""
+    """Thin Principled material.
+
+    Attributes:
+        diff_trans: Diffuse transmission amount (default: 0.0).
+    """
 
     diff_trans: float = 0.0
 
@@ -115,7 +126,8 @@ class Dielectric(Material):
         int_ior: Interior index of refraction (default: "bk7").
         ext_ior: Exterior index of refraction (default: "air").
         medium: Medium (default: None).
-        specular_reflectance: Specular reflectance texture (default: 1.0).
+        specular_reflectance: Specular reflectance (default: 1.0).
+        specular_transmittance: Specular transmittance (default: 1.0).
     """
 
     int_ior: str | float = "bk7"

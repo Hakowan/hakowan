@@ -5,13 +5,21 @@ from ...compiler import Scene, View
 from ...setup import Config
 from ...grammar import mark
 from ...grammar.channel.material import (
+    Conductor,
+    Dielectric,
     Diffuse,
+    Hair,
     Plastic,
     Principled,
+    RoughConductor,
+    RoughDielectric,
     RoughPlastic,
+    ThinDielectric,
+    ThinPrincipled,
 )
 from ...grammar.scale import Attribute
 from ...grammar.texture import ScalarField
+from ...grammar.channel.curvestyle import Bend
 from .. import RenderBackend
 
 from pathlib import Path
@@ -24,11 +32,14 @@ import mathutils
 
 
 class BlenderBackend(RenderBackend):
-    """Blender rendering backend with minimal features.
+    """Blender rendering backend.
 
     Currently supports:
     - Surface marks (meshes)
-    - Basic materials: Diffuse, Plastic, RoughPlastic, Principled
+    - Curve marks (edges and vector fields)
+    - Materials: Diffuse, Plastic, RoughPlastic, Principled, ThinPrincipled,
+      Conductor, RoughConductor, Dielectric, ThinDielectric, RoughDielectric, Hair
+    - Two-sided materials
     - Camera setup
     - Basic lighting
     """
@@ -338,6 +349,120 @@ class BlenderBackend(RenderBackend):
 
         return base, tip, base_size, tip_size, base_idx, tip_idx
 
+    def _extract_vector_field(self, view: View):
+        """Extract vector field data from a view.
+
+        Returns:
+            Tuple (base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size).
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+
+        assert view.vector_field_channel is not None
+        assert isinstance(view.vector_field_channel.data, Attribute)
+        attr_name = view.vector_field_channel.data._internal_name
+        assert attr_name is not None
+        assert mesh.has_attribute(attr_name)
+
+        attr = mesh.attribute(attr_name)
+        match attr.element_type:
+            case lagrange.AttributeElement.Vertex:
+                base = mesh.vertices.copy()
+                size = self._extract_size(view)
+                if np.isscalar(size):
+                    size = [size] * mesh.num_vertices
+            case lagrange.AttributeElement.Facet:
+                centroid_attr_id = lagrange.compute_facet_centroid(mesh)
+                base = np.array(mesh.attribute(centroid_attr_id).data)
+                size = self._extract_size(view)
+                if np.isscalar(size):
+                    size = [size] * mesh.num_facets
+            case _:
+                raise NotImplementedError(
+                    f"Unsupported vector field element type: {attr.element_type}"
+                )
+
+        tip = attr.data + base
+        ctrl_pts_1 = None
+        ctrl_pts_2 = None
+
+        match view.vector_field_channel.style:
+            case Bend():
+                direction = view.vector_field_channel.style.direction
+                assert isinstance(direction, Attribute)
+                assert direction._internal_name is not None
+                assert mesh.has_attribute(direction._internal_name)
+                dir_attr = mesh.attribute(direction._internal_name)
+                assert dir_attr.element_type == attr.element_type
+                dirs = dir_attr.data
+                assert np.all(dirs.shape == base.shape)
+
+                bend_type = view.vector_field_channel.style.bend_type
+                if bend_type == "n":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = tip + dirs
+                elif bend_type == "r":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = base + dirs + 0.5 * (tip - base)
+                    tip = tip + dirs
+                elif bend_type == "s":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = tip
+                    tip = tip + dirs
+                else:
+                    raise NotImplementedError(f"Unsupported bend type: {bend_type}")
+
+        def refine(mesh, data, level):
+            assert mesh.is_triangle_mesh, "Only triangle mesh is supported."
+            facets = mesh.facets
+            n = level + 1
+            refined_data = []
+            B0, B1, B2 = np.mgrid[0 : n + 1, 0 : n + 1, 0 : n + 1]
+            for b0, b1, b2 in zip(B0.ravel(), B1.ravel(), B2.ravel()):
+                s = b0 + b1 + b2
+                if s != n:
+                    continue
+                d = (
+                    data[facets[:, 0]] * b0
+                    + data[facets[:, 1]] * b1
+                    + data[facets[:, 2]] * b2
+                )
+                d /= n
+                refined_data.append(d)
+            return np.vstack(refined_data)
+
+        if view.vector_field_channel.refinement_level > 0:
+            base = refine(mesh, base, view.vector_field_channel.refinement_level)
+            tip = refine(mesh, tip, view.vector_field_channel.refinement_level)
+            if ctrl_pts_1 is not None:
+                assert ctrl_pts_2 is not None
+                ctrl_pts_1 = refine(
+                    mesh, ctrl_pts_1, view.vector_field_channel.refinement_level
+                )
+                ctrl_pts_2 = refine(
+                    mesh, ctrl_pts_2, view.vector_field_channel.refinement_level
+                )
+            size = refine(
+                mesh, np.array(size), view.vector_field_channel.refinement_level
+            ).ravel()
+
+        base_size = size
+        if view.vector_field_channel.end_type == "point":
+            tip_size = np.zeros_like(size)
+        elif view.vector_field_channel.end_type == "arrow":
+            assert ctrl_pts_1 is None
+            assert ctrl_pts_2 is None
+            stem_point = 0.25 * base + 0.75 * tip
+            base = np.vstack([base, stem_point])
+            tip = np.vstack([stem_point, tip])
+            size = np.array(size)
+            base_size = np.hstack([size, 2 * size])
+            tip_size = np.hstack([size, np.zeros_like(size)])
+        else:
+            tip_size = size
+
+        return base, ctrl_pts_1, ctrl_pts_2, tip, np.atleast_1d(base_size), np.atleast_1d(tip_size)
+
     def _create_view_object(self, view: View, index: int):
         """Create Blender object from a view.
 
@@ -492,7 +617,7 @@ class BlenderBackend(RenderBackend):
         logger.debug(f"Created point object {index} with {n_points} points")
 
     def _create_curve_object(self, view: View, index: int):
-        """Create Blender curve object from view (mesh edges as linear segments).
+        """Create Blender curve object from view (mesh edges or vector field).
 
         Args:
             view: Curve view.
@@ -501,9 +626,20 @@ class BlenderBackend(RenderBackend):
         if view.data_frame is None:
             return
 
-        base, tip, base_size, tip_size, base_idx, tip_idx = self._extract_edges(view)
-        n_edges = len(base)
         mesh_data = view.data_frame.mesh
+
+        if view.vector_field_channel is not None:
+            base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = (
+                self._extract_vector_field(view)
+            )
+            n_segments = len(base)
+            base_idx = tip_idx = None
+        else:
+            base, tip, base_size, tip_size, base_idx, tip_idx = self._extract_edges(
+                view
+            )
+            n_segments = len(base)
+            ctrl_pts_1 = ctrl_pts_2 = None
 
         curve_data = bpy.data.curves.new(name=f"curve_{index:03d}", type="CURVE")
         curve_data.dimensions = "3D"
@@ -511,43 +647,65 @@ class BlenderBackend(RenderBackend):
         curve_data.bevel_depth = 1.0
         curve_data.fill_mode = "FULL"
 
-        for i in range(n_edges):
-            spline = curve_data.splines.new("POLY")
-            spline.points.add(1)  # POLY starts with 1 point, add(1) gives 2
-            spline.points[0].co = (base[i][0], base[i][1], base[i][2], 1.0)
-            spline.points[1].co = (tip[i][0], tip[i][1], tip[i][2], 1.0)
-            spline.points[0].radius = float(base_size[i])
-            spline.points[1].radius = float(tip_size[i])
+        if ctrl_pts_1 is not None and ctrl_pts_2 is not None:
+            # Bezier curves for bent vector fields
+            for i in range(n_segments):
+                spline = curve_data.splines.new("BEZIER")
+                spline.bezier_points.add(1)  # starts with 1, add(1) gives 2
+                bp0 = spline.bezier_points[0]
+                bp1 = spline.bezier_points[1]
+                bp0.co = tuple(base[i])
+                bp0.handle_left_type = "FREE"
+                bp0.handle_right_type = "FREE"
+                bp0.handle_left = tuple(base[i])
+                bp0.handle_right = tuple(ctrl_pts_1[i])
+                bp0.radius = float(base_size[i])
+                bp1.co = tuple(tip[i])
+                bp1.handle_left_type = "FREE"
+                bp1.handle_right_type = "FREE"
+                bp1.handle_left = tuple(ctrl_pts_2[i])
+                bp1.handle_right = tuple(tip[i])
+                bp1.radius = float(tip_size[i])
+        else:
+            # Linear segments (POLY splines)
+            for i in range(n_segments):
+                spline = curve_data.splines.new("POLY")
+                spline.points.add(1)  # POLY starts with 1 point, add(1) gives 2
+                spline.points[0].co = (base[i][0], base[i][1], base[i][2], 1.0)
+                spline.points[1].co = (tip[i][0], tip[i][1], tip[i][2], 1.0)
+                spline.points[0].radius = float(base_size[i])
+                spline.points[1].radius = float(tip_size[i])
 
         # Scalar field: set per-point colors on curve (2 points per segment)
         color_layer_name = None
-        scalar_info = self._get_scalar_field_color_attr(view)
-        if scalar_info is not None:
-            attr_name, element_type = scalar_info
-            if element_type == lagrange.AttributeElement.Vertex:
-                attr = mesh_data.attribute(attr_name)
-                data = np.asarray(attr.data)
-                if data.ndim == 2 and data.shape[1] >= 3:
-                    try:
-                        if hasattr(curve_data, "color_attributes"):
-                            curve_data.color_attributes.new(
-                                name="Color",
-                                type="FLOAT_COLOR",
-                                domain="POINT",
-                            )
-                            layer = curve_data.color_attributes["Color"]
-                            point_idx = 0
-                            for i in range(n_edges):
-                                for vi in (base_idx[i], tip_idx[i]):
-                                    c = data[vi]
-                                    r, g, b = float(c[0]), float(c[1]), float(c[2])
-                                    a = float(c[3]) if c.shape[0] >= 4 else 1.0
-                                    if point_idx < len(layer.data):
-                                        layer.data[point_idx].color = (r, g, b, a)
-                                    point_idx += 1
-                            color_layer_name = "Color"
-                    except (AttributeError, TypeError):
-                        pass
+        if base_idx is not None and tip_idx is not None:
+            scalar_info = self._get_scalar_field_color_attr(view)
+            if scalar_info is not None:
+                attr_name, element_type = scalar_info
+                if element_type == lagrange.AttributeElement.Vertex:
+                    attr = mesh_data.attribute(attr_name)
+                    data = np.asarray(attr.data)
+                    if data.ndim == 2 and data.shape[1] >= 3:
+                        try:
+                            if hasattr(curve_data, "color_attributes"):
+                                curve_data.color_attributes.new(
+                                    name="Color",
+                                    type="FLOAT_COLOR",
+                                    domain="POINT",
+                                )
+                                layer = curve_data.color_attributes["Color"]
+                                point_idx = 0
+                                for i in range(n_segments):
+                                    for vi in (base_idx[i], tip_idx[i]):
+                                        c = data[vi]
+                                        r, g, b = float(c[0]), float(c[1]), float(c[2])
+                                        a = float(c[3]) if c.shape[0] >= 4 else 1.0
+                                        if point_idx < len(layer.data):
+                                            layer.data[point_idx].color = (r, g, b, a)
+                                        point_idx += 1
+                                color_layer_name = "Color"
+                        except (AttributeError, TypeError):
+                            pass
 
         obj = bpy.data.objects.new(f"curve_{index:03d}", curve_data)
         bpy.context.collection.objects.link(obj)
@@ -560,7 +718,46 @@ class BlenderBackend(RenderBackend):
             if mat:
                 obj.data.materials.append(mat)
 
-        logger.debug(f"Created curve object {index} with {n_edges} segments")
+        logger.debug(f"Created curve object {index} with {n_segments} segments")
+
+    # Approximate base colors for common Mitsuba conductor presets.
+    _conductor_colors: dict[str, tuple[float, float, float]] = {
+        "Au": (1.0, 0.78, 0.34),
+        "Ag": (0.97, 0.96, 0.91),
+        "Cu": (0.95, 0.64, 0.54),
+        "Al": (0.91, 0.92, 0.92),
+        "Fe": (0.56, 0.57, 0.58),
+        "Cr": (0.55, 0.55, 0.55),
+        "Pt": (0.67, 0.64, 0.59),
+        "W": (0.50, 0.50, 0.50),
+        "Ti": (0.62, 0.58, 0.54),
+        "Ni": (0.66, 0.63, 0.58),
+        "V": (0.55, 0.55, 0.55),
+        "none": (0.8, 0.8, 0.8),
+    }
+
+    # Common IOR values for named Mitsuba dielectric presets.
+    _ior_presets: dict[str, float] = {
+        "vacuum": 1.0,
+        "air": 1.000277,
+        "water": 1.333,
+        "ice": 1.31,
+        "glass": 1.5,
+        "bk7": 1.5046,
+        "diamond": 2.419,
+        "fused_quartz": 1.458,
+        "polycarbonate": 1.584,
+        "acrylic": 1.49,
+        "sodium_chloride": 1.544,
+        "amber": 1.55,
+        "pet": 1.575,
+    }
+
+    def _resolve_ior(self, ior: str | float) -> float:
+        """Resolve an IOR value from a string preset name or float."""
+        if isinstance(ior, (int, float)):
+            return float(ior)
+        return self._ior_presets.get(ior, 1.5)
 
     def _create_material(
         self,
@@ -598,6 +795,12 @@ class BlenderBackend(RenderBackend):
         # Clear default nodes
         nodes.clear()
 
+        # Hair and ThinDielectric use dedicated shader node graphs
+        if isinstance(mat_data, Hair):
+            return self._create_hair_material(mat, mat_data, nodes, links)
+        if isinstance(mat_data, ThinDielectric):
+            return self._create_thin_dielectric_material(mat, mat_data, nodes, links)
+
         # Create Principled BSDF
         bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location = (0, 0)
@@ -616,16 +819,7 @@ class BlenderBackend(RenderBackend):
         elif override_color is not None:
             bsdf.inputs["Base Color"].default_value = override_color
         else:
-            color = None
-            match mat_data:
-                case Diffuse():
-                    color = self._extract_color(mat_data.reflectance)
-                case Plastic() | RoughPlastic():
-                    color = self._extract_color(mat_data.diffuse_reflectance)
-                case Principled():
-                    color = self._extract_color(mat_data.color)
-                case _:
-                    pass
+            color = self._extract_material_color(mat_data)
             if color is not None:
                 bsdf.inputs["Base Color"].default_value = color
             else:
@@ -647,9 +841,60 @@ class BlenderBackend(RenderBackend):
                 else:
                     bsdf.inputs["Coat Roughness"].default_value = 0
 
+            case RoughConductor():
+                bsdf.inputs["Metallic"].default_value = 1.0
+                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                bsdf.inputs["Roughness"].default_value = float(alpha)
+
+            case Conductor():
+                bsdf.inputs["Metallic"].default_value = 1.0
+                bsdf.inputs["Roughness"].default_value = 0.0
+
+            case RoughDielectric():
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
+                bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
+                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                bsdf.inputs["Roughness"].default_value = float(alpha)
+                bsdf.inputs["Metallic"].default_value = 0.0
+
+            case Dielectric():
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
+                bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
+                bsdf.inputs["Roughness"].default_value = 0.0
+                bsdf.inputs["Metallic"].default_value = 0.0
+
+            case ThinPrincipled():
+                bsdf.inputs["Roughness"].default_value = float(
+                    mat_data.roughness
+                    if isinstance(mat_data.roughness, (int, float))
+                    else 0.5
+                )
+                bsdf.inputs["Metallic"].default_value = float(
+                    mat_data.metallic
+                    if isinstance(mat_data.metallic, (int, float))
+                    else 0.0
+                )
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.spec_trans
+                bsdf.inputs["IOR"].default_value = mat_data.eta
+                mat.use_backface_culling = False
+
             case Principled():
-                bsdf.inputs["Roughness"].default_value = mat_data.roughness
-                bsdf.inputs["Metallic"].default_value = mat_data.metallic
+                bsdf.inputs["Roughness"].default_value = float(
+                    mat_data.roughness
+                    if isinstance(mat_data.roughness, (int, float))
+                    else 0.5
+                )
+                bsdf.inputs["Metallic"].default_value = float(
+                    mat_data.metallic
+                    if isinstance(mat_data.metallic, (int, float))
+                    else 0.0
+                )
+                bsdf.inputs["Anisotropic"].default_value = mat_data.anisotropic
+                bsdf.inputs["Transmission Weight"].default_value = mat_data.spec_trans
+                bsdf.inputs["IOR"].default_value = mat_data.eta
+                bsdf.inputs["Sheen Weight"].default_value = mat_data.sheen
 
             case _:
                 if color_layer_name is None and override_color is None:
@@ -657,7 +902,124 @@ class BlenderBackend(RenderBackend):
                         f"Material type {type(mat_data)} not fully supported, using default"
                     )
 
+        # Two-sided rendering: disable backface culling
+        if mat_data.two_sided:
+            mat.use_backface_culling = False
+
         return mat
+
+    def _create_hair_material(self, mat, mat_data: Hair, nodes, links):
+        """Create a Principled Hair BSDF material.
+
+        Args:
+            mat: Blender material.
+            mat_data: Hair material data.
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+
+        Returns:
+            Blender material.
+        """
+        hair_bsdf = nodes.new(type="ShaderNodeBsdfHairPrincipled")
+        hair_bsdf.location = (0, 0)
+        # Use melanin concentration parametrization
+        hair_bsdf.parametrization = "MELANIN"
+        hair_bsdf.inputs["Melanin"].default_value = mat_data.eumelanin / 8.0
+        hair_bsdf.inputs["Melanin Redness"].default_value = (
+            mat_data.pheomelanin / (mat_data.eumelanin + mat_data.pheomelanin)
+            if (mat_data.eumelanin + mat_data.pheomelanin) > 0
+            else 0.5
+        )
+        hair_bsdf.inputs["Roughness"].default_value = 0.3
+        hair_bsdf.inputs["Coat"].default_value = 0.0
+
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        output.location = (300, 0)
+        links.new(hair_bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+        return mat
+
+    def _create_thin_dielectric_material(self, mat, mat_data: ThinDielectric, nodes, links):
+        """Create a thin dielectric (thin glass) material.
+
+        Models a thin sheet of glass where the two refractions cancel out:
+        light passes straight through while Fresnel reflections are preserved.
+        Built as a Fresnel-driven mix of Transparent BSDF and Glossy BSDF.
+
+        Args:
+            mat: Blender material.
+            mat_data: ThinDielectric material data.
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+
+        Returns:
+            Blender material.
+        """
+        ior = self._resolve_ior(mat_data.int_ior)
+
+        # Transparent BSDF: light passes straight through
+        transparent = nodes.new(type="ShaderNodeBsdfTransparent")
+        transparent.location = (-200, 100)
+
+        # Glass BSDF: reflection + refraction for a thicker glass appearance
+        glass = nodes.new(type="ShaderNodeBsdfGlass")
+        glass.location = (-200, -100)
+        glass.inputs["Roughness"].default_value = 0.0
+        glass.inputs["IOR"].default_value = ior
+
+        # Fresnel node drives the mix based on viewing angle and IOR
+        fresnel = nodes.new(type="ShaderNodeFresnel")
+        fresnel.location = (-400, 0)
+        fresnel.inputs["IOR"].default_value = ior
+
+        # Scale Fresnel by specular_reflectance to control reflection intensity
+        scale = nodes.new(type="ShaderNodeMath")
+        scale.location = (-200, 0)
+        scale.operation = "MULTIPLY"
+        links.new(fresnel.outputs["Fac"], scale.inputs[0])
+        scale.inputs[1].default_value = mat_data.specular_reflectance
+
+        # Mix Shader: factor=0 → transparent, factor=1 → glass
+        mix = nodes.new(type="ShaderNodeMixShader")
+        mix.location = (0, 0)
+        links.new(scale.outputs["Value"], mix.inputs["Fac"])
+        links.new(transparent.outputs["BSDF"], mix.inputs[1])
+        links.new(glass.outputs["BSDF"], mix.inputs[2])
+
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        output.location = (200, 0)
+        links.new(mix.outputs["Shader"], output.inputs["Surface"])
+
+        # Thin dielectric is inherently two-sided
+        mat.use_backface_culling = False
+
+        return mat
+
+    def _extract_material_color(self, mat_data) -> tuple[float, float, float, float] | None:
+        """Extract base color from any supported material type.
+
+        Args:
+            mat_data: Material channel data.
+
+        Returns:
+            RGBA tuple or None.
+        """
+        match mat_data:
+            case Diffuse():
+                return self._extract_color(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                return self._extract_color(mat_data.diffuse_reflectance)
+            case Principled() | ThinPrincipled():
+                return self._extract_color(mat_data.color)
+            case RoughConductor() | Conductor():
+                name = mat_data.material
+                rgb = self._conductor_colors.get(name, (0.8, 0.8, 0.8))
+                return (rgb[0], rgb[1], rgb[2], 1.0)
+            case Dielectric() | ThinDielectric() | RoughDielectric():
+                # Glass-like materials: white/clear base
+                return (1.0, 1.0, 1.0, 1.0)
+            case _:
+                return None
 
     def _extract_color(self, color_data) -> tuple[float, float, float, float] | None:
         """Extract RGBA color from various color representations.
@@ -710,7 +1072,7 @@ class BlenderBackend(RenderBackend):
                 out = check(mat_data.reflectance)
             case Plastic() | RoughPlastic():
                 out = check(mat_data.diffuse_reflectance)
-            case Principled():
+            case Principled() | ThinPrincipled():
                 out = check(mat_data.color)
             case _:
                 out = None
