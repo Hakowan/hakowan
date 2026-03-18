@@ -12,6 +12,7 @@ from ...grammar.channel.material import (
 )
 from ...grammar.scale import Attribute
 from ...grammar.texture import ScalarField
+from ...grammar.channel.curvestyle import Bend
 from .. import RenderBackend
 
 from pathlib import Path
@@ -28,6 +29,7 @@ class BlenderBackend(RenderBackend):
 
     Currently supports:
     - Surface marks (meshes)
+    - Curve marks (edges and vector fields)
     - Basic materials: Diffuse, Plastic, RoughPlastic, Principled
     - Camera setup
     - Basic lighting
@@ -338,6 +340,120 @@ class BlenderBackend(RenderBackend):
 
         return base, tip, base_size, tip_size, base_idx, tip_idx
 
+    def _extract_vector_field(self, view: View):
+        """Extract vector field data from a view.
+
+        Returns:
+            Tuple (base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size).
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+
+        assert view.vector_field_channel is not None
+        assert isinstance(view.vector_field_channel.data, Attribute)
+        attr_name = view.vector_field_channel.data._internal_name
+        assert attr_name is not None
+        assert mesh.has_attribute(attr_name)
+
+        attr = mesh.attribute(attr_name)
+        match attr.element_type:
+            case lagrange.AttributeElement.Vertex:
+                base = mesh.vertices.copy()
+                size = self._extract_size(view)
+                if np.isscalar(size):
+                    size = [size] * mesh.num_vertices
+            case lagrange.AttributeElement.Facet:
+                centroid_attr_id = lagrange.compute_facet_centroid(mesh)
+                base = np.array(mesh.attribute(centroid_attr_id).data)
+                size = self._extract_size(view)
+                if np.isscalar(size):
+                    size = [size] * mesh.num_facets
+            case _:
+                raise NotImplementedError(
+                    f"Unsupported vector field element type: {attr.element_type}"
+                )
+
+        tip = attr.data + base
+        ctrl_pts_1 = None
+        ctrl_pts_2 = None
+
+        match view.vector_field_channel.style:
+            case Bend():
+                direction = view.vector_field_channel.style.direction
+                assert isinstance(direction, Attribute)
+                assert direction._internal_name is not None
+                assert mesh.has_attribute(direction._internal_name)
+                dir_attr = mesh.attribute(direction._internal_name)
+                assert dir_attr.element_type == attr.element_type
+                dirs = dir_attr.data
+                assert np.all(dirs.shape == base.shape)
+
+                bend_type = view.vector_field_channel.style.bend_type
+                if bend_type == "n":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = tip + dirs
+                elif bend_type == "r":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = base + dirs + 0.5 * (tip - base)
+                    tip = tip + dirs
+                elif bend_type == "s":
+                    ctrl_pts_1 = base + dirs
+                    ctrl_pts_2 = tip
+                    tip = tip + dirs
+                else:
+                    raise NotImplementedError(f"Unsupported bend type: {bend_type}")
+
+        def refine(mesh, data, level):
+            assert mesh.is_triangle_mesh, "Only triangle mesh is supported."
+            facets = mesh.facets
+            n = level + 1
+            refined_data = []
+            B0, B1, B2 = np.mgrid[0 : n + 1, 0 : n + 1, 0 : n + 1]
+            for b0, b1, b2 in zip(B0.ravel(), B1.ravel(), B2.ravel()):
+                s = b0 + b1 + b2
+                if s != n:
+                    continue
+                d = (
+                    data[facets[:, 0]] * b0
+                    + data[facets[:, 1]] * b1
+                    + data[facets[:, 2]] * b2
+                )
+                d /= n
+                refined_data.append(d)
+            return np.vstack(refined_data)
+
+        if view.vector_field_channel.refinement_level > 0:
+            base = refine(mesh, base, view.vector_field_channel.refinement_level)
+            tip = refine(mesh, tip, view.vector_field_channel.refinement_level)
+            if ctrl_pts_1 is not None:
+                assert ctrl_pts_2 is not None
+                ctrl_pts_1 = refine(
+                    mesh, ctrl_pts_1, view.vector_field_channel.refinement_level
+                )
+                ctrl_pts_2 = refine(
+                    mesh, ctrl_pts_2, view.vector_field_channel.refinement_level
+                )
+            size = refine(
+                mesh, np.array(size), view.vector_field_channel.refinement_level
+            ).ravel()
+
+        base_size = size
+        if view.vector_field_channel.end_type == "point":
+            tip_size = np.zeros_like(size)
+        elif view.vector_field_channel.end_type == "arrow":
+            assert ctrl_pts_1 is None
+            assert ctrl_pts_2 is None
+            stem_point = 0.25 * base + 0.75 * tip
+            base = np.vstack([base, stem_point])
+            tip = np.vstack([stem_point, tip])
+            size = np.array(size)
+            base_size = np.hstack([size, 2 * size])
+            tip_size = np.hstack([size, np.zeros_like(size)])
+        else:
+            tip_size = size
+
+        return base, ctrl_pts_1, ctrl_pts_2, tip, np.atleast_1d(base_size), np.atleast_1d(tip_size)
+
     def _create_view_object(self, view: View, index: int):
         """Create Blender object from a view.
 
@@ -492,7 +608,7 @@ class BlenderBackend(RenderBackend):
         logger.debug(f"Created point object {index} with {n_points} points")
 
     def _create_curve_object(self, view: View, index: int):
-        """Create Blender curve object from view (mesh edges as linear segments).
+        """Create Blender curve object from view (mesh edges or vector field).
 
         Args:
             view: Curve view.
@@ -501,9 +617,20 @@ class BlenderBackend(RenderBackend):
         if view.data_frame is None:
             return
 
-        base, tip, base_size, tip_size, base_idx, tip_idx = self._extract_edges(view)
-        n_edges = len(base)
         mesh_data = view.data_frame.mesh
+
+        if view.vector_field_channel is not None:
+            base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = (
+                self._extract_vector_field(view)
+            )
+            n_segments = len(base)
+            base_idx = tip_idx = None
+        else:
+            base, tip, base_size, tip_size, base_idx, tip_idx = self._extract_edges(
+                view
+            )
+            n_segments = len(base)
+            ctrl_pts_1 = ctrl_pts_2 = None
 
         curve_data = bpy.data.curves.new(name=f"curve_{index:03d}", type="CURVE")
         curve_data.dimensions = "3D"
@@ -511,43 +638,65 @@ class BlenderBackend(RenderBackend):
         curve_data.bevel_depth = 1.0
         curve_data.fill_mode = "FULL"
 
-        for i in range(n_edges):
-            spline = curve_data.splines.new("POLY")
-            spline.points.add(1)  # POLY starts with 1 point, add(1) gives 2
-            spline.points[0].co = (base[i][0], base[i][1], base[i][2], 1.0)
-            spline.points[1].co = (tip[i][0], tip[i][1], tip[i][2], 1.0)
-            spline.points[0].radius = float(base_size[i])
-            spline.points[1].radius = float(tip_size[i])
+        if ctrl_pts_1 is not None and ctrl_pts_2 is not None:
+            # Bezier curves for bent vector fields
+            for i in range(n_segments):
+                spline = curve_data.splines.new("BEZIER")
+                spline.bezier_points.add(1)  # starts with 1, add(1) gives 2
+                bp0 = spline.bezier_points[0]
+                bp1 = spline.bezier_points[1]
+                bp0.co = tuple(base[i])
+                bp0.handle_left_type = "FREE"
+                bp0.handle_right_type = "FREE"
+                bp0.handle_left = tuple(base[i])
+                bp0.handle_right = tuple(ctrl_pts_1[i])
+                bp0.radius = float(base_size[i])
+                bp1.co = tuple(tip[i])
+                bp1.handle_left_type = "FREE"
+                bp1.handle_right_type = "FREE"
+                bp1.handle_left = tuple(ctrl_pts_2[i])
+                bp1.handle_right = tuple(tip[i])
+                bp1.radius = float(tip_size[i])
+        else:
+            # Linear segments (POLY splines)
+            for i in range(n_segments):
+                spline = curve_data.splines.new("POLY")
+                spline.points.add(1)  # POLY starts with 1 point, add(1) gives 2
+                spline.points[0].co = (base[i][0], base[i][1], base[i][2], 1.0)
+                spline.points[1].co = (tip[i][0], tip[i][1], tip[i][2], 1.0)
+                spline.points[0].radius = float(base_size[i])
+                spline.points[1].radius = float(tip_size[i])
 
         # Scalar field: set per-point colors on curve (2 points per segment)
         color_layer_name = None
-        scalar_info = self._get_scalar_field_color_attr(view)
-        if scalar_info is not None:
-            attr_name, element_type = scalar_info
-            if element_type == lagrange.AttributeElement.Vertex:
-                attr = mesh_data.attribute(attr_name)
-                data = np.asarray(attr.data)
-                if data.ndim == 2 and data.shape[1] >= 3:
-                    try:
-                        if hasattr(curve_data, "color_attributes"):
-                            curve_data.color_attributes.new(
-                                name="Color",
-                                type="FLOAT_COLOR",
-                                domain="POINT",
-                            )
-                            layer = curve_data.color_attributes["Color"]
-                            point_idx = 0
-                            for i in range(n_edges):
-                                for vi in (base_idx[i], tip_idx[i]):
-                                    c = data[vi]
-                                    r, g, b = float(c[0]), float(c[1]), float(c[2])
-                                    a = float(c[3]) if c.shape[0] >= 4 else 1.0
-                                    if point_idx < len(layer.data):
-                                        layer.data[point_idx].color = (r, g, b, a)
-                                    point_idx += 1
-                            color_layer_name = "Color"
-                    except (AttributeError, TypeError):
-                        pass
+        if base_idx is not None and tip_idx is not None:
+            scalar_info = self._get_scalar_field_color_attr(view)
+            if scalar_info is not None:
+                attr_name, element_type = scalar_info
+                if element_type == lagrange.AttributeElement.Vertex:
+                    attr = mesh_data.attribute(attr_name)
+                    data = np.asarray(attr.data)
+                    if data.ndim == 2 and data.shape[1] >= 3:
+                        try:
+                            if hasattr(curve_data, "color_attributes"):
+                                curve_data.color_attributes.new(
+                                    name="Color",
+                                    type="FLOAT_COLOR",
+                                    domain="POINT",
+                                )
+                                layer = curve_data.color_attributes["Color"]
+                                point_idx = 0
+                                for i in range(n_segments):
+                                    for vi in (base_idx[i], tip_idx[i]):
+                                        c = data[vi]
+                                        r, g, b = float(c[0]), float(c[1]), float(c[2])
+                                        a = float(c[3]) if c.shape[0] >= 4 else 1.0
+                                        if point_idx < len(layer.data):
+                                            layer.data[point_idx].color = (r, g, b, a)
+                                        point_idx += 1
+                                color_layer_name = "Color"
+                        except (AttributeError, TypeError):
+                            pass
 
         obj = bpy.data.objects.new(f"curve_{index:03d}", curve_data)
         bpy.context.collection.objects.link(obj)
@@ -560,7 +709,7 @@ class BlenderBackend(RenderBackend):
             if mat:
                 obj.data.materials.append(mat)
 
-        logger.debug(f"Created curve object {index} with {n_edges} segments")
+        logger.debug(f"Created curve object {index} with {n_segments} segments")
 
     def _create_material(
         self,
