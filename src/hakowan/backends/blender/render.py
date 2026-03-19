@@ -533,8 +533,68 @@ class BlenderBackend(RenderBackend):
 
         logger.debug(f"Created surface object {index} with {len(vertices)} vertices")
 
+    def _create_point_base_mesh(self, base_shape: str, index: int):
+        """Create the base mesh for a point mark shape.
+
+        Args:
+            base_shape: One of "sphere", "cube", or "disk".
+            index: Object index (used for naming).
+
+        Returns:
+            Tuple of (base_object, base_mesh, use_smooth, use_subdiv).
+        """
+        match base_shape:
+            case "sphere":
+                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_ico_{index:03d}"
+                base_obj.data.name = f"ico_sphere_{index:03d}"
+                return base_obj, base_obj.data, True, True
+            case "cube":
+                bpy.ops.mesh.primitive_cube_add(size=2.0)
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_cube_{index:03d}"
+                base_obj.data.name = f"cube_{index:03d}"
+                return base_obj, base_obj.data, False, False
+            case "disk":
+                bpy.ops.mesh.primitive_circle_add(
+                    vertices=32, radius=1.0, fill_type="NGON"
+                )
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_disk_{index:03d}"
+                base_obj.data.name = f"disk_{index:03d}"
+                return base_obj, base_obj.data, False, False
+            case _:
+                raise ValueError(f"Unsupported base shape: {base_shape}")
+
+    def _compute_orientation_rotation(self, normal: np.ndarray) -> mathutils.Matrix:
+        """Compute rotation matrix that aligns Z-axis to the given normal.
+
+        Args:
+            normal: Target normal direction.
+
+        Returns:
+            4x4 rotation matrix.
+        """
+        z = np.array([0.0, 0.0, 1.0])
+        axis = np.cross(z, normal)
+        sin_a = np.linalg.norm(axis)
+        cos_a = np.dot(z, normal)
+        if sin_a < 1e-9:
+            return mathutils.Matrix.Identity(4)
+        v = axis / sin_a
+        I = np.eye(3)
+        H = np.outer(v, v)
+        S = np.cross(I, v)
+        M = I * cos_a + S * sin_a + H * (1 - cos_a)
+        rot = mathutils.Matrix.Identity(4)
+        for r in range(3):
+            for c in range(3):
+                rot[r][c] = float(M[r, c])
+        return rot
+
     def _create_point_object(self, view: View, index: int):
-        """Create Blender point cloud (spheres at each vertex) from a view.
+        """Create Blender point cloud (spheres/cubes/disks at each vertex) from a view.
 
         Args:
             view: Point view.
@@ -553,13 +613,26 @@ class BlenderBackend(RenderBackend):
         radii = np.atleast_1d(radii)
         assert len(radii) == n_points
 
-        # Base icosphere mesh (subdivisions=1 for lightweight spheres)
-        ico_name = f"ico_sphere_{index:03d}"
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
-        base_sphere = bpy.context.active_object
-        base_sphere.name = "base_ico"
-        base_mesh = base_sphere.data
-        base_mesh.name = ico_name
+        # Determine base shape
+        base_shape = "sphere"
+        if view.shape_channel is not None:
+            base_shape = view.shape_channel.base_shape
+
+        base_obj, base_mesh, use_smooth, use_subdiv = self._create_point_base_mesh(
+            base_shape, index
+        )
+
+        # Extract orientation normals if specified
+        normals = None
+        if (
+            view.shape_channel is not None
+            and view.shape_channel.orientation is not None
+        ):
+            assert isinstance(view.shape_channel.orientation, Attribute)
+            normal_attr_name = view.shape_channel.orientation._internal_name
+            assert normal_attr_name is not None
+            assert mesh_data.has_attribute(normal_attr_name)
+            normals = np.asarray(mesh_data.attribute(normal_attr_name).data)
 
         # Scalar field: get per-vertex color array for points
         point_colors = None
@@ -588,7 +661,7 @@ class BlenderBackend(RenderBackend):
         if hasattr(view, "global_transform") and view.global_transform is not None:
             empty.matrix_world = mathutils.Matrix(view.global_transform.tolist())
 
-        # Create one sphere per point, parent to empty
+        # Create one shape per point, parent to empty
         for i in range(n_points):
             obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh.copy())
             bpy.context.collection.objects.link(obj)
@@ -597,12 +670,21 @@ class BlenderBackend(RenderBackend):
             obj.scale = (r, r, r)
             obj.parent = empty
 
-            for poly in obj.data.polygons:
-                poly.use_smooth = True
+            if normals is not None:
+                obj.matrix_local = (
+                    mathutils.Matrix.Translation(vertices[i].tolist())
+                    @ self._compute_orientation_rotation(normals[i])
+                    @ mathutils.Matrix.Diagonal((r, r, r, 1.0))
+                )
 
-            subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
-            subd_mod.levels = 1  # viewport
-            subd_mod.render_levels = 3  # render
+            if use_smooth:
+                for poly in obj.data.polygons:
+                    poly.use_smooth = True
+
+            if use_subdiv:
+                subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
+                subd_mod.levels = 1  # viewport
+                subd_mod.render_levels = 3  # render
 
             if view.material_channel is not None:
                 mat = self._create_material(
@@ -614,10 +696,10 @@ class BlenderBackend(RenderBackend):
                 if mat:
                     obj.data.materials.append(mat)
 
-        # Remove the temporary base sphere object (mesh is still used by instances)
-        bpy.data.objects.remove(base_sphere, do_unlink=True)
+        # Remove the temporary base object (mesh is still used by instances)
+        bpy.data.objects.remove(base_obj, do_unlink=True)
 
-        logger.debug(f"Created point object {index} with {n_points} points")
+        logger.debug(f"Created point object {index} with {n_points} {base_shape}s")
 
     def _create_curve_object(self, view: View, index: int):
         """Create Blender curve object from view (mesh edges or vector field).
