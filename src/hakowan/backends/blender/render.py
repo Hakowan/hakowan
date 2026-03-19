@@ -597,6 +597,9 @@ class BlenderBackend(RenderBackend):
             obj.scale = (r, r, r)
             obj.parent = empty
 
+            for poly in obj.data.polygons:
+                poly.use_smooth = True
+
             subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
             subd_mod.levels = 1  # viewport
             subd_mod.render_levels = 3  # render
