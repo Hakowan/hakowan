@@ -593,6 +593,35 @@ class BlenderBackend(RenderBackend):
                 rot[r][c] = float(M[r, c])
         return rot
 
+    def _extract_covariance_transforms(self, view: View):
+        """Extract per-vertex 3x3 transforms from covariance channel.
+
+        Args:
+            view: The view with covariance channel.
+
+        Returns:
+            Array of shape (n, 3, 3) transformation matrices M where covariance is M @ M^T.
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+
+        assert view.covariance_channel is not None
+        assert isinstance(view.covariance_channel.data, Attribute)
+        attr_name = view.covariance_channel.data._internal_name
+        assert attr_name is not None
+        assert mesh.has_attribute(attr_name)
+
+        attr = mesh.attribute(attr_name)
+        assert attr.element_type == lagrange.AttributeElement.Vertex
+        assert attr.data.shape[1] == 9
+        if view.covariance_channel.full:
+            sigma = attr.data.reshape(-1, 3, 3)
+            U, S, Vh = np.linalg.svd(sigma)
+            S_diag = np.apply_along_axis(lambda _s: np.diag(_s), 1, S)
+            return U @ np.sqrt(S_diag)
+        else:
+            return attr.data.reshape(-1, 3, 3)
+
     def _create_point_object(self, view: View, index: int):
         """Create Blender point cloud (spheres/cubes/disks at each vertex) from a view.
 
@@ -607,7 +636,12 @@ class BlenderBackend(RenderBackend):
         vertices = mesh_data.vertices
         n_points = mesh_data.num_vertices
 
-        radii = self._extract_size(view, default_size=0.01)
+        # Extract covariance transforms if specified
+        covariance_transforms = None
+        if view.covariance_channel is not None:
+            covariance_transforms = self._extract_covariance_transforms(view)
+
+        radii = self._extract_size(view, default_size=0.01 if covariance_transforms is None else 1.0)
         if np.isscalar(radii):
             radii = [float(radii)] * n_points
         radii = np.atleast_1d(radii)
@@ -665,17 +699,23 @@ class BlenderBackend(RenderBackend):
         for i in range(n_points):
             obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh.copy())
             bpy.context.collection.objects.link(obj)
-            obj.location = mathutils.Vector(vertices[i].tolist())
             r = float(radii[i])
-            obj.scale = (r, r, r)
             obj.parent = empty
 
-            if normals is not None:
+            if covariance_transforms is not None:
+                local_transform = np.eye(4)
+                local_transform[:3, :3] = covariance_transforms[i] * r
+                local_transform[:3, 3] = vertices[i]
+                obj.matrix_local = mathutils.Matrix(local_transform.tolist())
+            elif normals is not None:
                 obj.matrix_local = (
                     mathutils.Matrix.Translation(vertices[i].tolist())
                     @ self._compute_orientation_rotation(normals[i])
                     @ mathutils.Matrix.Diagonal((r, r, r, 1.0))
                 )
+            else:
+                obj.location = mathutils.Vector(vertices[i].tolist())
+                obj.scale = (r, r, r)
 
             if use_smooth:
                 for poly in obj.data.polygons:
