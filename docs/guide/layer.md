@@ -28,7 +28,7 @@ interface design pattern](https://en.wikipedia.org/wiki/Fluent_interface).
 l2 = l0.data("shape.obj").mark(hkw.mark.Point)
 ```
 
-Note that the overwrite functions does not change the caller object (i.e. `l0` in the above
+Note that the overwrite functions do not change the caller object (i.e. `l0` in the above
 example). This design allows the base layer `l0` to be reused over and over again. Here is a more
 complex example.
 
@@ -74,6 +74,5 @@ composite_view = surface_view + point_view + edge_view
 
 Here, `surface_view` is a visualization of the surface geometry, while `point_view` and `edge_view`
 are the visualizations of vertices and edges of the geometry. The addition operations combines all
-three views together to form a composite view that visualizes all three elements. TODO: Show an
-example.
+three views together to form a composite view that visualizes all three elements.
 

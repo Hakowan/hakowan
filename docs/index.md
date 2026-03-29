@@ -16,7 +16,7 @@ Hakowan can be installed via `pip` from PyPI:
 pip install hakowan
 ```
 
-Note that hakowan requires python 3.11 and above.
+Note that Hakowan requires Python 3.11 and above.
 
 ## Quick start
 
@@ -33,7 +33,7 @@ The above code creates a single visualization [_layer_](guide/layer.md) using
 `shape.obj` as the [_data_](guide/data.md). This layer is then rendered into an image
 named `output.exr`.
 
-Hakowan's grammar decompose a 3D visualization into layers, where each layer
+Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:
 
 * [__Data__](guide/data.md): consists of the geometry as well as
@@ -41,7 +41,7 @@ provides a specification of one or more of the following items:
 
 * [__Mark__](guide/mark.md): determines the geometry type (e.g. point, curve or surface).
 
-* [__Channel__](guide/channel.md): define the mapping from data attributes to the available visual channels.
+* [__Channel__](guide/channel.md): defines the mapping from data attributes to the available visual channels.
 
 * [__Transform__](guide/transform.md): is the data transformation that should be carried out before visualization.
 

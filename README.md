@@ -12,7 +12,7 @@ capabilities. Both Hakowan and its dependencies can be simply installed via pip:
 pip install hakowan
 ```
 
-Note that hakowan requires python 3.11 and above.
+Note that Hakowan requires Python 3.11 and above.
 
 ## Quick start
 

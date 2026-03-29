@@ -14,8 +14,7 @@ In 3D data visualization, we distinguish two types of 3D data:
 ![Mesh elements](../images/origamix_rabbit.svg){: align="right" style="width:200px"}
 
 3D geometry are often represented as a mesh for visualization purposes. A mesh, such as the bunny
-model on the right[^1], consists of a set of vertices
-edges and facets.
+model on the right[^1], consists of a set of vertices, edges, and facets.
 Data associated with 3D geometry are represented as an _attribute_ of a mesh. Each attribute is
 defined for a specific element type (vertex, edge or facet).
 
@@ -55,13 +54,13 @@ representing an attribute or observed value associated with each of the data poi
 
 For 3D data, we extends this notion of data frame. A "row" in a 3D data frame represents a 3D
 spatial element (e.g. a point, a line segment or a polygon) on which we can sample 3D data values.
-A "column" in a 3D data frame represents a spatically varying data field (e.g. scalar or vector
+A "column" in a 3D data frame represents a spatially varying data field (e.g. scalar or vector
 field), for which we know its value at a set of 3D spatial elements.
 -->
 
 ## Region of interest
 
-When we specifying the data, we can optionally specify a region of interest. The region of interest
+When specifying the data, we can optionally specify a region of interest. The region of interest
 is an axis-aligned box that defines the region in the center of the rendering.
 
 ```py
