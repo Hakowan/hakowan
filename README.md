@@ -30,7 +30,7 @@ hkw.render(base, filename="image.exr")  # Render!
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.3.2},
+    version = {0.4.2},
     year = 2024,
 }
 ```
