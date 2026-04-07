@@ -18,7 +18,7 @@ from ...grammar.channel.material import (
     ThinPrincipled,
 )
 from ...grammar.scale import Attribute
-from ...grammar.texture import ScalarField
+from ...grammar.texture import ScalarField, Checkerboard, Uniform
 from ...grammar.channel.curvestyle import Bend
 from .. import RenderBackend
 
@@ -40,6 +40,7 @@ class BlenderBackend(RenderBackend):
     - Materials: Diffuse, Plastic, RoughPlastic, Principled, ThinPrincipled,
       Conductor, RoughConductor, Dielectric, ThinDielectric, RoughDielectric, Hair
     - Two-sided materials
+    - Textures: ScalarField, Checkerboard
     - Camera setup
     - Basic lighting
     """
@@ -514,6 +515,17 @@ class BlenderBackend(RenderBackend):
             )
             color_layer_name = "Color"
 
+        # Checkerboard texture: copy UV attribute to Blender mesh
+        uv_layer_name = None
+        checkerboard_tex = self._get_checkerboard_texture(view)
+        if checkerboard_tex is not None and checkerboard_tex._uv is not None:
+            uv_attr = checkerboard_tex._uv
+            if isinstance(uv_attr, Attribute) and uv_attr._internal_name is not None:
+                self._copy_mesh_uv_to_blender(
+                    mesh_data, mesh, uv_attr._internal_name, uv_layer_name="UVMap"
+                )
+                uv_layer_name = "UVMap"
+
         # Create object
         obj = bpy.data.objects.new(f"object_{index:03d}", mesh)
         bpy.context.collection.objects.link(obj)
@@ -527,7 +539,9 @@ class BlenderBackend(RenderBackend):
 
         # Apply material
         if view.material_channel is not None:
-            mat = self._create_material(view, index, color_layer_name=color_layer_name)
+            mat = self._create_material(
+                view, index, color_layer_name=color_layer_name, uv_layer_name=uv_layer_name
+            )
             if mat:
                 obj.data.materials.append(mat)
 
@@ -892,6 +906,7 @@ class BlenderBackend(RenderBackend):
         color_layer_name: str | None = None,
         override_color: tuple[float, float, float, float] | None = None,
         material_suffix: str | None = None,
+        uv_layer_name: str | None = None,
     ):
         """Create Blender material from view's material channel.
 
@@ -901,6 +916,7 @@ class BlenderBackend(RenderBackend):
             color_layer_name: If set, use mesh/curve color attribute (ScalarField).
             override_color: If set, use this RGBA as base color (e.g. per-point).
             material_suffix: Optional suffix for material name (e.g. point index).
+            uv_layer_name: If set, use UV layer for texture mapping (Checkerboard).
 
         Returns:
             Blender material or None.
@@ -935,8 +951,19 @@ class BlenderBackend(RenderBackend):
         output.location = (300, 0)
         links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
-        # Base color: scalar field attribute, override, or from material
-        if color_layer_name is not None:
+        # Base color: checkerboard texture, scalar field attribute, override, or from material
+        checkerboard_tex = self._get_checkerboard_texture(view)
+        if checkerboard_tex is not None and uv_layer_name is not None:
+            # Create checkerboard shader node network
+            checker_node = self._create_checkerboard_shader(
+                nodes, links, checkerboard_tex, uv_layer_name
+            )
+            if checker_node is not None:
+                links.new(checker_node.outputs["Color"], bsdf.inputs["Base Color"])
+            else:
+                # Fallback if checkerboard creation failed
+                bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+        elif color_layer_name is not None:
             attr_node = nodes.new(type="ShaderNodeAttribute")
             attr_node.location = (-200, 0)
             attr_node.attribute_name = color_layer_name
@@ -1120,6 +1147,73 @@ class BlenderBackend(RenderBackend):
 
         return mat
 
+    def _create_checkerboard_shader(self, nodes, links, checkerboard_tex: Checkerboard, uv_layer_name: str):
+        """Create a checkerboard shader node network.
+
+        Args:
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+            checkerboard_tex: Checkerboard texture configuration.
+            uv_layer_name: Name of the UV layer to use.
+
+        Returns:
+            Output node that provides the checkerboard color, or None if failed.
+        """
+        from ...common.to_color import to_color
+
+        # UV Map node
+        uv_node = nodes.new(type="ShaderNodeUVMap")
+        uv_node.location = (-800, 0)
+        uv_node.uv_map = uv_layer_name
+
+        # Mapping node for scaling
+        mapping_node = nodes.new(type="ShaderNodeMapping")
+        mapping_node.location = (-600, 0)
+        mapping_node.inputs["Scale"].default_value = (
+            float(checkerboard_tex.size),
+            float(checkerboard_tex.size),
+            1.0,
+        )
+        links.new(uv_node.outputs["UV"], mapping_node.inputs["Vector"])
+
+        # Checker Texture node
+        checker_node = nodes.new(type="ShaderNodeTexChecker")
+        checker_node.location = (-400, 0)
+        checker_node.inputs["Scale"].default_value = 1.0  # Scale is handled by mapping
+        links.new(mapping_node.outputs["Vector"], checker_node.inputs["Vector"])
+
+        # Extract colors from texture1 and texture2
+        color1 = self._texture_to_color(checkerboard_tex.texture1)
+        color2 = self._texture_to_color(checkerboard_tex.texture2)
+
+        # Set checker colors
+        if color1 is not None:
+            checker_node.inputs["Color1"].default_value = color1
+        if color2 is not None:
+            checker_node.inputs["Color2"].default_value = color2
+
+        return checker_node
+
+    def _texture_to_color(self, texture) -> tuple[float, float, float, float] | None:
+        """Convert a TextureLike to an RGBA color.
+
+        Args:
+            texture: Texture or color value.
+
+        Returns:
+            RGBA tuple or None if cannot be converted.
+        """
+        from ...common.to_color import to_color
+
+        if isinstance(texture, Uniform):
+            return self._extract_color(texture.color)
+        elif isinstance(texture, (str, int, float, list, tuple)):
+            return self._extract_color(texture)
+        else:
+            # Cannot convert complex textures like ScalarField or nested Checkerboard
+            logger.warning(f"Cannot convert texture type {type(texture)} to color for checkerboard")
+            return None
+
     def _extract_material_color(self, mat_data) -> tuple[float, float, float, float] | None:
         """Extract base color from any supported material type.
 
@@ -1203,6 +1297,31 @@ class BlenderBackend(RenderBackend):
                 out = None
         return out
 
+    def _get_checkerboard_texture(self, view: View):
+        """If the view's material uses a Checkerboard texture, return the texture.
+
+        Returns:
+            Checkerboard texture or None.
+        """
+        if view.material_channel is None or view.data_frame is None:
+            return None
+        mat_data = view.material_channel
+
+        def check(tex):
+            if isinstance(tex, Checkerboard):
+                return tex
+            return None
+
+        match mat_data:
+            case Diffuse():
+                return check(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                return check(mat_data.diffuse_reflectance)
+            case Principled() | ThinPrincipled():
+                return check(mat_data.color)
+            case _:
+                return None
+
     def _copy_mesh_color_to_blender(
         self,
         lagrange_mesh,
@@ -1264,6 +1383,62 @@ class BlenderBackend(RenderBackend):
         else:
             logger.warning(
                 f"Blender backend: unsupported color element type {element_type}"
+            )
+
+    def _copy_mesh_uv_to_blender(
+        self,
+        lagrange_mesh,
+        bpy_mesh,
+        attr_name: str,
+        uv_layer_name: str = "UVMap",
+    ):
+        """Copy Lagrange mesh UV attribute to a Blender mesh UV map.
+
+        Args:
+            lagrange_mesh: Lagrange mesh with UV attribute.
+            bpy_mesh: Blender mesh to copy UV data into.
+            attr_name: Name of the UV attribute in the Lagrange mesh.
+            uv_layer_name: Name of the UV layer to create in Blender.
+        """
+        if not lagrange_mesh.has_attribute(attr_name):
+            logger.warning(f"UV attribute '{attr_name}' not found in mesh")
+            return
+
+        attr = lagrange_mesh.attribute(attr_name)
+        uv_data = np.asarray(attr.data)
+
+        # UV data should be 2D (N x 2)
+        if uv_data.ndim != 2 or uv_data.shape[1] < 2:
+            logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}")
+            return
+
+        # Create UV layer
+        if uv_layer_name not in bpy_mesh.uv_layers:
+            bpy_mesh.uv_layers.new(name=uv_layer_name)
+        uv_layer = bpy_mesh.uv_layers[uv_layer_name]
+
+        # Handle different element types
+        element_type = attr.element_type
+
+        if element_type == lagrange.AttributeElement.Vertex:
+            # Vertex UVs: expand to corner UVs
+            for poly in bpy_mesh.polygons:
+                for loop_idx in poly.loop_indices:
+                    loop = bpy_mesh.loops[loop_idx]
+                    vertex_idx = loop.vertex_index
+                    if vertex_idx < len(uv_data):
+                        uv_layer.data[loop_idx].uv = (
+                            float(uv_data[vertex_idx, 0]),
+                            float(uv_data[vertex_idx, 1]),
+                        )
+        elif element_type == lagrange.AttributeElement.Corner:
+            # Corner/loop UVs: direct mapping
+            for i, uv in enumerate(uv_data):
+                if i < len(uv_layer.data):
+                    uv_layer.data[i].uv = (float(uv[0]), float(uv[1]))
+        else:
+            logger.warning(
+                f"Blender backend: unsupported UV element type {element_type}"
             )
 
     def _setup_camera(self, config: Config):
