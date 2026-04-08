@@ -585,17 +585,34 @@ class BlenderBackend(RenderBackend):
         """Compute rotation matrix that aligns Z-axis to the given normal.
 
         Args:
-            normal: Target normal direction.
+            normal: Target normal direction (will be normalized).
 
         Returns:
             4x4 rotation matrix.
         """
+        # Normalize the input normal
+        normal_normalized = normal / np.linalg.norm(normal)
+
         z = np.array([0.0, 0.0, 1.0])
-        axis = np.cross(z, normal)
+        axis = np.cross(z, normal_normalized)
         sin_a = np.linalg.norm(axis)
-        cos_a = np.dot(z, normal)
+        cos_a = np.dot(z, normal_normalized)
+
+        # Handle edge cases
         if sin_a < 1e-9:
-            return mathutils.Matrix.Identity(4)
+            # Either parallel or antiparallel
+            if cos_a > 0:
+                # Parallel: normal ≈ (0, 0, 1)
+                return mathutils.Matrix.Identity(4)
+            else:
+                # Antiparallel: normal ≈ (0, 0, -1)
+                # Rotate 180° around X-axis
+                rot = mathutils.Matrix.Identity(4)
+                rot[1][1] = -1.0
+                rot[2][2] = -1.0
+                return rot
+
+        # General case: use Rodrigues' rotation formula
         v = axis / sin_a
         I = np.eye(3)
         H = np.outer(v, v)
@@ -1159,8 +1176,6 @@ class BlenderBackend(RenderBackend):
         Returns:
             Output node that provides the checkerboard color, or None if failed.
         """
-        from ...common.to_color import to_color
-
         # UV Map node
         uv_node = nodes.new(type="ShaderNodeUVMap")
         uv_node.location = (-800, 0)
@@ -1203,8 +1218,6 @@ class BlenderBackend(RenderBackend):
         Returns:
             RGBA tuple or None if cannot be converted.
         """
-        from ...common.to_color import to_color
-
         if isinstance(texture, Uniform):
             return self._extract_color(texture.color)
         elif isinstance(texture, (str, int, float, list, tuple)):
@@ -1404,42 +1417,61 @@ class BlenderBackend(RenderBackend):
             logger.warning(f"UV attribute '{attr_name}' not found in mesh")
             return
 
-        attr = lagrange_mesh.attribute(attr_name)
-        uv_data = np.asarray(attr.data)
-
-        # UV data should be 2D (N x 2)
-        if uv_data.ndim != 2 or uv_data.shape[1] < 2:
-            logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}")
-            return
-
         # Create UV layer
         if uv_layer_name not in bpy_mesh.uv_layers:
             bpy_mesh.uv_layers.new(name=uv_layer_name)
         uv_layer = bpy_mesh.uv_layers[uv_layer_name]
 
-        # Handle different element types
-        element_type = attr.element_type
+        # Handle indexed attributes (common after compilation/finalization)
+        if lagrange_mesh.is_attribute_indexed(attr_name):
+            indexed_attr = lagrange_mesh.indexed_attribute(attr_name)
+            uv_values = np.asarray(indexed_attr.values.data)
+            uv_indices = np.asarray(indexed_attr.indices.data)
 
-        if element_type == lagrange.AttributeElement.Vertex:
-            # Vertex UVs: expand to corner UVs
-            for poly in bpy_mesh.polygons:
-                for loop_idx in poly.loop_indices:
-                    loop = bpy_mesh.loops[loop_idx]
-                    vertex_idx = loop.vertex_index
-                    if vertex_idx < len(uv_data):
-                        uv_layer.data[loop_idx].uv = (
-                            float(uv_data[vertex_idx, 0]),
-                            float(uv_data[vertex_idx, 1]),
-                        )
-        elif element_type == lagrange.AttributeElement.Corner:
-            # Corner/loop UVs: direct mapping
-            for i, uv in enumerate(uv_data):
-                if i < len(uv_layer.data):
-                    uv_layer.data[i].uv = (float(uv[0]), float(uv[1]))
+            # UV values should be 2D (N x 2)
+            if uv_values.ndim != 2 or uv_values.shape[1] < 2:
+                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_values.shape}")
+                return
+
+            # Indexed UVs: expand using indices to corner UVs
+            for i, idx in enumerate(uv_indices.flat):
+                if i < len(uv_layer.data) and idx < len(uv_values):
+                    uv_layer.data[i].uv = (
+                        float(uv_values[idx, 0]),
+                        float(uv_values[idx, 1]),
+                    )
         else:
-            logger.warning(
-                f"Blender backend: unsupported UV element type {element_type}"
-            )
+            # Handle non-indexed attributes
+            attr = lagrange_mesh.attribute(attr_name)
+            uv_data = np.asarray(attr.data)
+
+            # UV data should be 2D (N x 2)
+            if uv_data.ndim != 2 or uv_data.shape[1] < 2:
+                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}")
+                return
+
+            element_type = attr.element_type
+
+            if element_type == lagrange.AttributeElement.Vertex:
+                # Vertex UVs: expand to corner UVs
+                for poly in bpy_mesh.polygons:
+                    for loop_idx in poly.loop_indices:
+                        loop = bpy_mesh.loops[loop_idx]
+                        vertex_idx = loop.vertex_index
+                        if vertex_idx < len(uv_data):
+                            uv_layer.data[loop_idx].uv = (
+                                float(uv_data[vertex_idx, 0]),
+                                float(uv_data[vertex_idx, 1]),
+                            )
+            elif element_type == lagrange.AttributeElement.Corner:
+                # Corner/loop UVs: direct mapping
+                for i, uv in enumerate(uv_data):
+                    if i < len(uv_layer.data):
+                        uv_layer.data[i].uv = (float(uv[0]), float(uv[1]))
+            else:
+                logger.warning(
+                    f"Blender backend: unsupported UV element type {element_type}"
+                )
 
     def _setup_camera(self, config: Config):
         """Setup Blender camera from config.

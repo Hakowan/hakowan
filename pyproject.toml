@@ -18,7 +18,7 @@ dependencies=[
     "bpy>=5.0.1,<6; python_version == '3.11'",
     "tqdm>=4.66",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
 docs = [
