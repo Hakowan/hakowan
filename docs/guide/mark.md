@@ -12,7 +12,7 @@ Mark defines the type of geometry a visualization should use. Currently mark can
 Here is an example of specifying the mark.
 
 ```py
-# As arguement to hkw.layer method.
+# As argument to hkw.layer method.
 l = hkw.layer(mark = hkw.mark.Surface)
 
 # Or use .mark overwrite method.

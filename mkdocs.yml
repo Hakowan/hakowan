@@ -78,9 +78,13 @@ nav:
   - Material: guide/material.md
   - Texture: guide/texture.md
   - Layer: guide/layer.md
+  - Compile: guide/compile.md
+  - Backend: guide/backend.md
   - Configuration: guide/config.md
 - Gallery: gallery.md
 - Reference:
+  - Render: api/render.md
+  - Compile: api/compile.md
   - Data: api/data.md
   - Mark: api/mark.md
   - Channel: api/channel.md

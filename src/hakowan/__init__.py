@@ -1,6 +1,6 @@
 """Hakowan: A 3D data visualization grammar"""
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 from .common import logger
 from .setup import Config as config

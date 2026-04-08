@@ -18,7 +18,14 @@ dependencies=[
     "bpy>=5.0.1,<6; python_version == '3.11'",
     "tqdm>=4.66",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]

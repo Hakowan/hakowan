@@ -18,7 +18,7 @@ from ...grammar.channel.material import (
     ThinPrincipled,
 )
 from ...grammar.scale import Attribute
-from ...grammar.texture import ScalarField
+from ...grammar.texture import ScalarField, Checkerboard, Uniform
 from ...grammar.channel.curvestyle import Bend
 from .. import RenderBackend
 
@@ -40,6 +40,7 @@ class BlenderBackend(RenderBackend):
     - Materials: Diffuse, Plastic, RoughPlastic, Principled, ThinPrincipled,
       Conductor, RoughConductor, Dielectric, ThinDielectric, RoughDielectric, Hair
     - Two-sided materials
+    - Textures: ScalarField, Checkerboard
     - Camera setup
     - Basic lighting
     """
@@ -514,6 +515,17 @@ class BlenderBackend(RenderBackend):
             )
             color_layer_name = "Color"
 
+        # Checkerboard texture: copy UV attribute to Blender mesh
+        uv_layer_name = None
+        checkerboard_tex = self._get_checkerboard_texture(view)
+        if checkerboard_tex is not None and checkerboard_tex._uv is not None:
+            uv_attr = checkerboard_tex._uv
+            if isinstance(uv_attr, Attribute) and uv_attr._internal_name is not None:
+                self._copy_mesh_uv_to_blender(
+                    mesh_data, mesh, uv_attr._internal_name, uv_layer_name="UVMap"
+                )
+                uv_layer_name = "UVMap"
+
         # Create object
         obj = bpy.data.objects.new(f"object_{index:03d}", mesh)
         bpy.context.collection.objects.link(obj)
@@ -527,14 +539,122 @@ class BlenderBackend(RenderBackend):
 
         # Apply material
         if view.material_channel is not None:
-            mat = self._create_material(view, index, color_layer_name=color_layer_name)
+            mat = self._create_material(
+                view, index, color_layer_name=color_layer_name, uv_layer_name=uv_layer_name
+            )
             if mat:
                 obj.data.materials.append(mat)
 
         logger.debug(f"Created surface object {index} with {len(vertices)} vertices")
 
+    def _create_point_base_mesh(self, base_shape: str, index: int):
+        """Create the base mesh for a point mark shape.
+
+        Args:
+            base_shape: One of "sphere", "cube", or "disk".
+            index: Object index (used for naming).
+
+        Returns:
+            Tuple of (base_object, base_mesh, use_smooth, use_subdiv).
+        """
+        match base_shape:
+            case "sphere":
+                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_ico_{index:03d}"
+                base_obj.data.name = f"ico_sphere_{index:03d}"
+                return base_obj, base_obj.data, True, True
+            case "cube":
+                bpy.ops.mesh.primitive_cube_add(size=2.0)
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_cube_{index:03d}"
+                base_obj.data.name = f"cube_{index:03d}"
+                return base_obj, base_obj.data, False, False
+            case "disk":
+                bpy.ops.mesh.primitive_circle_add(
+                    vertices=32, radius=1.0, fill_type="NGON"
+                )
+                base_obj = bpy.context.active_object
+                base_obj.name = f"base_disk_{index:03d}"
+                base_obj.data.name = f"disk_{index:03d}"
+                return base_obj, base_obj.data, False, False
+            case _:
+                raise ValueError(f"Unsupported base shape: {base_shape}")
+
+    def _compute_orientation_rotation(self, normal: np.ndarray) -> mathutils.Matrix:
+        """Compute rotation matrix that aligns Z-axis to the given normal.
+
+        Args:
+            normal: Target normal direction (will be normalized).
+
+        Returns:
+            4x4 rotation matrix.
+        """
+        # Normalize the input normal
+        normal_normalized = normal / np.linalg.norm(normal)
+
+        z = np.array([0.0, 0.0, 1.0])
+        axis = np.cross(z, normal_normalized)
+        sin_a = np.linalg.norm(axis)
+        cos_a = np.dot(z, normal_normalized)
+
+        # Handle edge cases
+        if sin_a < 1e-9:
+            # Either parallel or antiparallel
+            if cos_a > 0:
+                # Parallel: normal ≈ (0, 0, 1)
+                return mathutils.Matrix.Identity(4)
+            else:
+                # Antiparallel: normal ≈ (0, 0, -1)
+                # Rotate 180° around X-axis
+                rot = mathutils.Matrix.Identity(4)
+                rot[1][1] = -1.0
+                rot[2][2] = -1.0
+                return rot
+
+        # General case: use Rodrigues' rotation formula
+        v = axis / sin_a
+        I = np.eye(3)
+        H = np.outer(v, v)
+        S = np.cross(I, v)
+        M = I * cos_a + S * sin_a + H * (1 - cos_a)
+        rot = mathutils.Matrix.Identity(4)
+        for r in range(3):
+            for c in range(3):
+                rot[r][c] = float(M[r, c])
+        return rot
+
+    def _extract_covariance_transforms(self, view: View):
+        """Extract per-vertex 3x3 transforms from covariance channel.
+
+        Args:
+            view: The view with covariance channel.
+
+        Returns:
+            Array of shape (n, 3, 3) transformation matrices M where covariance is M @ M^T.
+        """
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+
+        assert view.covariance_channel is not None
+        assert isinstance(view.covariance_channel.data, Attribute)
+        attr_name = view.covariance_channel.data._internal_name
+        assert attr_name is not None
+        assert mesh.has_attribute(attr_name)
+
+        attr = mesh.attribute(attr_name)
+        assert attr.element_type == lagrange.AttributeElement.Vertex
+        assert attr.data.shape[1] == 9
+        if view.covariance_channel.full:
+            sigma = attr.data.reshape(-1, 3, 3)
+            U, S, Vh = np.linalg.svd(sigma)
+            S_diag = np.apply_along_axis(lambda _s: np.diag(_s), 1, S)
+            return U @ np.sqrt(S_diag)
+        else:
+            return attr.data.reshape(-1, 3, 3)
+
     def _create_point_object(self, view: View, index: int):
-        """Create Blender point cloud (spheres at each vertex) from a view.
+        """Create Blender point cloud (spheres/cubes/disks at each vertex) from a view.
 
         Args:
             view: Point view.
@@ -547,19 +667,37 @@ class BlenderBackend(RenderBackend):
         vertices = mesh_data.vertices
         n_points = mesh_data.num_vertices
 
-        radii = self._extract_size(view, default_size=0.01)
+        # Extract covariance transforms if specified
+        covariance_transforms = None
+        if view.covariance_channel is not None:
+            covariance_transforms = self._extract_covariance_transforms(view)
+
+        radii = self._extract_size(view, default_size=0.01 if covariance_transforms is None else 1.0)
         if np.isscalar(radii):
             radii = [float(radii)] * n_points
         radii = np.atleast_1d(radii)
         assert len(radii) == n_points
 
-        # Base icosphere mesh (subdivisions=1 for lightweight spheres)
-        ico_name = f"ico_sphere_{index:03d}"
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
-        base_sphere = bpy.context.active_object
-        base_sphere.name = "base_ico"
-        base_mesh = base_sphere.data
-        base_mesh.name = ico_name
+        # Determine base shape
+        base_shape = "sphere"
+        if view.shape_channel is not None:
+            base_shape = view.shape_channel.base_shape
+
+        base_obj, base_mesh, use_smooth, use_subdiv = self._create_point_base_mesh(
+            base_shape, index
+        )
+
+        # Extract orientation normals if specified
+        normals = None
+        if (
+            view.shape_channel is not None
+            and view.shape_channel.orientation is not None
+        ):
+            assert isinstance(view.shape_channel.orientation, Attribute)
+            normal_attr_name = view.shape_channel.orientation._internal_name
+            assert normal_attr_name is not None
+            assert mesh_data.has_attribute(normal_attr_name)
+            normals = np.asarray(mesh_data.attribute(normal_attr_name).data)
 
         # Scalar field: get per-vertex color array for points
         point_colors = None
@@ -588,18 +726,36 @@ class BlenderBackend(RenderBackend):
         if hasattr(view, "global_transform") and view.global_transform is not None:
             empty.matrix_world = mathutils.Matrix(view.global_transform.tolist())
 
-        # Create one sphere per point, parent to empty
+        # Create one shape per point, parent to empty
         for i in range(n_points):
             obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh.copy())
             bpy.context.collection.objects.link(obj)
-            obj.location = mathutils.Vector(vertices[i].tolist())
             r = float(radii[i])
-            obj.scale = (r, r, r)
             obj.parent = empty
 
-            subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
-            subd_mod.levels = 1  # viewport
-            subd_mod.render_levels = 3  # render
+            if covariance_transforms is not None:
+                local_transform = np.eye(4)
+                local_transform[:3, :3] = covariance_transforms[i] * r
+                local_transform[:3, 3] = vertices[i]
+                obj.matrix_local = mathutils.Matrix(local_transform.tolist())
+            elif normals is not None:
+                obj.matrix_local = (
+                    mathutils.Matrix.Translation(vertices[i].tolist())
+                    @ self._compute_orientation_rotation(normals[i])
+                    @ mathutils.Matrix.Diagonal((r, r, r, 1.0))
+                )
+            else:
+                obj.location = mathutils.Vector(vertices[i].tolist())
+                obj.scale = (r, r, r)
+
+            if use_smooth:
+                for poly in obj.data.polygons:
+                    poly.use_smooth = True
+
+            if use_subdiv:
+                subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
+                subd_mod.levels = 1  # viewport
+                subd_mod.render_levels = 3  # render
 
             if view.material_channel is not None:
                 mat = self._create_material(
@@ -611,10 +767,10 @@ class BlenderBackend(RenderBackend):
                 if mat:
                     obj.data.materials.append(mat)
 
-        # Remove the temporary base sphere object (mesh is still used by instances)
-        bpy.data.objects.remove(base_sphere, do_unlink=True)
+        # Remove the temporary base object (mesh is still used by instances)
+        bpy.data.objects.remove(base_obj, do_unlink=True)
 
-        logger.debug(f"Created point object {index} with {n_points} points")
+        logger.debug(f"Created point object {index} with {n_points} {base_shape}s")
 
     def _create_curve_object(self, view: View, index: int):
         """Create Blender curve object from view (mesh edges or vector field).
@@ -767,6 +923,7 @@ class BlenderBackend(RenderBackend):
         color_layer_name: str | None = None,
         override_color: tuple[float, float, float, float] | None = None,
         material_suffix: str | None = None,
+        uv_layer_name: str | None = None,
     ):
         """Create Blender material from view's material channel.
 
@@ -776,6 +933,7 @@ class BlenderBackend(RenderBackend):
             color_layer_name: If set, use mesh/curve color attribute (ScalarField).
             override_color: If set, use this RGBA as base color (e.g. per-point).
             material_suffix: Optional suffix for material name (e.g. point index).
+            uv_layer_name: If set, use UV layer for texture mapping (Checkerboard).
 
         Returns:
             Blender material or None.
@@ -810,8 +968,19 @@ class BlenderBackend(RenderBackend):
         output.location = (300, 0)
         links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
-        # Base color: scalar field attribute, override, or from material
-        if color_layer_name is not None:
+        # Base color: checkerboard texture, scalar field attribute, override, or from material
+        checkerboard_tex = self._get_checkerboard_texture(view)
+        if checkerboard_tex is not None and uv_layer_name is not None:
+            # Create checkerboard shader node network
+            checker_node = self._create_checkerboard_shader(
+                nodes, links, checkerboard_tex, uv_layer_name
+            )
+            if checker_node is not None:
+                links.new(checker_node.outputs["Color"], bsdf.inputs["Base Color"])
+            else:
+                # Fallback if checkerboard creation failed
+                bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+        elif color_layer_name is not None:
             attr_node = nodes.new(type="ShaderNodeAttribute")
             attr_node.location = (-200, 0)
             attr_node.attribute_name = color_layer_name
@@ -995,6 +1164,69 @@ class BlenderBackend(RenderBackend):
 
         return mat
 
+    def _create_checkerboard_shader(self, nodes, links, checkerboard_tex: Checkerboard, uv_layer_name: str):
+        """Create a checkerboard shader node network.
+
+        Args:
+            nodes: Shader node tree nodes.
+            links: Shader node tree links.
+            checkerboard_tex: Checkerboard texture configuration.
+            uv_layer_name: Name of the UV layer to use.
+
+        Returns:
+            Output node that provides the checkerboard color, or None if failed.
+        """
+        # UV Map node
+        uv_node = nodes.new(type="ShaderNodeUVMap")
+        uv_node.location = (-800, 0)
+        uv_node.uv_map = uv_layer_name
+
+        # Mapping node for scaling
+        mapping_node = nodes.new(type="ShaderNodeMapping")
+        mapping_node.location = (-600, 0)
+        mapping_node.inputs["Scale"].default_value = (
+            float(checkerboard_tex.size),
+            float(checkerboard_tex.size),
+            1.0,
+        )
+        links.new(uv_node.outputs["UV"], mapping_node.inputs["Vector"])
+
+        # Checker Texture node
+        checker_node = nodes.new(type="ShaderNodeTexChecker")
+        checker_node.location = (-400, 0)
+        checker_node.inputs["Scale"].default_value = 1.0  # Scale is handled by mapping
+        links.new(mapping_node.outputs["Vector"], checker_node.inputs["Vector"])
+
+        # Extract colors from texture1 and texture2
+        color1 = self._texture_to_color(checkerboard_tex.texture1)
+        color2 = self._texture_to_color(checkerboard_tex.texture2)
+
+        # Set checker colors
+        if color1 is not None:
+            checker_node.inputs["Color1"].default_value = color1
+        if color2 is not None:
+            checker_node.inputs["Color2"].default_value = color2
+
+        return checker_node
+
+    def _texture_to_color(self, texture) -> tuple[float, float, float, float] | None:
+        """Convert a TextureLike to an RGBA color.
+
+        Args:
+            texture: Texture or color value.
+
+        Returns:
+            RGBA tuple or None if cannot be converted.
+        """
+        if isinstance(texture, Uniform):
+            return self._extract_color(texture.color)
+        elif isinstance(texture, (str, int, float, list, tuple)):
+            return self._extract_color(texture)
+        else:
+            # Cannot convert complex textures like ScalarField or nested Checkerboard
+            logger.warning(f"Cannot convert texture type {type(texture)} to color for checkerboard")
+            return None
+
     def _extract_material_color(self, mat_data) -> tuple[float, float, float, float] | None:
         """Extract base color from any supported material type.
 
@@ -1078,6 +1310,31 @@ class BlenderBackend(RenderBackend):
                 out = None
         return out
 
+    def _get_checkerboard_texture(self, view: View):
+        """If the view's material uses a Checkerboard texture, return the texture.
+
+        Returns:
+            Checkerboard texture or None.
+        """
+        if view.material_channel is None or view.data_frame is None:
+            return None
+        mat_data = view.material_channel
+
+        def check(tex):
+            if isinstance(tex, Checkerboard):
+                return tex
+            return None
+
+        match mat_data:
+            case Diffuse():
+                return check(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                return check(mat_data.diffuse_reflectance)
+            case Principled() | ThinPrincipled():
+                return check(mat_data.color)
+            case _:
+                return None
+
     def _copy_mesh_color_to_blender(
         self,
         lagrange_mesh,
@@ -1140,6 +1397,81 @@ class BlenderBackend(RenderBackend):
             logger.warning(
                 f"Blender backend: unsupported color element type {element_type}"
             )
+
+    def _copy_mesh_uv_to_blender(
+        self,
+        lagrange_mesh,
+        bpy_mesh,
+        attr_name: str,
+        uv_layer_name: str = "UVMap",
+    ):
+        """Copy Lagrange mesh UV attribute to a Blender mesh UV map.
+
+        Args:
+            lagrange_mesh: Lagrange mesh with UV attribute.
+            bpy_mesh: Blender mesh to copy UV data into.
+            attr_name: Name of the UV attribute in the Lagrange mesh.
+            uv_layer_name: Name of the UV layer to create in Blender.
+        """
+        if not lagrange_mesh.has_attribute(attr_name):
+            logger.warning(f"UV attribute '{attr_name}' not found in mesh")
+            return
+
+        # Create UV layer
+        if uv_layer_name not in bpy_mesh.uv_layers:
+            bpy_mesh.uv_layers.new(name=uv_layer_name)
+        uv_layer = bpy_mesh.uv_layers[uv_layer_name]
+
+        # Handle indexed attributes (common after compilation/finalization)
+        if lagrange_mesh.is_attribute_indexed(attr_name):
+            indexed_attr = lagrange_mesh.indexed_attribute(attr_name)
+            uv_values = np.asarray(indexed_attr.values.data)
+            uv_indices = np.asarray(indexed_attr.indices.data)
+
+            # UV values should be 2D (N x 2)
+            if uv_values.ndim != 2 or uv_values.shape[1] < 2:
+                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_values.shape}")
+                return
+
+            # Indexed UVs: expand using indices to corner UVs
+            for i, idx in enumerate(uv_indices.flat):
+                if i < len(uv_layer.data) and idx < len(uv_values):
+                    uv_layer.data[i].uv = (
+                        float(uv_values[idx, 0]),
+                        float(uv_values[idx, 1]),
+                    )
+        else:
+            # Handle non-indexed attributes
+            attr = lagrange_mesh.attribute(attr_name)
+            uv_data = np.asarray(attr.data)
+
+            # UV data should be 2D (N x 2)
+            if uv_data.ndim != 2 or uv_data.shape[1] < 2:
+                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}")
+                return
+
+            element_type = attr.element_type
+
+            if element_type == lagrange.AttributeElement.Vertex:
+                # Vertex UVs: expand to corner UVs
+                for poly in bpy_mesh.polygons:
+                    for loop_idx in poly.loop_indices:
+                        loop = bpy_mesh.loops[loop_idx]
+                        vertex_idx = loop.vertex_index
+                        if vertex_idx < len(uv_data):
+                            uv_layer.data[loop_idx].uv = (
+                                float(uv_data[vertex_idx, 0]),
+                                float(uv_data[vertex_idx, 1]),
+                            )
+            elif element_type == lagrange.AttributeElement.Corner:
+                # Corner/loop UVs: direct mapping
+                for i, uv in enumerate(uv_data):
+                    if i < len(uv_layer.data):
+                        uv_layer.data[i].uv = (float(uv[0]), float(uv[1]))
+            else:
+                logger.warning(
+                    f"Blender backend: unsupported UV element type {element_type}"
+                )
 
     def _setup_camera(self, config: Config):
         """Setup Blender camera from config.

@@ -96,7 +96,9 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
-    parser.add_argument("--quad-only", help="Only render quad facets", action="store_true")
+    parser.add_argument(
+        "--quad-only", help="Only render quad facets", action="store_true"
+    )
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
         "--backend",
@@ -456,7 +458,6 @@ def main():
                 two_sided=args.two_sided,
             )
         case "uv":
-            mesh = lagrange.unify_index_buffer(mesh)
             diag_len = bbox_diag
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
             assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
@@ -469,13 +470,7 @@ def main():
                     uv=hkw.attribute(uv_name, scale=args.uv_scale), size=64
                 ),
             )
-            boundary = (
-                base.transform(hkw.transform.Boundary())
-                .mark("Curve")
-                .material("Diffuse", "black")
-                .channel(size=0.001 * diag_len)
-            )
-            layer = surface + boundary
+            layer = surface
         case _:
             if mesh.has_attribute(args.material):
                 scalar_texture = hkw.texture.ScalarField(args.material)
@@ -535,13 +530,13 @@ def main():
         layer = layer + w
 
     if args.seams:
-        mesh = lagrange.unify_index_buffer(mesh)
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
         assert len(uv_ids) > 0, "No UV attributes found in mesh for seams rendering"
         uv_id = uv_ids[0]
+        uv_name = mesh.get_attribute_name(uv_id)
         base = hkw.layer(mesh)
         seams = (
-            base.transform(hkw.transform.Boundary())
+            base.transform(hkw.transform.Boundary(attributes=[uv_name]))
             .mark("Curve")
             .material("Diffuse", "black")
             .channel(size=args.wire_thickness * bbox_diag)
@@ -698,7 +693,9 @@ def main():
         frames = []
         temp_files = []
         try:
-            for i in tqdm(range(args.turn_table), desc="Rendering frames", unit="frame"):
+            for i in tqdm(
+                range(args.turn_table), desc="Rendering frames", unit="frame"
+            ):
                 # Rotate camera position around origin in normalized coordinates
                 angle = i * 2 * math.pi / args.turn_table
                 cos_a = math.cos(angle)
@@ -706,9 +703,9 @@ def main():
 
                 # Rodrigues' rotation formula to rotate camera position around axis
                 rotated_camera = (
-                    initial_camera * cos_a +
-                    np.cross(axis, initial_camera) * sin_a +
-                    axis * np.dot(axis, initial_camera) * (1 - cos_a)
+                    initial_camera * cos_a
+                    + np.cross(axis, initial_camera) * sin_a
+                    + axis * np.dot(axis, initial_camera) * (1 - cos_a)
                 )
 
                 # Update camera position for this frame
@@ -731,16 +728,20 @@ def main():
 
                 frame_file = get_tmp_image_name()
                 temp_files.append(frame_file)
-                hkw.render(layer, frame_config, filename=frame_file, backend=args.backend)
+                hkw.render(
+                    layer, frame_config, filename=frame_file, backend=args.backend
+                )
                 # Load frame and ensure solid white background
                 with Image.open(frame_file) as img:
-                    if img.mode == 'RGBA':
+                    if img.mode == "RGBA":
                         # Create a white background
-                        white_bg = Image.new('RGB', img.size, (255, 255, 255))
-                        white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                        white_bg = Image.new("RGB", img.size, (255, 255, 255))
+                        white_bg.paste(
+                            img, mask=img.split()[3]
+                        )  # Use alpha channel as mask
                         frames.append(white_bg)
                     else:
-                        frames.append(img.convert('RGB'))
+                        frames.append(img.convert("RGB"))
 
             # Save as animated GIF
             gif_file = output_file.with_suffix(".gif")

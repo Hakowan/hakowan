@@ -139,7 +139,7 @@ Here is a snippet to create a `Plastic` material:
 
 ```py
 m = hkw.material.Plastic(
-    diffuse_reflecctance=hkw.texture.ScalarField(data="attr_name"),
+    diffuse_reflectance=hkw.texture.ScalarField(data="attr_name"),
     specular_reflectance=hkw.texture.ScalarField(data="attr2_name")
 )
 ```
@@ -176,7 +176,7 @@ Here is a snippet to create a `RoughPlastic` material:
 
 ```py
 m = hkw.material.RoughPlastic(
-    diffuse_reflecctance=hkw.texture.ScalarField(data="attr_name"),
+    diffuse_reflectance=hkw.texture.ScalarField(data="attr_name"),
     specular_reflectance=hkw.texture.ScalarField(data="attr2_name"),
     alpha=0.1
 )
@@ -234,6 +234,35 @@ https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#the-pr
 )
 for more details.
 
+## Thin Principled material
+
+`ThinPrincipled` material is a thin variant of the Principled material designed for thin surfaces
+such as paper, leaves, or cloth. In addition to all the channels and parameters from the `Principled`
+material, it also supports diffuse transmission.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `color` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `roughness` | [Texture][hakowan.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [Texture][hakowan.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `diff_trans` | `float` | Diffuse transmission amount from 0 to 1 (default: 0.0) |
+
+Here is a snippet to create a `ThinPrincipled` material:
+
+```py
+m = hkw.material.ThinPrincipled(
+    color="ivory",
+    roughness=0.3,
+    diff_trans=0.5  # 50% light transmission
+)
+```
+
+Check out the [Mitsuba
+doc](
+https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#thin-principled-bsdf-thinprincipled
+)
+for more details.
+
 ## Dielectric material
 
 ![Dielectric material](../images/spot_dielectric.png){: style="width:200px"}
@@ -258,7 +287,7 @@ requires the `volpath` integrator.
 Here is a snippet for creating a `Dielectric` material.
 
 ```py
-m = hkw.material.Dieletric(int_ior="water")
+m = hkw.material.Dielectric(int_ior="water")
 ```
 
 Check out the [Mitsuba
@@ -301,7 +330,9 @@ m = hkw.material.RoughDielectric(int_ior="water")
 
 ![ThinDielectric material](../images/spot_thin_dielectric.png){: style="width:200px"}
 
-`ThinDielectric` material provides a thin glossy shell look and feel for a given shape. It does not
+`ThinDielectric` material provides a thin glossy shell look and feel for a given shape. It is designed
+for thin surfaces like glass, plastic film, or soap bubbles. Unlike the regular `Dielectric` material
+which assumes a volumetric object, this material models surfaces with negligible thickness. It does not
 expose any visual channels.
 
 | Parameter | Type | Description |
@@ -309,6 +340,18 @@ expose any visual channels.
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
+
+Here is a snippet for creating a `ThinDielectric` material for a glass-like surface:
+
+```py
+m = hkw.material.ThinDielectric(int_ior="glass")
+```
+
+Check out the [Mitsuba
+doc](
+https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#thin-dielectric-material-thindielectric
+)
+for more details.
 
 Here is a snippet for creating a `ThinDielectric` material.
 

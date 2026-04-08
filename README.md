@@ -12,7 +12,7 @@ capabilities. Both Hakowan and its dependencies can be simply installed via pip:
 pip install hakowan
 ```
 
-Note that hakowan requires python 3.11 and above.
+Note that Hakowan requires Python 3.11 and above.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ hkw.render(base, filename="image.exr")  # Render!
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.3.2},
+    version = {0.4.2},
     year = 2024,
 }
 ```

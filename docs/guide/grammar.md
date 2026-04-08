@@ -27,7 +27,7 @@ defined by a [texture](texture.md). A transform represents a set of global trans
 adding/removing geometry and/or attributes) applied to the data before visualization.
 
 A complete specification of data, mark, channel and transform components forms a [_layer_](layer.md) in the visualization.
-Each component of a layer can be overwrite, and multiple layers can be combined together to generate
+Each component of a layer can be overwritten, and multiple layers can be combined together to generate
 composite visualization.
 
 

@@ -88,6 +88,38 @@ tr = hkw.transform.Norm(data="velocity", norm_attr_name="speed")
 See the [Smoothed Particle Hydrodynamics example](../examples/sph.md) for an example usage of the norm
 transform.
 
+## Boundary transform
+
+Boundary transform extracts the boundary of a mesh. The boundary consists of edges that are only
+adjacent to one facet. This is useful for visualizing mesh boundaries or seams in UV coordinates.
+
+```py
+# Extract boundary edges
+tr = hkw.transform.Boundary()
+
+# Extract boundary considering discontinuities in specific attributes
+# (e.g., UV seams where UV coordinates are discontinuous)
+tr = hkw.transform.Boundary(attributes=["uv"])
+```
+
+The `attributes` parameter allows you to specify which attributes should be considered when
+determining boundaries. Edges where the specified attributes are discontinuous will also be
+considered as boundaries, even if they are not geometric boundaries.
+
+Here is an example of extracting and visualizing mesh boundaries:
+
+```py
+mesh = lagrange.io.load_mesh("shape.obj")
+base = hkw.layer(mesh)
+
+# Extract boundary as curves
+boundary = base.transform(hkw.transform.Boundary()).mark("Curve")
+boundary = boundary.material("Diffuse", "black").channel(size=0.01)
+
+# Combine with surface visualization
+layer = base.mark("Surface") + boundary
+```
+
 ## Combining multiple transforms
 
 Multiple transforms can be chained together using `*` operator.

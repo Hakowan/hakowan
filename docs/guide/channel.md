@@ -84,7 +84,7 @@ channel of the points. The edges are of uniform size.
 | `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The size attribute |
 
 ```py
-# To sepcify an attribute as the size channel data:
+# To specify an attribute as the size channel data:
 ch = hkw.channel.Size(data = hkw.attribute(name = "attr_name"))
 
 # Shorthand. Same as above
@@ -134,4 +134,80 @@ Vector field channel also takes the following parameters.
 | `refinement_level` | `int` | The refinement level (default: 0) |
 | `end_type` | `str` | The end type of each vector (options: `point` (default), `flat`) |
 | `style` | [CurveStyle][hakowan.channel.curvestyle.CurveStyle] | The curve style to use (default: None) |
+
+## Covariance channel
+
+`Covariance` channel defines the covariance matrix for point marks, allowing you to visualize
+uncertainty or anisotropic data at each point. This channel is only relevant for `Point` mark.
+The covariance matrix defines the stretch and rotation applied to each point shape.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The attribute containing covariance data |
+| `full` | `bool` | If True, the full 3x3 covariance matrix is stored. If False (default), the "square root" matrix M is stored where Σ = M @ M^T |
+
+```py
+# To specify an attribute as the covariance channel data:
+ch = hkw.channel.Covariance(data="covariance_attr", full=True)
+
+# Shorthand, same as above
+ch = hkw.channel.Covariance(data="covariance_attr")
+```
+
+## Shape channel
+
+`Shape` channel defines the base shape used to visualize points. This channel is only relevant for
+`Point` mark and allows you to use different shapes (sphere, cube, disk) for point visualization.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `base_shape` | `str` | The base shape: "sphere" (default), "cube", or "disk" |
+| `orientation` | [AttributeLike][hakowan.scale.attribute.AttributeLike] or `None` | The attribute defining the orientation of each shape (default: None) |
+
+```py
+# Use cubes for point visualization
+ch = hkw.channel.Shape(base_shape="cube")
+
+# Use oriented disks with normal attribute
+ch = hkw.channel.Shape(base_shape="disk", orientation="normal_attr")
+```
+
+## Bump map channel
+
+`BumpMap` channel adds surface detail by perturbing normals based on a texture without modifying
+the actual geometry. This is useful for adding visual complexity to surfaces.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `texture` | [TextureLike][hakowan.texture.TextureLike] | The texture defining the bump map |
+| `scale` | `float` | The scale factor for the bump effect (default: 1.0) |
+
+```py
+# Add bump map from image
+ch = hkw.channel.BumpMap(
+    texture=hkw.texture.Image("bump_map.png"),
+    scale=0.5
+)
+```
+
+You can also specify bump maps directly in material definitions. See the [Material guide](material.md#bump-mapped-material)
+for examples.
+
+## Normal map channel
+
+`NormalMap` channel replaces surface normals with normals from a texture, providing more control
+over lighting than bump maps. Normal maps are commonly used in game engines and 3D rendering.
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `texture` | [TextureLike][hakowan.texture.TextureLike] | The texture defining the normal map |
+
+```py
+# Add normal map from image
+ch = hkw.channel.NormalMap(
+    texture=hkw.texture.Image("normal_map.png", raw=True)
+)
+```
+
+Note that normal map textures should use `raw=True` to ensure linear color interpretation.
 
