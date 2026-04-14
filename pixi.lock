@@ -133,8 +133,8 @@ packages:
   requires_python: '>=3.8'
 - pypi: ./
   name: hakowan
-  version: 0.4.2
-  sha256: dfb1cf9d4400340a92282c946c3500250c697dfff3a96b7c9a244e4ac49d7746
+  version: 0.4.3
+  sha256: 0add650c989bd1e544e187c8b8560414f84d133d7ec02698b952622eb8054e68
   requires_dist:
   - adobe-lagrange>=6.42
   - numpy>=1.22
@@ -146,7 +146,7 @@ packages:
   - mkdocs>=1.5 ; extra == 'docs'
   - mkdocs-material>=9.0 ; extra == 'docs'
   - mkdocstrings[python]>=0.24 ; extra == 'docs'
-  requires_python: '>=3.10'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.2-h38cb7af_0.conda
   sha256: d4cefbca587429d1192509edc52c88de52bc96c2447771ddc1f8bee928aed5ef
   md5: 1e93aca311da0210e660d2247812fa02
