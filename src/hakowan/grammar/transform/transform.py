@@ -145,3 +145,38 @@ class Boundary(Transform):
     """
 
     attributes: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True, kw_only=True)
+class Streamline(Transform):
+    """Replace the mesh with surface streamlines traced from a per-facet vector or
+    cross field.
+
+    The output is a vertex-only mesh whose 2-vertex polygonal faces encode line
+    segments along the streamlines, suitable for the ``curve`` mark.  A per-vertex
+    ``int32`` attribute named by ``id_attr_name`` identifies which streamline
+    each point belongs to.
+
+    Attributes:
+        vec_field: The per-facet vector field attribute name.  Vertex- or corner-
+            domain attributes are averaged to per-facet first.
+        n: Number of seed faces sampled at random.  Default 50.
+        cross_field: Treat the field as 4-RoSy cross field.  Default True.
+        num_steps: Maximum face-hopping steps per half-trace.  Default 200.
+        step_factor: Step length as a fraction of the mean face inradius.
+            Default 0.4.
+        seed: RNG seed for the random face selection.  Default 0.
+        min_length: Discard streamlines shorter than this many sample points.
+            Default 3.
+        id_attr_name: Name of the per-vertex streamline-id attribute on the
+            output mesh.  Default ``_hakowan_streamline_id``.
+    """
+
+    vec_field: AttributeLike
+    n: int = 50
+    cross_field: bool = True
+    num_steps: int = 200
+    step_factor: float = 0.4
+    seed: int = 0
+    min_length: int = 3
+    id_attr_name: str = "_hakowan_streamline_id"

@@ -9,9 +9,11 @@ from ..grammar.transform import (
     Explode,
     Filter,
     Norm,
+    Streamline,
     Transform,
     UVMesh,
 )
+from .streamline import _compute_streamlines
 from ..common import logger
 
 import copy
@@ -305,6 +307,43 @@ def _apply_boundary_transform(view: View, transform: Boundary):
     df.mesh = bd_mesh
 
 
+def _apply_streamline_transform(view: View, transform: Streamline):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+
+    if isinstance(transform.vec_field, str):
+        vec_field_attr = transform.vec_field
+    elif isinstance(transform.vec_field, Attribute):
+        if transform.vec_field.scale is not None:
+            logger.warning("Attribute scale is ignored when applying transform.")
+        vec_field_attr = transform.vec_field.name
+    else:
+        raise RuntimeError("Streamline.vec_field must be a string or Attribute.")
+
+    sl_mesh = _compute_streamlines(
+        df.mesh,
+        vec_field_attr,
+        n=transform.n,
+        cross_field=transform.cross_field,
+        num_steps=transform.num_steps,
+        step_factor=transform.step_factor,
+        seed=transform.seed,
+        min_length=transform.min_length,
+    )
+
+    if (
+        transform.id_attr_name != "_hakowan_streamline_id"
+        and sl_mesh.has_attribute("_hakowan_streamline_id")
+    ):
+        sl_mesh.rename_attribute("_hakowan_streamline_id", transform.id_attr_name)
+
+    df.mesh = sl_mesh
+
+    logger.debug("Updating view bbox due to streamline transform.")
+    view.initialize_bbox()
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -337,6 +376,9 @@ def apply_transform(view: View):
             case Boundary():
                 assert view.data_frame is not None
                 _apply_boundary_transform(view, t)
+            case Streamline():
+                assert view.data_frame is not None
+                _apply_streamline_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

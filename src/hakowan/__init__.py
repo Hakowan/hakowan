@@ -9,7 +9,6 @@ from .grammar.layer import Layer as layer
 from .grammar.scale import Attribute as attribute
 from .grammar.channel import material
 from .compiler import compile
-from .compiler.streamline import compute_streamlines
 from .render import render, set_default_backend, list_backends
 
 # Register backends
@@ -46,5 +45,4 @@ __all__ = [
     "render",
     "set_default_backend",
     "list_backends",
-    "compute_streamlines",
 ]

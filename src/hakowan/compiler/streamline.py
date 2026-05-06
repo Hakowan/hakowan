@@ -18,7 +18,7 @@ import numpy.typing as npt
 # ---------------------------------------------------------------------------
 
 
-def compute_streamlines(
+def _compute_streamlines(
     mesh: lagrange.SurfaceMesh,
     vec_field_attr: str,
     *,
@@ -62,7 +62,7 @@ def compute_streamlines(
         consecutive order.
     """
     if mesh.vertex_per_facet != 3:
-        raise ValueError("compute_streamlines requires a triangle mesh.")
+        raise ValueError("Streamline transform requires a triangle mesh.")
     if not mesh.has_attribute(vec_field_attr):
         raise ValueError(f"Mesh has no attribute '{vec_field_attr}'.")
 
@@ -124,14 +124,23 @@ def compute_streamlines(
 
     # Encode each consecutive pair of points as a 2-vertex polygonal face.
     segments = []
+    ids = np.empty(all_pts.shape[0], dtype=np.int32)
     offset = 0
-    for pl in all_polylines:
+    for sid, pl in enumerate(all_polylines):
+        ids[offset:offset + len(pl)] = sid
         for k in range(len(pl) - 1):
             segments.append([offset + k, offset + k + 1])
         offset += len(pl)
 
     if segments:
         out_mesh.add_polygons(np.array(segments, dtype=np.uint32))
+
+    out_mesh.create_attribute(
+        "_hakowan_streamline_id",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=ids,
+    )
 
     return out_mesh
 
