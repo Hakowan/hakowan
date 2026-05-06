@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from os import PathLike
 from typing import TypeAlias
 
@@ -97,3 +97,5 @@ class ScalarField(Texture):
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
     categories: bool = False
+
+

@@ -134,11 +134,11 @@ packages:
 - pypi: ./
   name: hakowan
   version: 0.4.3
-  sha256: 0add650c989bd1e544e187c8b8560414f84d133d7ec02698b952622eb8054e68
+  sha256: 8f41d79edc154cb7f3cb276d33751756e2c9906608ce762d1842490ce33abb75
   requires_dist:
   - adobe-lagrange>=6.42
   - numpy>=1.22
-  - pillow~=11.0
+  - pillow>=11.0
   - pyyaml>=6.0
   - mitsuba~=3.7
   - bpy>=5.0.1,<6 ; python_full_version == '3.11.*'

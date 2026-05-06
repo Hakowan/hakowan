@@ -18,7 +18,11 @@ from ...grammar.channel.material import (
     ThinPrincipled,
 )
 from ...grammar.scale import Attribute
-from ...grammar.texture import ScalarField, Checkerboard, Uniform
+from ...grammar.texture import (
+    ScalarField,
+    Checkerboard,
+    Uniform,
+)
 from ...grammar.channel.curvestyle import Bend
 from .. import RenderBackend
 
@@ -876,6 +880,7 @@ class BlenderBackend(RenderBackend):
 
         logger.debug(f"Created curve object {index} with {n_segments} segments")
 
+
     # Approximate base colors for common Mitsuba conductor presets.
     _conductor_colors: dict[str, tuple[float, float, float]] = {
         "Au": (1.0, 0.78, 0.34),
@@ -968,7 +973,7 @@ class BlenderBackend(RenderBackend):
         output.location = (300, 0)
         links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
-        # Base color: checkerboard texture, scalar field attribute, override, or from material
+        # Base color: checkerboard, scalar field, override, or material default.
         checkerboard_tex = self._get_checkerboard_texture(view)
         if checkerboard_tex is not None and uv_layer_name is not None:
             # Create checkerboard shader node network
@@ -1287,17 +1292,17 @@ class BlenderBackend(RenderBackend):
         mesh = view.data_frame.mesh
 
         def check(tex):
-            if not isinstance(tex, ScalarField):
-                return None
-            if not isinstance(tex.data, Attribute) or not getattr(
-                tex.data, "_internal_color_field", None
-            ):
-                return None
-            name = tex.data._internal_color_field
-            if not mesh.has_attribute(name):
-                return None
-            attr = mesh.attribute(name)
-            return (name, attr.element_type)
+            if isinstance(tex, ScalarField):
+                if not isinstance(tex.data, Attribute) or not getattr(
+                    tex.data, "_internal_color_field", None
+                ):
+                    return None
+                name = tex.data._internal_color_field
+                if not mesh.has_attribute(name):
+                    return None
+                attr = mesh.attribute(name)
+                return (name, attr.element_type)
+            return None
 
         match mat_data:
             case Diffuse():

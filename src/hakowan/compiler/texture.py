@@ -13,7 +13,6 @@ from ..grammar.texture import (
 from ..grammar.scale import Attribute, Clip, Normalize, Scale
 
 import lagrange
-import math
 import numpy as np
 from pathlib import Path
 
