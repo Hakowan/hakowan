@@ -15,6 +15,7 @@ from typing import Any
 import lagrange
 import mitsuba as mi
 from pathlib import Path
+import tempfile
 
 
 def generate_texture_config(
@@ -38,6 +39,8 @@ def generate_uniform_config(tex: Uniform) -> dict:
 
 def generate_image_config(tex: Image) -> dict:
     filename = Path(tex.filename)
+    if tex.saturation != 1.0 or tex.whiteness != 0.0:
+        filename = _preprocess_image(filename, tex.saturation, tex.whiteness)
     mi_config: dict[str, Any] = {
         "type": "bitmap",
         "filename": str(filename.resolve()),
@@ -49,6 +52,26 @@ def generate_image_config(tex: Image) -> dict:
         ),
     }
     return mi_config
+
+
+def _preprocess_image(filename: Path, saturation: float, whiteness: float) -> Path:
+    from PIL import Image as PILImage, ImageEnhance
+
+    img = PILImage.open(filename).convert("RGBA")
+    _, _, _, a = img.split()
+    rgb = img.convert("RGB")
+    if saturation != 1.0:
+        rgb = ImageEnhance.Color(rgb).enhance(saturation)
+    if whiteness != 0.0:
+        white = PILImage.new("RGB", rgb.size, (255, 255, 255))
+        rgb = PILImage.blend(rgb, white, alpha=whiteness)
+    r, g, b = rgb.split()
+    out = PILImage.merge("RGBA", (r, g, b, a))
+    tmp = tempfile.NamedTemporaryFile(
+        suffix=".png", delete=False, dir=tempfile.gettempdir()
+    )
+    out.save(tmp.name)
+    return Path(tmp.name)
 
 
 def generate_checker_board_config(

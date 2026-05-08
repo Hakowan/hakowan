@@ -37,11 +37,15 @@ class Image(Texture):
         uv (AttributeLike): The attribute to use as the texture coordinates.
         raw (bool): Whether to use the raw image data, i.e. use linear color transfer function.
             This should be set to True for normal maps.
+        saturation (float): Saturation multiplier. 1.0 = full color, 0.0 = grayscale.
+        whiteness (float): Blend toward pure white. 0.0 = original, 1.0 = pure white.
     """
 
     filename: PathLike
     uv: AttributeLike | None = None
     raw: bool = False
+    saturation: float = 1.0
+    whiteness: float = 0.0
 
 
 @dataclass(slots=True)

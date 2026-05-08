@@ -101,6 +101,18 @@ def parse_args():
     )
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
+        "--saturation",
+        help="Texture image saturation (1.0=full color, 0.0=grayscale). Only applies when --material is a texture image.",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--whiteness",
+        help="Blend texture image toward pure white (0.0=original, 1.0=white). Only applies when --material is a texture image.",
+        type=float,
+        default=0.0,
+    )
+    parser.add_argument(
         "--backend",
         choices=hkw.list_backends(),
         default="mitsuba",
@@ -172,7 +184,7 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
-def extract_material(scene: lagrange.scene.Scene):
+def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0):
     """
     Extracts materials from a Lagrange scene and converts them to hakowan material objects.
 
@@ -195,7 +207,7 @@ def extract_material(scene: lagrange.scene.Scene):
                 im = Image.fromarray(tex_img.image.data, "RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(Path(tex_file)),
+                    color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -220,7 +232,7 @@ def extract_material(scene: lagrange.scene.Scene):
                 im = Image.fromarray(diffuse_img.image.data, "RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(diffuse_file),
+                    color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -238,18 +250,20 @@ def extract_material(scene: lagrange.scene.Scene):
     return mats
 
 
-def embed_texture(glb_file):
+def embed_texture(glb_file, saturation: float = 1.0, whiteness: float = 0.0):
     """
     Loads a GLB file, extracts its materials and textures, and constructs a composite layer representation.
 
     Parameters:
         glb_file (str or Path): Path to the GLB file to load.
+        saturation (float): Saturation multiplier applied to all image textures.
+        whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
     scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
-    mats = extract_material(scene)
+    mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
     assert len(layers) > 0, "No valid layers found in scene"
@@ -404,7 +418,7 @@ def main():
             assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
                 f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
             )
-            layer = embed_texture(args.input_mesh)
+            layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
@@ -501,7 +515,7 @@ def main():
             else:
                 texture_file = Path(args.material)
                 assert texture_file.is_file(), f"Texture file {texture_file} not found"
-                layer = layer.material("Principled", hkw.texture.Image(texture_file))
+                layer = layer.material("Principled", hkw.texture.Image(texture_file, saturation=args.saturation, whiteness=args.whiteness))
 
     if args.point_cloud:
         assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
