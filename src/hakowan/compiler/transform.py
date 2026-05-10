@@ -9,6 +9,7 @@ from ..grammar.transform import (
     Explode,
     Filter,
     Norm,
+    PrincipalAxes,
     Streamline,
     Transform,
     UVMesh,
@@ -19,6 +20,38 @@ from ..common import logger
 import copy
 import lagrange
 import numpy as np
+
+
+def principal_axes_affine_matrix(
+    vertices: np.ndarray,
+    frame: np.ndarray,
+    *,
+    orthonormalize_frame: bool = True,
+) -> np.ndarray:
+    """4x4 affine: centroid at origin; PCA axes (major first) aligned to columns of ``frame``."""
+    if vertices.size == 0:
+        return np.eye(4, dtype=np.float64)
+    f = np.asarray(frame, dtype=np.float64).reshape(3, 3)
+    if orthonormalize_frame:
+        f, _ = np.linalg.qr(f)
+        if np.linalg.det(f) < 0.0:
+            f[:, -1] *= -1.0
+    mu = np.mean(vertices, axis=0)
+    x = vertices - mu
+    n = x.shape[0]
+    if n < 2:
+        return np.eye(4, dtype=np.float64)
+    cov = (x.T @ x) / max(n - 1, 1)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = np.argsort(eigvals)[::-1]
+    basis = eigvecs[:, order]
+    if np.linalg.det(basis) < 0.0:
+        basis[:, 2] *= -1.0
+    r = f @ basis.T
+    m = np.eye(4, dtype=np.float64)
+    m[:3, :3] = r
+    m[:3, 3] = -r @ mu
+    return m
 
 
 def _apply_filter_transform(view: View, transform: Filter):
@@ -173,6 +206,23 @@ def _apply_affine_transform(view: View, transform: Affine):
 
     # BBox must be updated after affine transform.
     logger.debug("Updating view bbox due to affine transform.")
+    view.initialize_bbox()
+
+
+def _apply_principal_axes_transform(view: View, transform: PrincipalAxes):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+    matrix = principal_axes_affine_matrix(
+        mesh.vertices,
+        np.asarray(transform.frame, dtype=np.float64),
+        orthonormalize_frame=transform.orthonormalize_frame,
+    )
+    view.global_transform = matrix @ view.global_transform
+    logger.debug("Updating view bbox due to principal-axes transform.")
     view.initialize_bbox()
 
 
@@ -364,6 +414,9 @@ def apply_transform(view: View):
             case Affine():
                 assert view.data_frame is not None
                 _apply_affine_transform(view, t)
+            case PrincipalAxes():
+                assert view.data_frame is not None
+                _apply_principal_axes_transform(view, t)
             case Compute():
                 assert view.data_frame is not None
                 _apply_compute_transform(view, t)

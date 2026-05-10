@@ -350,42 +350,17 @@ def compute_camera_matrix(config) -> dict:
     }
 
 
-def principal_axes_affine(vertices: np.ndarray, *, z_up: bool = False) -> np.ndarray:
-    """4x4 affine: center at centroid and align PCA with world axes.
-
-    Eigenvectors are ordered by descending eigenvalue. The largest-variance axis is
-    mapped to the world up direction (+Y by default, +Z when ``z_up`` is True).
-    The second- and third-largest map to the other two axes in a right-handed frame.
-    """
-    if vertices.size == 0:
-        return np.eye(4, dtype=np.float64)
-    mu = np.mean(vertices, axis=0)
-    x = vertices - mu
-    n = x.shape[0]
-    if n < 2:
-        return np.eye(4, dtype=np.float64)
-    cov = (x.T @ x) / max(n - 1, 1)
-    eigvals, eigvecs = np.linalg.eigh(cov)
-    order = np.argsort(eigvals)[::-1]
-    basis = eigvecs[:, order]
-    if np.linalg.det(basis) < 0:
-        basis[:, 2] *= -1.0
-    # R @ basis == E  =>  R = E @ basis.T  with columns of E where v1,v2,v3 should land.
+def _orient_pca_target_frame(z_up: bool) -> np.ndarray:
+    """Columns: world directions for (major, mid, minor) PCA axes (right-handed)."""
     if z_up:
-        # major -> +Z, mid -> +X, minor -> +Y (right-handed)
-        e_target = np.array(
+        # major -> +Z, mid -> +X, minor -> +Y
+        return np.array(
             [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], dtype=np.float64
         )
-    else:
-        # major -> +Y, mid -> +Z, minor -> +X (right-handed, Y-up)
-        e_target = np.array(
-            [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
-        )
-    r = e_target @ basis.T
-    m = np.eye(4, dtype=np.float64)
-    m[:3, :3] = r
-    m[:3, 3] = -r @ mu
-    return m
+    # major -> +Y, mid -> +Z, minor -> +X (Y-up)
+    return np.array(
+        [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+    )
 
 
 def save_camera_matrix(data: dict, output_path: Path):
@@ -660,9 +635,7 @@ def main():
 
     if args.orient_pca:
         layer = layer.transform(
-            hkw.transform.Affine(
-                matrix=principal_axes_affine(mesh.vertices, z_up=args.z_up)
-            )
+            hkw.transform.PrincipalAxes(frame=_orient_pca_target_frame(args.z_up))
         )
 
     if args.rotate:

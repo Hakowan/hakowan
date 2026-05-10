@@ -84,6 +84,25 @@ class Affine(Transform):
     matrix: npt.ArrayLike
 
 
+@dataclass(slots=True)
+class PrincipalAxes(Transform):
+    """Align PCA principal directions of vertex positions with a target orthonormal frame.
+
+    Covariance is computed from current mesh vertices (world-space positions). Principal
+    axes are ordered by descending eigenvalue (largest variance first). The rotation and
+    translation match those directions to the columns of ``frame``: column 0 is the world
+    direction for the largest-variance axis, column 1 for the second, column 2 for the third.
+
+    Attributes:
+        frame: 3x3 matrix whose columns are orthonormal world-space axes (see above).
+        orthonormalize_frame: If True (default), orthonormalize ``frame`` with QR so mildly
+            skewed inputs still yield a proper rotation.
+    """
+
+    frame: npt.ArrayLike
+    orthonormalize_frame: bool = True
+
+
 @dataclass(slots=True, kw_only=True)
 class Compute(Transform):
     """Compute new attributes from the current data frame.

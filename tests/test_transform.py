@@ -1,5 +1,6 @@
 import pytest
 from hakowan import transform, scale
+from hakowan.compiler.transform import principal_axes_affine_matrix
 import copy
 import numpy as np
 
@@ -37,3 +38,18 @@ class TestTransform:
         t = transform.Affine(matrix=np.eye(4))
         assert np.all(t.matrix == np.eye(4))
         assert t._child is None
+
+    def test_principal_axes(self):
+        t = transform.PrincipalAxes(frame=np.eye(3), orthonormalize_frame=False)
+        assert np.allclose(t.frame, np.eye(3))
+        assert t.orthonormalize_frame is False
+        assert t._child is None
+
+    def test_principal_axes_affine_matrix_maps_major_to_frame_column0(self):
+        v = np.array([[0.0, 0.0, -2.0], [0.0, 0.0, 2.0], [1.0, 0.0, 0.0]])
+        frame = np.array(
+            [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+        )
+        m = principal_axes_affine_matrix(v, frame, orthonormalize_frame=False)
+        w = (m[:3, :3] @ v.T).T + m[:3, 3]
+        assert w.std(0)[1] > max(w.std(0)[0], w.std(0)[2])
