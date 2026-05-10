@@ -59,6 +59,15 @@ def parse_args():
     )
     parser.add_argument("--color", help="Material color", type=str, default="ivory")
     parser.add_argument(
+        "--orient-pca",
+        action="store_true",
+        help=(
+            "Rotate and translate the mesh so PCA principal axes align with world axes: "
+            "largest variance along +Y (default up), or +Z when --z-up is set; "
+            "second/third variance along the remaining axes (right-handed). Applied before --rotate."
+        ),
+    )
+    parser.add_argument(
         "--rotate", help="Rotate the mesh (degrees)", type=float, default=None
     )
     parser.add_argument(
@@ -341,6 +350,44 @@ def compute_camera_matrix(config) -> dict:
     }
 
 
+def principal_axes_affine(vertices: np.ndarray, *, z_up: bool = False) -> np.ndarray:
+    """4x4 affine: center at centroid and align PCA with world axes.
+
+    Eigenvectors are ordered by descending eigenvalue. The largest-variance axis is
+    mapped to the world up direction (+Y by default, +Z when ``z_up`` is True).
+    The second- and third-largest map to the other two axes in a right-handed frame.
+    """
+    if vertices.size == 0:
+        return np.eye(4, dtype=np.float64)
+    mu = np.mean(vertices, axis=0)
+    x = vertices - mu
+    n = x.shape[0]
+    if n < 2:
+        return np.eye(4, dtype=np.float64)
+    cov = (x.T @ x) / max(n - 1, 1)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = np.argsort(eigvals)[::-1]
+    basis = eigvecs[:, order]
+    if np.linalg.det(basis) < 0:
+        basis[:, 2] *= -1.0
+    # R @ basis == E  =>  R = E @ basis.T  with columns of E where v1,v2,v3 should land.
+    if z_up:
+        # major -> +Z, mid -> +X, minor -> +Y (right-handed)
+        e_target = np.array(
+            [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], dtype=np.float64
+        )
+    else:
+        # major -> +Y, mid -> +Z, minor -> +X (right-handed, Y-up)
+        e_target = np.array(
+            [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+        )
+    r = e_target @ basis.T
+    m = np.eye(4, dtype=np.float64)
+    m[:3, :3] = r
+    m[:3, 3] = -r @ mu
+    return m
+
+
 def save_camera_matrix(data: dict, output_path: Path):
     """Save camera matrix data produced by compute_camera_matrix.
 
@@ -610,6 +657,13 @@ def main():
         )
 
         layer = layer + valence_view
+
+    if args.orient_pca:
+        layer = layer.transform(
+            hkw.transform.Affine(
+                matrix=principal_axes_affine(mesh.vertices, z_up=args.z_up)
+            )
+        )
 
     if args.rotate:
         if args.z_up:
