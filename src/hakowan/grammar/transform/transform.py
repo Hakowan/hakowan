@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 import copy
+import numpy as np
 import numpy.typing as npt
 
 
@@ -99,7 +100,7 @@ class PrincipalAxes(Transform):
             skewed inputs still yield a proper rotation.
     """
 
-    frame: npt.ArrayLike
+    frame: npt.ArrayLike = field(default_factory=lambda: np.eye(3))
     orthonormalize_frame: bool = True
 
 
