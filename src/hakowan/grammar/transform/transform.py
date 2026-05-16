@@ -190,6 +190,12 @@ class Streamline(Transform):
             Default 3.
         id_attr_name: Name of the per-vertex streamline-id attribute on the
             output mesh.  Default ``_hakowan_streamline_id``.
+        poisson_disk: Use Poisson-disk seeding instead of uniform random
+            sampling to enforce a minimum distance between seeds.  Default
+            False.
+        min_seed_dist: Minimum Euclidean distance between seed centroids when
+            ``poisson_disk=True``.  If ``None``, auto-computed from the mesh
+            bounding-box diagonal as ``diagonal / sqrt(n)``.  Default None.
     """
 
     vec_field: AttributeLike
@@ -200,3 +206,5 @@ class Streamline(Transform):
     seed: int = 0
     min_length: int = 3
     id_attr_name: str = "_hakowan_streamline_id"
+    poisson_disk: bool = False
+    min_seed_dist: float | None = None

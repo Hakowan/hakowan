@@ -18,6 +18,57 @@ import numpy.typing as npt
 # ---------------------------------------------------------------------------
 
 
+def _poisson_disk_seeds(
+    centroids: npt.NDArray,
+    n: int,
+    min_dist: float,
+    rng: np.random.Generator,
+) -> npt.NDArray:
+    """Return up to *n* face indices with pairwise distance >= min_dist.
+
+    Uses a grid-accelerated dart-throwing approach: O(num_faces) expected
+    for reasonable min_dist values.
+    """
+    num_faces = centroids.shape[0]
+    cell = min_dist / np.sqrt(3)  # grid cell side so one cell holds one disk
+
+    # Map centroids to grid cells
+    lo = centroids.min(axis=0)
+    cell_idx = ((centroids - lo) / cell).astype(np.int64)
+
+    grid: dict[tuple, int] = {}  # cell -> face index of occupant seed
+    selected: list[int] = []
+
+    order = rng.permutation(num_faces)
+    for fi in order:
+        if len(selected) >= n:
+            break
+        ci = tuple(cell_idx[fi])
+        pt = centroids[fi]
+
+        # Check all neighboring cells within radius min_dist
+        r = int(np.ceil(min_dist / cell))
+        conflict = False
+        for dx in range(-r, r + 1):
+            if conflict:
+                break
+            for dy in range(-r, r + 1):
+                if conflict:
+                    break
+                for dz in range(-r, r + 1):
+                    nb = (ci[0] + dx, ci[1] + dy, ci[2] + dz)
+                    occ = grid.get(nb)
+                    if occ is not None:
+                        if float(np.linalg.norm(pt - centroids[occ])) < min_dist:
+                            conflict = True
+                            break
+        if not conflict:
+            grid[ci] = fi
+            selected.append(fi)
+
+    return np.array(selected, dtype=np.int64)
+
+
 def _compute_streamlines(
     mesh: lagrange.SurfaceMesh,
     vec_field_attr: str,
@@ -28,6 +79,8 @@ def _compute_streamlines(
     step_factor: float = 0.4,
     seed: int = 0,
     min_length: int = 3,
+    poisson_disk: bool = False,
+    min_seed_dist: float | None = None,
 ) -> lagrange.SurfaceMesh:
     """Compute surface streamlines from a per-facet vector/cross field.
 
@@ -53,6 +106,8 @@ def _compute_streamlines(
             Default 0.4.
         seed: RNG seed for the random face selection.
         min_length: Discard streamlines shorter than this many sample points.
+        poisson_disk: Use Poisson-disk seeding for even spatial distribution.
+        min_seed_dist: Minimum distance between seeds.  Auto-computed if None.
 
     Returns:
         A :class:`lagrange.SurfaceMesh` with only vertices (no faces).  Each
@@ -84,7 +139,15 @@ def _compute_streamlines(
     centroids_3d = vertices[facets].mean(axis=1)  # (F, 3)
 
     rng = np.random.default_rng(seed)
-    seed_faces = rng.choice(num_faces, size=min(n, num_faces), replace=False)
+    if poisson_disk:
+        if min_seed_dist is None:
+            lo = centroids_3d.min(axis=0)
+            hi = centroids_3d.max(axis=0)
+            diagonal = float(np.linalg.norm(hi - lo))
+            min_seed_dist = diagonal / float(np.sqrt(n)) if n > 0 else diagonal
+        seed_faces = _poisson_disk_seeds(centroids_3d, n, min_seed_dist, rng)
+    else:
+        seed_faces = rng.choice(num_faces, size=min(n, num_faces), replace=False)
 
     all_polylines: list[npt.NDArray] = []
 

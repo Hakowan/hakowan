@@ -380,6 +380,8 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         step_factor=transform.step_factor,
         seed=transform.seed,
         min_length=transform.min_length,
+        poisson_disk=transform.poisson_disk,
+        min_seed_dist=transform.min_seed_dist,
     )
 
     if (
