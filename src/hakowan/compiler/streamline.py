@@ -16,6 +16,8 @@ import lagrange
 import numpy as np
 import numpy.typing as npt
 
+from ..common import logger
+
 
 # ---------------------------------------------------------------------------
 # Per-worker shared state (populated by _worker_init, read by _trace_seed_task)
@@ -142,6 +144,9 @@ def _compute_streamlines(
         rng = np.random.default_rng(seed)
         seed_faces = rng.choice(num_faces, size=min(n, num_faces), replace=False)
 
+    if len(seed_faces) == 0:
+        return lagrange.SurfaceMesh()
+
     tasks = []
     for fi in seed_faces:
         seed_pt = centroids_3d[fi]
@@ -156,19 +161,27 @@ def _compute_streamlines(
     shared = (vertices, facets, normals, e1, e2, vec_2d, adj_face, adj_edge, cross_field)
     n_workers = min(len(tasks), os.cpu_count() or 1)
 
-    all_polylines: list[npt.NDArray] = []
+    # Pool setup may fail on platforms without `fork` (e.g. some macOS configs)
+    # or when the OS rejects new worker processes (resource limits).
+    pool_cm = None
     try:
         ctx = multiprocessing.get_context("fork")
-        with concurrent.futures.ProcessPoolExecutor(
+        pool_cm = concurrent.futures.ProcessPoolExecutor(
             max_workers=n_workers,
             mp_context=ctx,
             initializer=_worker_init,
             initargs=shared,
-        ) as pool:
+        )
+    except (ValueError, OSError, NotImplementedError) as e:
+        logger.debug(f"Streamline parallel pool unavailable, falling back to sequential: {e}")
+        pool_cm = None
+
+    all_polylines: list[npt.NDArray] = []
+    if pool_cm is not None:
+        with pool_cm as pool:
             for polylines in pool.map(_trace_seed_task, tasks):
                 all_polylines.extend(polylines)
-    except Exception:
-        # Fallback: sequential (fork unavailable, e.g. some macOS configs)
+    else:
         _worker_init(*shared)
         for task in tasks:
             all_polylines.extend(_trace_seed_task(task))

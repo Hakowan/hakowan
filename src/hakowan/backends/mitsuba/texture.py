@@ -14,6 +14,7 @@ from ...grammar.texture import (
 from typing import Any
 import lagrange
 import mitsuba as mi
+import os
 from pathlib import Path
 import tempfile
 
@@ -55,7 +56,17 @@ def generate_image_config(tex: Image) -> dict:
 
 
 def _preprocess_image(filename: Path, saturation: float, whiteness: float) -> Path:
+    import math
     from PIL import Image as PILImage, ImageEnhance
+
+    if not math.isfinite(saturation) or saturation < 0:
+        raise ValueError(
+            f"Image texture `saturation` must be non-negative and finite, got {saturation}"
+        )
+    if not math.isfinite(whiteness) or not 0.0 <= whiteness <= 1.0:
+        raise ValueError(
+            f"Image texture `whiteness` must be in [0, 1], got {whiteness}"
+        )
 
     img = PILImage.open(filename).convert("RGBA")
     _, _, _, a = img.split()
@@ -67,11 +78,11 @@ def _preprocess_image(filename: Path, saturation: float, whiteness: float) -> Pa
         rgb = PILImage.blend(rgb, white, alpha=whiteness)
     r, g, b = rgb.split()
     out = PILImage.merge("RGBA", (r, g, b, a))
-    tmp = tempfile.NamedTemporaryFile(
-        suffix=".png", delete=False, dir=tempfile.gettempdir()
-    )
-    out.save(tmp.name)
-    return Path(tmp.name)
+
+    fd, tmp_name = tempfile.mkstemp(suffix=".png", dir=tempfile.gettempdir())
+    os.close(fd)
+    out.save(tmp_name)
+    return Path(tmp_name)
 
 
 def generate_checker_board_config(

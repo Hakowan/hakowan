@@ -13,6 +13,30 @@ import tempfile
 from tqdm import tqdm
 
 
+def _saturation_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"saturation must be a number, got {value!r}")
+    if not math.isfinite(v) or v < 0:
+        raise argparse.ArgumentTypeError(
+            f"saturation must be non-negative and finite, got {v}"
+        )
+    return v
+
+
+def _whiteness_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"whiteness must be a number, got {value!r}")
+    if not math.isfinite(v) or not 0.0 <= v <= 1.0:
+        raise argparse.ArgumentTypeError(
+            f"whiteness must be in [0, 1], got {v}"
+        )
+    return v
+
+
 def parse_args():
     """
     Parse command-line arguments for the mesh renderer.
@@ -143,14 +167,14 @@ def parse_args():
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
         "--saturation",
-        help="Texture image saturation (1.0=full color, 0.0=grayscale). Only applies when --material is a texture image.",
-        type=float,
+        help="Texture image saturation (1.0=full color, 0.0=grayscale, must be non-negative). Only applies when --material is a texture image.",
+        type=_saturation_arg,
         default=1.0,
     )
     parser.add_argument(
         "--whiteness",
-        help="Blend texture image toward pure white (0.0=original, 1.0=white). Only applies when --material is a texture image.",
-        type=float,
+        help="Blend texture image toward pure white (0.0=original, 1.0=white, must be in [0,1]). Only applies when --material is a texture image.",
+        type=_whiteness_arg,
         default=0.0,
     )
     parser.add_argument(

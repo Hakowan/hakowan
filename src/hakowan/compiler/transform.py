@@ -40,7 +40,9 @@ def principal_axes_affine_matrix(
     x = vertices - mu
     n = x.shape[0]
     if n < 2:
-        return np.eye(4, dtype=np.float64)
+        m = np.eye(4, dtype=np.float64)
+        m[:3, 3] = -mu
+        return m
     cov = (x.T @ x) / max(n - 1, 1)
     eigvals, eigvecs = np.linalg.eigh(cov)
     order = np.argsort(eigvals)[::-1]
