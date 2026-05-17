@@ -104,14 +104,15 @@ def _compute_streamlines(
         n: Number of seed faces to sample.
         cross_field: Treat the field as 4-RoSy.  At each edge crossing the
             transported direction snaps to the nearest of the four arms.
-        length: Maximum world-space length per half-trace.  ``None`` means no
+        length: Maximum object-space length per half-trace.  ``None`` means no
             limit (trace until mesh boundary).
         seed: RNG seed used when blue-noise sampling falls back to random.
         min_length: Discard streamlines shorter than this many sample points.
 
     Returns:
-        A :class:`lagrange.SurfaceMesh` with only vertices (no faces).  Each
-        vertex is a sample point on a streamline.  A per-vertex ``int32``
+        A :class:`lagrange.SurfaceMesh` whose vertices are streamline sample
+        points and whose 2-vertex polygons encode the line segments connecting
+        them (suitable for the ``curve`` mark).  A per-vertex ``int32``
         attribute ``_hakowan_streamline_id`` identifies which streamline each
         point belongs to; vertices within the same streamline are stored in
         consecutive order.

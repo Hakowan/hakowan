@@ -89,13 +89,17 @@ class Affine(Transform):
 class PrincipalAxes(Transform):
     """Align PCA principal directions of vertex positions with a target orthonormal frame.
 
-    Covariance is computed from current mesh vertices (world-space positions). Principal
+    Covariance is computed from the current data-frame vertex positions. Principal
     axes are ordered by descending eigenvalue (largest variance first). The rotation and
-    translation match those directions to the columns of ``frame``: column 0 is the world
+    translation match those directions to the columns of ``frame``: column 0 is the
     direction for the largest-variance axis, column 1 for the second, column 2 for the third.
 
+    The resulting affine is pre-composed with any prior global transform on the layer, so
+    earlier ``Affine`` transforms (translate / rotate / scale) are preserved and applied
+    before this PCA-based alignment.
+
     Attributes:
-        frame: 3x3 matrix whose columns are orthonormal world-space axes (see above).
+        frame: 3x3 matrix whose columns are the target orthonormal axes (see above).
         orthonormalize_frame: If True (default), orthonormalize ``frame`` with QR so mildly
             skewed inputs still yield a proper rotation.
     """
@@ -182,9 +186,10 @@ class Streamline(Transform):
             domain attributes are averaged to per-facet first.
         n: Number of blue-noise seed faces to sample.  Default 50.
         cross_field: Treat the field as 4-RoSy cross field.  Default True.
-        length: Maximum world-space length per half-trace.  Tracing stops once
-            the accumulated length exceeds this value.  ``None`` means no
-            limit (trace until mesh boundary).  Default None.
+        length: Maximum object-space length per half-trace (measured on the
+            data-frame mesh, before any layer-level affine transforms).  Tracing
+            stops once the accumulated length exceeds this value.  ``None`` means
+            no limit (trace until mesh boundary).  Default None.
         seed: RNG seed passed to blue-noise sampling.  Default 0.
         min_length: Discard streamlines shorter than this many sample points.
             Default 3.
