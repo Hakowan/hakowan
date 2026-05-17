@@ -10,9 +10,9 @@ readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
-    "adobe-lagrange>=6.42",
+    "adobe-lagrange>=6.44",
     "numpy>=1.22",
-    "Pillow~=11.0",
+    "Pillow>=11.0",
     "PyYAML>=6.0",
     "mitsuba~=3.7",
     "bpy>=5.0.1,<6; python_version == '3.11'",
@@ -40,3 +40,4 @@ default = { solve-group = "default" }
 [tool.pixi.dependencies]
 python = "==3.11"
 dicttoxml = ">=1.7.16,<2"
+colorcet = ">=3.2.1,<4"

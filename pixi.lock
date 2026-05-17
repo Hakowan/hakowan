@@ -11,6 +11,7 @@ environments:
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-hd037594_8.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.1.4-hbd8a1cb_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/colorcet-3.2.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/dicttoxml-1.7.16-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.2-h38cb7af_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libffi-3.5.2-hcf2aa1b_0.conda
@@ -27,7 +28,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-5.8.2-hd0f0c4f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-gpl-tools-5.8.2-hd0f0c4f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-tools-5.8.2-h8088a28_0.conda
-      - pypi: https://files.pythonhosted.org/packages/a9/8b/a1342fda2662248b391c9f0aa201250504946b9f293d566aa66314067756/adobe_lagrange-6.42.0-cp311-cp311-macosx_13_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/ea/4f/9c48567fc44e08482ec13fbde4074d3b02be380f84c852e0c16e41a2519a/adobe_lagrange-6.44.0-cp311-cp311-macosx_13_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/80/ac/b6a3e733f07f70637f86fb16d64d69664a97bdeb7386ab84bd128cb96a31/bpy-5.0.1-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/e6/ad/3cc14f097111b4de0040c83a525973216457bbeeb63739ef1ed275c1c021/certifi-2026.1.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/27/c6491ff4954e58a10f69ad90aca8a1b6fe9c5d3c6f380907af3c37435b59/charset_normalizer-3.4.4-cp311-cp311-macosx_10_9_universal2.whl
@@ -46,10 +47,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ac/4d/e66465c5411a7cf4866aeadc7d108081d8ceba9bc7abe6b14aa21c671ec3/zstandard-0.25.0-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: ./
 packages:
-- pypi: https://files.pythonhosted.org/packages/a9/8b/a1342fda2662248b391c9f0aa201250504946b9f293d566aa66314067756/adobe_lagrange-6.42.0-cp311-cp311-macosx_13_0_arm64.whl
+- pypi: https://files.pythonhosted.org/packages/ea/4f/9c48567fc44e08482ec13fbde4074d3b02be380f84c852e0c16e41a2519a/adobe_lagrange-6.44.0-cp311-cp311-macosx_13_0_arm64.whl
   name: adobe-lagrange
-  version: 6.42.0
-  sha256: b775db81fc8105871300b9acd10440f7da3a7261fae3d2bf39987703f5e76941
+  version: 6.44.0
+  sha256: 5ca8459ae791f273e821c1835b7d437c9dc6e32481b4a4db5ad67f6ed0cd1d04
   requires_dist:
   - colorama>=0.4.4 ; sys_platform != 'win32'
   - colorama>=0.4.6 ; sys_platform == 'win32'
@@ -108,6 +109,16 @@ packages:
   version: 0.4.6
   sha256: 4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
   requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*'
+- conda: https://conda.anaconda.org/conda-forge/noarch/colorcet-3.2.1-pyhd8ed1ab_0.conda
+  sha256: f863dd6ab7302a40bf7e1e98bc963a1de1530d1277e609865f84c53907af4b13
+  md5: 0b6419b9a27c540bd96e66e12a44c379
+  depends:
+  - python >=3.10
+  license: CC-BY-4.0
+  purls:
+  - pkg:pypi/colorcet?source=compressed-mapping
+  size: 174387
+  timestamp: 1777396861701
 - pypi: https://files.pythonhosted.org/packages/85/cc/8f06145ec3efa121c8b1b67f06a640386ddacd77ee3e574da582a21b14ee/cython-3.2.4-cp311-cp311-macosx_11_0_arm64.whl
   name: cython
   version: 3.2.4
@@ -133,12 +144,12 @@ packages:
   requires_python: '>=3.8'
 - pypi: ./
   name: hakowan
-  version: 0.4.2
-  sha256: dfb1cf9d4400340a92282c946c3500250c697dfff3a96b7c9a244e4ac49d7746
+  version: 0.4.3
+  sha256: ff9667ee4887acc92db4d1e85221bedb8daebb523372dd2b39b247dad2ee1888
   requires_dist:
-  - adobe-lagrange>=6.42
+  - adobe-lagrange>=6.44
   - numpy>=1.22
-  - pillow~=11.0
+  - pillow>=11.0
   - pyyaml>=6.0
   - mitsuba~=3.7
   - bpy>=5.0.1,<6 ; python_full_version == '3.11.*'
@@ -146,7 +157,7 @@ packages:
   - mkdocs>=1.5 ; extra == 'docs'
   - mkdocs-material>=9.0 ; extra == 'docs'
   - mkdocstrings[python]>=0.24 ; extra == 'docs'
-  requires_python: '>=3.10'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.2-h38cb7af_0.conda
   sha256: d4cefbca587429d1192509edc52c88de52bc96c2447771ddc1f8bee928aed5ef
   md5: 1e93aca311da0210e660d2247812fa02

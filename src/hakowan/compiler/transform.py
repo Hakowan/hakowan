@@ -9,14 +9,51 @@ from ..grammar.transform import (
     Explode,
     Filter,
     Norm,
+    PrincipalAxes,
+    Streamline,
     Transform,
     UVMesh,
 )
+from .streamline import _compute_streamlines
 from ..common import logger
 
 import copy
 import lagrange
 import numpy as np
+
+
+def principal_axes_affine_matrix(
+    vertices: np.ndarray,
+    frame: np.ndarray,
+    *,
+    orthonormalize_frame: bool = True,
+) -> np.ndarray:
+    """4x4 affine: centroid at origin; PCA axes (major first) aligned to columns of ``frame``."""
+    if vertices.size == 0:
+        return np.eye(4, dtype=np.float64)
+    f = np.asarray(frame, dtype=np.float64).reshape(3, 3)
+    if orthonormalize_frame:
+        f, _ = np.linalg.qr(f)
+        if np.linalg.det(f) < 0.0:
+            f[:, -1] *= -1.0
+    mu = np.mean(vertices, axis=0)
+    x = vertices - mu
+    n = x.shape[0]
+    if n < 2:
+        m = np.eye(4, dtype=np.float64)
+        m[:3, 3] = -mu
+        return m
+    cov = (x.T @ x) / max(n - 1, 1)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    order = np.argsort(eigvals)[::-1]
+    basis = eigvecs[:, order]
+    if np.linalg.det(basis) < 0.0:
+        basis[:, 2] *= -1.0
+    r = f @ basis.T
+    m = np.eye(4, dtype=np.float64)
+    m[:3, :3] = r
+    m[:3, 3] = -r @ mu
+    return m
 
 
 def _apply_filter_transform(view: View, transform: Filter):
@@ -174,6 +211,23 @@ def _apply_affine_transform(view: View, transform: Affine):
     view.initialize_bbox()
 
 
+def _apply_principal_axes_transform(view: View, transform: PrincipalAxes):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+    matrix = principal_axes_affine_matrix(
+        mesh.vertices,
+        np.asarray(transform.frame, dtype=np.float64),
+        orthonormalize_frame=transform.orthonormalize_frame,
+    )
+    view.global_transform = matrix @ view.global_transform
+    logger.debug("Updating view bbox due to principal-axes transform.")
+    view.initialize_bbox()
+
+
 def _apply_compute_transform(view: View, transform: Compute):
     df = view.data_frame
     assert df is not None
@@ -305,6 +359,42 @@ def _apply_boundary_transform(view: View, transform: Boundary):
     df.mesh = bd_mesh
 
 
+def _apply_streamline_transform(view: View, transform: Streamline):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+
+    if isinstance(transform.vec_field, str):
+        vec_field_attr = transform.vec_field
+    elif isinstance(transform.vec_field, Attribute):
+        if transform.vec_field.scale is not None:
+            logger.warning("Attribute scale is ignored when applying transform.")
+        vec_field_attr = transform.vec_field.name
+    else:
+        raise RuntimeError("Streamline.vec_field must be a string or Attribute.")
+
+    sl_mesh = _compute_streamlines(
+        df.mesh,
+        vec_field_attr,
+        n=transform.n,
+        cross_field=transform.cross_field,
+        length=transform.length,
+        seed=transform.seed,
+        min_length=transform.min_length,
+    )
+
+    if (
+        transform.id_attr_name != "_hakowan_streamline_id"
+        and sl_mesh.has_attribute("_hakowan_streamline_id")
+    ):
+        sl_mesh.rename_attribute("_hakowan_streamline_id", transform.id_attr_name)
+
+    df.mesh = sl_mesh
+
+    logger.debug("Updating view bbox due to streamline transform.")
+    view.initialize_bbox()
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -325,6 +415,9 @@ def apply_transform(view: View):
             case Affine():
                 assert view.data_frame is not None
                 _apply_affine_transform(view, t)
+            case PrincipalAxes():
+                assert view.data_frame is not None
+                _apply_principal_axes_transform(view, t)
             case Compute():
                 assert view.data_frame is not None
                 _apply_compute_transform(view, t)
@@ -337,6 +430,9 @@ def apply_transform(view: View):
             case Boundary():
                 assert view.data_frame is not None
                 _apply_boundary_transform(view, t)
+            case Streamline():
+                assert view.data_frame is not None
+                _apply_streamline_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

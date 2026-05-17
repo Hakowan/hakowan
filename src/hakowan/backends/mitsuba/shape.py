@@ -398,6 +398,9 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert len(base) == len(tip)
     assert len(base) == len(base_size)
     assert len(tip) == len(tip_size)
+    if len(base) == 0:
+        logger.warning(f"View {index} has no curve segments — skipping.")
+        return {}
     with open(filename, "w") as fout:
         if ctrl_pts_1 is None or ctrl_pts_2 is None:
             curve_type = "linearcurve"

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 import copy
+import numpy as np
 import numpy.typing as npt
 
 
@@ -84,6 +85,29 @@ class Affine(Transform):
     matrix: npt.ArrayLike
 
 
+@dataclass(slots=True)
+class PrincipalAxes(Transform):
+    """Align PCA principal directions of vertex positions with a target orthonormal frame.
+
+    Covariance is computed from the current data-frame vertex positions. Principal
+    axes are ordered by descending eigenvalue (largest variance first). The rotation and
+    translation match those directions to the columns of ``frame``: column 0 is the
+    direction for the largest-variance axis, column 1 for the second, column 2 for the third.
+
+    The resulting affine is pre-composed with any prior global transform on the layer, so
+    earlier ``Affine`` transforms (translate / rotate / scale) are preserved and applied
+    before this PCA-based alignment.
+
+    Attributes:
+        frame: 3x3 matrix whose columns are the target orthonormal axes (see above).
+        orthonormalize_frame: If True (default), orthonormalize ``frame`` with QR so mildly
+            skewed inputs still yield a proper rotation.
+    """
+
+    frame: npt.ArrayLike = field(default_factory=lambda: np.eye(3))
+    orthonormalize_frame: bool = True
+
+
 @dataclass(slots=True, kw_only=True)
 class Compute(Transform):
     """Compute new attributes from the current data frame.
@@ -145,3 +169,38 @@ class Boundary(Transform):
     """
 
     attributes: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True, kw_only=True)
+class Streamline(Transform):
+    """Replace the mesh with surface streamlines traced from a per-facet vector or
+    cross field.
+
+    The output is a vertex-only mesh whose 2-vertex polygonal faces encode line
+    segments along the streamlines, suitable for the ``curve`` mark.  A per-vertex
+    ``int32`` attribute named by ``id_attr_name`` identifies which streamline
+    each point belongs to.
+
+    Attributes:
+        vec_field: The per-facet vector field attribute name.  Vertex- or corner-
+            domain attributes are averaged to per-facet first.
+        n: Number of blue-noise seed faces to sample.  Default 50.
+        cross_field: Treat the field as 4-RoSy cross field.  Default True.
+        length: Maximum object-space length per half-trace (measured on the
+            data-frame mesh, before any layer-level affine transforms).  Tracing
+            stops once the accumulated length exceeds this value.  ``None`` means
+            no limit (trace until mesh boundary).  Default None.
+        seed: RNG seed passed to blue-noise sampling.  Default 0.
+        min_length: Discard streamlines shorter than this many sample points.
+            Default 3.
+        id_attr_name: Name of the per-vertex streamline-id attribute on the
+            output mesh.  Default ``_hakowan_streamline_id``.
+    """
+
+    vec_field: AttributeLike
+    n: int = 50
+    cross_field: bool = True
+    length: float | None = None
+    seed: int = 0
+    min_length: int = 3
+    id_attr_name: str = "_hakowan_streamline_id"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import copy
 import hakowan as hkw
 from pathlib import Path
 import math
@@ -10,6 +11,30 @@ from PIL import Image
 import uuid
 import tempfile
 from tqdm import tqdm
+
+
+def _saturation_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"saturation must be a number, got {value!r}")
+    if not math.isfinite(v) or v < 0:
+        raise argparse.ArgumentTypeError(
+            f"saturation must be non-negative and finite, got {v}"
+        )
+    return v
+
+
+def _whiteness_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"whiteness must be a number, got {value!r}")
+    if not math.isfinite(v) or not 0.0 <= v <= 1.0:
+        raise argparse.ArgumentTypeError(
+            f"whiteness must be in [0, 1], got {v}"
+        )
+    return v
 
 
 def parse_args():
@@ -59,6 +84,15 @@ def parse_args():
     )
     parser.add_argument("--color", help="Material color", type=str, default="ivory")
     parser.add_argument(
+        "--orient-pca",
+        action="store_true",
+        help=(
+            "Rotate and translate the mesh so PCA principal axes align with world axes: "
+            "largest variance along +Y (default up), or +Z when --z-up is set; "
+            "second/third variance along the remaining axes (right-handed). Applied before --rotate."
+        ),
+    )
+    parser.add_argument(
         "--rotate", help="Rotate the mesh (degrees)", type=float, default=None
     )
     parser.add_argument(
@@ -96,10 +130,53 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
+    streamline_group = parser.add_mutually_exclusive_group()
+    streamline_group.add_argument(
+        "--vector-field",
+        metavar="ATTR",
+        help="Overlay streamlines traced from a plain vector field attribute.",
+        default=None,
+    )
+    streamline_group.add_argument(
+        "--cross-field",
+        metavar="ATTR",
+        help="Overlay streamlines traced from a 4-RoSy cross-field attribute.",
+        default=None,
+    )
+    parser.add_argument(
+        "--streamline-seeds",
+        help="Number of seed faces for streamline tracing (default 50).",
+        type=int,
+        default=50,
+    )
+    parser.add_argument(
+        "--streamline-length",
+        help="Max streamline half-length as a fraction of bbox diagonal (default: no limit).",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--streamline-color",
+        help="Streamline curve color (default black).",
+        type=str,
+        default="black",
+    )
     parser.add_argument(
         "--quad-only", help="Only render quad facets", action="store_true"
     )
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
+    parser.add_argument(
+        "--saturation",
+        help="Texture image saturation (1.0=full color, 0.0=grayscale, must be non-negative). Only applies when --material is a texture image.",
+        type=_saturation_arg,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--whiteness",
+        help="Blend texture image toward pure white (0.0=original, 1.0=white, must be in [0,1]). Only applies when --material is a texture image.",
+        type=_whiteness_arg,
+        default=0.0,
+    )
     parser.add_argument(
         "--backend",
         choices=hkw.list_backends(),
@@ -172,7 +249,7 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
-def extract_material(scene: lagrange.scene.Scene):
+def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0):
     """
     Extracts materials from a Lagrange scene and converts them to hakowan material objects.
 
@@ -195,7 +272,7 @@ def extract_material(scene: lagrange.scene.Scene):
                 im = Image.fromarray(tex_img.image.data, "RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(Path(tex_file)),
+                    color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -220,7 +297,7 @@ def extract_material(scene: lagrange.scene.Scene):
                 im = Image.fromarray(diffuse_img.image.data, "RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(diffuse_file),
+                    color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -238,18 +315,20 @@ def extract_material(scene: lagrange.scene.Scene):
     return mats
 
 
-def embed_texture(glb_file):
+def embed_texture(glb_file, saturation: float = 1.0, whiteness: float = 0.0):
     """
     Loads a GLB file, extracts its materials and textures, and constructs a composite layer representation.
 
     Parameters:
         glb_file (str or Path): Path to the GLB file to load.
+        saturation (float): Saturation multiplier applied to all image textures.
+        whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
     scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
-    mats = extract_material(scene)
+    mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
     assert len(layers) > 0, "No valid layers found in scene"
@@ -325,6 +404,19 @@ def compute_camera_matrix(config) -> dict:
         "width": np.int32(width),
         "height": np.int32(height),
     }
+
+
+def _orient_pca_target_frame(z_up: bool) -> np.ndarray:
+    """Columns: world directions for (major, mid, minor) PCA axes (right-handed)."""
+    if z_up:
+        # major -> +Z, mid -> +X, minor -> +Y
+        return np.array(
+            [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]], dtype=np.float64
+        )
+    # major -> +Y, mid -> +Z, minor -> +X (Y-up)
+    return np.array(
+        [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
+    )
 
 
 def save_camera_matrix(data: dict, output_path: Path):
@@ -404,7 +496,7 @@ def main():
             assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
                 f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
             )
-            layer = embed_texture(args.input_mesh)
+            layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
@@ -501,7 +593,7 @@ def main():
             else:
                 texture_file = Path(args.material)
                 assert texture_file.is_file(), f"Texture file {texture_file} not found"
-                layer = layer.material("Principled", hkw.texture.Image(texture_file))
+                layer = layer.material("Principled", hkw.texture.Image(texture_file, saturation=args.saturation, whiteness=args.whiteness))
 
     if args.point_cloud:
         assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
@@ -542,6 +634,27 @@ def main():
             .channel(size=args.wire_thickness * bbox_diag)
         )
         layer = layer + seams
+
+    vec_field_attr = args.vector_field or args.cross_field
+    if vec_field_attr is not None:
+        is_cross = args.cross_field is not None
+        sl_mesh = copy.deepcopy(mesh)
+        lagrange.triangulate_polygonal_facets(sl_mesh)
+        sl_layer = (
+            hkw.layer(sl_mesh)
+            .transform(
+                hkw.transform.Streamline(
+                    vec_field=vec_field_attr,
+                    cross_field=is_cross,
+                    n=args.streamline_seeds,
+                    length=args.streamline_length * bbox_diag if args.streamline_length is not None else None,
+                )
+            )
+            .mark("Curve")
+            .material("Diffuse", args.streamline_color)
+            .channel(size=args.wire_thickness * bbox_diag)
+        )
+        layer = layer + sl_layer
 
     if args.singularity:
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
@@ -596,6 +709,11 @@ def main():
         )
 
         layer = layer + valence_view
+
+    if args.orient_pca:
+        layer = layer.transform(
+            hkw.transform.PrincipalAxes(frame=_orient_pca_target_frame(args.z_up))
+        )
 
     if args.rotate:
         if args.z_up:

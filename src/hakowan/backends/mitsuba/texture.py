@@ -14,7 +14,9 @@ from ...grammar.texture import (
 from typing import Any
 import lagrange
 import mitsuba as mi
+import os
 from pathlib import Path
+import tempfile
 
 
 def generate_texture_config(
@@ -38,6 +40,8 @@ def generate_uniform_config(tex: Uniform) -> dict:
 
 def generate_image_config(tex: Image) -> dict:
     filename = Path(tex.filename)
+    if tex.saturation != 1.0 or tex.whiteness != 0.0:
+        filename = _preprocess_image(filename, tex.saturation, tex.whiteness)
     mi_config: dict[str, Any] = {
         "type": "bitmap",
         "filename": str(filename.resolve()),
@@ -49,6 +53,36 @@ def generate_image_config(tex: Image) -> dict:
         ),
     }
     return mi_config
+
+
+def _preprocess_image(filename: Path, saturation: float, whiteness: float) -> Path:
+    import math
+    from PIL import Image as PILImage, ImageEnhance
+
+    if not math.isfinite(saturation) or saturation < 0:
+        raise ValueError(
+            f"Image texture `saturation` must be non-negative and finite, got {saturation}"
+        )
+    if not math.isfinite(whiteness) or not 0.0 <= whiteness <= 1.0:
+        raise ValueError(
+            f"Image texture `whiteness` must be in [0, 1], got {whiteness}"
+        )
+
+    img = PILImage.open(filename).convert("RGBA")
+    _, _, _, a = img.split()
+    rgb = img.convert("RGB")
+    if saturation != 1.0:
+        rgb = ImageEnhance.Color(rgb).enhance(saturation)
+    if whiteness != 0.0:
+        white = PILImage.new("RGB", rgb.size, (255, 255, 255))
+        rgb = PILImage.blend(rgb, white, alpha=whiteness)
+    r, g, b = rgb.split()
+    out = PILImage.merge("RGBA", (r, g, b, a))
+
+    fd, tmp_name = tempfile.mkstemp(suffix=".png", dir=tempfile.gettempdir())
+    os.close(fd)
+    out.save(tmp_name)
+    return Path(tmp_name)
 
 
 def generate_checker_board_config(

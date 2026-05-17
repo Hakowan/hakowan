@@ -1,7 +1,12 @@
 from .utils import unique_name
 from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
-from ..grammar.texture import Texture, ScalarField, Checkerboard, Isocontour
+from ..grammar.texture import (
+    Texture,
+    ScalarField,
+    Checkerboard,
+    Isocontour,
+)
 from ..common.colormap.named_colormaps import named_colormaps
 from ..common.to_color import to_color
 from ..common.colormap.colormap import ColorMap
