@@ -88,6 +88,69 @@ tr = hkw.transform.Norm(data="velocity", norm_attr_name="speed")
 See the [Smoothed Particle Hydrodynamics example](../examples/sph.md) for an example usage of the norm
 transform.
 
+## PrincipalAxes transform
+
+PrincipalAxes transform aligns the principal directions of the mesh vertex positions (computed via
+PCA) with a target orthonormal frame. Principal axes are ordered by descending eigenvalue, so the
+largest-variance direction maps to column 0 of `frame`, second-largest to column 1, and so on.
+
+```py
+# Align the mesh so its longest axis points along world-x, second-longest along world-y.
+tr = hkw.transform.PrincipalAxes(frame=np.eye(3))
+```
+
+By default, `frame` is QR-orthonormalized so mildly skewed inputs still produce a proper rotation.
+Set `orthonormalize_frame=False` if you guarantee an orthonormal input frame.
+
+```py
+# Custom target frame (e.g. flipped axes for camera-friendly orientation).
+frame = np.array([[0, 1, 0],
+                  [0, 0, 1],
+                  [1, 0, 0]], dtype=float).T
+tr = hkw.transform.PrincipalAxes(frame=frame)
+```
+
+## Streamline transform
+
+Streamline transform replaces the mesh with surface streamlines traced from a per-facet vector
+field or 4-RoSy cross field. The output is a vertex-only mesh whose 2-vertex polylines encode
+streamline segments, suitable for the `Curve` mark.
+
+```py
+# Trace 100 streamlines from a per-facet vector field attribute "velocity".
+tr = hkw.transform.Streamline(vec_field="velocity", n=100, cross_field=False)
+
+# Visualize as curves.
+l = hkw.layer(mesh).transform(tr).mark("Curve").channel(size=0.005)
+```
+
+Vertex- or corner-domain vector attributes are automatically averaged to per-facet before tracing.
+Seeds are placed via blue-noise sampling for even surface coverage.
+
+Key parameters:
+
+* `n` — number of seed faces (default 50).
+* `cross_field` — treat the input as a 4-RoSy cross field (default `True`). Set `False` for
+  ordinary vector fields.
+* `length` — maximum world-space length per half-trace; `None` means trace until the mesh boundary.
+* `seed` — RNG seed for the blue-noise sampler.
+* `min_length` — discard streamlines with fewer than this many sample points (default 3).
+* `id_attr_name` — name of the per-vertex streamline-id attribute on the output mesh.
+
+Each output vertex carries an integer streamline id under `id_attr_name`, useful for coloring
+individual streamlines:
+
+```py
+tr = hkw.transform.Streamline(vec_field="velocity", n=200)
+l = (
+    hkw.layer(mesh)
+    .transform(tr)
+    .mark("Curve")
+    .channel(size=0.003)
+    .channel(material=hkw.material.Diffuse(color="_hakowan_streamline_id"))
+)
+```
+
 ## Boundary transform
 
 Boundary transform extracts the boundary of a mesh. The boundary consists of edges that are only

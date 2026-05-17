@@ -18,6 +18,24 @@ t = hkw.texture.Uniform(color="ivory")
 t = hkw.texture.Image(uv="uv_attr_name", filename="texture.png")
 ```
 
+| Field | Type | Meaning |
+|-------|------|---------|
+| `filename` | PathLike | Path to the image file |
+| `uv` | AttributeLike \| None | UV attribute (auto-detected if None) |
+| `raw` | bool | Treat texture as linear (no sRGB decode). Set `True` for normal maps and other non-color data. Default `False`. |
+| `saturation` | float | Saturation multiplier. `1.0` = full color, `0.0` = grayscale. Default `1.0`. |
+| `whiteness` | float | Blend toward pure white. `0.0` = original color, `1.0` = pure white. Default `0.0`. |
+
+```py
+# Desaturate and brighten an image texture.
+t = hkw.texture.Image(
+    filename="texture.png",
+    uv="uv_attr",
+    saturation=0.5,
+    whiteness=0.2,
+)
+```
+
 ## Scalar field texture
 
 One of the most common use case of texture is to map a scalar field to a color field.
