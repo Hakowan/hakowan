@@ -125,7 +125,9 @@ def _compute_streamlines(
 
     e1, e2, normals = _build_face_frames(vertices, facets)
 
-    vec_field_3d = _resolve_facet_vector_field(mesh, vec_field_attr, num_faces, facets)
+    vec_field_3d = _resolve_facet_vector_field(
+        mesh, vec_field_attr, num_faces, facets, cross_field=cross_field
+    )
     vec_2d = _project_to_2d(vec_field_3d, e1, e2)
 
     mesh.initialize_edges()
@@ -340,7 +342,7 @@ def _snap_to_cross(d_2d: npt.NDArray, c_2d: npt.NDArray) -> npt.NDArray:
     return best.copy()
 
 
-def _resolve_facet_vector_field(mesh, attr_name, num_faces, facets):
+def _resolve_facet_vector_field(mesh, attr_name, num_faces, facets, cross_field=False):
     if mesh.is_attribute_indexed(attr_name):
         idx = mesh.indexed_attribute(attr_name)
         values = np.asarray(idx.values.data, dtype=np.float64)
@@ -356,8 +358,52 @@ def _resolve_facet_vector_field(mesh, attr_name, num_faces, facets):
     if elem == lagrange.AttributeElement.Corner:
         return data.reshape(num_faces, 3, 3).mean(axis=1)
     if elem == lagrange.AttributeElement.Vertex:
-        return data[facets].mean(axis=1)
+        n_rosy = 4 if cross_field else 1
+        return _average_vertex_field_to_facets(mesh, data, num_faces, facets, n_rosy)
     raise NotImplementedError(f"Unsupported element type: {elem}")
+
+
+def _average_vertex_field_to_facets(mesh, vert_field, num_faces, facets, n_rosy):
+    """Average a per-vertex N-RoSy field onto per-facet directions.
+
+    Uses Levi-Civita parallel transport (with N-fold symmetry) to bring each
+    vertex direction into the facet's tangent frame, applies the xN angle
+    trick, sums the three vertex contributions, divides the resulting angle
+    by N, and lifts back to 3D.
+
+    n_rosy = 1 for plain vector field, 4 for cross field.
+    """
+    import lagrange.polyddg as polyddg
+
+    ops = polyddg.DifferentialOperators(mesh)
+    out = np.zeros((num_faces, 3), dtype=np.float64)
+    n = float(n_rosy)
+
+    for fid in range(num_faces):
+        fb = ops.facet_basis(fid)         # 3x2
+        accum_xn = np.zeros(2)
+        for lv in range(3):
+            vid = int(facets[fid, lv])
+            tv = vert_field[vid]
+            if np.linalg.norm(tv) < 1e-12:
+                continue
+            vb = ops.vertex_basis(vid)    # 3x2
+            conn = ops.levi_civita_nrosy(fid, lv, n=n_rosy)  # 2x2 (vertex->facet)
+
+            local_v = vb.T @ tv
+            angle = float(np.arctan2(local_v[1], local_v[0]))
+            local_v_xn = np.array([np.cos(n * angle), np.sin(n * angle)])
+            accum_xn += conn @ local_v_xn
+
+        norm = float(np.linalg.norm(accum_xn))
+        if norm < 1e-12:
+            continue
+        angle_xn = float(np.arctan2(accum_xn[1], accum_xn[0]))
+        angle_f = angle_xn / n
+        local_f = np.array([np.cos(angle_f), np.sin(angle_f)])
+        out[fid] = fb @ local_f
+
+    return out
 
 
 def _project_to_2d(vec_field_3d, e1, e2):
