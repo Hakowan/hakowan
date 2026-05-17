@@ -121,6 +121,8 @@ def _compute_streamlines(
         raise ValueError("Streamline transform requires a triangle mesh.")
     if not mesh.has_attribute(vec_field_attr):
         raise ValueError(f"Mesh has no attribute '{vec_field_attr}'.")
+    if n <= 0 or mesh.num_facets == 0:
+        return lagrange.SurfaceMesh()
 
     vertices = np.asarray(mesh.vertices, dtype=np.float64)
     facets = np.asarray(mesh.facets, dtype=np.int64).reshape(-1, 3)
