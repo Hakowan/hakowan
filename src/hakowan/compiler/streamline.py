@@ -1,12 +1,16 @@
-"""Streamlines on triangle meshes via face-hopping.
+"""Streamlines on triangle meshes via exact edge-crossing tracing.
 
-Directions are traced intrinsically: when a streamline crosses an edge, the
-direction is parallel-transported into the adjacent face's local frame.  For
-4-RoSy cross fields the transported direction is snapped to the nearest of the
-four arms in the next face.
+Directions are transported intrinsically across edges using a rotation matrix
+that aligns the source face normal to the destination face normal.  For 4-RoSy
+cross fields the transported direction is snapped to the nearest arm in the
+next face.  Seeding uses lagrange blue-noise sampling for even coverage.
 """
 
 from __future__ import annotations
+
+import concurrent.futures
+import multiprocessing
+import os
 
 import lagrange
 import numpy as np
@@ -14,59 +18,56 @@ import numpy.typing as npt
 
 
 # ---------------------------------------------------------------------------
+# Per-worker shared state (populated by _worker_init, read by _trace_seed_task)
+# ---------------------------------------------------------------------------
+
+_W: dict = {}
+
+
+def _worker_init(
+    vertices, facets, normals, e1, e2, vec_2d, adj_face, adj_edge, cross_field
+):
+    _W["vertices"] = vertices
+    _W["facets"] = facets
+    _W["normals"] = normals
+    _W["e1"] = e1
+    _W["e2"] = e2
+    _W["vec_2d"] = vec_2d
+    _W["adj_face"] = adj_face
+    _W["adj_edge"] = adj_edge
+    _W["cross_field"] = cross_field
+
+
+def _trace_seed_task(task):
+    """Worker entry point: trace one seed (both arms, both directions)."""
+    fi, seed_pt, arms, max_length, min_length = task
+    w = _W
+    num_faces = w["facets"].shape[0]
+    polylines = []
+    for arm in arms:
+        fwd = _trace_half(
+            fi, seed_pt, arm, max_length, num_faces,
+            w["vertices"], w["facets"], w["normals"],
+            w["e1"], w["e2"], w["vec_2d"],
+            w["adj_face"], w["adj_edge"], w["cross_field"],
+        )
+        bwd = _trace_half(
+            fi, seed_pt, -arm, max_length, num_faces,
+            w["vertices"], w["facets"], w["normals"],
+            w["e1"], w["e2"], w["vec_2d"],
+            w["adj_face"], w["adj_edge"], w["cross_field"],
+        )
+        pts = np.array(list(reversed(bwd)) + [seed_pt] + fwd, dtype=np.float64)
+        if len(pts) >= min_length:
+            polylines.append(pts)
+    return polylines
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 
-def _poisson_disk_seeds(
-    centroids: npt.NDArray,
-    n: int,
-    min_dist: float,
-    rng: np.random.Generator,
-) -> npt.NDArray:
-    """Return up to *n* face indices with pairwise distance >= min_dist.
-
-    Uses a grid-accelerated dart-throwing approach: O(num_faces) expected
-    for reasonable min_dist values.
-    """
-    num_faces = centroids.shape[0]
-    cell = min_dist / np.sqrt(3)  # grid cell side so one cell holds one disk
-
-    # Map centroids to grid cells
-    lo = centroids.min(axis=0)
-    cell_idx = ((centroids - lo) / cell).astype(np.int64)
-
-    grid: dict[tuple, int] = {}  # cell -> face index of occupant seed
-    selected: list[int] = []
-
-    order = rng.permutation(num_faces)
-    for fi in order:
-        if len(selected) >= n:
-            break
-        ci = tuple(cell_idx[fi])
-        pt = centroids[fi]
-
-        # Check all neighboring cells within radius min_dist
-        r = int(np.ceil(min_dist / cell))
-        conflict = False
-        for dx in range(-r, r + 1):
-            if conflict:
-                break
-            for dy in range(-r, r + 1):
-                if conflict:
-                    break
-                for dz in range(-r, r + 1):
-                    nb = (ci[0] + dx, ci[1] + dy, ci[2] + dz)
-                    occ = grid.get(nb)
-                    if occ is not None:
-                        if float(np.linalg.norm(pt - centroids[occ])) < min_dist:
-                            conflict = True
-                            break
-        if not conflict:
-            grid[ci] = fi
-            selected.append(fi)
-
-    return np.array(selected, dtype=np.int64)
 
 
 def _compute_streamlines(
@@ -75,23 +76,24 @@ def _compute_streamlines(
     *,
     n: int = 50,
     cross_field: bool = True,
-    num_steps: int = 200,
-    step_factor: float = 0.4,
+    length: float | None = None,
     seed: int = 0,
     min_length: int = 3,
-    poisson_disk: bool = False,
-    min_seed_dist: float | None = None,
 ) -> lagrange.SurfaceMesh:
     """Compute surface streamlines from a per-facet vector/cross field.
 
-    ``n`` face centroids are chosen at random and used as seeds.  Each seed
-    is traced bidirectionally (forward + backward) along every field arm:
+    ``n`` face centroids chosen via blue-noise sampling are used as seeds.
+    Each seed is traced bidirectionally (forward + backward) along every field
+    arm:
 
     - **cross field** (``cross_field=True``): two bidirectional streamlines
       per seed — one along the representative arm *d* and one along its
       90° rotation *perp(d)* — giving up to ``2n`` streamlines in total.
     - **plain vector field** (``cross_field=False``): one bidirectional
       streamline per seed, giving up to ``n`` streamlines in total.
+
+    Tracing uses exact edge crossings (scale-independent) and parallel
+    transport via rotation matrices.
 
     Args:
         mesh: Triangulated surface mesh.
@@ -100,14 +102,10 @@ def _compute_streamlines(
         n: Number of seed faces to sample.
         cross_field: Treat the field as 4-RoSy.  At each edge crossing the
             transported direction snaps to the nearest of the four arms.
-        num_steps: Maximum face-hopping steps per half-trace (forward and
-            backward each get this budget).  Default 200.
-        step_factor: Step length as a fraction of the mean face inradius.
-            Default 0.4.
-        seed: RNG seed for the random face selection.
+        length: Maximum world-space length per half-trace.  ``None`` means no
+            limit (trace until mesh boundary).
+        seed: RNG seed used when blue-noise sampling falls back to random.
         min_length: Discard streamlines shorter than this many sample points.
-        poisson_disk: Use Poisson-disk seeding for even spatial distribution.
-        min_seed_dist: Minimum distance between seeds.  Auto-computed if None.
 
     Returns:
         A :class:`lagrange.SurfaceMesh` with only vertices (no faces).  Each
@@ -126,8 +124,6 @@ def _compute_streamlines(
     num_faces = facets.shape[0]
 
     e1, e2, normals = _build_face_frames(vertices, facets)
-    verts_2d = _build_face_verts_2d(vertices, facets, e1, e2)
-    h = float(step_factor * _face_inradius(verts_2d).mean())
 
     vec_field_3d = _resolve_facet_vector_field(mesh, vec_field_attr, num_faces, facets)
     vec_2d = _project_to_2d(vec_field_3d, e1, e2)
@@ -135,48 +131,45 @@ def _compute_streamlines(
     mesh.initialize_edges()
     adj_face, adj_edge = _build_face_adjacency(mesh, num_faces)
 
-    centroids_2d = verts_2d.mean(axis=1)   # (F, 2)
     centroids_3d = vertices[facets].mean(axis=1)  # (F, 3)
 
-    rng = np.random.default_rng(seed)
-    if poisson_disk:
-        if min_seed_dist is None:
-            lo = centroids_3d.min(axis=0)
-            hi = centroids_3d.max(axis=0)
-            diagonal = float(np.linalg.norm(hi - lo))
-            min_seed_dist = diagonal / float(np.sqrt(n)) if n > 0 else diagonal
-        seed_faces = _poisson_disk_seeds(centroids_3d, n, min_seed_dist, rng)
-    else:
+    try:
+        _, seed_facet_ids, _ = lagrange.sampling.blue_noise_sample(mesh, n)
+        seed_faces = np.unique(seed_facet_ids)
+    except AttributeError:
+        rng = np.random.default_rng(seed)
         seed_faces = rng.choice(num_faces, size=min(n, num_faces), replace=False)
 
-    all_polylines: list[npt.NDArray] = []
-
+    tasks = []
     for fi in seed_faces:
-        d = vec_2d[fi].copy()
-        p = centroids_2d[fi].copy()
         seed_pt = centroids_3d[fi]
-
-        # Directions to trace: d-arm and (if cross field) perp-arm.
+        d_2d = vec_2d[fi].copy()
+        d = d_2d[0] * e1[fi] + d_2d[1] * e2[fi]
         arms = [d]
         if cross_field:
-            arms.append(np.array([-d[1], d[0]]))
+            perp_2d = np.array([-d_2d[1], d_2d[0]])
+            arms.append(perp_2d[0] * e1[fi] + perp_2d[1] * e2[fi])
+        tasks.append((fi, seed_pt, arms, length, min_length))
 
-        for arm in arms:
-            fwd = _trace_streamline_3d(
-                fi, p, arm, num_steps, h,
-                verts_2d, vec_2d, adj_face, adj_edge,
-                vertices, facets, e1, e2, normals, centroids_2d, cross_field,
-            )
-            bwd = _trace_streamline_3d(
-                fi, p, -arm, num_steps, h,
-                verts_2d, vec_2d, adj_face, adj_edge,
-                vertices, facets, e1, e2, normals, centroids_2d, cross_field,
-            )
-            pts = np.array(
-                list(reversed(bwd)) + [seed_pt] + fwd, dtype=np.float64
-            )
-            if len(pts) >= min_length:
-                all_polylines.append(pts)
+    shared = (vertices, facets, normals, e1, e2, vec_2d, adj_face, adj_edge, cross_field)
+    n_workers = min(len(tasks), os.cpu_count() or 1)
+
+    all_polylines: list[npt.NDArray] = []
+    try:
+        ctx = multiprocessing.get_context("fork")
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=n_workers,
+            mp_context=ctx,
+            initializer=_worker_init,
+            initargs=shared,
+        ) as pool:
+            for polylines in pool.map(_trace_seed_task, tasks):
+                all_polylines.extend(polylines)
+    except Exception:
+        # Fallback: sequential (fork unavailable, e.g. some macOS configs)
+        _worker_init(*shared)
+        for task in tasks:
+            all_polylines.extend(_trace_seed_task(task))
 
     out_mesh = lagrange.SurfaceMesh()
     if not all_polylines:
@@ -185,7 +178,6 @@ def _compute_streamlines(
     all_pts = np.concatenate(all_polylines, axis=0)
     out_mesh.add_vertices(all_pts)
 
-    # Encode each consecutive pair of points as a 2-vertex polygonal face.
     segments = []
     ids = np.empty(all_pts.shape[0], dtype=np.int32)
     offset = 0
@@ -213,75 +205,96 @@ def _compute_streamlines(
 # ---------------------------------------------------------------------------
 
 
-def _trace_streamline_3d(
+def _trace_half(
     f0: int,
-    p0_2d: npt.NDArray,
+    p0: npt.NDArray,
     d0: npt.NDArray,
-    num_steps: int,
-    h: float,
-    verts_2d: npt.NDArray,
+    max_length: float | None,
+    max_steps: int,
+    vertices: npt.NDArray,
+    facets: npt.NDArray,
+    normals: npt.NDArray,
+    e1: npt.NDArray,
+    e2: npt.NDArray,
     vec_2d: npt.NDArray,
     adj_face: npt.NDArray,
     adj_edge: npt.NDArray,
-    vertices: npt.NDArray,
-    facets: npt.NDArray,
-    e1: npt.NDArray,
-    e2: npt.NDArray,
-    normals: npt.NDArray,
-    centroids_2d: npt.NDArray,
     cross_field: bool,
 ) -> list:
-    """Trace one half-streamline; returns list of 3D points (not including seed)."""
+    """Trace one half-streamline via exact edge crossings.
+
+    Returns list of 3D crossing points (not including the seed point).
+    """
     pts: list = []
     f = f0
-    p = p0_2d.copy()
+    p = p0.copy()
     d = d0.copy()
+    d_norm = float(np.linalg.norm(d))
+    if d_norm < 1e-12:
+        return pts
+    d = d / d_norm
+    accumulated = 0.0
+    entry_local = -1  # local edge index we entered from (-1 for seed centroid)
 
-    for _ in range(num_steps):
-        d_norm = float(np.hypot(d[0], d[1]))
+    for _ in range(max_steps):
+        n = normals[f]
+        perp = np.cross(n, d)
+        perp_norm = float(np.linalg.norm(perp))
+        if perp_norm < 1e-12:
+            break
+        perp = perp / perp_norm
+
+        vi = facets[f]
+        vals = np.array([float(np.dot(vertices[vi[k]] - p, perp)) for k in range(3)])
+
+        # Nudge near-zero vertex values to avoid degenerate exit choices
+        for k in range(3):
+            if abs(vals[k]) < 1e-10:
+                vals[k] = 1e-10
+
+        exit_local = -1
+        exit_pt: npt.NDArray | None = None
+        for k in range(3):
+            if k == entry_local:
+                continue
+            a, b = k, (k + 1) % 3
+            if vals[a] * vals[b] < 0:
+                t = vals[a] / (vals[a] - vals[b])
+                exit_local = k
+                exit_pt = vertices[vi[a]] + t * (vertices[vi[b]] - vertices[vi[a]])
+                break
+
+        if exit_local < 0 or exit_pt is None:
+            break
+
+        step_len = float(np.linalg.norm(exit_pt - p))
+        if max_length is not None and accumulated + step_len > max_length:
+            break
+        accumulated += step_len
+
+        pts.append(exit_pt)
+        p = exit_pt
+
+        fp = int(adj_face[f, exit_local])
+        if fp < 0:
+            break
+
+        entry_local = int(adj_edge[f, exit_local])
+
+        # Parallel-transport direction across the edge
+        R = _rotation_matrix(normals[f], normals[fp])
+        d = R @ d
+
+        if cross_field:
+            d_2d = np.array([float(np.dot(d, e1[fp])), float(np.dot(d, e2[fp]))])
+            d_2d = _snap_to_cross(d_2d, vec_2d[fp])
+            d = d_2d[0] * e1[fp] + d_2d[1] * e2[fp]
+
+        d_norm = float(np.linalg.norm(d))
         if d_norm < 1e-12:
             break
         d = d / d_norm
-
-        remaining = h
-        terminate = False
-        for _inner in range(32):
-            t_exit, edge_idx = _ray_exits_face(p, d, verts_2d[f])
-            # No forward exit: the position has drifted outside the triangle
-            # (numerical issue), or the direction is degenerate.  Stop the
-            # trace rather than stepping into the void on an extended plane.
-            if t_exit == np.inf:
-                terminate = True
-                break
-            if t_exit >= remaining:
-                p = p + remaining * d
-                remaining = 0.0
-                break
-            p = p + t_exit * d
-            remaining -= t_exit
-            fp = int(adj_face[f, edge_idx])
-            if fp < 0:
-                terminate = True
-                break
-            ep = int(adj_edge[f, edge_idx])
-            p = _transition_point(p, edge_idx, f, fp, ep, verts_2d)
-            d = _transport_direction(d, f, fp, edge_idx, vertices, facets, e1, e2, normals)
-            if cross_field:
-                d = _snap_to_cross(d, vec_2d[fp])
-            f = fp
-            # Nudge toward the new face's centroid (always interior) instead of
-            # along d, which after snap may point back across the entry edge
-            # and push p outside fp.
-            to_c = centroids_2d[f] - p
-            to_c_norm = float(np.hypot(to_c[0], to_c[1]))
-            if to_c_norm > 1e-20:
-                p = p + (1e-7 / to_c_norm) * to_c
-
-        if terminate:
-            break
-
-        v0 = vertices[facets[f, 0]]
-        pts.append(v0 + p[0] * e1[f] + p[1] * e2[f])
+        f = fp
 
     return pts
 
@@ -289,6 +302,42 @@ def _trace_streamline_3d(
 # ---------------------------------------------------------------------------
 # Geometry helpers
 # ---------------------------------------------------------------------------
+
+
+def _rotation_matrix(n1: npt.NDArray, n2: npt.NDArray) -> npt.NDArray:
+    """3x3 rotation matrix that rotates n1 onto n2."""
+    a = n1 / np.linalg.norm(n1)
+    b = n2 / np.linalg.norm(n2)
+    v = np.cross(a, b)
+    c = float(np.dot(a, b))
+    s = float(np.linalg.norm(v))
+    if s < 1e-12:
+        if c > 0:
+            return np.eye(3)
+        perp = np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        perp = perp - np.dot(perp, a) * a
+        perp /= np.linalg.norm(perp)
+        return 2.0 * np.outer(perp, perp) - np.eye(3)
+    kmat = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+    return np.eye(3) + kmat + kmat @ kmat * ((1.0 - c) / (s ** 2))
+
+
+def _snap_to_cross(d_2d: npt.NDArray, c_2d: npt.NDArray) -> npt.NDArray:
+    """Snap 2D direction d to the nearest arm of the 4-RoSy cross field c."""
+    candidates = (
+        c_2d,
+        np.array([-c_2d[1], c_2d[0]]),
+        -c_2d,
+        np.array([c_2d[1], -c_2d[0]]),
+    )
+    best = candidates[0]
+    best_dot = float(np.dot(d_2d, best))
+    for cand in candidates[1:]:
+        dot = float(np.dot(d_2d, cand))
+        if dot > best_dot:
+            best_dot = dot
+            best = cand
+    return best.copy()
 
 
 def _resolve_facet_vector_field(mesh, attr_name, num_faces, facets):
@@ -333,127 +382,32 @@ def _build_face_frames(vertices, facets):
     return e1, e2, normals
 
 
-def _build_face_verts_2d(vertices, facets, e1, e2):
-    p = vertices[facets]
-    rel = p - p[:, 0:1, :]
-    return np.stack([
-        np.einsum("fij,fj->fi", rel, e1),
-        np.einsum("fij,fj->fi", rel, e2),
-    ], axis=2)
-
-
-def _face_inradius(verts_2d):
-    a = verts_2d[:, 1] - verts_2d[:, 0]
-    b = verts_2d[:, 2] - verts_2d[:, 1]
-    c = verts_2d[:, 0] - verts_2d[:, 2]
-    la = np.linalg.norm(a, axis=1)
-    lb = np.linalg.norm(b, axis=1)
-    lc = np.linalg.norm(c, axis=1)
-    s = 0.5 * (la + lb + lc)
-    cross_z = a[:, 0] * (-c[:, 1]) - a[:, 1] * (-c[:, 0])
-    return 0.5 * np.abs(cross_z) / np.maximum(s, 1e-20)
-
-
 def _build_face_adjacency(mesh, num_faces):
     corner_to_edge = np.asarray(
         mesh.attribute(mesh.attr_name_corner_to_edge).data
     ).astype(np.int64)
+
+    # For each corner c = 3*f + i, record its face and local index.
+    face_of_corner  = np.repeat(np.arange(num_faces, dtype=np.int64), 3)
+    local_of_corner = np.tile(np.arange(3, dtype=np.int64), num_faces)
+
+    # Sort corners by edge so that corners sharing an edge are adjacent.
+    order        = np.argsort(corner_to_edge, kind='stable')
+    edges_sorted = corner_to_edge[order]
+    faces_sorted = face_of_corner[order]
+    local_sorted = local_of_corner[order]
+
+    # Consecutive pairs with the same edge ID are manifold interior edges.
+    pair_mask = edges_sorted[:-1] == edges_sorted[1:]
+    s = np.where(pair_mask)[0]   # index of first corner in each pair
+
+    f1 = faces_sorted[s];     l1 = local_sorted[s]
+    f2 = faces_sorted[s + 1]; l2 = local_sorted[s + 1]
+
     adj_face = -np.ones((num_faces, 3), dtype=np.int64)
     adj_edge = -np.ones((num_faces, 3), dtype=np.int64)
-    for f in range(num_faces):
-        for i in range(3):
-            e = int(corner_to_edge[3 * f + i])
-            for fp in mesh.facets_around_edge(e):
-                fp = int(fp)
-                if fp == f:
-                    continue
-                adj_face[f, i] = fp
-                for j in range(3):
-                    if int(corner_to_edge[3 * fp + j]) == e:
-                        adj_edge[f, i] = j
-                        break
-                break
+
+    adj_face[f1, l1] = f2;  adj_edge[f1, l1] = l2
+    adj_face[f2, l2] = f1;  adj_edge[f2, l2] = l1
+
     return adj_face, adj_edge
-
-
-def _ray_exits_face(p, d, tri_2d):
-    best_t = np.inf
-    best_e = -1
-    for i in range(3):
-        v0 = tri_2d[i]
-        v1 = tri_2d[(i + 1) % 3]
-        edge = v1 - v0
-        det = d[0] * (-edge[1]) - d[1] * (-edge[0])
-        if abs(det) < 1e-14:
-            continue
-        rhs0 = v0[0] - p[0]
-        rhs1 = v0[1] - p[1]
-        t = (rhs0 * (-edge[1]) - rhs1 * (-edge[0])) / det
-        s = (d[0] * rhs1 - d[1] * rhs0) / det
-        if t > 1e-9 and -1e-7 <= s <= 1.0 + 1e-7:
-            if t < best_t:
-                best_t = t
-                best_e = i
-    return best_t, best_e
-
-
-def _transition_point(p_in_f, edge_idx, f, fp, edge_idx_in_fp, verts_2d):
-    a = verts_2d[f, edge_idx]
-    b = verts_2d[f, (edge_idx + 1) % 3]
-    seg = b - a
-    seg_len_sq = float(seg[0] * seg[0] + seg[1] * seg[1])
-    if seg_len_sq < 1e-24:
-        return verts_2d[fp, edge_idx_in_fp].copy()
-    s = float(((p_in_f[0] - a[0]) * seg[0] + (p_in_f[1] - a[1]) * seg[1]) / seg_len_sq)
-    s = min(max(s, 0.0), 1.0)
-    a_fp = verts_2d[fp, (edge_idx_in_fp + 1) % 3]
-    b_fp = verts_2d[fp, edge_idx_in_fp]
-    return a_fp + s * (b_fp - a_fp)
-
-
-def _transport_direction(d_2d, f, fp, edge_idx_in_f, vertices, facets, e1, e2, normals):
-    d_3d = e1[f] * d_2d[0] + e2[f] * d_2d[1]
-    v0 = vertices[facets[f, edge_idx_in_f]]
-    v1 = vertices[facets[f, (edge_idx_in_f + 1) % 3]]
-    edge_vec = v1 - v0
-    edge_len = float(np.linalg.norm(edge_vec))
-    if edge_len < 1e-20:
-        return np.array([
-            d_2d[0] * np.dot(e1[f], e1[fp]) + d_2d[1] * np.dot(e2[f], e1[fp]),
-            d_2d[0] * np.dot(e1[f], e2[fp]) + d_2d[1] * np.dot(e2[f], e2[fp]),
-        ])
-    edge_unit = edge_vec / edge_len
-    par = np.dot(d_3d, edge_unit) * edge_unit
-    per = d_3d - par
-    perp_f = np.cross(normals[f], edge_unit)
-    perp_f_norm = float(np.linalg.norm(perp_f))
-    if perp_f_norm < 1e-20:
-        d_3d_new = d_3d
-    else:
-        perp_f /= perp_f_norm
-        coef = float(np.dot(per, perp_f))
-        perp_fp = np.cross(normals[fp], edge_unit)
-        perp_fp_norm = float(np.linalg.norm(perp_fp))
-        if perp_fp_norm < 1e-20:
-            d_3d_new = par
-        else:
-            perp_fp /= perp_fp_norm
-            d_3d_new = par + coef * perp_fp
-    return np.array([float(np.dot(d_3d_new, e1[fp])), float(np.dot(d_3d_new, e2[fp]))])
-
-
-def _snap_to_cross(d_2d, c_2d):
-    candidates = (
-        c_2d,
-        np.array([-c_2d[1], c_2d[0]]),
-        -c_2d,
-        np.array([c_2d[1], -c_2d[0]]),
-    )
-    best = candidates[0]
-    best_dot = float(np.dot(d_2d, best))
-    for cand in candidates[1:]:
-        dot = float(np.dot(d_2d, cand))
-        if dot > best_dot:
-            best_dot = dot
-            best = cand
-    return best.copy()

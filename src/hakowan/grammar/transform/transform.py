@@ -180,31 +180,22 @@ class Streamline(Transform):
     Attributes:
         vec_field: The per-facet vector field attribute name.  Vertex- or corner-
             domain attributes are averaged to per-facet first.
-        n: Number of seed faces sampled at random.  Default 50.
+        n: Number of blue-noise seed faces to sample.  Default 50.
         cross_field: Treat the field as 4-RoSy cross field.  Default True.
-        num_steps: Maximum face-hopping steps per half-trace.  Default 200.
-        step_factor: Step length as a fraction of the mean face inradius.
-            Default 0.4.
-        seed: RNG seed for the random face selection.  Default 0.
+        length: Maximum world-space length per half-trace.  Tracing stops once
+            the accumulated length exceeds this value.  ``None`` means no
+            limit (trace until mesh boundary).  Default None.
+        seed: RNG seed passed to blue-noise sampling.  Default 0.
         min_length: Discard streamlines shorter than this many sample points.
             Default 3.
         id_attr_name: Name of the per-vertex streamline-id attribute on the
             output mesh.  Default ``_hakowan_streamline_id``.
-        poisson_disk: Use Poisson-disk seeding instead of uniform random
-            sampling to enforce a minimum distance between seeds.  Default
-            False.
-        min_seed_dist: Minimum Euclidean distance between seed centroids when
-            ``poisson_disk=True``.  If ``None``, auto-computed from the mesh
-            bounding-box diagonal as ``diagonal / sqrt(n)``.  Default None.
     """
 
     vec_field: AttributeLike
     n: int = 50
     cross_field: bool = True
-    num_steps: int = 200
-    step_factor: float = 0.4
+    length: float | None = None
     seed: int = 0
     min_length: int = 3
     id_attr_name: str = "_hakowan_streamline_id"
-    poisson_disk: bool = False
-    min_seed_dist: float | None = None

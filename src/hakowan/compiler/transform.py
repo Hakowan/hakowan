@@ -376,12 +376,9 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         vec_field_attr,
         n=transform.n,
         cross_field=transform.cross_field,
-        num_steps=transform.num_steps,
-        step_factor=transform.step_factor,
+        length=transform.length,
         seed=transform.seed,
         min_length=transform.min_length,
-        poisson_disk=transform.poisson_disk,
-        min_seed_dist=transform.min_seed_dist,
     )
 
     if (

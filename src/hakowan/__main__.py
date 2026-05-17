@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import copy
 import hakowan as hkw
 from pathlib import Path
 import math
@@ -105,6 +106,37 @@ def parse_args():
         default=0.5,
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
+    streamline_group = parser.add_mutually_exclusive_group()
+    streamline_group.add_argument(
+        "--vector-field",
+        metavar="ATTR",
+        help="Overlay streamlines traced from a plain vector field attribute.",
+        default=None,
+    )
+    streamline_group.add_argument(
+        "--cross-field",
+        metavar="ATTR",
+        help="Overlay streamlines traced from a 4-RoSy cross-field attribute.",
+        default=None,
+    )
+    parser.add_argument(
+        "--streamline-seeds",
+        help="Number of seed faces for streamline tracing (default 50).",
+        type=int,
+        default=50,
+    )
+    parser.add_argument(
+        "--streamline-length",
+        help="Max streamline half-length as a fraction of bbox diagonal (default: no limit).",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--streamline-color",
+        help="Streamline curve color (default black).",
+        type=str,
+        default="black",
+    )
     parser.add_argument(
         "--quad-only", help="Only render quad facets", action="store_true"
     )
@@ -578,6 +610,27 @@ def main():
             .channel(size=args.wire_thickness * bbox_diag)
         )
         layer = layer + seams
+
+    vec_field_attr = args.vector_field or args.cross_field
+    if vec_field_attr is not None:
+        is_cross = args.cross_field is not None
+        sl_mesh = copy.deepcopy(mesh)
+        lagrange.triangulate_polygonal_facets(sl_mesh)
+        sl_layer = (
+            hkw.layer(sl_mesh)
+            .transform(
+                hkw.transform.Streamline(
+                    vec_field=vec_field_attr,
+                    cross_field=is_cross,
+                    n=args.streamline_seeds,
+                    length=args.streamline_length * bbox_diag if args.streamline_length is not None else None,
+                )
+            )
+            .mark("Curve")
+            .material("Diffuse", args.streamline_color)
+            .channel(size=args.wire_thickness * bbox_diag)
+        )
+        layer = layer + sl_layer
 
     if args.singularity:
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
