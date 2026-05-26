@@ -26,6 +26,9 @@ docs = [
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.24",
 ]
+webgl = [
+    "pygltflib>=1.16",
+]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -41,3 +44,4 @@ default = { solve-group = "default" }
 python = "==3.11"
 dicttoxml = ">=1.7.16,<2"
 colorcet = ">=3.2.1,<4"
+pygltflib = ">=1.16.5,<2"

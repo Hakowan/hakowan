@@ -166,6 +166,11 @@ def parse_args():
     )
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
+        "--categorical",
+        help="Treat scalar attribute field as categorical (uses discrete colormap).",
+        action="store_true",
+    )
+    parser.add_argument(
         "--saturation",
         help="Texture image saturation (1.0=full color, 0.0=grayscale, must be non-negative). Only applies when --material is a texture image.",
         type=_saturation_arg,
@@ -565,7 +570,11 @@ def main():
             layer = surface
         case _:
             if mesh.has_attribute(args.material):
-                scalar_texture = hkw.texture.ScalarField(args.material)
+                scalar_texture = hkw.texture.ScalarField(
+                    args.material,
+                    categories=args.categorical,
+                    colormap="set1" if args.categorical else None,
+                )
 
                 if args.isoline:
                     solid_color = hkw.texture.Uniform(0)

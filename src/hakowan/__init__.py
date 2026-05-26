@@ -30,6 +30,14 @@ try:
 except ImportError:
     logger.info("Blender backend not available (bpy not installed)")
 
+# Try to register WebGL/three.js backend
+try:
+    from .backends.webgl import WebGLBackend
+
+    register_backend("webgl", WebGLBackend)
+except ImportError as e:
+    logger.info(f"WebGL backend not available: {e}")
+
 __all__ = [
     "logger",
     "config",
