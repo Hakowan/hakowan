@@ -14,11 +14,27 @@
     pointer-events: none;
   }
   #status.hidden { display: none; }
+  #passes {
+    position: absolute; top: 8px; right: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #eee;
+    background: rgba(0,0,0,0.45); padding: 4px; border-radius: 4px;
+    display: none;
+  }
+  #passes.visible { display: flex; gap: 4px; }
+  #passes button {
+    background: rgba(255,255,255,0.08); color: #eee; border: 0;
+    padding: 4px 8px; border-radius: 3px; font: inherit; cursor: pointer;
+  }
+  #passes button:hover { background: rgba(255,255,255,0.18); }
+  #passes button.active { background: rgba(255,255,255,0.28); }
+  #passes .sep { width: 1px; background: rgba(255,255,255,0.18); margin: 0 2px; }
 </style>
 </head>
 <body>
 <canvas id="viewer"></canvas>
 <div id="status">loading…</div>
+<div id="passes"></div>
 <script type="importmap">
 {
   "imports": {
@@ -38,11 +54,12 @@ const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_COLOR = [{{BG_R}}, {{BG_G}}, {{BG_B}}];
 const ENVMAP = {{ENVMAP_JSON}};
+const RENDER_PASSES = ["albedo", "depth", "normal"];
 
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -231,10 +248,195 @@ function applyHakowanShaderPatches(root) {
   });
 }
 
+// --------------------------------------------------------------------- //
+// Render passes                                                           //
+// --------------------------------------------------------------------- //
+// Mitsuba writes albedo/depth/normal as separate AOV images. We can't
+// pre-render those server-side, so the viewer instead exposes a per-pass
+// material override plus a "save PNG" button to capture the current pass.
+//
+// We swap per-mesh materials in-place (cached so the swap is O(N) and
+// cheap) rather than using `scene.overrideMaterial` so each mesh can
+// preserve its own albedo texture / vertex colors when in the albedo pass.
+
+const PASS_ORIGINAL = '__hakowan_orig_mat__';
+const PASS_CACHE = '__hakowan_pass_cache__';
+let currentPass = 'beauty';
+let loadedRoot = null;
+let sceneBbox = null;
+
+// Linear camera-space depth in [uDepthMin, uDepthMax] → grayscale.
+// Matches Mitsuba's depth pass convention: near = 0 (black), far = 1 (white).
+// One shared uniforms object so all per-mesh materials update together each
+// frame in the animate loop.
+const depthUniforms = {
+  uDepthMin: { value: 0.0 },
+  uDepthMax: { value: 1.0 },
+};
+const DEPTH_VS = `
+  varying float vDepth;
+  void main() {
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vDepth = -mvPos.z;
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+const DEPTH_FS = `
+  varying float vDepth;
+  uniform float uDepthMin;
+  uniform float uDepthMax;
+  void main() {
+    float range = max(uDepthMax - uDepthMin, 1e-6);
+    float t = clamp((vDepth - uDepthMin) / range, 0.0, 1.0);
+    gl_FragColor = vec4(vec3(t), 1.0);
+  }
+`;
+
+function makeDepthMaterial(side) {
+  return new THREE.ShaderMaterial({
+    uniforms: depthUniforms,
+    vertexShader: DEPTH_VS,
+    fragmentShader: DEPTH_FS,
+    side: side ?? THREE.FrontSide,
+    toneMapped: false,
+  });
+}
+
+function ensurePassMaterials(obj) {
+  if (!obj.isMesh && !obj.isLine && !obj.isPoints) return null;
+  if (obj[PASS_CACHE]) return obj[PASS_CACHE];
+  const orig = obj.material;
+  obj[PASS_ORIGINAL] = orig;
+  const cache = { beauty: orig };
+  const side = orig.side ?? THREE.FrontSide;
+
+  // Depth works for Mesh, Line, and Points — it's a pure position transform.
+  cache.depth = makeDepthMaterial(side);
+
+  if (obj.isMesh) {
+    cache.albedo = new THREE.MeshBasicMaterial({
+      color: orig.color ? orig.color.clone() : new THREE.Color(0xffffff),
+      map: orig.map || null,
+      vertexColors: !!orig.vertexColors,
+      side,
+      transparent: !!orig.transparent,
+      opacity: orig.opacity ?? 1.0,
+      alphaMap: orig.alphaMap || null,
+      toneMapped: false,
+    });
+    cache.normal = new THREE.MeshNormalMaterial({
+      side,
+      flatShading: false,
+      toneMapped: false,
+    });
+  } else {
+    // Lines / Points have no shading normal; fall back to flat color for
+    // albedo (preserve original color) and a neutral gray for normal.
+    const flat = (rgb) => obj.isLine
+      ? new THREE.LineBasicMaterial({ color: rgb, toneMapped: false })
+      : new THREE.PointsMaterial({ color: rgb, size: orig.size ?? 1, toneMapped: false });
+    cache.albedo = flat(orig.color ? orig.color.clone() : new THREE.Color(0xffffff));
+    cache.normal = flat(new THREE.Color(0x808080));
+  }
+  obj[PASS_CACHE] = cache;
+  return cache;
+}
+
+function updateDepthRange() {
+  if (sceneBbox === null) return;
+  const corner = new THREE.Vector3();
+  let zmin = Infinity;
+  let zmax = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    corner.set(
+      (i & 1) ? sceneBbox.max.x : sceneBbox.min.x,
+      (i & 2) ? sceneBbox.max.y : sceneBbox.min.y,
+      (i & 4) ? sceneBbox.max.z : sceneBbox.min.z,
+    );
+    corner.applyMatrix4(camera.matrixWorldInverse);
+    const z = -corner.z;
+    if (z < zmin) zmin = z;
+    if (z > zmax) zmax = z;
+  }
+  zmin = Math.max(zmin, 1e-4);
+  if (zmax <= zmin) zmax = zmin + 1.0;
+  depthUniforms.uDepthMin.value = zmin;
+  depthUniforms.uDepthMax.value = zmax;
+}
+
+function setPass(pass) {
+  if (loadedRoot === null) return;
+  currentPass = pass;
+  loadedRoot.traverse((obj) => {
+    const cache = ensurePassMaterials(obj);
+    if (!cache) return;
+    obj.material = cache[pass] || cache.beauty;
+  });
+  // Background only shown in beauty pass; passes get a flat background to
+  // keep the saved PNG free of envmap clutter.
+  if (pass === 'beauty') {
+    scene.background = ENVMAP && ENVMAP.background
+      ? scene.background
+      : new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+  } else if (pass === 'depth') {
+    scene.background = new THREE.Color(1, 1, 1);
+  } else {
+    scene.background = new THREE.Color(0, 0, 0);
+  }
+  for (const btn of document.querySelectorAll('#passes button[data-pass]')) {
+    btn.classList.toggle('active', btn.dataset.pass === pass);
+  }
+}
+
+function savePassPng() {
+  // Render once into the canvas, then read it back. The animation loop
+  // would overwrite it on next tick, so we grab it right after a render.
+  renderer.render(scene, camera);
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stem = (document.title || 'hakowan').replace(/\s+/g, '_');
+    a.href = url;
+    a.download = `${stem}_${currentPass}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+function buildPassUI() {
+  if (!Array.isArray(RENDER_PASSES) || RENDER_PASSES.length === 0) return;
+  const passes = ['beauty', ...RENDER_PASSES];
+  const container = document.getElementById('passes');
+  for (const p of passes) {
+    const btn = document.createElement('button');
+    btn.textContent = p;
+    btn.dataset.pass = p;
+    btn.addEventListener('click', () => setPass(p));
+    container.appendChild(btn);
+  }
+  const sep = document.createElement('div');
+  sep.className = 'sep';
+  container.appendChild(sep);
+  const save = document.createElement('button');
+  save.textContent = 'save png';
+  save.title = 'Download the current pass as PNG';
+  save.addEventListener('click', savePassPng);
+  container.appendChild(save);
+  container.classList.add('visible');
+  // Mark beauty as active initially.
+  container.querySelector('button[data-pass="beauty"]').classList.add('active');
+}
+
 const loader = new GLTFLoader();
 const onLoaded = (gltf) => {
   scene.add(gltf.scene);
   applyHakowanShaderPatches(gltf.scene);
+  loadedRoot = gltf.scene;
+  // World-space bbox of the loaded scene drives the depth-pass normalisation.
+  sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
     const cam = gltf.cameras[0];
     if (cam.isPerspectiveCamera) {
@@ -251,6 +453,7 @@ const onLoaded = (gltf) => {
       controls.update();
     }
   }
+  buildPassUI();
   status.classList.add('hidden');
   window.__hakowan_loaded = true;
 };
@@ -272,6 +475,7 @@ const onError = (err) => {
 function animate() {
   resize();
   controls.update();
+  if (currentPass === 'depth') updateDepthRange();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }

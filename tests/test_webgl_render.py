@@ -197,6 +197,20 @@ class TestEndToEnd:
         assert "data:application/octet-stream;base64," in html
         assert '"format":' in html  # envmap descriptor JSON
 
+    def test_pass_ui_always_present(self, tmp_path):
+        layer = (
+            hkw.layer(_make_icosphere())
+            .mark(hkw.mark.Surface)
+            .channel(material=hkw.material.Diffuse(reflectance="red"))
+        )
+        out_path = tmp_path / "passes.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        html = out_path.read_text()
+        # Pass UI shipped in every render — no Config opt-in.
+        assert 'RENDER_PASSES = ["albedo", "depth", "normal"]' in html
+        assert "function setPass(pass)" in html
+        assert 'id="passes"' in html
+
     def test_multiview_layer_chain(self, tmp_path):
         sphere = _make_icosphere()
         a = (

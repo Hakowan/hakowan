@@ -26,6 +26,9 @@ def render_html(
     prefix and picks ``GLTFLoader.parse`` vs ``GLTFLoader.load`` accordingly.
 
     ``envmap`` is an ``envmap_descriptor()`` dict or None.
+
+    The viewer always exposes ``beauty | albedo | depth | normal | save png``
+    in the top-right corner — passes are not gated by ``config.render_passes``.
     """
     template = _load_template()
     r, g, b = bg_color
