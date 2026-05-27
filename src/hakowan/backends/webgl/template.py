@@ -17,12 +17,15 @@ def render_html(
     bg_color: tuple[float, float, float],
     initial_view: dict[str, list[float]],
     title: str = "hakowan",
+    envmap: dict | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
     ``glb_uri`` may be either a ``data:`` URI (embedded GLB) or a relative
     URL pointing to a sidecar ``.glb`` file. The template's JS sniffs the
     prefix and picks ``GLTFLoader.parse`` vs ``GLTFLoader.load`` accordingly.
+
+    ``envmap`` is an ``envmap_descriptor()`` dict or None.
     """
     template = _load_template()
     r, g, b = bg_color
@@ -39,6 +42,7 @@ def render_html(
         "{{INITIAL_EYE}}": json.dumps(initial_view["eye"]),
         "{{INITIAL_TARGET}}": json.dumps(initial_view["target"]),
         "{{INITIAL_UP}}": json.dumps(initial_view["up"]),
+        "{{ENVMAP_JSON}}": json.dumps(envmap) if envmap is not None else "null",
     }
     for key, value in replacements.items():
         template = template.replace(key, value)

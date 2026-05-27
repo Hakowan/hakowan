@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 import uuid
 import tempfile
+import webbrowser
 from tqdm import tqdm
 
 
@@ -195,6 +196,11 @@ def parse_args():
         help="Logging level",
     )
     parser.add_argument("--serialize", help="Serialize the config", action="store_true")
+    parser.add_argument(
+        "--no-open",
+        help="Do not auto-open the output file in a browser (webgl backend only).",
+        action="store_true",
+    )
     parser.add_argument(
         "--camera-matrix",
         help=(
@@ -787,7 +793,8 @@ def main():
     if args.output:
         output_file = Path(args.output)
     else:
-        output_file = Path(args.input_mesh).with_suffix(".png")
+        default_suffix = ".html" if args.backend == "webgl" else ".png"
+        output_file = Path(args.input_mesh).with_suffix(default_suffix)
 
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
@@ -799,13 +806,21 @@ def main():
             kwargs["yaml_file"] = output_file.with_suffix(".yaml")
             if args.backend == "blender":
                 kwargs["blend_file"] = output_file.with_suffix(".blend")
-        hkw.render(
+        result = hkw.render(
             layer,
             config,
             filename=output_file,
             backend=args.backend,
             **kwargs,
         )
+        if args.backend == "webgl" and not args.no_open:
+            # The webgl backend always lands at <stem>.html (even when the
+            # user passed a .png filename, render() rewrites the suffix).
+            # Trust the backend's returned path when available.
+            opened_path = Path(result) if isinstance(result, (str, Path)) else (
+                output_file.with_suffix(".html")
+            )
+            webbrowser.open(opened_path.resolve().as_uri())
     else:
         if args.z_up:
             axis = np.array([0, 0, 1], dtype=float)

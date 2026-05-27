@@ -1,32 +1,89 @@
 """Translate hakowan ``Material`` → glTF ``pbrMetallicRoughness`` dict.
 
-MVP scope: Diffuse with Uniform reflectance is mapped exactly; everything
-else falls back to a gray diffuse with a logged warning. Higher-fidelity
-mappings (Principled, ScalarField textures, image textures) land in a
-follow-up phase.
+Coverage:
+  * Diffuse / Plastic / RoughPlastic with Uniform, ScalarField (vertex-color
+    bake), Image, and Checkerboard reflectance.
+  * Principled with float roughness/metallic + Uniform/ScalarField/Image color.
+  * Conductor / RoughConductor: mapped to metallic=1 with a built-in IOR-name
+    → albedo lookup table covering the common Mitsuba presets (Au/Ag/Cu/Al/
+    Cr/Ni/Pt/Ti/W/Fe).
+  * Dielectric / ThinDielectric / RoughDielectric: best-effort transmissive
+    approximation (loud warning that volumetrics are dropped).
+  * Hair: gray-fallback with a warning.
+
+Textured roughness/metallic/alpha factors are not baked — they downgrade to
+the default scalar factor with a warning.
 """
 
 from __future__ import annotations
 
+import io
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+import numpy as np
+from PIL import Image as PILImage, ImageEnhance
 
 from ...common import logger
 from ...common.to_color import to_color
 from ...compiler import View
+from ...grammar.channel import NormalMap
 from ...grammar.channel.material import (
+    Conductor,
+    Dielectric,
     Diffuse,
+    Hair,
     Material,
     Plastic,
     Principled,
+    RoughConductor,
+    RoughDielectric,
+    RoughPlastic,
+    ThinDielectric,
+    ThinPrincipled,
 )
-from ...grammar.texture import Uniform
+from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uniform
+
+from .builder import GLTFBuilder
+
+
+@dataclass
+class MaterialResult:
+    """What ``translate_material`` returns.
+
+    ``custom_attrs`` carries per-vertex arrays that must be plumbed onto the
+    mesh node (e.g. a ``"_SCALAR_0"`` array driving an isocontour shader).
+    ``extras`` carries the dict that lands on the glTF material's ``extras``
+    field — the viewer JS reads it to wire up ``onBeforeCompile`` patches.
+    """
+
+    pbr: dict[str, Any]
+    double_sided: bool
+    custom_attrs: dict[str, np.ndarray] = field(default_factory=dict)
+    extras: dict[str, Any] | None = None
 
 
 _DEFAULT_BASE_COLOR: list[float] = [0.5, 0.5, 0.5, 1.0]
 
 
+# Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
+# Sources: Naty Hoffman's PBR Diffuse Lighting course notes; Filament docs.
+_CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
+    "Au": (1.000, 0.766, 0.336),     # Gold
+    "Ag": (0.972, 0.960, 0.915),     # Silver
+    "Cu": (0.955, 0.638, 0.538),     # Copper
+    "Al": (0.913, 0.921, 0.925),     # Aluminium
+    "Cr": (0.550, 0.556, 0.554),     # Chromium
+    "Fe": (0.560, 0.570, 0.580),     # Iron
+    "Ni": (0.660, 0.609, 0.526),     # Nickel
+    "Pt": (0.672, 0.637, 0.585),     # Platinum
+    "Ti": (0.542, 0.497, 0.449),     # Titanium
+    "W":  (0.560, 0.520, 0.475),     # Tungsten
+}
+
+
 def _srgb_to_linear(c: float) -> float:
-    """Inverse of the standard sRGB transfer function (single channel)."""
     if c <= 0.04045:
         return c / 12.92
     return ((c + 0.055) / 1.055) ** 2.4
@@ -34,8 +91,6 @@ def _srgb_to_linear(c: float) -> float:
 
 def _color_to_rgba(color_like: Any) -> list[float]:
     color = to_color(color_like)
-    # hakowan colors come in sRGB (CSS names, hex). glTF baseColorFactor is
-    # specified in linear space, so convert.
     return [
         _srgb_to_linear(float(color.red)),
         _srgb_to_linear(float(color.green)),
@@ -45,66 +100,359 @@ def _color_to_rgba(color_like: Any) -> list[float]:
 
 
 def _reflectance_to_base_color(reflectance: Any) -> list[float]:
+    """Resolve Uniform/raw-color reflectance to a baseColorFactor.
+
+    ScalarField, Image, and Checkerboard inputs return white — their colour
+    comes through COLOR_0 / baseColorTexture, applied multiplicatively by
+    glTF / three.js.
+    """
     if isinstance(reflectance, Uniform):
         return _color_to_rgba(reflectance.color)
+    if isinstance(reflectance, (ScalarField, Image, Checkerboard, Isocontour)):
+        return [1.0, 1.0, 1.0, 1.0]
     if isinstance(reflectance, (float, int, str, tuple, list)):
         return _color_to_rgba(reflectance)
     logger.warning(
-        f"WebGL backend: reflectance type {type(reflectance).__name__} not yet "
-        "supported; falling back to gray."
+        f"WebGL backend: reflectance type {type(reflectance).__name__} not "
+        "supported yet; using gray."
     )
     return list(_DEFAULT_BASE_COLOR)
 
 
-def translate_material(view: View) -> tuple[dict[str, Any], bool]:
-    """Return ``(pbr_dict, double_sided)`` for the view's material channel."""
+def _resolve_reflectance(mat: Material) -> Any | None:
+    """Return the colour-carrying field of ``mat``, or ``None`` for materials
+    whose colour is intrinsic (Conductor) or absent (Dielectric/Hair).
+    """
+    if isinstance(mat, Diffuse):
+        return mat.reflectance
+    if isinstance(mat, Principled):
+        return mat.color
+    if isinstance(mat, Plastic):
+        return mat.diffuse_reflectance
+    return None
+
+
+def _load_image_as_png_bytes(image: Image) -> bytes:
+    path = Path(image.filename)
+    img = PILImage.open(path).convert("RGBA")
+    if image.saturation != 1.0:
+        img = ImageEnhance.Color(img).enhance(image.saturation)
+    if image.whiteness != 0.0:
+        white = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
+        img = PILImage.blend(img.convert("RGBA"), white, alpha=image.whiteness)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> bytes:
+    """Generate a 2x2 PNG with two checkered cells. Colors must be linear RGB;
+    we encode as sRGB so they appear correct when the texture is sampled in
+    sRGB mode by the glTF pipeline.
+    """
+    def _linear_to_srgb(c: float) -> int:
+        if c <= 0.0031308:
+            v = 12.92 * c
+        else:
+            v = 1.055 * (c ** (1 / 2.4)) - 0.055
+        return max(0, min(255, int(round(v * 255))))
+
+    c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
+    c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
+    img = PILImage.new("RGB", (2, 2))
+    img.putpixel((0, 0), c1)
+    img.putpixel((1, 1), c1)
+    img.putpixel((0, 1), c2)
+    img.putpixel((1, 0), c2)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _resolve_texture_color(texture_like: Any) -> list[float]:
+    """Resolve a TextureLike to a single sRGB→linear color (best effort).
+    Used inside Checkerboard cells. Float/scalar → grayscale.
+    """
+    if isinstance(texture_like, Uniform):
+        return _color_to_rgba(texture_like.color)
+    if isinstance(texture_like, (float, int)):
+        v = float(texture_like)
+        return [v, v, v, 1.0]
+    if isinstance(texture_like, (str, tuple, list)):
+        return _color_to_rgba(texture_like)
+    logger.warning(
+        f"WebGL backend: checkerboard cell type {type(texture_like).__name__} "
+        "not directly supported; using gray."
+    )
+    return [0.5, 0.5, 0.5, 1.0]
+
+
+def _apply_image_or_checker(
+    pbr: dict[str, Any], builder: GLTFBuilder, reflectance: Any
+) -> None:
+    """Attach a baseColorTexture (and optional UV transform) if applicable."""
+    if isinstance(reflectance, Image):
+        try:
+            png_bytes = _load_image_as_png_bytes(reflectance)
+            pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
+        except Exception as e:
+            logger.warning(
+                f"WebGL backend: failed to embed image texture "
+                f"'{reflectance.filename}': {e}"
+            )
+    elif isinstance(reflectance, Checkerboard):
+        c1 = _resolve_texture_color(reflectance.texture1)
+        c2 = _resolve_texture_color(reflectance.texture2)
+        png_bytes = _bake_checkerboard_png(c1, c2)
+        pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
+        # KHR_texture_transform: scale UVs so the 2×2 checker tiles `size`
+        # times per UV unit (matches Mitsuba's to_uv scale-by-size convention).
+        pbr["baseColorTextureScale"] = (float(reflectance.size), float(reflectance.size))
+
+
+def _apply_normal_map(
+    pbr: dict[str, Any], builder: GLTFBuilder, normal_map: NormalMap | None
+) -> None:
+    """Attach a normalTexture if the view declares a ``NormalMap`` channel."""
+    if normal_map is None:
+        return
+    texture = normal_map.texture
+    if not isinstance(texture, Image):
+        logger.warning(
+            f"WebGL backend: NormalMap.texture type {type(texture).__name__} "
+            "not supported; only Image is wired."
+        )
+        return
+    try:
+        png_bytes = _load_image_as_png_bytes(texture)
+        pbr["normalTextureIndex"] = builder.add_image_texture(png_bytes)
+        pbr["normalScale"] = 1.0
+    except Exception as e:
+        logger.warning(
+            f"WebGL backend: failed to embed normal map "
+            f"'{texture.filename}': {e}"
+        )
+
+
+def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
+    """Return a 1D float32 array per source-mesh vertex for a ScalarField or
+    Isocontour ``data`` reference, or None if the source attribute can't be
+    resolved.
+    """
+    if view.data_frame is None:
+        return None
+    if isinstance(attr_like, (ScalarField, Isocontour)):
+        ref = attr_like.data
+    else:
+        ref = attr_like
+    name = getattr(ref, "_internal_name", None)
+    if not isinstance(name, str):
+        return None
+    mesh = view.data_frame.mesh
+    if not mesh.has_attribute(name):
+        return None
+    arr = np.asarray(mesh.attribute(name).data, dtype=np.float32).reshape(-1)
+    if arr.shape[0] != mesh.num_vertices:
+        return None
+    return arr
+
+
+def _apply_isocontour(
+    pbr: dict[str, Any],
+    builder: GLTFBuilder,
+    reflectance: Isocontour,
+) -> None:
+    """Wire an Isocontour reflectance as a 2x2 PNG sampled via the compiler-
+    generated UVs.
+
+    The hakowan compiler pre-computes a UV attribute whose x-channel is
+    ``scalar * num_contours`` and y-channel adds a ``(1-ratio)/2`` offset.
+    Combined with a 2x2 checker (cell layout matching Mitsuba's), sampling
+    that UV produces ``num_contours`` evenly-spaced contour lines with
+    relative thickness ``ratio``. We attach NO ``KHR_texture_transform``
+    because the UVs are already scaled by ``num_contours``.
+    """
+    c1 = _resolve_texture_color(reflectance.texture1)
+    c2 = _resolve_texture_color(reflectance.texture2)
+    png_bytes = _bake_checkerboard_png(c1, c2)
+    pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
+    pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+
+
+def _apply_textured_pbr_factor(
+    pbr: dict[str, Any],
+    extras: dict[str, Any],
+    custom_attrs: dict[str, np.ndarray],
+    view: View,
+    mat: Principled,
+) -> None:
+    """Bake ScalarField roughness/metallic into custom attributes."""
+    if isinstance(mat.roughness, ScalarField):
+        arr = _read_scalar_attribute(view, mat.roughness)
+        if arr is not None:
+            custom_attrs["_ROUGHNESS_0"] = arr
+            extras.setdefault("principled_attrs", {})["roughness_attr"] = (
+                "_ROUGHNESS_0"
+            )
+            pbr["roughnessFactor"] = 1.0  # shader multiplies factor × attr
+    if isinstance(mat.metallic, ScalarField):
+        arr = _read_scalar_attribute(view, mat.metallic)
+        if arr is not None:
+            custom_attrs["_METALLIC_0"] = arr
+            extras.setdefault("principled_attrs", {})["metallic_attr"] = (
+                "_METALLIC_0"
+            )
+            pbr["metallicFactor"] = 1.0
+
+
+def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
+    """Translate the view's material channel into a glTF material plan.
+
+    Returns a :class:`MaterialResult` carrying the PBR dict, whether the
+    material is two-sided, any per-vertex attributes to plumb onto the mesh
+    node (e.g. for isocontour shader injection), and the ``extras`` dict to
+    attach to the glTF material so the viewer JS can wire ``onBeforeCompile``
+    patches.
+    """
     mat = view.material_channel
     if mat is None:
-        return ({"baseColorFactor": list(_DEFAULT_BASE_COLOR)}, False)
+        return MaterialResult(
+            pbr={"baseColorFactor": list(_DEFAULT_BASE_COLOR)},
+            double_sided=False,
+        )
 
     double_sided = bool(getattr(mat, "two_sided", False))
+    custom_attrs: dict[str, np.ndarray] = {}
+    extras: dict[str, Any] = {}
 
-    if isinstance(mat, Diffuse):
-        return (
-            {
-                "baseColorFactor": _reflectance_to_base_color(mat.reflectance),
+    # Intrinsic-colour materials: Conductor / Dielectric / Hair.
+    if isinstance(mat, Conductor):
+        albedo = _CONDUCTOR_PRESETS.get(mat.material)
+        if albedo is None:
+            logger.warning(
+                f"WebGL backend: conductor preset '{mat.material}' not in "
+                "built-in LUT; falling back to neutral gray metal."
+            )
+            albedo = (0.7, 0.7, 0.7)
+        roughness = 0.1
+        if isinstance(mat, RoughConductor):
+            if isinstance(mat.alpha, (float, int)):
+                roughness = float(mat.alpha)
+            else:
+                logger.warning(
+                    "WebGL backend: textured RoughConductor.alpha not yet "
+                    "supported; using fallback 0.2."
+                )
+                roughness = 0.2
+        pbr = {
+            "baseColorFactor": [
+                _srgb_to_linear(albedo[0]),
+                _srgb_to_linear(albedo[1]),
+                _srgb_to_linear(albedo[2]),
+                1.0,
+            ],
+            "metallicFactor": 1.0,
+            "roughnessFactor": roughness,
+        }
+        _apply_normal_map(pbr, builder, view.normal_map)
+        return MaterialResult(pbr=pbr, double_sided=double_sided)
+
+    if isinstance(mat, Dielectric):
+        logger.warning(
+            "WebGL backend: Dielectric materials approximated as glossy "
+            "white (transmission / volumetrics not modelled)."
+        )
+        roughness = 0.05
+        if isinstance(mat, RoughDielectric) and isinstance(mat.alpha, (float, int)):
+            roughness = float(mat.alpha)
+        elif isinstance(mat, ThinDielectric):
+            roughness = 0.0
+        return MaterialResult(
+            pbr={
+                "baseColorFactor": [0.95, 0.95, 0.95, 1.0],
+                "metallicFactor": 0.0,
+                "roughnessFactor": roughness,
+            },
+            double_sided=double_sided,
+        )
+
+    if isinstance(mat, Hair):
+        logger.warning(
+            "WebGL backend: Hair material not supported; using brown diffuse."
+        )
+        return MaterialResult(
+            pbr={
+                "baseColorFactor": _color_to_rgba("saddlebrown"),
+                "metallicFactor": 0.0,
+                "roughnessFactor": 0.8,
+            },
+            double_sided=double_sided,
+        )
+
+    # Reflectance-bearing materials.
+    reflectance = _resolve_reflectance(mat)
+    if reflectance is None:
+        logger.warning(
+            f"WebGL backend: material type {type(mat).__name__} is not yet "
+            "supported; falling back to gray diffuse."
+        )
+        return MaterialResult(
+            pbr={
+                "baseColorFactor": list(_DEFAULT_BASE_COLOR),
                 "metallicFactor": 0.0,
                 "roughnessFactor": 1.0,
             },
-            double_sided,
+            double_sided=double_sided,
         )
 
+    pbr: dict[str, Any] = {
+        "baseColorFactor": _reflectance_to_base_color(reflectance),
+    }
+    _apply_image_or_checker(pbr, builder, reflectance)
+
+    if isinstance(reflectance, Isocontour):
+        _apply_isocontour(pbr, builder, reflectance)
+
+    # Roughness / metallic factors.
     if isinstance(mat, Principled):
-        roughness = mat.roughness if isinstance(mat.roughness, float) else 0.5
-        metallic = mat.metallic if isinstance(mat.metallic, float) else 0.0
-        return (
-            {
-                "baseColorFactor": _reflectance_to_base_color(mat.color),
-                "metallicFactor": float(metallic),
-                "roughnessFactor": float(roughness),
-            },
-            double_sided,
-        )
+        if isinstance(mat.roughness, (float, int)):
+            pbr["roughnessFactor"] = float(mat.roughness)
+        elif not isinstance(mat.roughness, ScalarField):
+            pbr["roughnessFactor"] = 0.5
+            logger.warning(
+                "WebGL backend: textured Principled.roughness type "
+                f"{type(mat.roughness).__name__} not supported; using 0.5."
+            )
+        if isinstance(mat.metallic, (float, int)):
+            pbr["metallicFactor"] = float(mat.metallic)
+        elif not isinstance(mat.metallic, ScalarField):
+            pbr["metallicFactor"] = 0.0
+            logger.warning(
+                "WebGL backend: textured Principled.metallic type "
+                f"{type(mat.metallic).__name__} not supported; using 0.0."
+            )
+        _apply_textured_pbr_factor(pbr, extras, custom_attrs, view, mat)
+    elif isinstance(mat, RoughPlastic):
+        pbr["metallicFactor"] = 0.0
+        if isinstance(mat.alpha, (float, int)):
+            pbr["roughnessFactor"] = float(mat.alpha)
+        else:
+            pbr["roughnessFactor"] = 0.3
+            logger.warning(
+                "WebGL backend: textured RoughPlastic.alpha not yet supported; "
+                "using fallback 0.3."
+            )
+    elif isinstance(mat, Plastic):
+        pbr["metallicFactor"] = 0.0
+        pbr["roughnessFactor"] = 0.1
+    elif isinstance(mat, Diffuse):
+        pbr["metallicFactor"] = 0.0
+        pbr["roughnessFactor"] = 1.0
 
-    if isinstance(mat, Plastic):
-        return (
-            {
-                "baseColorFactor": _reflectance_to_base_color(mat.diffuse_reflectance),
-                "metallicFactor": 0.0,
-                "roughnessFactor": 0.3,
-            },
-            double_sided,
-        )
-
-    logger.warning(
-        f"WebGL backend: material type {type(mat).__name__} is not yet "
-        "supported; falling back to gray diffuse."
-    )
-    return (
-        {
-            "baseColorFactor": list(_DEFAULT_BASE_COLOR),
-            "metallicFactor": 0.0,
-            "roughnessFactor": 1.0,
-        },
-        double_sided,
+    _apply_normal_map(pbr, builder, view.normal_map)
+    return MaterialResult(
+        pbr=pbr,
+        double_sided=double_sided,
+        custom_attrs=custom_attrs,
+        extras={"hakowan": extras} if extras else None,
     )

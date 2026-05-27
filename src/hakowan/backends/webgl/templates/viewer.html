@@ -37,6 +37,7 @@ const INITIAL_EYE    = {{INITIAL_EYE}};
 const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_COLOR = [{{BG_R}}, {{BG_G}}, {{BG_B}}];
+const ENVMAP = {{ENVMAP_JSON}};
 
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
@@ -60,7 +61,9 @@ controls.target.set(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
 controls.enableDamping = true;
 controls.update();
 
-// Default 3-point lighting; replaced by glTF lights once Envmap support lands.
+// Default 3-point lighting. The envmap (when supplied) provides reflections /
+// PBR irradiance on top of these — keeping them on means we still see the
+// scene even if the envmap fails to load.
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
 keyLight.position.set(2, 3, 4);
 scene.add(keyLight);
@@ -73,7 +76,8 @@ const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
 rimLight.position.set(0, -2, -3);
 scene.add(rimLight);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+scene.add(ambient);
 
 function resize() {
   const w = canvas.clientWidth;
@@ -84,27 +88,153 @@ function resize() {
     camera.updateProjectionMatrix();
   }
 }
-
 window.addEventListener('resize', resize);
+
+async function loadEnvmap() {
+  if (!ENVMAP) return;
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+
+    let loader;
+    if (ENVMAP.format === 'exr') {
+      const mod = await import('three/addons/loaders/EXRLoader.js');
+      loader = new mod.EXRLoader();
+    } else {
+      const mod = await import('three/addons/loaders/RGBELoader.js');
+      loader = new mod.RGBELoader();
+    }
+    // EXR/RGBELoader extend DataTextureLoader: load() wraps parse() output
+    // into a real DataTexture. We pass the data URI directly.
+    const tex = await new Promise((resolve, reject) => {
+      loader.load(ENVMAP.uri, resolve, undefined, reject);
+    });
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    const envTexture = pmrem.fromEquirectangular(tex).texture;
+    scene.environment = envTexture;
+    if ('environmentIntensity' in scene) {
+      scene.environmentIntensity = ENVMAP.scale;
+    }
+    // Apply Mitsuba's `to_world = align_y_to(up) @ rotate_y(rotation_deg)`
+    // matrix to the environment. Requires three.js >= r158.
+    if ('environmentRotation' in scene) {
+      const M = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+      const m4 = new THREE.Matrix4();
+      m4.set(
+        M[0], M[1], M[2], 0,
+        M[3], M[4], M[5], 0,
+        M[6], M[7], M[8], 0,
+        0,    0,    0,    1,
+      );
+      const euler = new THREE.Euler().setFromRotationMatrix(m4);
+      scene.environmentRotation = euler;
+      if (ENVMAP.background) {
+        scene.background = envTexture;
+        if ('backgroundRotation' in scene) {
+          scene.backgroundRotation = euler;
+        }
+      }
+    } else if (ENVMAP.background) {
+      scene.background = envTexture;
+    }
+    tex.dispose();
+    pmrem.dispose();
+  } catch (err) {
+    console.warn('envmap load failed, falling back to lights:', err);
+  }
+}
+
+function applyHakowanShaderPatches(root) {
+  // Walk the loaded glTF tree, find materials with userData.hakowan, and
+  // patch their shader compile step. The glTF "extras" object lands on
+  // material.userData when read by GLTFLoader.
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const meta = obj.material.userData && obj.material.userData.hakowan;
+    if (!meta) return;
+
+    const material = obj.material;
+    const isoParams = meta.isocontour;
+    const principledAttrs = meta.principled_attrs;
+
+    material.onBeforeCompile = (shader) => {
+      let injectVertHead = "";
+      let injectVertBody = "";
+      let injectFragHead = "";
+      let injectFragDiffuse = "";
+      let injectFragRough = "";
+      let injectFragMetal = "";
+
+      if (isoParams) {
+        shader.uniforms.uNumContours = { value: isoParams.num_contours };
+        shader.uniforms.uRatio = { value: isoParams.ratio };
+        shader.uniforms.uIsoColor1 = {
+          value: new THREE.Color(...isoParams.color1),
+        };
+        shader.uniforms.uIsoColor2 = {
+          value: new THREE.Color(...isoParams.color2),
+        };
+        injectVertHead += "attribute float _SCALAR_0;\nvarying float vScalar0;\n";
+        injectVertBody += "vScalar0 = _SCALAR_0;\n";
+        injectFragHead +=
+          "varying float vScalar0;\nuniform float uNumContours;\n"
+          + "uniform float uRatio;\nuniform vec3 uIsoColor1;\nuniform vec3 uIsoColor2;\n";
+        injectFragDiffuse +=
+          "{ float f = fract(vScalar0 * uNumContours);"
+          + "  float halfRatio = uRatio * 0.5;"
+          + "  float onContour = step(0.5 - halfRatio, f) * step(f, 0.5 + halfRatio);"
+          + "  vec3 isoColor = mix(uIsoColor2, uIsoColor1, onContour);"
+          + "  diffuseColor.rgb *= isoColor; }\n";
+      }
+
+      if (principledAttrs && principledAttrs.roughness_attr) {
+        injectVertHead += "attribute float _ROUGHNESS_0;\nvarying float vRoughness0;\n";
+        injectVertBody += "vRoughness0 = _ROUGHNESS_0;\n";
+        injectFragHead += "varying float vRoughness0;\n";
+        injectFragRough += "roughnessFactor *= clamp(vRoughness0, 0.0, 1.0);\n";
+      }
+      if (principledAttrs && principledAttrs.metallic_attr) {
+        injectVertHead += "attribute float _METALLIC_0;\nvarying float vMetallic0;\n";
+        injectVertBody += "vMetallic0 = _METALLIC_0;\n";
+        injectFragHead += "varying float vMetallic0;\n";
+        injectFragMetal += "metalnessFactor *= clamp(vMetallic0, 0.0, 1.0);\n";
+      }
+
+      shader.vertexShader = (injectVertHead + shader.vertexShader).replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\n" + injectVertBody,
+      );
+      shader.fragmentShader = (injectFragHead + shader.fragmentShader)
+        .replace(
+          "#include <color_fragment>",
+          "#include <color_fragment>\n" + injectFragDiffuse,
+        )
+        .replace(
+          "#include <roughnessmap_fragment>",
+          "#include <roughnessmap_fragment>\n" + injectFragRough,
+        )
+        .replace(
+          "#include <metalnessmap_fragment>",
+          "#include <metalnessmap_fragment>\n" + injectFragMetal,
+        );
+    };
+    // Force a recompile next frame.
+    material.needsUpdate = true;
+  });
+}
 
 const loader = new GLTFLoader();
 const onLoaded = (gltf) => {
   scene.add(gltf.scene);
-
-  // Prefer the camera baked into the glTF if there is one.
+  applyHakowanShaderPatches(gltf.scene);
   if (gltf.cameras && gltf.cameras.length > 0) {
     const cam = gltf.cameras[0];
     if (cam.isPerspectiveCamera) {
-      const aspectFromCanvas = canvas.clientWidth / canvas.clientHeight;
-      camera = new THREE.PerspectiveCamera(
-        THREE.MathUtils.radToDeg(cam.fov ? THREE.MathUtils.degToRad(cam.fov) : 0.7853981633974483),
-        aspectFromCanvas,
-        cam.near, cam.far
-      );
-      // cam.fov is already in degrees on three.js side.
+      const aspect = canvas.clientWidth / canvas.clientHeight;
       camera.fov = cam.fov;
       camera.near = cam.near;
       camera.far = cam.far;
+      camera.aspect = aspect;
       camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
       camera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
       camera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
@@ -113,7 +243,6 @@ const onLoaded = (gltf) => {
       controls.update();
     }
   }
-
   status.classList.add('hidden');
   window.__hakowan_loaded = true;
 };
@@ -121,12 +250,16 @@ const onError = (err) => {
   status.textContent = 'failed to load scene: ' + err;
   console.error(err);
 };
-if (GLB_DATA_URI.startsWith('data:')) {
-  const binary = Uint8Array.from(atob(GLB_DATA_URI.split(',')[1]), c => c.charCodeAt(0));
-  loader.parse(binary.buffer, '', onLoaded, onError);
-} else {
-  loader.load(GLB_DATA_URI, onLoaded, undefined, onError);
-}
+
+(async () => {
+  await loadEnvmap();
+  if (GLB_DATA_URI.startsWith('data:')) {
+    const binary = Uint8Array.from(atob(GLB_DATA_URI.split(',')[1]), c => c.charCodeAt(0));
+    loader.parse(binary.buffer, '', onLoaded, onError);
+  } else {
+    loader.load(GLB_DATA_URI, onLoaded, undefined, onError);
+  }
+})();
 
 function animate() {
   resize();
