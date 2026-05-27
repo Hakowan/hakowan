@@ -162,6 +162,33 @@ class GLTFBuilder:
             )
         if "extras" in pbr:
             mat_kwargs["extras"] = pbr["extras"]
+
+        # KHR_materials_transmission / _ior / _volume: glass / dielectric.
+        # three.js GLTFLoader maps these onto MeshPhysicalMaterial.transmission,
+        # .ior, .thickness, .attenuationDistance, .attenuationColor — the
+        # renderer then handles backside-rendering for refraction automatically.
+        material_extensions: dict[str, Any] = {}
+        if "transmissionFactor" in pbr:
+            material_extensions["KHR_materials_transmission"] = {
+                "transmissionFactor": float(pbr["transmissionFactor"]),
+            }
+            self._register_extension("KHR_materials_transmission")
+        if "ior" in pbr:
+            material_extensions["KHR_materials_ior"] = {"ior": float(pbr["ior"])}
+            self._register_extension("KHR_materials_ior")
+        if any(k in pbr for k in ("thicknessFactor", "attenuationDistance", "attenuationColor")):
+            vol: dict[str, Any] = {}
+            if "thicknessFactor" in pbr:
+                vol["thicknessFactor"] = float(pbr["thicknessFactor"])
+            if "attenuationDistance" in pbr:
+                vol["attenuationDistance"] = float(pbr["attenuationDistance"])
+            if "attenuationColor" in pbr:
+                vol["attenuationColor"] = [float(c) for c in pbr["attenuationColor"]]
+            material_extensions["KHR_materials_volume"] = vol
+            self._register_extension("KHR_materials_volume")
+        if material_extensions:
+            mat_kwargs["extensions"] = material_extensions
+
         mat = pygltflib.Material(**mat_kwargs)
         self._gltf.materials.append(mat)
         return len(self._gltf.materials) - 1

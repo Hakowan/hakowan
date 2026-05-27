@@ -27,7 +27,11 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-_EMBED_SIZE_LIMIT_BYTES = 50 * 1024 * 1024  # 50 MB
+# Modern browsers happily decode multi-hundred-MB data URIs. We use a high cap
+# so the HTML stays self-contained — sidecar GLBs only kick in for truly huge
+# scenes, and they require the user to serve the file over HTTP (browsers
+# refuse sibling fetches under ``file://``).
+_EMBED_SIZE_LIMIT_BYTES = 512 * 1024 * 1024  # 512 MB
 
 
 class WebGLBackend(RenderBackend):
@@ -79,9 +83,13 @@ class WebGLBackend(RenderBackend):
         else:
             sidecar = out_path.with_suffix(".glb")
             sidecar.write_bytes(glb_bytes)
-            logger.info(
-                f"WebGL backend: writing sidecar GLB to {sidecar} "
-                "(use a local HTTP server to load it under file://)."
+            size_mb = len(glb_bytes) / (1024 * 1024)
+            logger.warning(
+                f"WebGL backend: scene GLB is {size_mb:.1f} MB (> embed cap); "
+                f"writing sidecar to '{sidecar}'. Opening the HTML directly "
+                f"under file:// will fail with 'TypeError: Failed to fetch' — "
+                f"serve the directory over HTTP, e.g. "
+                f"`python -m http.server -d {out_path.parent}`."
             )
             glb_uri = sidecar.name
 
@@ -154,8 +162,11 @@ def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
 
 
 def _add_surface_view(builder: GLTFBuilder, view) -> None:
-    arrays = extract_surface_arrays(view)
+    # Translate material first so per-vertex custom attributes (e.g.
+    # ``_SCALAR_0`` for isocontour) flow into the extractor and follow the
+    # same de-indexing path as positions/normals when facet normals are used.
     result = translate_material(view, builder)
+    arrays = extract_surface_arrays(view, custom_attrs=result.custom_attrs)
     pbr = result.pbr
     if arrays["colors"] is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
@@ -172,7 +183,7 @@ def _add_surface_view(builder: GLTFBuilder, view) -> None:
         normals=arrays["normals"],
         colors=arrays["colors"],
         uvs=uvs,
-        custom_attributes=(result.custom_attrs or None),
+        custom_attributes=arrays.get("custom_attributes"),
         material_idx=material_idx,
         transform_4x4=transform,
     )

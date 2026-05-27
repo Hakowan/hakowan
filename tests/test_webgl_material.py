@@ -182,12 +182,54 @@ class TestTwoSided:
 
 
 class TestDielectric:
-    def test_dielectric_glossy_white_fallback(self):
-        view = _triangle_view(hkw.material.Dielectric())
+    def test_dielectric_emits_transmission_and_ior(self):
+        view = _triangle_view(hkw.material.Dielectric())  # default int=bk7, ext=air
         result = translate_material(view, GLTFBuilder())
-        # Approximated as near-white plastic.
-        assert result.pbr["baseColorFactor"][0] > 0.9
+        assert result.pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
         assert result.pbr["metallicFactor"] == 0.0
+        assert result.pbr["roughnessFactor"] == 0.0
+        assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
+        # bk7 / air ≈ 1.5046 / 1.000277 ≈ 1.5042
+        assert result.pbr["ior"] == pytest.approx(1.504, rel=1e-3)
+        # bbox-derived thickness should be finite + positive for any real mesh.
+        assert result.pbr["thicknessFactor"] > 0.0
+
+    def test_thin_dielectric_zero_thickness(self):
+        view = _triangle_view(hkw.material.ThinDielectric())
+        result = translate_material(view, GLTFBuilder())
+        assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
+        assert result.pbr["thicknessFactor"] == 0.0
+        assert "attenuationDistance" not in result.pbr
+
+    def test_rough_dielectric_alpha(self):
+        view = _triangle_view(hkw.material.RoughDielectric(alpha=0.4))
+        result = translate_material(view, GLTFBuilder())
+        assert result.pbr["roughnessFactor"] == pytest.approx(0.4)
+        assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
+
+    def test_dielectric_with_medium_emits_volume(self):
+        view = _triangle_view(
+            hkw.material.Dielectric(
+                medium=hkw.material.Medium(albedo=(0.4, 0.9, 0.4), scale=2.0)
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        assert "attenuationColor" in result.pbr
+        assert "attenuationDistance" in result.pbr
+        # Color path is sRGB → linear.
+        assert result.pbr["attenuationColor"][1] > result.pbr["attenuationColor"][0]
+
+    def test_ior_named_preset_resolves(self):
+        view = _triangle_view(hkw.material.Dielectric(int_ior="water"))
+        result = translate_material(view, GLTFBuilder())
+        # water / air ≈ 1.333
+        assert result.pbr["ior"] == pytest.approx(1.333, rel=1e-2)
+
+    def test_ior_unknown_falls_back_with_warning(self, caplog):
+        view = _triangle_view(hkw.material.Dielectric(int_ior="kryptonite"))
+        result = translate_material(view, GLTFBuilder())
+        # Falls back to default 1.5046 → ior ≈ 1.504
+        assert result.pbr["ior"] == pytest.approx(1.504, rel=1e-2)
 
 
 class TestImage:
@@ -225,7 +267,7 @@ class TestCheckerboard:
 
 
 class TestIsocontour:
-    def test_isocontour_emits_texture_no_uv_scale(self):
+    def test_isocontour_wires_shader_extras_and_scalar_attr(self):
         view = _triangle_view(
             hkw.material.Diffuse(
                 reflectance=hkw.texture.Isocontour(
@@ -239,9 +281,22 @@ class TestIsocontour:
         )
         builder = GLTFBuilder()
         result = translate_material(view, builder)
-        assert "baseColorTextureIndex" in result.pbr
-        # No UV transform: the compiler already pre-scaled the UVs.
+        # The shader path drives contours per-pixel from a custom scalar
+        # attribute — no baseColorTexture, no UV transform.
+        assert "baseColorTextureIndex" not in result.pbr
         assert "baseColorTextureScale" not in result.pbr
+        assert result.pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
+        # Scalar field baked as a per-vertex custom attribute the viewer JS
+        # binds to ``_SCALAR_0``.
+        assert "_SCALAR_0" in result.custom_attrs
+        assert result.custom_attrs["_SCALAR_0"].shape == (3,)
+        # Isocontour parameters land on the material's extras dict.
+        assert result.extras is not None
+        iso = result.extras["hakowan"]["isocontour"]
+        assert iso["num_contours"] == 4
+        assert iso["ratio"] == pytest.approx(0.2)
+        assert iso["color1"] == [0.0, 0.0, 0.0]
+        assert iso["color2"] == [1.0, 1.0, 1.0]
 
 
 class TestNoMaterial:

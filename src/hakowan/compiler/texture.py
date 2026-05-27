@@ -184,7 +184,11 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
         tex._uv = uv
         active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
         active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
-        return active_attrs_1 + active_attrs_2
+        # Keep the raw scalar alive — the WebGL backend reads it directly to
+        # drive a per-pixel isocontour shader. Mitsuba doesn't reference it
+        # (it samples the generated UV via the checkerboard plugin) but the
+        # extra attribute is harmless.
+        return [tex.data] + active_attrs_1 + active_attrs_2
 
     if mesh.is_attribute_indexed(attr_name):
         attr = mesh.indexed_attribute(attr_name)
@@ -227,7 +231,11 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
     tex._uv = Attribute(name=uv_name, _internal_name=uv_name)
     active_attrs_1 = apply_texture(df, tex.texture1, tex._uv)
     active_attrs_2 = apply_texture(df, tex.texture2, tex._uv)
-    return [tex._uv] + active_attrs_1 + active_attrs_2
+    # Keep the raw scalar alive — the WebGL backend reads it directly to
+    # drive a per-pixel isocontour shader. Mitsuba doesn't reference it
+    # (it samples the generated UV via the checkerboard plugin) but the
+    # extra attribute is harmless.
+    return [tex.data, tex._uv] + active_attrs_1 + active_attrs_2
 
 
 def _apply_texture(

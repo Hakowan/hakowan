@@ -83,12 +83,17 @@ def _srgb_to_linear_array(c: np.ndarray) -> np.ndarray:
     return np.where(c <= 0.04045, low, high).astype(np.float32)
 
 
-def extract_surface_arrays(view: View) -> dict[str, np.ndarray | None]:
+def extract_surface_arrays(
+    view: View,
+    custom_attrs: dict[str, np.ndarray] | None = None,
+) -> dict[str, Any]:
     """Pull positions / indices / (optional) normals / colors / UVs.
 
     Returns dict with keys ``positions`` (Nx3 float32), ``indices``
     (M*3 uint32, flat), ``normals`` (Nx3 float32 | None), ``colors``
-    (Nx4 float32 | None), ``uvs`` (Nx2 float32 | None).
+    (Nx4 float32 | None), ``uvs`` (Nx2 float32 | None), and
+    ``custom_attributes`` (dict | None) — the latter rewritten to match the
+    final vertex layout when de-indexing happens.
     """
     assert view.data_frame is not None
     mesh = copy.copy(view.data_frame.mesh)
@@ -103,6 +108,7 @@ def extract_surface_arrays(view: View) -> dict[str, np.ndarray | None]:
 
     color_name = _find_color_field_name(view)
     uv_name = _find_uv_attribute_name(mesh)
+    custom_attrs = custom_attrs or {}
 
     normals: np.ndarray | None = None
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
@@ -111,8 +117,8 @@ def extract_surface_arrays(view: View) -> dict[str, np.ndarray | None]:
         if normal_attr.element_type == lagrange.AttributeElement.Vertex:
             normals = np.ascontiguousarray(normal_attr.data, dtype=np.float32)
         elif normal_attr.element_type == lagrange.AttributeElement.Facet:
-            # De-index facet normals to per-corner; all other vertex-element
-            # attributes must follow the same expansion.
+            # De-index facet normals to per-corner; every other vertex-element
+            # attribute (incl. custom shader attrs) must follow the same map.
             corner_idx = facets.reshape(-1)
             new_positions = positions[corner_idx]
             new_normals = np.repeat(
@@ -128,12 +134,17 @@ def extract_surface_arrays(view: View) -> dict[str, np.ndarray | None]:
                 if uv_name is not None
                 else None
             )
+            remapped_custom = {
+                name: np.ascontiguousarray(arr)[corner_idx]
+                for name, arr in custom_attrs.items()
+            }
             return {
                 "positions": new_positions,
                 "indices": np.arange(new_positions.shape[0], dtype=np.uint32),
                 "normals": new_normals,
                 "colors": colors,
                 "uvs": uvs,
+                "custom_attributes": remapped_custom or None,
             }
         else:
             logger.warning(
@@ -156,4 +167,5 @@ def extract_surface_arrays(view: View) -> dict[str, np.ndarray | None]:
         "normals": normals,
         "colors": colors,
         "uvs": uvs,
+        "custom_attributes": custom_attrs or None,
     }

@@ -309,6 +309,8 @@ function ensurePassMaterials(obj) {
   obj[PASS_ORIGINAL] = orig;
   const cache = { beauty: orig };
   const side = orig.side ?? THREE.FrontSide;
+  const meta = orig.userData && orig.userData.hakowan;
+  const isCurve = !!(meta && meta.kind === 'curve');
 
   // Depth works for Mesh, Line, and Points — it's a pure position transform.
   cache.depth = makeDepthMaterial(side);
@@ -324,11 +326,23 @@ function ensurePassMaterials(obj) {
       alphaMap: orig.alphaMap || null,
       toneMapped: false,
     });
-    cache.normal = new THREE.MeshNormalMaterial({
-      side,
-      flatShading: false,
-      toneMapped: false,
-    });
+    if (isCurve) {
+      // Curve decorations (wireframe / seam tubes / etc.) have radial tube
+      // normals that would obliterate the underlying surface normal in the
+      // viewport. Render them as flat dark silhouettes so the surface
+      // normals remain visible beneath while the curve outline still reads.
+      cache.normal = new THREE.MeshBasicMaterial({
+        color: 0x111111,
+        side,
+        toneMapped: false,
+      });
+    } else {
+      cache.normal = new THREE.MeshNormalMaterial({
+        side,
+        flatShading: false,
+        toneMapped: false,
+      });
+    }
   } else {
     // Lines / Points have no shading normal; fall back to flat color for
     // albedo (preserve original color) and a neutral gray for normal.
@@ -458,7 +472,20 @@ const onLoaded = (gltf) => {
   window.__hakowan_loaded = true;
 };
 const onError = (err) => {
-  status.textContent = 'failed to load scene: ' + err;
+  // Most common cause when GLB_DATA_URI is a relative path (sidecar mode):
+  // the user opened the .html directly under file:// and the browser refused
+  // the sibling fetch. Surface a more actionable hint instead of just the
+  // raw TypeError.
+  const underFile = location.protocol === 'file:';
+  const sidecar = !GLB_DATA_URI.startsWith('data:');
+  let msg = 'failed to load scene: ' + (err && err.message ? err.message : err);
+  if (underFile && sidecar) {
+    msg += '  —  the scene was written as a sidecar .glb; browsers block '
+        +  'sibling fetches under file://. Serve the folder over HTTP '
+        +  '(e.g. `python -m http.server` in the output directory) and reload.';
+  }
+  status.textContent = msg;
+  status.classList.remove('hidden');
   console.error(err);
 };
 

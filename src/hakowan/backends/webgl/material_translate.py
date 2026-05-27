@@ -67,6 +67,47 @@ class MaterialResult:
 _DEFAULT_BASE_COLOR: list[float] = [0.5, 0.5, 0.5, 1.0]
 
 
+# Mitsuba's named IOR presets (subset). Values are absolute refractive indices
+# at ~589 nm; for glTF we emit the relative ratio ``int_ior / ext_ior``.
+# Source: Mitsuba 3 docs (`dielectric` plugin) + standard references.
+_IOR_NAMES: dict[str, float] = {
+    "vacuum": 1.0,
+    "air": 1.000277,
+    "helium": 1.000036,
+    "hydrogen": 1.000132,
+    "water": 1.333,
+    "ethanol": 1.361,
+    "acetone": 1.36,
+    "carbontetrachloride": 1.461,
+    "fusedquartz": 1.458,
+    "pyrex": 1.470,
+    "acrylicglass": 1.49,
+    "polypropylene": 1.49,
+    "bk7": 1.5046,
+    "glass": 1.5046,
+    "sodiumchloride": 1.544,
+    "polystyrene": 1.59,
+    "polycarbonate": 1.585,
+    "amber": 1.55,
+    "sapphire": 1.762,
+    "diamond": 2.419,
+}
+
+
+def _resolve_ior(ior_like: Any, default: float) -> float:
+    if isinstance(ior_like, (float, int)):
+        return float(ior_like)
+    if isinstance(ior_like, str):
+        v = _IOR_NAMES.get(ior_like.lower())
+        if v is None:
+            logger.warning(
+                f"WebGL backend: unknown IOR preset '{ior_like}'; using {default}."
+            )
+            return default
+        return v
+    return default
+
+
 # Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
 # Sources: Naty Hoffman's PBR Diffuse Lighting course notes; Filament docs.
 _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
@@ -259,23 +300,41 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
 
 def _apply_isocontour(
     pbr: dict[str, Any],
-    builder: GLTFBuilder,
+    extras: dict[str, Any],
+    custom_attrs: dict[str, np.ndarray],
+    view: View,
     reflectance: Isocontour,
 ) -> None:
-    """Wire an Isocontour reflectance as a 2x2 PNG sampled via the compiler-
-    generated UVs.
+    """Wire an Isocontour reflectance via the viewer's ``onBeforeCompile``
+    shader patch.
 
-    The hakowan compiler pre-computes a UV attribute whose x-channel is
-    ``scalar * num_contours`` and y-channel adds a ``(1-ratio)/2`` offset.
-    Combined with a 2x2 checker (cell layout matching Mitsuba's), sampling
-    that UV produces ``num_contours`` evenly-spaced contour lines with
-    relative thickness ``ratio``. We attach NO ``KHR_texture_transform``
-    because the UVs are already scaled by ``num_contours``.
+    Bakes the (pre-scaled) scalar field as ``_SCALAR_0`` and stores
+    ``num_contours / ratio / color1 / color2`` in ``extras["isocontour"]``;
+    the viewer's fragment-shader injection then re-creates the contour
+    stripes per-pixel from the scalar value — no UV gymnastics or texture
+    sampling needed.
     """
-    c1 = _resolve_texture_color(reflectance.texture1)
-    c2 = _resolve_texture_color(reflectance.texture2)
-    png_bytes = _bake_checkerboard_png(c1, c2)
-    pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
+    arr = _read_scalar_attribute(view, reflectance)
+    if arr is None:
+        logger.warning(
+            "WebGL backend: Isocontour scalar attribute could not be "
+            "resolved (non-vertex element or missing data); falling back "
+            "to flat color1."
+        )
+        c1 = _resolve_texture_color(reflectance.texture1)
+        pbr["baseColorFactor"] = list(c1)
+        return
+    custom_attrs["_SCALAR_0"] = arr
+    c1 = _resolve_texture_color(reflectance.texture1)[:3]
+    c2 = _resolve_texture_color(reflectance.texture2)[:3]
+    extras["isocontour"] = {
+        "num_contours": int(reflectance.num_contours),
+        "ratio": float(reflectance.ratio),
+        "color1": [float(x) for x in c1],
+        "color2": [float(x) for x in c2],
+    }
+    # The shader multiplies diffuseColor by the per-pixel isoColor; keep
+    # the base white so the multiply produces the chosen colors exactly.
     pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
 
 
@@ -358,23 +417,81 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         return MaterialResult(pbr=pbr, double_sided=double_sided)
 
     if isinstance(mat, Dielectric):
-        logger.warning(
-            "WebGL backend: Dielectric materials approximated as glossy "
-            "white (transmission / volumetrics not modelled)."
-        )
-        roughness = 0.05
-        if isinstance(mat, RoughDielectric) and isinstance(mat.alpha, (float, int)):
-            roughness = float(mat.alpha)
-        elif isinstance(mat, ThinDielectric):
-            roughness = 0.0
-        return MaterialResult(
-            pbr={
-                "baseColorFactor": [0.95, 0.95, 0.95, 1.0],
-                "metallicFactor": 0.0,
-                "roughnessFactor": roughness,
-            },
-            double_sided=double_sided,
-        )
+        # Translate to glTF KHR_materials_transmission + _ior (+ _volume when
+        # a medium is attached). three.js's GLTFLoader maps these onto
+        # MeshPhysicalMaterial → real refraction + Beer-Lambert volume tint.
+        roughness = 0.0
+        if isinstance(mat, RoughDielectric):
+            if isinstance(mat.alpha, (float, int)):
+                roughness = float(mat.alpha)
+            else:
+                logger.warning(
+                    "WebGL backend: textured RoughDielectric.alpha not "
+                    "supported; using fallback 0.1."
+                )
+                roughness = 0.1
+
+        int_ior = _resolve_ior(mat.int_ior, 1.5046)
+        ext_ior = _resolve_ior(mat.ext_ior, 1.0)
+        # glTF stores the relative IOR (assumes air-side); three.js does the
+        # same Snell-law math internally.
+        relative_ior = int_ior / max(ext_ior, 1e-6)
+
+        pbr: dict[str, Any] = {
+            "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+            "metallicFactor": 0.0,
+            "roughnessFactor": roughness,
+            "transmissionFactor": float(mat.specular_transmittance),
+            "ior": relative_ior,
+        }
+
+        if isinstance(mat, ThinDielectric):
+            # Thin slab: no refraction offset, no volume absorption.
+            pbr["thicknessFactor"] = 0.0
+        elif mat.medium is not None:
+            # Beer-Lambert via KHR_materials_volume. We estimate a sensible
+            # thickness from the view bbox so refraction has a length scale
+            # to integrate against. ``medium.albedo`` is the per-channel
+            # transmitted tint; ``medium.scale`` is an extinction multiplier
+            # (Mitsuba treats it as ``scale * bbox_diag``).
+            from numpy.linalg import norm as _norm
+            bbox = getattr(view, "bbox", None)
+            if bbox is not None:
+                diag = float(_norm(np.asarray(bbox[0]) - np.asarray(bbox[1])))
+            else:
+                diag = 1.0
+            pbr["thicknessFactor"] = diag
+            attn_color = _color_to_rgba(mat.medium.albedo)[:3]
+            # Larger ``scale`` → shorter attenuation distance (more absorption).
+            scale = float(mat.medium.scale)
+            attn_distance = (
+                diag / scale if scale > 1e-6 else float("inf")
+            )
+            pbr["attenuationDistance"] = attn_distance
+            pbr["attenuationColor"] = attn_color
+        else:
+            # Smooth solid dielectric with no volume — still pick a thickness
+            # so refraction has an offset, but skip attenuation entirely.
+            from numpy.linalg import norm as _norm
+            bbox = getattr(view, "bbox", None)
+            if bbox is not None:
+                pbr["thicknessFactor"] = float(
+                    _norm(np.asarray(bbox[0]) - np.asarray(bbox[1]))
+                )
+            else:
+                pbr["thicknessFactor"] = 1.0
+
+        # ``specular_reflectance`` modulates the Fresnel reflection. We don't
+        # expose it (would need KHR_materials_specular) when it's the default
+        # 1.0 — log only when non-default and ignored.
+        if float(mat.specular_reflectance) != 1.0:
+            logger.debug(
+                "WebGL backend: Dielectric.specular_reflectance != 1.0 not "
+                "yet wired (would require KHR_materials_specular)."
+            )
+
+        _apply_normal_map(pbr, builder, view.normal_map)
+        return MaterialResult(pbr=pbr, double_sided=double_sided)
 
     if isinstance(mat, Hair):
         logger.warning(
@@ -411,7 +528,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
     _apply_image_or_checker(pbr, builder, reflectance)
 
     if isinstance(reflectance, Isocontour):
-        _apply_isocontour(pbr, builder, reflectance)
+        _apply_isocontour(pbr, extras, custom_attrs, view, reflectance)
 
     # Roughness / metallic factors.
     if isinstance(mat, Principled):

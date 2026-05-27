@@ -340,8 +340,12 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
     result = translate_material(view, builder)
     pbr = result.pbr
     double_sided = result.double_sided
-    if result.extras is not None:
-        pbr["extras"] = result.extras
+    # Tag the material so the viewer's render-pass switcher can treat curve
+    # decorations (wireframe, seams, …) specially — extruded-tube normals
+    # would otherwise overwrite the underlying surface in the normal pass.
+    extras = result.extras if result.extras is not None else {}
+    extras.setdefault("hakowan", {})["kind"] = "curve"
+    pbr["extras"] = extras
 
     if use_tubes:
         if data.sizes is not None:
