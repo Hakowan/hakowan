@@ -26,7 +26,7 @@ from .template import render_html
 from .utils import glb_to_data_uri
 
 
-_DEFAULT_THREE_VERSION = "0.160.0"
+_DEFAULT_THREE_VERSION = "0.170.0"
 _EMBED_SIZE_LIMIT_BYTES = 50 * 1024 * 1024  # 50 MB
 
 

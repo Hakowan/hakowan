@@ -128,9 +128,25 @@ def _align_y_to(up: np.ndarray) -> np.ndarray:
     return np.eye(3, dtype=np.float64) + sin_a * K + (1.0 - cos_a) * (K @ K)
 
 
+_THREEJS_ENV_AZIMUTH_OFFSET_RAD = -math.pi / 2
+"""Azimuth offset to align three.js's equirectangular sampler with Mitsuba's.
+
+Mitsuba:  ``u = atan2(x, -z) / 2π``        (so ``-Z`` is the seam, ``u=0``).
+three.js: ``u = atan2(z, x) / 2π + 0.5``   (so ``-X`` is the seam, ``u=0``).
+
+The two frames differ by a 90° rotation around +Y; we post-compose it on the
+env-local frame so the same .exr renders the same way under both backends.
+"""
+
+
 def _build_rotation_matrix(rotation_deg: float, up: list[float]) -> np.ndarray:
-    """Compose ``align_y_to(up) @ rotate_y(rotation_deg)`` — same as Mitsuba's
-    ``Envmap.to_world``.
+    """Env→world rotation matrix for three.js's env-local frame.
+
+    Mirrors Mitsuba's ``to_world = align_y_to(up) @ rotate_y(rotation_deg)``,
+    then post-composes ``Ry(_THREEJS_ENV_AZIMUTH_OFFSET_RAD)`` to absorb the
+    azimuth-origin difference between the two backends.
     """
     up_arr = np.asarray(up, dtype=np.float64)
-    return _align_y_to(up_arr) @ _rotate_y(math.radians(float(rotation_deg)))
+    return _align_y_to(up_arr) @ _rotate_y(
+        math.radians(float(rotation_deg)) + _THREEJS_ENV_AZIMUTH_OFFSET_RAD
+    )

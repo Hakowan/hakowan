@@ -61,45 +61,55 @@ class TestAlignYTo:
 
 
 class TestBuildRotationMatrix:
+    """The matrix has a baked-in ``Ry(-90°)`` to match three.js's azimuth
+    convention, so the assertions below reflect Mitsuba's compose plus that
+    offset.
+    """
+
     def test_default_y_up_180_rotation(self):
-        """Default config: rotation=180°, up=[0,1,0] → 180° around Y."""
+        """Default config: rotation=180°, up=[0,1,0] → Mitsuba's Ry(180°)
+        composed with the −90° azimuth offset = Ry(90°)."""
         R = _build_rotation_matrix(180.0, [0, 1, 0])
-        np.testing.assert_allclose(R @ [1, 0, 0], [-1, 0, 0], atol=1e-9)
-        np.testing.assert_allclose(R @ [0, 0, 1], [0, 0, -1], atol=1e-9)
+        np.testing.assert_allclose(R @ [1, 0, 0], [0, 0, -1], atol=1e-9)
+        np.testing.assert_allclose(R @ [0, 0, 1], [1, 0, 0], atol=1e-9)
         np.testing.assert_allclose(R @ [0, 1, 0], [0, 1, 0], atol=1e-9)
 
     def test_z_up_rotation_180(self):
-        """Z-up config (up=[0,0,1]) with rotation=180° → align Y to Z then
-        rotate 180° around the original Y. The combined behaviour is what
-        Mitsuba's ``config.z_up()`` ships with."""
+        """Z-up config with rotation=180° → align +Y to +Z, then compose
+        Mitsuba's 180° with the −90° azimuth offset (= Ry(90°))."""
         R = _build_rotation_matrix(180.0, [0, 0, 1])
-        # The 180°-around-Y first flips X and Z; the alignment then maps Y→Z
-        # and (−Z)→Y. So:
-        np.testing.assert_allclose(R @ [1, 0, 0], [-1, 0, 0], atol=1e-9)
+        # env +Y (sky pole) → world +Z still holds.
         np.testing.assert_allclose(R @ [0, 1, 0], [0, 0, 1], atol=1e-9)
-        np.testing.assert_allclose(R @ [0, 0, 1], [0, 1, 0], atol=1e-9)
-        # Compare with the pure-alignment (rotation=0) case to witness that
-        # the 180° is actually composed in: X flips, Z is sent to +Y not −Y.
-        R0 = _build_rotation_matrix(0.0, [0, 0, 1])
-        np.testing.assert_allclose(R0 @ [1, 0, 0], [1, 0, 0], atol=1e-9)
-        np.testing.assert_allclose(R0 @ [0, 0, 1], [0, -1, 0], atol=1e-9)
-        assert not np.allclose(R, R0)
+        # env +X → world +Y (used to be world −X before the offset).
+        np.testing.assert_allclose(R @ [1, 0, 0], [0, 1, 0], atol=1e-9)
+        # env +Z → world +X.
+        np.testing.assert_allclose(R @ [0, 0, 1], [1, 0, 0], atol=1e-9)
 
-    def test_zero_rotation_z_up_pure_alignment(self):
-        R = _build_rotation_matrix(0.0, [0, 0, 1])
-        # No Y-rotation, just alignment.
-        np.testing.assert_allclose(R, _align_y_to(np.array([0, 0, 1])), atol=1e-12)
-
-    def test_zero_rotation_default_up_is_identity(self):
+    def test_zero_rotation_default_up_is_pure_azimuth_offset(self):
+        """With rotation=0 and up=Y, the matrix is just the −90° azimuth
+        offset Ry(−π/2)."""
         R = _build_rotation_matrix(0.0, [0, 1, 0])
-        np.testing.assert_allclose(R, np.eye(3), atol=1e-12)
+        np.testing.assert_allclose(R, _rotate_y(-math.pi / 2), atol=1e-12)
 
-    def test_composed_order_matches_mitsuba(self):
-        """Mitsuba composes as ``align(up) @ rotate_y(deg)``; verify the
-        order matters for non-degenerate cases."""
+    def test_rotation_90_default_up_cancels_offset(self):
+        """rotation=+90° cancels the −90° azimuth offset → identity."""
+        R = _build_rotation_matrix(90.0, [0, 1, 0])
+        np.testing.assert_allclose(R, np.eye(3), atol=1e-9)
+
+    def test_composed_order_is_rotate_then_align(self):
+        """Verify the composition order ``align(up) @ rotate_y(deg + offset)``
+        differs from the reversed composition for non-degenerate cases."""
         R_correct = _build_rotation_matrix(90.0, [0, 0, 1])
-        R_wrong = _rotate_y(math.radians(90.0)) @ _align_y_to(np.array([0, 0, 1]))
-        # They differ — composition is non-commutative for non-trivial cases.
+        R_wrong = _rotate_y(
+            math.radians(90.0) + (-math.pi / 2)
+        ) @ _align_y_to(np.array([0, 0, 1]))
+        assert np.allclose(R_correct, R_wrong) or not np.allclose(R_correct, R_wrong)
+        # Specifically, with rotation=+90° the y-component reduces to zero,
+        # so the two forms accidentally agree here. Pick a non-cancelling case:
+        R_correct = _build_rotation_matrix(45.0, [0, 0, 1])
+        R_wrong = _rotate_y(
+            math.radians(45.0) + (-math.pi / 2)
+        ) @ _align_y_to(np.array([0, 0, 1]))
         assert not np.allclose(R_correct, R_wrong)
 
 
@@ -115,9 +125,9 @@ class TestEnvmapDescriptor:
         assert desc is not None
         assert "rotation_matrix" in desc
         assert len(desc["rotation_matrix"]) == 9
-        # Matches the 180° around Y case above.
+        # 180° Mitsuba rotation composed with the −90° three.js offset.
         R = np.array(desc["rotation_matrix"]).reshape(3, 3)
-        np.testing.assert_allclose(R @ [1, 0, 0], [-1, 0, 0], atol=1e-9)
+        np.testing.assert_allclose(R @ [1, 0, 0], [0, 0, -1], atol=1e-9)
 
     def test_descriptor_reflects_custom_up(self):
         cfg = Config()

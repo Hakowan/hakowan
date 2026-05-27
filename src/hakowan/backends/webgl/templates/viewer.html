@@ -116,7 +116,13 @@ async function loadEnvmap() {
       scene.environmentIntensity = ENVMAP.scale;
     }
     // Apply Mitsuba's `to_world = align_y_to(up) @ rotate_y(rotation_deg)`
-    // matrix to the environment. Requires three.js >= r158.
+    // matrix to the environment. Requires three.js >= r163.
+    //
+    // three.js samples the env at `envMapRotation * worldDir`, where the uniform
+    // is `makeRotationFromEuler(-scene.environmentRotation)` (each Euler
+    // component is negated to "accommodate left-handed frame"). For env rotated
+    // by M in world, sampling needs M^T * worldDir; so we feed M^T into the
+    // Euler and pre-negate to cancel three.js's flip.
     if ('environmentRotation' in scene) {
       const M = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
       const m4 = new THREE.Matrix4();
@@ -126,7 +132,9 @@ async function loadEnvmap() {
         M[6], M[7], M[8], 0,
         0,    0,    0,    1,
       );
+      m4.transpose();
       const euler = new THREE.Euler().setFromRotationMatrix(m4);
+      euler.x *= -1; euler.y *= -1; euler.z *= -1;
       scene.environmentRotation = euler;
       if (ENVMAP.background) {
         scene.background = envTexture;
