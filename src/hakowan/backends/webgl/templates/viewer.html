@@ -265,6 +265,21 @@ let currentPass = 'beauty';
 let loadedRoot = null;
 let sceneBbox = null;
 
+// The renderer is sRGB-output; built-in materials like MeshBasic include the
+// `<colorspace_fragment>` chunk that does linear→sRGB. ShaderMaterial doesn't,
+// and neither does MeshNormalMaterial — they'd push linear values into an
+// sRGB drawing buffer, which the display interprets as if they were sRGB
+// (mid-gray ≈ 0.5 → linear 0.214 → looks "too dark / mostly black"). Inject
+// the same conversion at the end of every custom pass shader.
+const SRGB_GLSL = `
+  vec3 linearToSRGB(vec3 c) {
+    c = max(c, vec3(0.0));
+    vec3 lo = c * 12.92;
+    vec3 hi = pow(c, vec3(1.0 / 2.4)) * 1.055 - 0.055;
+    return mix(hi, lo, vec3(lessThanEqual(c, vec3(0.0031308))));
+  }
+`;
+
 // Linear camera-space depth in [uDepthMin, uDepthMax] → grayscale.
 // Matches Mitsuba's depth pass convention: near = 0 (black), far = 1 (white).
 // One shared uniforms object so all per-mesh materials update together each
@@ -281,14 +296,14 @@ const DEPTH_VS = `
     gl_Position = projectionMatrix * mvPos;
   }
 `;
-const DEPTH_FS = `
+const DEPTH_FS = SRGB_GLSL + `
   varying float vDepth;
   uniform float uDepthMin;
   uniform float uDepthMax;
   void main() {
     float range = max(uDepthMax - uDepthMin, 1e-6);
     float t = clamp((vDepth - uDepthMin) / range, 0.0, 1.0);
-    gl_FragColor = vec4(vec3(t), 1.0);
+    gl_FragColor = vec4(linearToSRGB(vec3(t)), 1.0);
   }
 `;
 
@@ -297,6 +312,34 @@ function makeDepthMaterial(side) {
     uniforms: depthUniforms,
     vertexShader: DEPTH_VS,
     fragmentShader: DEPTH_FS,
+    side: side ?? THREE.FrontSide,
+    toneMapped: false,
+  });
+}
+
+// Custom normal-pass shader. Uses the geometry's interpolated vertex normal
+// in view space; we apply sRGB encoding manually because MeshNormalMaterial
+// skips `<colorspace_fragment>` and would otherwise look crushed-dark.
+const NORMAL_VS = `
+  varying vec3 vViewNormal;
+  void main() {
+    vViewNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const NORMAL_FS = SRGB_GLSL + `
+  varying vec3 vViewNormal;
+  void main() {
+    vec3 n = normalize(vViewNormal);
+    vec3 packed = n * 0.5 + 0.5;
+    gl_FragColor = vec4(linearToSRGB(packed), 1.0);
+  }
+`;
+
+function makeNormalMaterial(side) {
+  return new THREE.ShaderMaterial({
+    vertexShader: NORMAL_VS,
+    fragmentShader: NORMAL_FS,
     side: side ?? THREE.FrontSide,
     toneMapped: false,
   });
@@ -337,11 +380,7 @@ function ensurePassMaterials(obj) {
         toneMapped: false,
       });
     } else {
-      cache.normal = new THREE.MeshNormalMaterial({
-        side,
-        flatShading: false,
-        toneMapped: false,
-      });
+      cache.normal = makeNormalMaterial(side);
     }
   } else {
     // Lines / Points have no shading normal; fall back to flat color for

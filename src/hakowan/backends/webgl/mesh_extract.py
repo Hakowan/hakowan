@@ -110,47 +110,93 @@ def extract_surface_arrays(
     uv_name = _find_uv_attribute_name(mesh)
     custom_attrs = custom_attrs or {}
 
-    normals: np.ndarray | None = None
+    # Compute indexed normals if the input mesh has none. We use
+    # ``lagrange.compute_normal`` (rather than ``compute_vertex_normal``) so
+    # sharp edges above the default 45° feature-angle threshold split into
+    # distinct normals, retaining creases on hard-surface models like cubes.
+    # Three.js requires a NORMAL accessor; without one the normal/lit passes
+    # render black.
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    if not normal_ids:
+        try:
+            lagrange.compute_normal(mesh)
+            normal_ids = mesh.get_matching_attribute_ids(
+                usage=lagrange.AttributeUsage.Normal
+            )
+        except Exception as e:  # pragma: no cover - lagrange edge case
+            logger.debug(
+                f"WebGL backend: compute_normal failed ({e}); "
+                "falling back to per-vertex normal computation."
+            )
+            try:
+                lagrange.compute_vertex_normal(mesh)
+                normal_ids = mesh.get_matching_attribute_ids(
+                    usage=lagrange.AttributeUsage.Normal
+                )
+            except Exception as e2:  # pragma: no cover
+                logger.debug(
+                    f"WebGL backend: compute_vertex_normal also failed ({e2}); "
+                    "the normal pass will render black."
+                )
+
+    normals: np.ndarray | None = None
+    per_corner_normals: np.ndarray | None = None
     if normal_ids:
-        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
-        if normal_attr.element_type == lagrange.AttributeElement.Vertex:
-            normals = np.ascontiguousarray(normal_attr.data, dtype=np.float32)
-        elif normal_attr.element_type == lagrange.AttributeElement.Facet:
-            # De-index facet normals to per-corner; every other vertex-element
-            # attribute (incl. custom shader attrs) must follow the same map.
-            corner_idx = facets.reshape(-1)
-            new_positions = positions[corner_idx]
-            new_normals = np.repeat(
-                np.asarray(normal_attr.data, dtype=np.float32), 3, axis=0
-            )
-            colors = (
-                _read_color_attribute(mesh, color_name)[corner_idx]
-                if color_name is not None
-                else None
-            )
-            uvs = (
-                np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)[corner_idx]
-                if uv_name is not None
-                else None
-            )
-            remapped_custom = {
-                name: np.ascontiguousarray(arr)[corner_idx]
-                for name, arr in custom_attrs.items()
-            }
-            return {
-                "positions": new_positions,
-                "indices": np.arange(new_positions.shape[0], dtype=np.uint32),
-                "normals": new_normals,
-                "colors": colors,
-                "uvs": uvs,
-                "custom_attributes": remapped_custom or None,
-            }
+        normal_name = mesh.get_attribute_name(normal_ids[0])
+        if mesh.is_attribute_indexed(normal_name):
+            # Indexed normal: per-corner lookup into a (V_unique, 3) value
+            # table — preserves sharp edges by giving the same vertex
+            # different normals across crease facets.
+            indexed = mesh.indexed_attribute(normal_name)
+            values = np.asarray(indexed.values.data, dtype=np.float32)
+            norm_idx = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+            per_corner_normals = values[norm_idx]
         else:
-            logger.warning(
-                "WebGL backend: unsupported normal element type "
-                f"'{normal_attr.element_type}', dropping normals."
-            )
+            normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
+            if normal_attr.element_type == lagrange.AttributeElement.Vertex:
+                normals = np.ascontiguousarray(normal_attr.data, dtype=np.float32)
+            elif normal_attr.element_type == lagrange.AttributeElement.Facet:
+                per_corner_normals = np.repeat(
+                    np.asarray(normal_attr.data, dtype=np.float32), 3, axis=0
+                )
+            elif normal_attr.element_type == lagrange.AttributeElement.Corner:
+                per_corner_normals = np.ascontiguousarray(
+                    normal_attr.data, dtype=np.float32
+                )
+            else:
+                logger.warning(
+                    "WebGL backend: unsupported normal element type "
+                    f"'{normal_attr.element_type}', dropping normals."
+                )
+
+    if per_corner_normals is not None:
+        # De-index every other vertex-element attribute (positions, colors,
+        # UVs, custom shader attrs) to per-corner so they all line up with
+        # the per-corner normal array.
+        corner_idx = facets.reshape(-1)
+        new_positions = positions[corner_idx]
+        colors = (
+            _read_color_attribute(mesh, color_name)[corner_idx]
+            if color_name is not None
+            else None
+        )
+        uvs = (
+            np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)[corner_idx]
+            if uv_name is not None
+            else None
+        )
+        remapped_custom = {
+            name: np.ascontiguousarray(arr)[corner_idx]
+            for name, arr in custom_attrs.items()
+        }
+        return {
+            "positions": new_positions,
+            "indices": np.arange(new_positions.shape[0], dtype=np.uint32),
+            "normals": per_corner_normals,
+            "colors": colors,
+            "uvs": uvs,
+            "custom_attributes": remapped_custom or None,
+        }
 
     colors = (
         _read_color_attribute(mesh, color_name) if color_name is not None else None
