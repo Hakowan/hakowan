@@ -280,7 +280,7 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
                 tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data, "RGBA")
+                im = Image.fromarray(tex_img.image.data).convert("RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
@@ -305,7 +305,7 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 diffuse_file = diffuse_img.uri
                 if diffuse_file is None:
                     diffuse_file = get_tmp_image_name()
-                im = Image.fromarray(diffuse_img.image.data, "RGBA")
+                im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
