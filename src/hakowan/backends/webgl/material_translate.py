@@ -181,6 +181,11 @@ def _load_image_as_png_bytes(image: Image) -> bytes:
     if image.whiteness != 0.0:
         white = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
         img = PILImage.blend(img.convert("RGBA"), white, alpha=image.whiteness)
+    # hakowan stores UVs with V=0 at the bottom of the image (OBJ
+    # convention — Mitsuba compensates via ``to_uv = diag(1, -1, 1)``).
+    # glTF/three.js samples with V=0 at the top, so we flip the image
+    # vertically here to match without touching the UV buffer.
+    img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
