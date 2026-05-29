@@ -326,19 +326,22 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
     return mats
 
 
-def embed_texture(glb_file, saturation: float = 1.0, whiteness: float = 0.0):
+def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
     """
-    Loads a GLB file, extracts its materials and textures, and constructs a composite layer representation.
+    Loads a scene file, extracts its materials and textures, and constructs a composite layer representation.
+
+    Supports any format accepted by ``lagrange.io.load_scene`` that carries
+    material/texture data (e.g. GLB, GLTF, OBJ+MTL).
 
     Parameters:
-        glb_file (str or Path): Path to the GLB file to load.
+        scene_file (str or Path): Path to the scene file to load.
         saturation (float): Saturation multiplier applied to all image textures.
         whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
-    scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
+    scene = lagrange.io.load_scene(scene_file, stitch_vertices=True)
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
@@ -504,9 +507,6 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
-            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
-                f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
-            )
             layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
