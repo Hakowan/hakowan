@@ -509,6 +509,11 @@ class BlenderBackend(RenderBackend):
         mesh.from_pydata(vertices.tolist(), [], facets)
         mesh.update()
 
+        # Apply custom shading normals (if the mesh carries a normal attribute)
+        # so authored/smoothed normals match the other backends instead of
+        # falling back to Blender's default flat shading.
+        self._apply_custom_normals(mesh_data, mesh, facets)
+
         # Scalar field texture: copy vertex/face color attribute to Blender mesh
         color_layer_name = None
         scalar_info = self._get_scalar_field_color_attr(view)
@@ -550,6 +555,83 @@ class BlenderBackend(RenderBackend):
                 obj.data.materials.append(mat)
 
         logger.debug(f"Created surface object {index} with {len(vertices)} vertices")
+
+    def _apply_custom_normals(
+        self,
+        mesh_data,
+        mesh: "bpy.types.Mesh",
+        facets: list[list[int]],
+    ):
+        """Apply the lagrange mesh's normal attribute as Blender custom split normals.
+
+        Mirrors the WebGL backend's element-type handling so authored normals
+        render consistently. Vertex normals become per-vertex custom normals
+        (smooth shading); facet, corner and indexed normals are expanded to
+        per-loop normals. When the mesh has no normal attribute, Blender's
+        default geometric shading is left untouched.
+
+        Args:
+            mesh_data: Source ``lagrange.SurfaceMesh`` carrying the normals.
+            mesh: Target Blender mesh (already populated via ``from_pydata``).
+            facets: Per-facet vertex-index lists, used to expand facet normals
+                to the matching per-loop count for polygonal meshes.
+        """
+        normal_ids = mesh_data.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
+        if not normal_ids:
+            return
+
+        normal_name = mesh_data.get_attribute_name(normal_ids[0])
+        per_vertex: np.ndarray | None = None
+        per_corner: np.ndarray | None = None
+
+        if mesh_data.is_attribute_indexed(normal_name):
+            # Indexed normal: per-corner lookup into the value table, preserving
+            # creases by giving a shared vertex different normals across facets.
+            indexed = mesh_data.indexed_attribute(normal_name)
+            values = np.asarray(indexed.values.data, dtype=np.float32)
+            idx = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+            per_corner = values[idx]
+        else:
+            normal_attr = mesh_data.attribute(normal_ids[0])
+            element_type = normal_attr.element_type
+            if element_type == lagrange.AttributeElement.Vertex:
+                per_vertex = np.asarray(normal_attr.data, dtype=np.float32)
+            elif element_type == lagrange.AttributeElement.Corner:
+                per_corner = np.asarray(normal_attr.data, dtype=np.float32)
+            elif element_type == lagrange.AttributeElement.Facet:
+                facet_normals = np.asarray(normal_attr.data, dtype=np.float32)
+                counts = [len(f) for f in facets]
+                per_corner = np.repeat(facet_normals, counts, axis=0)
+            else:
+                logger.warning(
+                    "Blender backend: unsupported normal element type "
+                    f"'{element_type}', leaving default shading."
+                )
+                return
+
+        # Custom split normals require smooth shading to take effect.
+        mesh.shade_smooth()
+        if per_vertex is not None:
+            if per_vertex.shape[0] != len(mesh.vertices):
+                logger.warning(
+                    "Blender backend: vertex normal count "
+                    f"({per_vertex.shape[0]}) != vertex count ({len(mesh.vertices)}); "
+                    "skipping custom normals."
+                )
+                return
+            mesh.normals_split_custom_set_from_vertices(per_vertex.tolist())
+        else:
+            assert per_corner is not None
+            if per_corner.shape[0] != len(mesh.loops):
+                logger.warning(
+                    "Blender backend: corner normal count "
+                    f"({per_corner.shape[0]}) != loop count ({len(mesh.loops)}); "
+                    "skipping custom normals."
+                )
+                return
+            mesh.normals_split_custom_set(per_corner.tolist())
 
     def _create_point_base_mesh(self, base_shape: str, index: int):
         """Create the base mesh for a point mark shape.
