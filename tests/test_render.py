@@ -1,3 +1,6 @@
+import os
+import sys
+
 import pytest
 import pathlib
 import hakowan as hkw
@@ -19,6 +22,10 @@ class TestRender:
             assert shape["type"] == "ply"
             assert pathlib.Path(shape["filename"]).exists()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32" and os.environ.get("CI") == "true",
+        reason="Dr.Jit LLVM thread pool crashes on shutdown on Windows CI",
+    )
     def test_mitsuba_render_produces_image(self, triangle, tmp_path):
         """End-to-end smoke test that actually invokes ``mi.render``.
 
