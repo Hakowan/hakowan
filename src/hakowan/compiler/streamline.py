@@ -164,11 +164,12 @@ def _compute_streamlines(
     shared = (vertices, facets, normals, e1, e2, vec_2d, adj_face, adj_edge, cross_field)
     n_workers = min(len(tasks), os.cpu_count() or 1)
 
-    # Pool setup may fail on platforms without `fork` (e.g. some macOS configs)
-    # or when the OS rejects new worker processes (resource limits).
+    # Pool setup may fail on some platforms or when the OS rejects new worker
+    # processes (resource limits).  "spawn" is safe across all platforms
+    # (including Windows) and avoids fork-in-multithreaded-process deadlocks.
     pool_cm = None
     try:
-        ctx = multiprocessing.get_context("fork")
+        ctx = multiprocessing.get_context("spawn")
         pool_cm = concurrent.futures.ProcessPoolExecutor(
             max_workers=n_workers,
             mp_context=ctx,
