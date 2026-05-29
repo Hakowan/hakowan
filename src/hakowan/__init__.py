@@ -19,6 +19,15 @@ from .backends import register_backend_loader
 
 
 def _load_mitsuba_backend():
+    import sys
+
+    if "bpy" in sys.modules and "mitsuba" not in sys.modules:
+        raise RuntimeError(
+            "Cannot load the Mitsuba backend: 'bpy' (Blender) is already imported "
+            "and Mitsuba has not been loaded yet. Blender's bundled LLVM conflicts "
+            "with Dr.Jit/Mitsuba when loaded first. Use the Mitsuba backend before "
+            "the Blender backend in the same process."
+        )
     from .backends.mitsuba import MitsubaBackend
 
     return MitsubaBackend

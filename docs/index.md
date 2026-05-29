@@ -52,7 +52,7 @@ provides a specification of one or more of the following items:
 ``` bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.4.4},
+    version = {0.5.0},
     year = 2026,
 }
 ```

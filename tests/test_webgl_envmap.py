@@ -99,13 +99,14 @@ class TestBuildRotationMatrix:
     def test_composed_order_is_rotate_then_align(self):
         """Verify the composition order ``align(up) @ rotate_y(deg + offset)``
         differs from the reversed composition for non-degenerate cases."""
+        # At 90° the azimuth offset cancels, so both orderings accidentally
+        # produce the same matrix — confirm they agree here.
         R_correct = _build_rotation_matrix(90.0, [0, 0, 1])
         R_wrong = _rotate_y(
             math.radians(90.0) + (-math.pi / 2)
         ) @ _align_y_to(np.array([0, 0, 1]))
-        assert np.allclose(R_correct, R_wrong) or not np.allclose(R_correct, R_wrong)
-        # Specifically, with rotation=+90° the y-component reduces to zero,
-        # so the two forms accidentally agree here. Pick a non-cancelling case:
+        assert np.allclose(R_correct, R_wrong)
+        # At 45° there is no cancellation — the two orderings must differ.
         R_correct = _build_rotation_matrix(45.0, [0, 0, 1])
         R_wrong = _rotate_y(
             math.radians(45.0) + (-math.pi / 2)

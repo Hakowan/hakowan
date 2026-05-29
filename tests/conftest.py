@@ -4,8 +4,10 @@ import sys
 # Import Mitsuba (loading Dr.Jit's libLLVM) before any test module can import
 # ``bpy``. Blender bundles its own LLVM, and loading it *before* Dr.Jit's
 # libLLVM segfaults the process; importing Mitsuba first pins the safe ordering
-# for the whole test session. (Real usage is already safe: ``import hakowan``
-# loads Mitsuba before the Blender backend.)
+# for the whole test session.
+# Note: hakowan itself uses lazy backend loading, so ``import hakowan`` does NOT
+# eagerly import Mitsuba. This conftest guard is therefore necessary for tests
+# that directly import both backends in the same session.
 # Skip on Windows CI: bpy is not used there, so the ordering guarantee is not
 # needed, and Dr.Jit's nanobind finalizer crashes on Windows during Python
 # interpreter shutdown (known upstream issue).
