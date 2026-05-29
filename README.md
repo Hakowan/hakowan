@@ -1,4 +1,7 @@
 # Hakowan
+
+![Hakowan teaser](docs/images/teaser.webp)
+
 Hakowan is a 3D data visualization grammar. It is inspired by the grammar of graphics, and it is
 designed for easily creating beautiful 3D visualizations.
 

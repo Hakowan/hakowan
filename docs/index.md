@@ -1,5 +1,7 @@
 # Hakowan: A 3D Data Visualization Grammar
 
+![Hakowan teaser](images/teaser.webp)
+
 Hakowan is a 3D data visualization grammar based on the concept of [The Grammar
 of Graphics](https://link.springer.com/book/10.1007/0-387-28695-0). It is
 designed for creating compelling SIGGRAPH-quality 3D data visualizations with
