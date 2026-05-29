@@ -8,22 +8,10 @@ from ..common import logger
 from pathlib import Path
 from typing import Any
 
-# Initialize Mitsuba variant if using mitsuba backend
-try:
-    import mitsuba as mi
-
-    if mi.variant() is None:
-        for variant in ["scalar_rgb", "cuda_ad_rgb", "llvm_ad_rgb"]:
-            if variant in mi.variants():
-                try:
-                    mi.set_variant(variant)
-                    break
-                except Exception:
-                    pass
-        if mi.variant() is None:
-            logger.warning("Could not initialize any Mitsuba variant")
-except (ImportError, Exception) as e:
-    logger.debug(f"Mitsuba initialization issue: {e}")
+# NOTE: Mitsuba is intentionally NOT imported here. Variant selection (which
+# initializes the Mitsuba runtime and its LLVM backend) happens lazily inside
+# the Mitsuba backend, so importing hakowan or using a non-Mitsuba backend
+# (Blender/WebGL) never loads Mitsuba/LLVM.
 
 
 def render(

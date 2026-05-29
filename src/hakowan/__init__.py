@@ -11,32 +11,34 @@ from .grammar.channel import material
 from .compiler import compile
 from .render import render, set_default_backend, list_backends
 
-# Register backends
-from .backends import register_backend
+# Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
+# bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
+# probed without importing, so a backend whose dependency is missing simply
+# doesn't appear in ``list_backends()``.
+from .backends import register_backend_loader
 
-# Try to register Mitsuba backend
-try:
+
+def _load_mitsuba_backend():
     from .backends.mitsuba import MitsubaBackend
 
-    register_backend("mitsuba", MitsubaBackend)
-except ImportError as e:
-    logger.info(f"Mitsuba backend not available: {e}")
+    return MitsubaBackend
 
-# Try to register Blender backend
-try:
+
+def _load_blender_backend():
     from .backends.blender import BlenderBackend
 
-    register_backend("blender", BlenderBackend)
-except ImportError:
-    logger.info("Blender backend not available (bpy not installed)")
+    return BlenderBackend
 
-# Try to register WebGL/three.js backend
-try:
+
+def _load_webgl_backend():
     from .backends.webgl import WebGLBackend
 
-    register_backend("webgl", WebGLBackend)
-except ImportError as e:
-    logger.info(f"WebGL backend not available: {e}")
+    return WebGLBackend
+
+
+register_backend_loader("mitsuba", _load_mitsuba_backend, requires="mitsuba")
+register_backend_loader("blender", _load_blender_backend, requires="bpy")
+register_backend_loader("webgl", _load_webgl_backend, requires="pygltflib")
 
 __all__ = [
     "logger",

@@ -106,6 +106,27 @@ def save_image(
     logger.info(f"Rendering saved to {filename}")
 
 
+def ensure_variant() -> None:
+    """Select a Mitsuba variant if none is active yet.
+
+    Lives in the Mitsuba backend (rather than at ``import hakowan`` time) so the
+    Mitsuba runtime — and its LLVM backend — is only initialized when the
+    Mitsuba backend is actually used. Non-Mitsuba backends (Blender/WebGL) never
+    trigger this.
+    """
+    if mi.variant() is not None:
+        return
+    for variant in ["scalar_rgb", "cuda_ad_rgb", "llvm_ad_rgb"]:
+        if variant in mi.variants():
+            try:
+                mi.set_variant(variant)
+                break
+            except Exception:
+                pass
+    if mi.variant() is None:
+        logger.warning("Could not initialize any Mitsuba variant")
+
+
 class MitsubaBackend(RenderBackend):
     """Mitsuba rendering backend."""
 
@@ -129,6 +150,7 @@ class MitsubaBackend(RenderBackend):
         Returns:
             Rendered image as Mitsuba tensor.
         """
+        ensure_variant()
         logger.info(f"Using Mitsuba variant '{mi.variant()}'.")
 
         mi_config = generate_base_config(config)

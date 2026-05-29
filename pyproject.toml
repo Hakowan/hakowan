@@ -15,7 +15,7 @@ dependencies=[
     "Pillow>=11.0",
     "PyYAML>=6.0",
     "mitsuba~=3.8",
-    "bpy>=5.0.1,<6; python_version == '3.11'",
+    "bpy>=5.1,<6; python_version == '3.13'",
     "tqdm>=4.66",
     "colorcet>=3.2.1,<4",
     "pygltflib>=1.16.5,<2",
@@ -36,8 +36,17 @@ platforms = ["osx-arm64"]
 [tool.pixi.pypi-dependencies]
 hakowan = { path = ".", editable = true }
 
+[tool.pixi.activation.env]
+# Mitsuba 3.8 / Dr.Jit 1.3 require a loadable libLLVM at render time even for the
+# scalar_rgb variant (mi.render initializes Dr.Jit's JIT thread state). Dr.Jit
+# dlopens the unversioned name "libLLVM.dylib", but libllvm18 only ships the
+# versioned "libLLVM-18.dylib", so point Dr.Jit at it explicitly.
+DRJIT_LIBLLVM_PATH = "$CONDA_PREFIX/lib/libLLVM-18.dylib"
+
 [tool.pixi.environments]
 default = { solve-group = "default" }
 
 [tool.pixi.dependencies]
-python = "==3.11"
+python = "==3.13"
+pytest = ">=9.0.3,<10"
+libllvm18 = ">=18.1.8,<19"
