@@ -14,9 +14,11 @@ dependencies=[
     "numpy>=1.22",
     "Pillow>=11.0",
     "PyYAML>=6.0",
-    "mitsuba~=3.7",
+    "mitsuba~=3.8",
     "bpy>=5.0.1,<6; python_version == '3.11'",
     "tqdm>=4.66",
+    "colorcet>=3.2.1,<4",
+    "pygltflib>=1.16.5,<2",
 ]
 requires-python = ">=3.11"
 
@@ -25,9 +27,6 @@ docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.24",
-]
-webgl = [
-    "pygltflib>=1.16",
 ]
 
 [tool.pixi.workspace]
@@ -42,6 +41,3 @@ default = { solve-group = "default" }
 
 [tool.pixi.dependencies]
 python = "==3.11"
-dicttoxml = ">=1.7.16,<2"
-colorcet = ">=3.2.1,<4"
-pygltflib = ">=1.16.5,<2"
