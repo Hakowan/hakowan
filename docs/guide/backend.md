@@ -1,7 +1,7 @@
 # Rendering Backends
 
 Hakowan supports multiple rendering backends, allowing you to choose the renderer that best suits
-your needs. Currently, two backends are available: **Mitsuba** (default) and **Blender**.
+your needs. Three backends are available: **Mitsuba** (default), **Blender**, and **WebGL**.
 
 ## Available Backends
 
@@ -38,12 +38,12 @@ integrate Hakowan into a Blender-based workflow.
 
 **Advantages:**
 - Integration with Blender ecosystem
-- Access to Blender's rendering features
+- Access to Blender's Cycles and EEVEE rendering engines
 - Can save Blender scene files (.blend) for further editing
+- Supports render passes: albedo, depth, normal, facet ID
 
 **Requirements:**
-- Blender's `bpy` module must be installed
-- Typically only available when running Python from within Blender or with a special bpy build
+- `bpy` must be installed (`pip install bpy`)
 
 **Usage:**
 
@@ -63,6 +63,30 @@ hkw.render(
 )
 ```
 
+### WebGL Backend
+
+The WebGL backend generates a self-contained, interactive HTML file using
+[three.js](https://threejs.org/) and the glTF 2.0 format. No server is required — open
+the HTML file in any browser to explore the scene interactively.
+
+**Advantages:**
+- Instant interactive 3D viewer in any browser
+- No rendering time — output is generated immediately
+- Self-contained single HTML file (or optional sidecar GLB)
+- Supports render passes: albedo, depth, normal
+
+**Requirements:**
+- `pygltflib` must be installed (`pip install pygltflib`)
+
+**Usage:**
+
+```py
+import hakowan as hkw
+
+layer = hkw.layer("mesh.obj")
+hkw.render(layer, filename="output.html", backend="webgl")
+```
+
 ## Backend Management
 
 ### List Available Backends
@@ -74,10 +98,10 @@ import hakowan as hkw
 
 backends = hkw.list_backends()
 print(f"Available backends: {backends}")
-# Output: Available backends: ['mitsuba', 'blender']
+# Output: Available backends: ['blender', 'mitsuba', 'webgl']
 ```
 
-Note that the Blender backend will only appear if `bpy` is installed.
+Note that the Blender backend requires `bpy` and the WebGL backend requires `pygltflib`.
 
 ### Set Default Backend
 
@@ -86,12 +110,12 @@ You can change the default backend for all subsequent render calls:
 ```py
 import hakowan as hkw
 
-# Set Blender as the default backend
-hkw.set_default_backend("blender")
+# Set WebGL as the default backend
+hkw.set_default_backend("webgl")
 
-# Now this will use Blender
+# Now this will use WebGL
 layer = hkw.layer("mesh.obj")
-hkw.render(layer, filename="output.png")
+hkw.render(layer, filename="output.html")
 
 # You can still override per render call
 hkw.render(layer, filename="output.exr", backend="mitsuba")
@@ -116,12 +140,32 @@ hkw.render(
 ### Blender Backend Options
 
 ```py
-# Save Blender scene file
+# Use EEVEE instead of Cycles (faster)
+hkw.render(
+    layer,
+    filename="output.png",
+    backend="blender",
+    engine="BLENDER_EEVEE"
+)
+
+# Save Blender scene file for further editing
 hkw.render(
     layer,
     filename="output.png",
     backend="blender",
     blend_file="scene.blend"
+)
+```
+
+### WebGL Backend Options
+
+```py
+# Write sidecar GLB file instead of embedding in HTML
+hkw.render(
+    layer,
+    filename="output.html",
+    backend="webgl",
+    embed=False       # writes output.glb alongside output.html
 )
 ```
 
@@ -133,17 +177,21 @@ hkw.render(
 - You're creating publication-quality visualizations
 
 **Use Blender when:**
-- You're already working in a Blender-based workflow
+- You want Cycles or EEVEE rendering with Blender materials
 - You want to further edit the scene in Blender
-- You need specific Blender features
+- You need render passes (albedo, depth, normal, facet ID)
+
+**Use WebGL when:**
+- You want an interactive, shareable viewer in a browser
+- You need fast turnaround with no render time
+- You're embedding visualizations in web pages or notebooks
 
 ## Troubleshooting
 
-If a backend is not available, you'll see an informational message when importing Hakowan:
+If a backend is not available, `hkw.list_backends()` will simply omit it. You can check
+which optional dependencies are missing:
 
 ```
-Blender backend not available (bpy not installed)
+pip install bpy        # enables the Blender backend
+pip install pygltflib  # enables the WebGL backend
 ```
-
-To use the Blender backend, you need to install Blender and ensure the `bpy` module is available
-in your Python environment.

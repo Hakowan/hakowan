@@ -5,8 +5,10 @@ of Graphics](https://link.springer.com/book/10.1007/0-387-28695-0). It is
 designed for creating compelling SIGGRAPH-quality 3D data visualizations with
 minimal setup. It provides a concise, high-level declarative API in python and
 is powered by project [Lagrange](https://opensource.adobe.com/lagrange-docs/)
-and [Mitsuba](https://mitsuba.readthedocs.io/en/stable/index.html) for data
-processing and rendering.
+for geometry processing and supports three rendering backends:
+[Mitsuba](https://mitsuba.readthedocs.io/en/stable/index.html) (default, photorealistic),
+[Blender](https://www.blender.org/) (Cycles/EEVEE), and
+[WebGL](https://threejs.org/) (interactive browser viewer).
 
 ## Installation
 

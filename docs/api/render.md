@@ -29,7 +29,7 @@ import hakowan as hkw
 
 backends = hkw.list_backends()
 print(backends)
-# Output: ['mitsuba', 'blender']
+# Output: ['blender', 'mitsuba', 'webgl']
 ```
 
 ::: hakowan.backends.list_backends

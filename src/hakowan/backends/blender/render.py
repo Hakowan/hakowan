@@ -52,15 +52,17 @@ def _ensure_nodes(datablock) -> None:
 class BlenderBackend(RenderBackend):
     """Blender rendering backend.
 
-    Currently supports:
-    - Surface marks (meshes)
-    - Curve marks (edges and vector fields)
+    Supports:
+    - Surface marks (meshes) and curve marks (edges and vector fields)
     - Materials: Diffuse, Plastic, RoughPlastic, Principled, ThinPrincipled,
       Conductor, RoughConductor, Dielectric, ThinDielectric, RoughDielectric, Hair
     - Two-sided materials
-    - Textures: ScalarField, Checkerboard
-    - Camera setup
-    - Basic lighting
+    - Textures: ScalarField, Checkerboard, Image
+    - Normal maps and bump maps
+    - Camera: Perspective (with fov_axis), Orthographic, ThinLens (DOF),
+      arbitrary up-vector
+    - Render passes: albedo, depth, normal, facet ID
+    - Lighting setup
     """
 
     def render(
