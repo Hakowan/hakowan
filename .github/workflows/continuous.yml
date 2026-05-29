@@ -13,13 +13,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0
         with:
-          python-version: '3.13'
+          cache: true
 
       - name: Test
-        run: pipx run tox
+        run: pixi run pytest
 
       - name: Build wheels
         run: pipx run build
