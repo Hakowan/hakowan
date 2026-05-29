@@ -1105,7 +1105,13 @@ class BlenderBackend(RenderBackend):
                 bsdf.inputs["Coat Weight"].default_value = 1
                 bsdf.inputs["Coat IOR"].default_value = 1.49
                 if isinstance(mat_data, RoughPlastic):
-                    bsdf.inputs["Coat Roughness"].default_value = 1
+                    # ``alpha`` is the microfacet roughness of the glossy coat.
+                    alpha = (
+                        mat_data.alpha
+                        if isinstance(mat_data.alpha, (int, float))
+                        else 0.1
+                    )
+                    bsdf.inputs["Coat Roughness"].default_value = float(alpha)
                 else:
                     bsdf.inputs["Coat Roughness"].default_value = 0
 
