@@ -1126,7 +1126,13 @@ class BlenderBackend(RenderBackend):
 
             case RoughDielectric():
                 bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
-                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
+                # ``specular_reflectance`` is a [0,1] reflectance multiplier where
+                # 1.0 means "unchanged" (Mitsuba convention). Blender's "Specular
+                # IOR Level" is neutral at 0.5 (1.0 ≈ double specular), so map
+                # multiplier → 0.5 * multiplier.
+                bsdf.inputs["Specular IOR Level"].default_value = (
+                    0.5 * mat_data.specular_reflectance
+                )
                 bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
                 alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
                 bsdf.inputs["Roughness"].default_value = float(alpha)
@@ -1134,7 +1140,11 @@ class BlenderBackend(RenderBackend):
 
             case Dielectric():
                 bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
-                bsdf.inputs["Specular IOR Level"].default_value = mat_data.specular_reflectance
+                # See RoughDielectric: remap [0,1] reflectance multiplier (1.0 =
+                # unchanged) onto Blender's 0.5-neutral "Specular IOR Level".
+                bsdf.inputs["Specular IOR Level"].default_value = (
+                    0.5 * mat_data.specular_reflectance
+                )
                 bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
                 bsdf.inputs["Roughness"].default_value = 0.0
                 bsdf.inputs["Metallic"].default_value = 0.0

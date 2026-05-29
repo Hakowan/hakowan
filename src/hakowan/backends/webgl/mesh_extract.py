@@ -169,17 +169,40 @@ def extract_surface_arrays(
                     f"'{normal_attr.element_type}', dropping normals."
                 )
 
+    # A per-facet colour field (baked from a facet-element ScalarField) has one
+    # value per facet, so it must be expanded to per-corner — which also forces
+    # the de-indexed output path even when the normals are per-vertex. Without
+    # this the facet-length colour array is indexed by vertex ids (IndexError)
+    # or handed to the builder with a vertex-count mismatch.
+    color_is_facet = (
+        color_name is not None
+        and not mesh.is_attribute_indexed(color_name)
+        and mesh.attribute(color_name).element_type
+        == lagrange.AttributeElement.Facet
+    )
+    if color_is_facet and per_corner_normals is None:
+        corner_idx = facets.reshape(-1)
+        per_corner_normals = (
+            normals[corner_idx]
+            if normals is not None
+            else np.zeros((corner_idx.shape[0], 3), dtype=np.float32)
+        )
+        normals = None
+
     if per_corner_normals is not None:
         # De-index every other vertex-element attribute (positions, colors,
         # UVs, custom shader attrs) to per-corner so they all line up with
         # the per-corner normal array.
         corner_idx = facets.reshape(-1)
         new_positions = positions[corner_idx]
-        colors = (
-            _read_color_attribute(mesh, color_name)[corner_idx]
-            if color_name is not None
-            else None
-        )
+        if color_name is None:
+            colors = None
+        elif color_is_facet:
+            # (num_facets, 4) → repeat for each of the 3 triangle corners; the
+            # mesh is triangulated above, so corners are laid out facet-major.
+            colors = np.repeat(_read_color_attribute(mesh, color_name), 3, axis=0)
+        else:
+            colors = _read_color_attribute(mesh, color_name)[corner_idx]
         uvs = (
             np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)[corner_idx]
             if uv_name is not None

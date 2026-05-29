@@ -86,14 +86,22 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     return obj
 
 
-def save_image(image: drjit.ArrayBase, filename: Path) -> None:
+def save_image(
+    image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True
+) -> None:
+    """Write an image to disk.
+
+    ``srgb_gamma`` controls whether the 8-bit conversion applies the sRGB
+    transfer function. Use ``True`` for radiance/colour output (beauty, albedo)
+    and ``False`` for data passes (e.g. packed normals) that must stay linear.
+    """
     if filename.suffix == ".exr":
         mi.util.write_bitmap(str(filename), image)  # type: ignore
     else:
         mi.Bitmap(image).convert(  # type: ignore
             pixel_format=mi.Bitmap.PixelFormat.RGBA,
             component_format=mi.Struct.Type.UInt8,
-            srgb_gamma=True,
+            srgb_gamma=srgb_gamma,
         ).write(str(filename), quality=-1)  # type: ignore
     logger.info(f"Rendering saved to {filename}")
 
@@ -205,7 +213,18 @@ class MitsubaBackend(RenderBackend):
                 )
             else:
                 o = normal_offset
-                normal_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]
+                # ``sh_normal`` holds signed components in [-1, 1]. Remap to
+                # [0, 1] (out = N * 0.5 + 0.5) so an 8-bit image keeps the
+                # negative half instead of clamping it to black — matching the
+                # Blender backend's normal pass.
+                alpha = np.array(image_layers[:, :, 3])
+                nx = np.array(image_layers[:, :, o])
+                ny = np.array(image_layers[:, :, o + 1])
+                nz = np.array(image_layers[:, :, o + 2])
+                normal = np.clip(np.stack([nx, ny, nz], axis=2) * 0.5 + 0.5, 0.0, 1.0)
+                normal_image = mi.TensorXf(
+                    np.concatenate([normal, alpha[:, :, None]], axis=2)
+                )
 
         if filename is not None:
             if isinstance(filename, str):
@@ -228,6 +247,7 @@ class MitsubaBackend(RenderBackend):
                 normal_filename = filename.with_name(
                     filename.stem + "_normal" + filename.suffix
                 )
-                save_image(normal_image, normal_filename)
+                # Packed normals are linear data, not colour — save without gamma.
+                save_image(normal_image, normal_filename, srgb_gamma=False)
 
         return image
