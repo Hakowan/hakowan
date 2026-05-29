@@ -7,7 +7,7 @@ from ..grammar.texture import (
     Checkerboard,
     Isocontour,
 )
-from ..common.colormap.named_colormaps import named_colormaps
+from ..common.colormap.named_colormaps import named_colormaps, get_colormap
 from ..common.to_color import to_color
 from ..common.colormap.colormap import ColorMap
 from typing import Callable
@@ -97,8 +97,14 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
         # Assuming attribute is already storing color data.
         attr_to_color(lambda x: to_color(x.tolist()))
     elif isinstance(tex.colormap, str):
-        assert tex.colormap in named_colormaps
-        colormap = named_colormaps[tex.colormap]
+        colormap = get_colormap(tex.colormap)
+        if colormap is None:
+            raise ValueError(
+                f"Unknown colormap '{tex.colormap}'. Expected a hakowan built-in "
+                f"({', '.join(sorted(named_colormaps))}), any colorcet palette "
+                "name (e.g. 'fire', 'rainbow', 'CET_L16'), 'identity', or a list "
+                "of colors."
+            )
         attr_to_color(colormap, tex.categories)
     elif isinstance(tex.colormap, list):
         colors = np.array([to_color(c).data for c in tex.colormap])
