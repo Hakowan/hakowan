@@ -387,7 +387,7 @@ packages:
 - pypi: ./
   name: hakowan
   version: 0.4.4
-  sha256: 43418c51d49f431b24626344f9e9939f96fbff481a6154a0e8e434e35e7618fa
+  sha256: de4442946eed33a631828dbd8c49024adff18948b7aac558b674d591b6316dbb
   requires_dist:
   - adobe-lagrange>=6.44
   - numpy>=1.22

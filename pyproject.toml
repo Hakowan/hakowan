@@ -36,11 +36,13 @@ platforms = ["osx-arm64", "linux-64"]
 [tool.pixi.pypi-dependencies]
 hakowan = { path = ".", editable = true }
 
-[tool.pixi.activation.env]
-# Mitsuba 3.8 / Dr.Jit 1.3 require a loadable libLLVM at render time even for the
-# scalar_rgb variant (mi.render initializes Dr.Jit's JIT thread state). Dr.Jit
-# dlopens the unversioned name "libLLVM.dylib", but libllvm18 only ships the
-# versioned "libLLVM-18.dylib", so point Dr.Jit at it explicitly.
+[tool.pixi.target.osx-arm64.activation.env]
+# macOS only: Mitsuba 3.8 / Dr.Jit 1.3 need a loadable libLLVM at render time even
+# for the scalar_rgb variant (mi.render initializes Dr.Jit's JIT thread state).
+# Dr.Jit dlopens the unversioned name "libLLVM.dylib", but the macOS libllvm18
+# package ships only the versioned "libLLVM-18.dylib", so point Dr.Jit at it
+# explicitly. On linux libllvm18 ships an unversioned "libLLVM.so" that Dr.Jit
+# finds on its own, so no override is needed (and a .dylib path would be wrong).
 DRJIT_LIBLLVM_PATH = "$CONDA_PREFIX/lib/libLLVM-18.dylib"
 
 [tool.pixi.environments]
