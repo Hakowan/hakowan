@@ -7,10 +7,15 @@ were previously missing/ignored.
 
 from __future__ import annotations
 
+import os
+import sys
 import tempfile
 
 import numpy as np
 import pytest
+
+if sys.platform == "win32" and os.environ.get("CI") == "true":
+    pytest.skip("bpy crashes on Windows CI runners", allow_module_level=True)
 
 bpy = pytest.importorskip("bpy")
 import lagrange
@@ -138,6 +143,7 @@ class TestImageTexture:
 
 
 class TestSmoke:
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="headless Blender render not supported in CI")
     def test_blender_render_produces_image(self, triangle, tmp_path):
         """End-to-end smoke: exercises the full bpy render path (EEVEE, 16×16)."""
         config = hkw.config()

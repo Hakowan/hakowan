@@ -6,6 +6,9 @@ geometric one, we can tell whether a backend actually transports the authored
 normal values or silently recomputes them from the geometry.
 """
 
+import os
+import sys
+
 import numpy as np
 import pytest
 import lagrange
@@ -122,6 +125,10 @@ class TestMitsubaNormal:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" and os.environ.get("CI") == "true",
+    reason="bpy crashes on Windows CI runners",
+)
 class TestBlenderNormal:
     @staticmethod
     def _loop_normals(mesh_in) -> np.ndarray:
