@@ -11,8 +11,13 @@ Coverage:
     approximation (loud warning that volumetrics are dropped).
   * Hair: gray-fallback with a warning.
 
-Textured roughness/metallic/alpha factors are not baked — they downgrade to
-the default scalar factor with a warning.
+Roughness/metallic factors accept floats and ``ScalarField`` textures: the
+latter are baked per-vertex and multiplied into the factor by the viewer's
+shader patch (see ``templates/viewer.html``). This covers Principled
+roughness/metallic and the ``alpha`` of RoughConductor / RoughDielectric. Other
+texture types (Image/Checkerboard) downgrade to the default scalar factor with
+a warning. RoughPlastic.alpha is float-only (matching the grammar and the other
+backends).
 """
 
 from __future__ import annotations
@@ -343,6 +348,65 @@ def _apply_isocontour(
     pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
 
 
+def _bake_scalar_pbr_factor(
+    kind: str,
+    texture: Any,
+    pbr: dict[str, Any],
+    extras: dict[str, Any],
+    custom_attrs: dict[str, np.ndarray],
+    view: View,
+) -> bool:
+    """Bake a ``ScalarField`` roughness/metallic factor into a per-vertex attribute.
+
+    The bundled viewer's ``onBeforeCompile`` patch multiplies ``roughnessFactor``
+    / ``metalnessFactor`` by the per-vertex attribute (see ``templates/viewer.html``),
+    so this path works for any glTF metallic-roughness material — not just
+    Principled. ``kind`` is ``"roughness"`` or ``"metallic"``.
+
+    Returns ``True`` if the field was baked, ``False`` otherwise (caller should
+    then fall back to a constant factor).
+    """
+    if not isinstance(texture, ScalarField):
+        return False
+    arr = _read_scalar_attribute(view, texture)
+    if arr is None:
+        return False
+    attr_name = "_ROUGHNESS_0" if kind == "roughness" else "_METALLIC_0"
+    factor_key = "roughnessFactor" if kind == "roughness" else "metallicFactor"
+    meta_key = "roughness_attr" if kind == "roughness" else "metallic_attr"
+    custom_attrs[attr_name] = arr
+    extras.setdefault("principled_attrs", {})[meta_key] = attr_name
+    pbr[factor_key] = 1.0  # shader multiplies factor × attr
+    return True
+
+
+def _resolve_roughness_factor(
+    alpha: Any,
+    default: float,
+    label: str,
+    pbr: dict[str, Any],
+    extras: dict[str, Any],
+    custom_attrs: dict[str, np.ndarray],
+    view: View,
+) -> None:
+    """Set ``pbr['roughnessFactor']`` from a float or ``ScalarField`` alpha value.
+
+    Floats map directly; ``ScalarField`` is baked per-vertex (see
+    :func:`_bake_scalar_pbr_factor`). Other texture types are not expressible as
+    a glTF scalar factor, so they downgrade to ``default`` with a warning.
+    """
+    if isinstance(alpha, (float, int)):
+        pbr["roughnessFactor"] = float(alpha)
+        return
+    if _bake_scalar_pbr_factor("roughness", alpha, pbr, extras, custom_attrs, view):
+        return
+    pbr["roughnessFactor"] = default
+    logger.warning(
+        f"WebGL backend: textured {label} type {type(alpha).__name__} not "
+        f"supported (only float and ScalarField); using fallback {default}."
+    )
+
+
 def _apply_textured_pbr_factor(
     pbr: dict[str, Any],
     extras: dict[str, Any],
@@ -351,22 +415,8 @@ def _apply_textured_pbr_factor(
     mat: Principled,
 ) -> None:
     """Bake ScalarField roughness/metallic into custom attributes."""
-    if isinstance(mat.roughness, ScalarField):
-        arr = _read_scalar_attribute(view, mat.roughness)
-        if arr is not None:
-            custom_attrs["_ROUGHNESS_0"] = arr
-            extras.setdefault("principled_attrs", {})["roughness_attr"] = (
-                "_ROUGHNESS_0"
-            )
-            pbr["roughnessFactor"] = 1.0  # shader multiplies factor × attr
-    if isinstance(mat.metallic, ScalarField):
-        arr = _read_scalar_attribute(view, mat.metallic)
-        if arr is not None:
-            custom_attrs["_METALLIC_0"] = arr
-            extras.setdefault("principled_attrs", {})["metallic_attr"] = (
-                "_METALLIC_0"
-            )
-            pbr["metallicFactor"] = 1.0
+    _bake_scalar_pbr_factor("roughness", mat.roughness, pbr, extras, custom_attrs, view)
+    _bake_scalar_pbr_factor("metallic", mat.metallic, pbr, extras, custom_attrs, view)
 
 
 def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
@@ -398,16 +448,6 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "built-in LUT; falling back to neutral gray metal."
             )
             albedo = (0.7, 0.7, 0.7)
-        roughness = 0.1
-        if isinstance(mat, RoughConductor):
-            if isinstance(mat.alpha, (float, int)):
-                roughness = float(mat.alpha)
-            else:
-                logger.warning(
-                    "WebGL backend: textured RoughConductor.alpha not yet "
-                    "supported; using fallback 0.2."
-                )
-                roughness = 0.2
         pbr = {
             "baseColorFactor": [
                 _srgb_to_linear(albedo[0]),
@@ -416,26 +456,25 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 1.0,
             ],
             "metallicFactor": 1.0,
-            "roughnessFactor": roughness,
+            "roughnessFactor": 0.1,
         }
+        if isinstance(mat, RoughConductor):
+            _resolve_roughness_factor(
+                mat.alpha, 0.2, "RoughConductor.alpha",
+                pbr, extras, custom_attrs, view,
+            )
         _apply_normal_map(pbr, builder, view.normal_map)
-        return MaterialResult(pbr=pbr, double_sided=double_sided)
+        return MaterialResult(
+            pbr=pbr,
+            double_sided=double_sided,
+            custom_attrs=custom_attrs,
+            extras={"hakowan": extras} if extras else None,
+        )
 
     if isinstance(mat, Dielectric):
         # Translate to glTF KHR_materials_transmission + _ior (+ _volume when
         # a medium is attached). three.js's GLTFLoader maps these onto
         # MeshPhysicalMaterial → real refraction + Beer-Lambert volume tint.
-        roughness = 0.0
-        if isinstance(mat, RoughDielectric):
-            if isinstance(mat.alpha, (float, int)):
-                roughness = float(mat.alpha)
-            else:
-                logger.warning(
-                    "WebGL backend: textured RoughDielectric.alpha not "
-                    "supported; using fallback 0.1."
-                )
-                roughness = 0.1
-
         int_ior = _resolve_ior(mat.int_ior, 1.5046)
         ext_ior = _resolve_ior(mat.ext_ior, 1.0)
         # glTF stores the relative IOR (assumes air-side); three.js does the
@@ -445,10 +484,15 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         pbr: dict[str, Any] = {
             "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
             "metallicFactor": 0.0,
-            "roughnessFactor": roughness,
+            "roughnessFactor": 0.0,
             "transmissionFactor": float(mat.specular_transmittance),
             "ior": relative_ior,
         }
+        if isinstance(mat, RoughDielectric):
+            _resolve_roughness_factor(
+                mat.alpha, 0.1, "RoughDielectric.alpha",
+                pbr, extras, custom_attrs, view,
+            )
 
         if isinstance(mat, ThinDielectric):
             # Thin slab: no refraction offset, no volume absorption.
@@ -496,7 +540,12 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
 
         _apply_normal_map(pbr, builder, view.normal_map)
-        return MaterialResult(pbr=pbr, double_sided=double_sided)
+        return MaterialResult(
+            pbr=pbr,
+            double_sided=double_sided,
+            custom_attrs=custom_attrs,
+            extras={"hakowan": extras} if extras else None,
+        )
 
     if isinstance(mat, Hair):
         logger.warning(
@@ -555,13 +604,15 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
         _apply_textured_pbr_factor(pbr, extras, custom_attrs, view, mat)
     elif isinstance(mat, RoughPlastic):
+        # RoughPlastic.alpha is float-only across all backends (grammar types it
+        # as float; Mitsuba/Blender don't bake a texture for it either).
         pbr["metallicFactor"] = 0.0
         if isinstance(mat.alpha, (float, int)):
             pbr["roughnessFactor"] = float(mat.alpha)
         else:
             pbr["roughnessFactor"] = 0.3
             logger.warning(
-                "WebGL backend: textured RoughPlastic.alpha not yet supported; "
+                "WebGL backend: textured RoughPlastic.alpha not supported; "
                 "using fallback 0.3."
             )
     elif isinstance(mat, Plastic):

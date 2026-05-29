@@ -183,6 +183,44 @@ def _rotation_matrix_z_to(target: np.ndarray) -> np.ndarray:
     return R.astype(np.float32)
 
 
+def _covariance_matrices(view: View, n: int) -> np.ndarray | None:
+    """Per-point 3x3 stretch/rotation matrices from the covariance channel.
+
+    Mirrors the Mitsuba backend (``mitsuba/shape.py:extract_transform_from_covariances``):
+    when ``full`` the attribute stores the covariance matrix Σ and we return
+    ``M = U·√S`` (so that ``Σ = M·Mᵀ``) via SVD; otherwise the attribute already
+    stores ``M`` directly. Returns ``None`` when no covariance channel is set or
+    the attribute can't be resolved.
+    """
+    cov = view.covariance_channel
+    if cov is None:
+        return None
+    assert isinstance(cov.data, Attribute)
+    name = cov.data._internal_name
+    assert name is not None
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+    if name is None or not mesh.has_attribute(name):
+        logger.warning(
+            f"WebGL backend: covariance attribute '{name}' missing; ignoring."
+        )
+        return None
+    data = np.asarray(mesh.attribute(name).data, dtype=np.float64)
+    if data.ndim != 2 or data.shape[1] != 9 or data.shape[0] != n:
+        logger.warning(
+            f"WebGL backend: covariance attribute shape {data.shape} is not "
+            f"({n}, 9); ignoring covariance."
+        )
+        return None
+    sigma = data.reshape(-1, 3, 3)
+    if cov.full:
+        U, S, _Vh = np.linalg.svd(sigma)
+        # M = U · diag(√S); Σ = M·Mᵀ.
+        M = U @ (np.sqrt(S)[:, :, None] * np.eye(3)[None, :, :])
+        return M.astype(np.float32)
+    return sigma.astype(np.float32)
+
+
 def _orientation_matrices(view: View, n: int) -> np.ndarray | None:
     """Per-point 3x3 orientation matrices, or ``None`` if no rotation is set."""
     sc = view.shape_channel
@@ -270,15 +308,28 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
         logger.warning("WebGL backend: point view has 0 vertices; skipping.")
         return -1
 
-    sizes = _extract_sizes(view, n_points)
-    rotations = _orientation_matrices(view, n_points)
+    # Covariance encodes a full per-point stretch+rotation, so when present it
+    # supersedes the orientation channel (matching the Mitsuba backend) and the
+    # size acts as an extra uniform scale (default 1.0 instead of 0.01).
+    covariances = _covariance_matrices(view, n_points)
+    sizes = _extract_sizes(
+        view, n_points, default_size=1.0 if covariances is not None else 0.01
+    )
+    if covariances is not None:
+        linear = covariances * sizes[:, None, None]  # (N, 3, 3)
+    else:
+        rotations = _orientation_matrices(view, n_points)
+        linear = (
+            rotations * sizes[:, None, None] if rotations is not None else None
+        )
 
     base_positions, base_normals, base_tris = _BASE_SHAPE_BUILDERS[base_shape]()
     n_base_verts = base_positions.shape[0]
     n_base_tris = base_tris.shape[0]
 
-    # Expand: per-point scale + (optional) rotation + translate.
-    if rotations is None:
+    # Expand: per-point linear transform + translate.
+    if linear is None:
+        # Uniform scale only — the fast path.
         pos = (
             base_positions[None, :, :] * sizes[:, None, None]
             + centers[:, None, :]
@@ -287,17 +338,20 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
             base_normals[None, :, :], (n_points, n_base_verts, 3)
         ).reshape(-1, 3).astype(np.float32)
     else:
-        # Apply per-point rotation matrix R: out = (R @ (s * base)) + center.
-        scaled = base_positions[None, :, :] * sizes[:, None, None]  # (N, K, 3)
-        # einsum: R (N,3,3) × scaled (N,K,3) → (N,K,3)
-        rotated = np.einsum("nij,nkj->nki", rotations, scaled)
-        pos = (rotated + centers[:, None, :]).reshape(-1, 3).astype(np.float32)
-        rotated_normals = np.einsum(
-            "nij,kj->nki",
-            rotations,
-            base_normals,
+        # out = (L @ base) + center, with L (N,3,3) the per-point linear map.
+        transformed = np.einsum("nij,kj->nki", linear, base_positions)
+        pos = (transformed + centers[:, None, :]).reshape(-1, 3).astype(np.float32)
+        # Normals transform by the inverse-transpose of L (then renormalize),
+        # which is required for non-uniform/anisotropic covariance stretches and
+        # reduces to the rotation itself for pure orientation matrices.
+        normal_mats = np.transpose(np.linalg.pinv(linear), (0, 2, 1))
+        transformed_normals = np.einsum("nij,kj->nki", normal_mats, base_normals)
+        lengths = np.linalg.norm(transformed_normals, axis=2, keepdims=True)
+        nor = (
+            (transformed_normals / np.maximum(lengths, 1e-12))
+            .reshape(-1, 3)
+            .astype(np.float32)
         )
-        nor = rotated_normals.reshape(-1, 3).astype(np.float32)
 
     offsets = (np.arange(n_points, dtype=np.uint32) * n_base_verts)[:, None, None]
     idx = (base_tris[None, :, :] + offsets).reshape(-1).astype(np.uint32)

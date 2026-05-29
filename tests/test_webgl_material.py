@@ -124,6 +124,24 @@ class TestConductor:
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(0.35)
 
+    def test_rough_conductor_scalarfield_alpha_bakes_per_vertex(self):
+        view = _triangle_view(
+            hkw.material.RoughConductor(
+                material="Cu",
+                alpha=hkw.texture.ScalarField(data=hkw.attribute(name="scalar")),
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        # ScalarField alpha is baked per-vertex; the viewer multiplies it into
+        # roughnessFactor (which is set to 1.0 so the multiply is exact).
+        assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
+        assert "_ROUGHNESS_0" in result.custom_attrs
+        assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
+        assert (
+            result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
+            == "_ROUGHNESS_0"
+        )
+
 
 class TestPlastic:
     def test_plastic_low_roughness(self):
@@ -206,6 +224,21 @@ class TestDielectric:
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(0.4)
         assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
+
+    def test_rough_dielectric_scalarfield_alpha_bakes_per_vertex(self):
+        view = _triangle_view(
+            hkw.material.RoughDielectric(
+                alpha=hkw.texture.ScalarField(data=hkw.attribute(name="scalar"))
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
+        assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
+        assert "_ROUGHNESS_0" in result.custom_attrs
+        assert (
+            result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
+            == "_ROUGHNESS_0"
+        )
 
     def test_dielectric_with_medium_emits_volume(self):
         view = _triangle_view(
