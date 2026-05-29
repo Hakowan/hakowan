@@ -74,6 +74,10 @@ def _multiset(arr: np.ndarray) -> list:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" and os.environ.get("CI") == "true",
+    reason="mitsuba/Dr.Jit causes process crash on Windows CI during Python shutdown",
+)
 class TestMitsubaNormal:
     @staticmethod
     def _vertex_normals(mesh_in) -> np.ndarray:

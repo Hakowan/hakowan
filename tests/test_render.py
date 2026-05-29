@@ -3,10 +3,17 @@ import sys
 
 import pytest
 import pathlib
-import hakowan as hkw
-from hakowan.backends.mitsuba.render import generate_scene_config
 import lagrange
 import numpy as np
+import hakowan as hkw
+
+if sys.platform == "win32" and os.environ.get("CI") == "true":
+    pytest.skip(
+        "mitsuba/Dr.Jit causes process crash on Windows CI during Python shutdown",
+        allow_module_level=True,
+    )
+
+from hakowan.backends.mitsuba.render import generate_scene_config
 
 
 class TestRender:
@@ -22,10 +29,6 @@ class TestRender:
             assert shape["type"] == "ply"
             assert pathlib.Path(shape["filename"]).exists()
 
-    @pytest.mark.skipif(
-        sys.platform == "win32" and os.environ.get("CI") == "true",
-        reason="Dr.Jit LLVM thread pool crashes on shutdown on Windows CI",
-    )
     def test_mitsuba_render_produces_image(self, triangle, tmp_path):
         """End-to-end smoke test that actually invokes ``mi.render``.
 

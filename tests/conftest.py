@@ -1,15 +1,22 @@
+import os
+import sys
+
 # Import Mitsuba (loading Dr.Jit's libLLVM) before any test module can import
 # ``bpy``. Blender bundles its own LLVM, and loading it *before* Dr.Jit's
 # libLLVM segfaults the process; importing Mitsuba first pins the safe ordering
 # for the whole test session. (Real usage is already safe: ``import hakowan``
 # loads Mitsuba before the Blender backend.)
-try:
-    import mitsuba as _mitsuba
+# Skip on Windows CI: bpy is not used there, so the ordering guarantee is not
+# needed, and Dr.Jit's nanobind finalizer crashes on Windows during Python
+# interpreter shutdown (known upstream issue).
+if not (sys.platform == "win32" and os.environ.get("CI") == "true"):
+    try:
+        import mitsuba as _mitsuba
 
-    if _mitsuba.variant() is None:
-        _mitsuba.set_variant("scalar_rgb")
-except Exception:  # pragma: no cover - mitsuba optional
-    pass
+        if _mitsuba.variant() is None:
+            _mitsuba.set_variant("scalar_rgb")
+    except Exception:  # pragma: no cover - mitsuba optional
+        pass
 
 import pytest
 import lagrange
