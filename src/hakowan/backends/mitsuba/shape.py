@@ -506,15 +506,25 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
         assert name is not None
         assert view.data_frame.mesh.has_attribute(name)
 
-    # Mitsuba's ply plugin offer limited support normmal attributes.
+    # Normal handling for Mitsuba's ply plugin. The ply format only stores
+    # per-vertex normals as the `nx, ny, nz` properties, and Mitsuba reads them
+    # back when `face_normals=False`. To preserve custom normals exactly for any
+    # element type, we convert the normal attribute to an indexed attribute and
+    # unify the index buffer: this duplicates vertices across creases so the
+    # resulting per-vertex normals reproduce the original facet / corner / vertex
+    # normals (flat shading included) without losing any values.
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    use_facet_normal = False
     if len(normal_ids) > 0:
-        normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
-        use_facet_normal = normal_attr.element_type == lagrange.AttributeElement.Facet
-        for normal_id in normal_ids:
+        keep_name = mesh.get_attribute_name(normal_ids[0])
+        # Drop any extra normal attributes to avoid ambiguous ply output.
+        for normal_id in normal_ids[1:]:
             mesh.delete_attribute(normal_id)
-    else:
-        use_facet_normal = False
+        if not mesh.is_attribute_indexed(keep_name):
+            lagrange.map_attribute_in_place(
+                mesh, keep_name, lagrange.AttributeElement.Indexed
+            )
+        mesh = lagrange.unify_index_buffer(mesh, [keep_name])
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"

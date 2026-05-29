@@ -1,9 +1,19 @@
+import os
+import sys
+
 import pytest
 import pathlib
-import hakowan as hkw
-from hakowan.backends.mitsuba.render import generate_scene_config
 import lagrange
 import numpy as np
+import hakowan as hkw
+
+if sys.platform == "win32" and os.environ.get("CI") == "true":
+    pytest.skip(
+        "mitsuba/Dr.Jit causes process crash on Windows CI during Python shutdown",
+        allow_module_level=True,
+    )
+
+from hakowan.backends.mitsuba.render import generate_scene_config
 
 
 class TestRender:
@@ -18,6 +28,23 @@ class TestRender:
         for shape_id, shape in scene_config.items():
             assert shape["type"] == "ply"
             assert pathlib.Path(shape["filename"]).exists()
+
+    def test_mitsuba_render_produces_image(self, triangle, tmp_path):
+        """End-to-end smoke test that actually invokes ``mi.render``.
+
+        This exercises Dr.Jit's render path (which dlopens libLLVM even for the
+        scalar variant in Mitsuba 3.8); the config-only tests above never call
+        ``mi.render`` and so would not catch a broken LLVM backend.
+        """
+        config = hkw.config()
+        config.film.width = 16
+        config.film.height = 16
+        base = hkw.layer().data(triangle).mark(hkw.mark.Surface)
+        out = tmp_path / "smoke.png"
+        image = hkw.render(base, config, filename=out, backend="mitsuba")
+        assert image is not None
+        assert tuple(image.shape[:2]) == (16, 16)
+        assert out.exists() and out.stat().st_size > 0
 
     def test_point_cloud(self, triangle):
         mesh = triangle

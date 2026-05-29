@@ -90,7 +90,11 @@ class ScalarField(Texture):
 
     Attributes:
         data (AttributeLike): The attribute to convert to a color field.
-        colormap (str | list[ColorLike]): The name of the colormap to use or a list colors.
+        colormap (str | list[ColorLike]): The colormap to use. Accepts a hakowan
+            built-in name (e.g. ``"viridis"``, ``"turbo"``, ``"set1"``), any
+            `colorcet <https://colorcet.holoviz.org>`_ palette name (e.g.
+            ``"fire"``, ``"rainbow"``, ``"CET_L16"``, ``"glasbey"``), the special
+            ``"identity"`` pass-through, or an explicit list of colors.
         domain (tuple[float, float]): The domain of the attribute to map to the colormap.
         range (tuple[float, float]): The range of the colormap to map the attribute to.
         categories (bool): Whether the attribute represents categorical data (i.e. discrete values).

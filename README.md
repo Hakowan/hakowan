@@ -1,12 +1,16 @@
 # Hakowan
+
+![Hakowan teaser](docs/images/teaser.webp)
+
 Hakowan is a 3D data visualization grammar. It is inspired by the grammar of graphics, and it is
 designed for easily creating beautiful 3D visualizations.
 
 ## Install
 
-Hakowan relies on [Lagrange](https://opensource.adobe.com/lagrange-docs/) and
-[Mitsuba](https://www.mitsuba-renderer.org/) to provide geometry processing and rendering
-capabilities. Both Hakowan and its dependencies can be simply installed via pip:
+Hakowan relies on [Lagrange](https://opensource.adobe.com/lagrange-docs/) for geometry processing
+and supports three rendering backends: [Mitsuba](https://www.mitsuba-renderer.org/) (default,
+photorealistic), [Blender](https://www.blender.org/) (Cycles/EEVEE), and WebGL (interactive
+browser viewer). Hakowan and its core dependencies can be installed via pip:
 
 ```sh
 pip install hakowan
@@ -30,8 +34,8 @@ hkw.render(base, filename="image.exr")  # Render!
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.4.2},
-    year = 2024,
+    version = {0.5.0},
+    year = 2026,
 }
 ```
 

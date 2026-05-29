@@ -11,12 +11,14 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
 dependencies=[
     "adobe-lagrange>=6.44",
-    "numpy>=1.22",
+    "numpy>=2.0",
     "Pillow>=11.0",
     "PyYAML>=6.0",
-    "mitsuba~=3.7",
-    "bpy>=5.0.1,<6; python_version == '3.11'",
+    "mitsuba~=3.8",
+    "bpy>=5.1,<6; python_version == '3.13'",
     "tqdm>=4.66",
+    "colorcet>=3.2.1,<4",
+    "pygltflib>=1.16.5,<2",
 ]
 requires-python = ">=3.11"
 
@@ -29,15 +31,24 @@ docs = [
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
 hakowan = { path = ".", editable = true }
+
+[tool.pixi.target.osx-arm64.activation.env]
+# macOS only: Mitsuba 3.8 / Dr.Jit 1.3 need a loadable libLLVM at render time even
+# for the scalar_rgb variant (mi.render initializes Dr.Jit's JIT thread state).
+# Dr.Jit dlopens the unversioned name "libLLVM.dylib", but the macOS libllvm18
+# package ships only the versioned "libLLVM-18.dylib", so point Dr.Jit at it
+# explicitly. On linux libllvm18 ships an unversioned "libLLVM.so" that Dr.Jit
+# finds on its own, so no override is needed (and a .dylib path would be wrong).
+DRJIT_LIBLLVM_PATH = "$CONDA_PREFIX/lib/libLLVM-18.dylib"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
 
 [tool.pixi.dependencies]
-python = "==3.11"
-dicttoxml = ">=1.7.16,<2"
-colorcet = ">=3.2.1,<4"
+python = "==3.13"
+pytest = ">=9.0.3,<10"
+libllvm18 = ">=18.1.8,<19"

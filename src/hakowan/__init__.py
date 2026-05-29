@@ -1,6 +1,6 @@
 """Hakowan: A 3D data visualization grammar"""
 
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 
 from .common import logger
 from .setup import Config as config
@@ -11,24 +11,43 @@ from .grammar.channel import material
 from .compiler import compile
 from .render import render, set_default_backend, list_backends
 
-# Register backends
-from .backends import register_backend
+# Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
+# bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
+# probed without importing, so a backend whose dependency is missing simply
+# doesn't appear in ``list_backends()``.
+from .backends import register_backend_loader
 
-# Try to register Mitsuba backend
-try:
+
+def _load_mitsuba_backend():
+    import sys
+
+    if "bpy" in sys.modules and "mitsuba" not in sys.modules:
+        raise RuntimeError(
+            "Cannot load the Mitsuba backend: 'bpy' (Blender) is already imported "
+            "and Mitsuba has not been loaded yet. Blender's bundled LLVM conflicts "
+            "with Dr.Jit/Mitsuba when loaded first. Use the Mitsuba backend before "
+            "the Blender backend in the same process."
+        )
     from .backends.mitsuba import MitsubaBackend
 
-    register_backend("mitsuba", MitsubaBackend)
-except ImportError as e:
-    logger.info(f"Mitsuba backend not available: {e}")
+    return MitsubaBackend
 
-# Try to register Blender backend
-try:
+
+def _load_blender_backend():
     from .backends.blender import BlenderBackend
 
-    register_backend("blender", BlenderBackend)
-except ImportError:
-    logger.info("Blender backend not available (bpy not installed)")
+    return BlenderBackend
+
+
+def _load_webgl_backend():
+    from .backends.webgl import WebGLBackend
+
+    return WebGLBackend
+
+
+register_backend_loader("mitsuba", _load_mitsuba_backend, requires="mitsuba")
+register_backend_loader("blender", _load_blender_backend, requires="bpy")
+register_backend_loader("webgl", _load_webgl_backend, requires="pygltflib")
 
 __all__ = [
     "logger",

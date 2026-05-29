@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 import uuid
 import tempfile
+import webbrowser
 from tqdm import tqdm
 
 
@@ -166,6 +167,11 @@ def parse_args():
     )
     parser.add_argument("--uv-scale", help="UV scale factor", type=float, default=1.0)
     parser.add_argument(
+        "--categorical",
+        help="Treat scalar attribute field as categorical (uses discrete colormap).",
+        action="store_true",
+    )
+    parser.add_argument(
         "--saturation",
         help="Texture image saturation (1.0=full color, 0.0=grayscale, must be non-negative). Only applies when --material is a texture image.",
         type=_saturation_arg,
@@ -190,6 +196,11 @@ def parse_args():
         help="Logging level",
     )
     parser.add_argument("--serialize", help="Serialize the config", action="store_true")
+    parser.add_argument(
+        "--no-open",
+        help="Do not auto-open the output file in a browser (webgl backend only).",
+        action="store_true",
+    )
     parser.add_argument(
         "--camera-matrix",
         help=(
@@ -269,7 +280,7 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
                 tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data, "RGBA")
+                im = Image.fromarray(tex_img.image.data).convert("RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
@@ -294,7 +305,7 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 diffuse_file = diffuse_img.uri
                 if diffuse_file is None:
                     diffuse_file = get_tmp_image_name()
-                im = Image.fromarray(diffuse_img.image.data, "RGBA")
+                im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
                     color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
@@ -315,19 +326,22 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
     return mats
 
 
-def embed_texture(glb_file, saturation: float = 1.0, whiteness: float = 0.0):
+def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
     """
-    Loads a GLB file, extracts its materials and textures, and constructs a composite layer representation.
+    Loads a scene file, extracts its materials and textures, and constructs a composite layer representation.
+
+    Supports any format accepted by ``lagrange.io.load_scene`` that carries
+    material/texture data (e.g. GLB, GLTF, OBJ+MTL).
 
     Parameters:
-        glb_file (str or Path): Path to the GLB file to load.
+        scene_file (str or Path): Path to the scene file to load.
         saturation (float): Saturation multiplier applied to all image textures.
         whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
         hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
     """
-    scene = lagrange.io.load_scene(glb_file, stitch_vertices=True)
+    scene = lagrange.io.load_scene(scene_file, stitch_vertices=True)
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
@@ -493,9 +507,6 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
-            assert Path(args.input_mesh).suffix in [".glb", ".gltf"], (
-                f"Texture material requires .glb or .gltf file, got {Path(args.input_mesh).suffix}"
-            )
             layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
@@ -565,7 +576,11 @@ def main():
             layer = surface
         case _:
             if mesh.has_attribute(args.material):
-                scalar_texture = hkw.texture.ScalarField(args.material)
+                scalar_texture = hkw.texture.ScalarField(
+                    args.material,
+                    categories=args.categorical,
+                    colormap="set1" if args.categorical else "viridis",
+                )
 
                 if args.isoline:
                     solid_color = hkw.texture.Uniform(0)
@@ -778,7 +793,8 @@ def main():
     if args.output:
         output_file = Path(args.output)
     else:
-        output_file = Path(args.input_mesh).with_suffix(".png")
+        default_suffix = ".html" if args.backend == "webgl" else ".png"
+        output_file = Path(args.input_mesh).with_suffix(default_suffix)
 
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
@@ -790,13 +806,21 @@ def main():
             kwargs["yaml_file"] = output_file.with_suffix(".yaml")
             if args.backend == "blender":
                 kwargs["blend_file"] = output_file.with_suffix(".blend")
-        hkw.render(
+        result = hkw.render(
             layer,
             config,
             filename=output_file,
             backend=args.backend,
             **kwargs,
         )
+        if args.backend == "webgl" and not args.no_open:
+            # The webgl backend always lands at <stem>.html (even when the
+            # user passed a .png filename, render() rewrites the suffix).
+            # Trust the backend's returned path when available.
+            opened_path = Path(result) if isinstance(result, (str, Path)) else (
+                output_file.with_suffix(".html")
+            )
+            webbrowser.open(opened_path.resolve().as_uri())
     else:
         if args.z_up:
             axis = np.array([0, 0, 1], dtype=float)

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{TITLE}}</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: rgb({{BG_R_255}}, {{BG_G_255}}, {{BG_B_255}}); overflow: hidden; }
+  #viewer { width: 100vw; height: 100vh; display: block; }
+  #status {
+    position: absolute; top: 8px; left: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #ccc;
+    background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px;
+    pointer-events: none;
+  }
+  #status.hidden { display: none; }
+  #passes {
+    position: absolute; top: 8px; right: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #eee;
+    background: rgba(0,0,0,0.45); padding: 4px; border-radius: 4px;
+    display: none;
+  }
+  #passes.visible { display: flex; gap: 4px; }
+  #passes button {
+    background: rgba(255,255,255,0.08); color: #eee; border: 0;
+    padding: 4px 8px; border-radius: 3px; font: inherit; cursor: pointer;
+  }
+  #passes button:hover { background: rgba(255,255,255,0.18); }
+  #passes button.active { background: rgba(255,255,255,0.28); }
+  #passes .sep { width: 1px; background: rgba(255,255,255,0.18); margin: 0 2px; }
+</style>
+</head>
+<body>
+<canvas id="viewer"></canvas>
+<div id="status">loading…</div>
+<div id="passes"></div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@{{THREE_VERSION}}/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@{{THREE_VERSION}}/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const GLB_DATA_URI = "{{GLB_DATA_URI}}";
+const INITIAL_EYE    = {{INITIAL_EYE}};
+const INITIAL_TARGET = {{INITIAL_TARGET}};
+const INITIAL_UP     = {{INITIAL_UP}};
+const BG_COLOR = [{{BG_R}}, {{BG_G}}, {{BG_B}}];
+const ENVMAP = {{ENVMAP_JSON}};
+const RENDER_PASSES = ["albedo", "depth", "normal"];
+
+const canvas = document.getElementById('viewer');
+const status = document.getElementById('status');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+
+let camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
+camera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
+camera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+controls.enableDamping = true;
+controls.update();
+
+// Default 3-point lighting. The envmap (when supplied) provides reflections /
+// PBR irradiance on top of these — keeping them on means we still see the
+// scene even if the envmap fails to load.
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
+keyLight.position.set(2, 3, 4);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+fillLight.position.set(-3, 1, 2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+rimLight.position.set(0, -2, -3);
+scene.add(rimLight);
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+scene.add(ambient);
+
+function resize() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+}
+window.addEventListener('resize', resize);
+
+async function loadEnvmap() {
+  if (!ENVMAP) return;
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+
+    let loader;
+    if (ENVMAP.format === 'exr') {
+      const mod = await import('three/addons/loaders/EXRLoader.js');
+      loader = new mod.EXRLoader();
+    } else {
+      const mod = await import('three/addons/loaders/RGBELoader.js');
+      loader = new mod.RGBELoader();
+    }
+    // EXR/RGBELoader extend DataTextureLoader: load() wraps parse() output
+    // into a real DataTexture. We pass the data URI directly.
+    const tex = await new Promise((resolve, reject) => {
+      loader.load(ENVMAP.uri, resolve, undefined, reject);
+    });
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    const envTexture = pmrem.fromEquirectangular(tex).texture;
+    scene.environment = envTexture;
+    if ('environmentIntensity' in scene) {
+      scene.environmentIntensity = ENVMAP.scale;
+    }
+    // Apply Mitsuba's `to_world = align_y_to(up) @ rotate_y(rotation_deg)`
+    // matrix to the environment. Requires three.js >= r163.
+    //
+    // three.js samples the env at `envMapRotation * worldDir`, where the uniform
+    // is `makeRotationFromEuler(-scene.environmentRotation)` (each Euler
+    // component is negated to "accommodate left-handed frame"). For env rotated
+    // by M in world, sampling needs M^T * worldDir; so we feed M^T into the
+    // Euler and pre-negate to cancel three.js's flip.
+    if ('environmentRotation' in scene) {
+      const M = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+      const m4 = new THREE.Matrix4();
+      m4.set(
+        M[0], M[1], M[2], 0,
+        M[3], M[4], M[5], 0,
+        M[6], M[7], M[8], 0,
+        0,    0,    0,    1,
+      );
+      m4.transpose();
+      const euler = new THREE.Euler().setFromRotationMatrix(m4);
+      euler.x *= -1; euler.y *= -1; euler.z *= -1;
+      scene.environmentRotation = euler;
+      if (ENVMAP.background) {
+        scene.background = envTexture;
+        envBackground = envTexture;
+        if ('backgroundRotation' in scene) {
+          scene.backgroundRotation = euler;
+        }
+      }
+    } else if (ENVMAP.background) {
+      scene.background = envTexture;
+      envBackground = envTexture;
+    }
+    tex.dispose();
+    pmrem.dispose();
+  } catch (err) {
+    console.warn('envmap load failed, falling back to lights:', err);
+  }
+}
+
+function applyHakowanShaderPatches(root) {
+  // Walk the loaded glTF tree, find materials with userData.hakowan, and
+  // patch their shader compile step. The glTF "extras" object lands on
+  // material.userData when read by GLTFLoader.
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const meta = obj.material.userData && obj.material.userData.hakowan;
+    if (!meta) return;
+
+    const material = obj.material;
+    const isoParams = meta.isocontour;
+    const principledAttrs = meta.principled_attrs;
+
+    material.onBeforeCompile = (shader) => {
+      let injectVertHead = "";
+      let injectVertBody = "";
+      let injectFragHead = "";
+      let injectFragDiffuse = "";
+      let injectFragRough = "";
+      let injectFragMetal = "";
+
+      if (isoParams) {
+        shader.uniforms.uNumContours = { value: isoParams.num_contours };
+        shader.uniforms.uRatio = { value: isoParams.ratio };
+        shader.uniforms.uIsoColor1 = {
+          value: new THREE.Color(...isoParams.color1),
+        };
+        shader.uniforms.uIsoColor2 = {
+          value: new THREE.Color(...isoParams.color2),
+        };
+        injectVertHead += "attribute float _SCALAR_0;\nvarying float vScalar0;\n";
+        injectVertBody += "vScalar0 = _SCALAR_0;\n";
+        injectFragHead +=
+          "varying float vScalar0;\nuniform float uNumContours;\n"
+          + "uniform float uRatio;\nuniform vec3 uIsoColor1;\nuniform vec3 uIsoColor2;\n";
+        injectFragDiffuse +=
+          "{ float f = fract(vScalar0 * uNumContours);"
+          + "  float halfRatio = uRatio * 0.5;"
+          + "  float onContour = step(0.5 - halfRatio, f) * step(f, 0.5 + halfRatio);"
+          + "  vec3 isoColor = mix(uIsoColor2, uIsoColor1, onContour);"
+          + "  diffuseColor.rgb *= isoColor; }\n";
+      }
+
+      if (principledAttrs && principledAttrs.roughness_attr) {
+        injectVertHead += "attribute float _ROUGHNESS_0;\nvarying float vRoughness0;\n";
+        injectVertBody += "vRoughness0 = _ROUGHNESS_0;\n";
+        injectFragHead += "varying float vRoughness0;\n";
+        injectFragRough += "roughnessFactor *= clamp(vRoughness0, 0.0, 1.0);\n";
+      }
+      if (principledAttrs && principledAttrs.metallic_attr) {
+        injectVertHead += "attribute float _METALLIC_0;\nvarying float vMetallic0;\n";
+        injectVertBody += "vMetallic0 = _METALLIC_0;\n";
+        injectFragHead += "varying float vMetallic0;\n";
+        injectFragMetal += "metalnessFactor *= clamp(vMetallic0, 0.0, 1.0);\n";
+      }
+
+      shader.vertexShader = (injectVertHead + shader.vertexShader).replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\n" + injectVertBody,
+      );
+      shader.fragmentShader = (injectFragHead + shader.fragmentShader)
+        .replace(
+          "#include <color_fragment>",
+          "#include <color_fragment>\n" + injectFragDiffuse,
+        )
+        .replace(
+          "#include <roughnessmap_fragment>",
+          "#include <roughnessmap_fragment>\n" + injectFragRough,
+        )
+        .replace(
+          "#include <metalnessmap_fragment>",
+          "#include <metalnessmap_fragment>\n" + injectFragMetal,
+        );
+    };
+    // Force a recompile next frame.
+    material.needsUpdate = true;
+  });
+}
+
+// --------------------------------------------------------------------- //
+// Render passes                                                           //
+// --------------------------------------------------------------------- //
+// Mitsuba writes albedo/depth/normal as separate AOV images. We can't
+// pre-render those server-side, so the viewer instead exposes a per-pass
+// material override plus a "save PNG" button to capture the current pass.
+//
+// We swap per-mesh materials in-place (cached so the swap is O(N) and
+// cheap) rather than using `scene.overrideMaterial` so each mesh can
+// preserve its own albedo texture / vertex colors when in the albedo pass.
+
+const PASS_ORIGINAL = '__hakowan_orig_mat__';
+const PASS_CACHE = '__hakowan_pass_cache__';
+let currentPass = 'beauty';
+let loadedRoot = null;
+let sceneBbox = null;
+
+// The renderer is sRGB-output; built-in materials like MeshBasic include the
+// `<colorspace_fragment>` chunk that does linear→sRGB. ShaderMaterial doesn't,
+// and neither does MeshNormalMaterial — they'd push linear values into an
+// sRGB drawing buffer, which the display interprets as if they were sRGB
+// (mid-gray ≈ 0.5 → linear 0.214 → looks "too dark / mostly black"). Inject
+// the same conversion at the end of every custom pass shader.
+const SRGB_GLSL = `
+  vec3 linearToSRGB(vec3 c) {
+    c = max(c, vec3(0.0));
+    vec3 lo = c * 12.92;
+    vec3 hi = pow(c, vec3(1.0 / 2.4)) * 1.055 - 0.055;
+    return mix(hi, lo, vec3(lessThanEqual(c, vec3(0.0031308))));
+  }
+`;
+
+// Linear camera-space depth in [uDepthMin, uDepthMax] → grayscale.
+// Matches Mitsuba's depth pass convention: near = 0 (black), far = 1 (white).
+// One shared uniforms object so all per-mesh materials update together each
+// frame in the animate loop.
+const depthUniforms = {
+  uDepthMin: { value: 0.0 },
+  uDepthMax: { value: 1.0 },
+};
+const DEPTH_VS = `
+  varying float vDepth;
+  void main() {
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vDepth = -mvPos.z;
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+const DEPTH_FS = SRGB_GLSL + `
+  varying float vDepth;
+  uniform float uDepthMin;
+  uniform float uDepthMax;
+  void main() {
+    float range = max(uDepthMax - uDepthMin, 1e-6);
+    float t = clamp((vDepth - uDepthMin) / range, 0.0, 1.0);
+    gl_FragColor = vec4(linearToSRGB(vec3(t)), 1.0);
+  }
+`;
+
+function makeDepthMaterial(side) {
+  return new THREE.ShaderMaterial({
+    uniforms: depthUniforms,
+    vertexShader: DEPTH_VS,
+    fragmentShader: DEPTH_FS,
+    side: side ?? THREE.FrontSide,
+    toneMapped: false,
+  });
+}
+
+// Custom normal-pass shader. Uses the geometry's interpolated vertex normal
+// in view space; we apply sRGB encoding manually because MeshNormalMaterial
+// skips `<colorspace_fragment>` and would otherwise look crushed-dark.
+const NORMAL_VS = `
+  varying vec3 vViewNormal;
+  void main() {
+    vViewNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const NORMAL_FS = SRGB_GLSL + `
+  varying vec3 vViewNormal;
+  void main() {
+    vec3 n = normalize(vViewNormal);
+    vec3 packed = n * 0.5 + 0.5;
+    gl_FragColor = vec4(linearToSRGB(packed), 1.0);
+  }
+`;
+
+function makeNormalMaterial(side) {
+  return new THREE.ShaderMaterial({
+    vertexShader: NORMAL_VS,
+    fragmentShader: NORMAL_FS,
+    side: side ?? THREE.FrontSide,
+    toneMapped: false,
+  });
+}
+
+function ensurePassMaterials(obj) {
+  if (!obj.isMesh && !obj.isLine && !obj.isPoints) return null;
+  if (obj[PASS_CACHE]) return obj[PASS_CACHE];
+  const orig = obj.material;
+  obj[PASS_ORIGINAL] = orig;
+  const cache = { beauty: orig };
+  const side = orig.side ?? THREE.FrontSide;
+  const meta = orig.userData && orig.userData.hakowan;
+  const isCurve = !!(meta && meta.kind === 'curve');
+
+  // Depth works for Mesh, Line, and Points — it's a pure position transform.
+  cache.depth = makeDepthMaterial(side);
+
+  if (obj.isMesh) {
+    cache.albedo = new THREE.MeshBasicMaterial({
+      color: orig.color ? orig.color.clone() : new THREE.Color(0xffffff),
+      map: orig.map || null,
+      vertexColors: !!orig.vertexColors,
+      side,
+      transparent: !!orig.transparent,
+      opacity: orig.opacity ?? 1.0,
+      alphaMap: orig.alphaMap || null,
+      toneMapped: false,
+    });
+    if (isCurve) {
+      // Curve decorations (wireframe / seam tubes / etc.) have radial tube
+      // normals that would obliterate the underlying surface normal in the
+      // viewport. Render them as flat dark silhouettes so the surface
+      // normals remain visible beneath while the curve outline still reads.
+      cache.normal = new THREE.MeshBasicMaterial({
+        color: 0x111111,
+        side,
+        toneMapped: false,
+      });
+    } else {
+      cache.normal = makeNormalMaterial(side);
+    }
+  } else {
+    // Lines / Points have no shading normal; fall back to flat color for
+    // albedo (preserve original color) and a neutral gray for normal.
+    const flat = (rgb) => obj.isLine
+      ? new THREE.LineBasicMaterial({ color: rgb, toneMapped: false })
+      : new THREE.PointsMaterial({ color: rgb, size: orig.size ?? 1, toneMapped: false });
+    cache.albedo = flat(orig.color ? orig.color.clone() : new THREE.Color(0xffffff));
+    cache.normal = flat(new THREE.Color(0x808080));
+  }
+  obj[PASS_CACHE] = cache;
+  return cache;
+}
+
+function updateDepthRange() {
+  if (sceneBbox === null) return;
+  const corner = new THREE.Vector3();
+  let zmin = Infinity;
+  let zmax = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    corner.set(
+      (i & 1) ? sceneBbox.max.x : sceneBbox.min.x,
+      (i & 2) ? sceneBbox.max.y : sceneBbox.min.y,
+      (i & 4) ? sceneBbox.max.z : sceneBbox.min.z,
+    );
+    corner.applyMatrix4(camera.matrixWorldInverse);
+    const z = -corner.z;
+    if (z < zmin) zmin = z;
+    if (z > zmax) zmax = z;
+  }
+  zmin = Math.max(zmin, 1e-4);
+  if (zmax <= zmin) zmax = zmin + 1.0;
+  depthUniforms.uDepthMin.value = zmin;
+  depthUniforms.uDepthMax.value = zmax;
+}
+
+function setPass(pass) {
+  if (loadedRoot === null) return;
+  currentPass = pass;
+  loadedRoot.traverse((obj) => {
+    const cache = ensurePassMaterials(obj);
+    if (!cache) return;
+    obj.material = cache[pass] || cache.beauty;
+  });
+  // Background only shown in beauty pass; passes get a flat background to
+  // keep the saved PNG free of envmap clutter.
+  if (pass === 'beauty') {
+    scene.background = envBackground !== null
+      ? envBackground
+      : new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+  } else if (pass === 'depth') {
+    scene.background = new THREE.Color(1, 1, 1);
+  } else {
+    scene.background = new THREE.Color(0, 0, 0);
+  }
+  for (const btn of document.querySelectorAll('#passes button[data-pass]')) {
+    btn.classList.toggle('active', btn.dataset.pass === pass);
+  }
+}
+
+function savePassPng() {
+  // Render once into the canvas, then read it back. The animation loop
+  // would overwrite it on next tick, so we grab it right after a render.
+  renderer.render(scene, camera);
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stem = (document.title || 'hakowan').replace(/\s+/g, '_');
+    a.href = url;
+    a.download = `${stem}_${currentPass}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+function buildPassUI() {
+  if (!Array.isArray(RENDER_PASSES) || RENDER_PASSES.length === 0) return;
+  const passes = ['beauty', ...RENDER_PASSES];
+  const container = document.getElementById('passes');
+  for (const p of passes) {
+    const btn = document.createElement('button');
+    btn.textContent = p;
+    btn.dataset.pass = p;
+    btn.addEventListener('click', () => setPass(p));
+    container.appendChild(btn);
+  }
+  const sep = document.createElement('div');
+  sep.className = 'sep';
+  container.appendChild(sep);
+  const save = document.createElement('button');
+  save.textContent = 'save png';
+  save.title = 'Download the current pass as PNG';
+  save.addEventListener('click', savePassPng);
+  container.appendChild(save);
+  container.classList.add('visible');
+  // Mark beauty as active initially.
+  container.querySelector('button[data-pass="beauty"]').classList.add('active');
+}
+
+const loader = new GLTFLoader();
+const onLoaded = (gltf) => {
+  scene.add(gltf.scene);
+  applyHakowanShaderPatches(gltf.scene);
+  loadedRoot = gltf.scene;
+  // World-space bbox of the loaded scene drives the depth-pass normalisation.
+  sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
+  if (gltf.cameras && gltf.cameras.length > 0) {
+    const cam = gltf.cameras[0];
+    if (cam.isPerspectiveCamera) {
+      const aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.fov = cam.fov;
+      camera.near = cam.near;
+      camera.far = cam.far;
+      camera.aspect = aspect;
+      camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
+      camera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
+      camera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+      camera.updateProjectionMatrix();
+      controls.object = camera;
+      controls.update();
+    }
+  }
+  buildPassUI();
+  status.classList.add('hidden');
+  window.__hakowan_loaded = true;
+};
+const onError = (err) => {
+  // Most common cause when GLB_DATA_URI is a relative path (sidecar mode):
+  // the user opened the .html directly under file:// and the browser refused
+  // the sibling fetch. Surface a more actionable hint instead of just the
+  // raw TypeError.
+  const underFile = location.protocol === 'file:';
+  const sidecar = !GLB_DATA_URI.startsWith('data:');
+  let msg = 'failed to load scene: ' + (err && err.message ? err.message : err);
+  if (underFile && sidecar) {
+    msg += '  —  the scene was written as a sidecar .glb; browsers block '
+        +  'sibling fetches under file://. Serve the folder over HTTP '
+        +  '(e.g. `python -m http.server` in the output directory) and reload.';
+  }
+  status.textContent = msg;
+  status.classList.remove('hidden');
+  console.error(err);
+};
+
+(async () => {
+  await loadEnvmap();
+  if (GLB_DATA_URI.startsWith('data:')) {
+    const binary = Uint8Array.from(atob(GLB_DATA_URI.split(',')[1]), c => c.charCodeAt(0));
+    loader.parse(binary.buffer, '', onLoaded, onError);
+  } else {
+    loader.load(GLB_DATA_URI, onLoaded, undefined, onError);
+  }
+})();
+
+function animate() {
+  resize();
+  controls.update();
+  if (currentPass === 'depth') updateDepthRange();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+resize();
+animate();
+</script>
+</body>
+</html>

@@ -1,12 +1,16 @@
 # Hakowan: A 3D Data Visualization Grammar
 
+![Hakowan teaser](images/teaser.webp)
+
 Hakowan is a 3D data visualization grammar based on the concept of [The Grammar
 of Graphics](https://link.springer.com/book/10.1007/0-387-28695-0). It is
 designed for creating compelling SIGGRAPH-quality 3D data visualizations with
 minimal setup. It provides a concise, high-level declarative API in python and
 is powered by project [Lagrange](https://opensource.adobe.com/lagrange-docs/)
-and [Mitsuba](https://mitsuba.readthedocs.io/en/stable/index.html) for data
-processing and rendering.
+for geometry processing and supports three rendering backends:
+[Mitsuba](https://mitsuba.readthedocs.io/en/stable/index.html) (default, photorealistic),
+[Blender](https://www.blender.org/) (Cycles/EEVEE), and
+[WebGL](https://threejs.org/) (interactive browser viewer).
 
 ## Installation
 
@@ -50,7 +54,7 @@ provides a specification of one or more of the following items:
 ``` bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.4.3},
+    version = {0.5.0},
     year = 2026,
 }
 ```
