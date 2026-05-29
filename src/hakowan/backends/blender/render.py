@@ -21,6 +21,8 @@ from ...grammar.scale import Attribute
 from ...grammar.texture import (
     ScalarField,
     Checkerboard,
+    Image,
+    Texture,
     Uniform,
 )
 from ...grammar.channel.curvestyle import Bend
@@ -536,16 +538,15 @@ class BlenderBackend(RenderBackend):
             )
             color_layer_name = "Color"
 
-        # Checkerboard texture: copy UV attribute to Blender mesh
+        # Copy the UV attribute used by any active texture (checkerboard, image
+        # base color, normal map, or bump map) onto the Blender mesh.
         uv_layer_name = None
-        checkerboard_tex = self._get_checkerboard_texture(view)
-        if checkerboard_tex is not None and checkerboard_tex._uv is not None:
-            uv_attr = checkerboard_tex._uv
-            if isinstance(uv_attr, Attribute) and uv_attr._internal_name is not None:
-                self._copy_mesh_uv_to_blender(
-                    mesh_data, mesh, uv_attr._internal_name, uv_layer_name="UVMap"
-                )
-                uv_layer_name = "UVMap"
+        uv_attr_name = self._resolve_uv_attr_name(view)
+        if uv_attr_name is not None:
+            self._copy_mesh_uv_to_blender(
+                mesh_data, mesh, uv_attr_name, uv_layer_name="UVMap"
+            )
+            uv_layer_name = "UVMap"
 
         # Create object
         obj = bpy.data.objects.new(f"object_{index:03d}", mesh)
@@ -1079,6 +1080,17 @@ class BlenderBackend(RenderBackend):
             else:
                 # Fallback if checkerboard creation failed
                 bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+        elif (
+            (image_tex := self._get_image_texture(view)) is not None
+            and uv_layer_name is not None
+        ):
+            tex_node = self._build_image_texture_node(
+                image_tex, nodes, links, uv_layer_name, is_data=False
+            )
+            if tex_node is not None:
+                links.new(tex_node.outputs["Color"], bsdf.inputs["Base Color"])
+            else:
+                bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
         elif color_layer_name is not None:
             attr_node = nodes.new(type="ShaderNodeAttribute")
             attr_node.location = (-200, 0)
@@ -1185,6 +1197,23 @@ class BlenderBackend(RenderBackend):
                     logger.warning(
                         f"Material type {type(mat_data)} not fully supported, using default"
                     )
+
+        # Normal / bump maps drive the Principled BSDF's "Normal" input. When
+        # both are present the normal map feeds the bump node so they compose
+        # (mirrors Mitsuba's bumpmap-over-normalmap nesting). Both require UVs.
+        normal_socket = None
+        if uv_layer_name is not None and view.normal_map is not None:
+            normal_socket = self._build_normal_map_node(
+                view.normal_map, nodes, links, uv_layer_name
+            )
+        if uv_layer_name is not None and view.bump_map is not None:
+            bump_socket = self._build_bump_map_node(
+                view.bump_map, nodes, links, uv_layer_name, normal_socket
+            )
+            if bump_socket is not None:
+                normal_socket = bump_socket
+        if normal_socket is not None and "Normal" in bsdf.inputs:
+            links.new(normal_socket, bsdf.inputs["Normal"])
 
         # Two-sided rendering: disable backface culling
         if mat_data.two_sided:
@@ -1450,6 +1479,146 @@ class BlenderBackend(RenderBackend):
             case _:
                 return None
 
+    def _get_image_texture(self, view: View) -> Image | None:
+        """Return the material's reflectance/color ``Image`` texture, or None."""
+        if view.material_channel is None:
+            return None
+        mat_data = view.material_channel
+
+        def check(tex):
+            return tex if isinstance(tex, Image) else None
+
+        match mat_data:
+            case Diffuse():
+                return check(mat_data.reflectance)
+            case Plastic() | RoughPlastic():
+                return check(mat_data.diffuse_reflectance)
+            case Principled() | ThinPrincipled():
+                return check(mat_data.color)
+            case _:
+                return None
+
+    def _resolve_uv_attr_name(self, view: View) -> str | None:
+        """Internal name of the UV attribute used by any UV-bearing texture.
+
+        Checks the base-color Checkerboard/Image plus the normal/bump map
+        textures (the compiler stores the resolved UV on ``texture._uv``).
+        Returns the first available, or None.
+        """
+        candidates: list = []
+        cb = self._get_checkerboard_texture(view)
+        if cb is not None:
+            candidates.append(cb)
+        img = self._get_image_texture(view)
+        if img is not None:
+            candidates.append(img)
+        for channel in (view.normal_map, view.bump_map):
+            if channel is not None and isinstance(channel.texture, Texture):
+                candidates.append(channel.texture)
+        for tex in candidates:
+            uv = getattr(tex, "_uv", None)
+            if isinstance(uv, Attribute) and uv._internal_name is not None:
+                return uv._internal_name
+        return None
+
+    def _load_blender_image(self, image: Image, *, is_data: bool):
+        """Load an ``Image`` texture into a Blender image datablock.
+
+        Applies the texture's ``saturation`` / ``whiteness`` adjustments via PIL
+        when non-default, and sets the colour space ("Non-Color" for raw/data
+        images such as normal and bump maps; "sRGB" otherwise).
+        """
+        from pathlib import Path as _Path
+
+        path = str(_Path(image.filename).resolve())
+        if image.saturation != 1.0 or image.whiteness != 0.0:
+            import tempfile
+            from PIL import Image as PILImage, ImageEnhance
+
+            img = PILImage.open(path).convert("RGBA")
+            if image.saturation != 1.0:
+                img = ImageEnhance.Color(img).enhance(image.saturation)
+            if image.whiteness != 0.0:
+                white = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
+                img = PILImage.blend(img, white, alpha=image.whiteness)
+            tmp = tempfile.mktemp(suffix=".png")
+            img.save(tmp)
+            path = tmp
+        bimg = bpy.data.images.load(path)
+        bimg.colorspace_settings.name = (
+            "Non-Color" if (is_data or image.raw) else "sRGB"
+        )
+        return bimg
+
+    def _build_image_texture_node(
+        self, image: Image, nodes, links, uv_layer_name: str, *, is_data: bool, y: int = 0
+    ):
+        """Create a UV-mapped ``ShaderNodeTexImage`` node, or None on failure."""
+        try:
+            bimg = self._load_blender_image(image, is_data=is_data)
+        except Exception as e:  # pragma: no cover - bad path / unreadable image
+            logger.warning(
+                f"Blender backend: failed to load image '{image.filename}': {e}"
+            )
+            return None
+        uv_node = nodes.new(type="ShaderNodeUVMap")
+        uv_node.location = (-800, y)
+        uv_node.uv_map = uv_layer_name
+        tex_node = nodes.new(type="ShaderNodeTexImage")
+        tex_node.location = (-600, y)
+        tex_node.image = bimg
+        links.new(uv_node.outputs["UV"], tex_node.inputs["Vector"])
+        return tex_node
+
+    def _build_normal_map_node(self, normal_map, nodes, links, uv_layer_name: str):
+        """Build a normal-map node chain; return its ``Normal`` output socket."""
+        tex = normal_map.texture
+        if not isinstance(tex, Image):
+            logger.warning(
+                f"Blender backend: NormalMap.texture type {type(tex).__name__} "
+                "not supported (only Image is wired)."
+            )
+            return None
+        tex_node = self._build_image_texture_node(
+            tex, nodes, links, uv_layer_name, is_data=True, y=-400
+        )
+        if tex_node is None:
+            return None
+        nm = nodes.new(type="ShaderNodeNormalMap")
+        nm.location = (-400, -400)
+        nm.uv_map = uv_layer_name
+        links.new(tex_node.outputs["Color"], nm.inputs["Color"])
+        return nm.outputs["Normal"]
+
+    def _build_bump_map_node(
+        self, bump_map, nodes, links, uv_layer_name: str, base_normal_socket
+    ):
+        """Build a bump node chain; return its ``Normal`` output socket.
+
+        ``base_normal_socket`` (e.g. from a normal map) is fed into the bump
+        node's ``Normal`` input so the two compose.
+        """
+        tex = bump_map.texture
+        if not isinstance(tex, Image):
+            logger.warning(
+                f"Blender backend: BumpMap.texture type {type(tex).__name__} "
+                "not supported (only Image is wired)."
+            )
+            return None
+        tex_node = self._build_image_texture_node(
+            tex, nodes, links, uv_layer_name, is_data=True, y=-700
+        )
+        if tex_node is None:
+            return None
+        bump = nodes.new(type="ShaderNodeBump")
+        bump.location = (-400, -700)
+        bump.inputs["Strength"].default_value = 1.0
+        bump.inputs["Distance"].default_value = float(bump_map.scale)
+        links.new(tex_node.outputs["Color"], bump.inputs["Height"])
+        if base_normal_socket is not None:
+            links.new(base_normal_socket, bump.inputs["Normal"])
+        return bump.outputs["Normal"]
+
     def _copy_mesh_color_to_blender(
         self,
         lagrange_mesh,
@@ -1594,44 +1763,112 @@ class BlenderBackend(RenderBackend):
         Args:
             config: Rendering configuration.
         """
+        from ...setup.sensor import Orthographic, ThinLens
+
         # Create camera
         camera_data = bpy.data.cameras.new(name="Camera")
         camera_obj = bpy.data.objects.new("Camera", camera_data)
         bpy.context.collection.objects.link(camera_obj)
         bpy.context.scene.camera = camera_obj
 
-        # Set camera location and orientation
         sensor = config.sensor
-        location = sensor.location
+        location = np.asarray(sensor.location, dtype=float)
+        target = np.asarray(getattr(sensor, "target", [0.0, 0.0, 0.0]), dtype=float)
+        up = np.asarray(getattr(sensor, "up", [0.0, 1.0, 0.0]), dtype=float)
         camera_obj.location = mathutils.Vector(location)
 
-        # Look at target
-        target = getattr(sensor, "target", np.array([0.0, 0.0, 0.0]))
-        direction = mathutils.Vector(target) - mathutils.Vector(location)
-        rot_quat = direction.to_track_quat("-Z", "Y")
-        camera_obj.rotation_euler = rot_quat.to_euler()
+        # Build the orientation from an explicit look-at basis so the sensor's
+        # ``up`` vector is honored (Blender's to_track_quat only takes an up-axis
+        # hint and silently ignores arbitrary roll, e.g. for z-up scenes).
+        # Blender cameras look down -Z with +Y up and +X right.
+        z_axis = location - target  # camera +Z points away from the target
+        nz = np.linalg.norm(z_axis)
+        z_axis = z_axis / nz if nz > 1e-12 else np.array([0.0, 0.0, 1.0])
+        x_axis = np.cross(up, z_axis)
+        nx = np.linalg.norm(x_axis)
+        if nx < 1e-9:
+            # up is (anti)parallel to the view direction; pick any orthogonal axis.
+            fallback = (
+                np.array([1.0, 0.0, 0.0])
+                if abs(z_axis[0]) < 0.9
+                else np.array([0.0, 1.0, 0.0])
+            )
+            x_axis = np.cross(fallback, z_axis)
+            nx = np.linalg.norm(x_axis)
+        x_axis = x_axis / nx
+        y_axis = np.cross(z_axis, x_axis)
+        rot = mathutils.Matrix(
+            (
+                (x_axis[0], y_axis[0], z_axis[0]),
+                (x_axis[1], y_axis[1], z_axis[1]),
+                (x_axis[2], y_axis[2], z_axis[2]),
+            )
+        )
+        camera_obj.rotation_euler = rot.to_euler()
 
-        # Set up vector if available
-        if hasattr(sensor, "up"):
-            # TODO: Properly handle up vector
-            pass
+        # Clipping planes.
+        camera_data.clip_start = float(sensor.near_clip)
+        camera_data.clip_end = float(sensor.far_clip)
 
-        # Set focal length / FOV (sensor.fov is the shorter dimension)
-        if hasattr(sensor, "fov"):
+        width = config.film.width
+        height = config.film.height
+
+        if isinstance(sensor, Orthographic):
+            camera_data.type = "ORTHO"
+            # The scene is normalized to fit a [-1, 1] box, which is also what
+            # Mitsuba's orthographic camera frames; an ortho scale of 2 (the full
+            # extent) matches that framing.
+            camera_data.ortho_scale = 2.0
+        else:
+            # Perspective / ThinLens.
+            camera_data.type = "PERSP"
             camera_data.lens_unit = "FOV"
-            width = config.film.width
-            height = config.film.height
-            aspect = width / height
-            if aspect >= 1:
-                # Shorter is height
-                camera_data.sensor_fit = "VERTICAL"
-                camera_data.angle = np.radians(sensor.fov)
+            fov = getattr(sensor, "fov", 28.8415)
+            fov_axis = getattr(sensor, "fov_axis", "smaller")
+            fit = self._resolve_sensor_fit(fov_axis, width, height)
+            if fit is None:
+                # Blender has no diagonal fit; AUTO applies the angle to the
+                # larger dimension as an approximation.
+                logger.debug(
+                    f"Blender backend: fov_axis '{fov_axis}' not directly "
+                    "supported; approximating with AUTO (larger axis)."
+                )
+                camera_data.sensor_fit = "AUTO"
             else:
-                # Shorter is width
-                camera_data.sensor_fit = "HORIZONTAL"
-                camera_data.angle = np.radians(sensor.fov)
+                camera_data.sensor_fit = fit
+            camera_data.angle = np.radians(fov)
 
-        logger.debug(f"Camera set at {location}")
+            if isinstance(sensor, ThinLens):
+                # Depth of field. Mitsuba's ``aperture_radius`` is a world-space
+                # lens radius while Blender models DOF via an f-stop, so this is a
+                # best-effort mapping: larger aperture -> smaller f-stop -> more
+                # blur (radius 0.1 -> f/2.8).
+                camera_data.dof.use_dof = True
+                focus = float(sensor.focus_distance)
+                if focus <= 0.0:
+                    focus = float(np.linalg.norm(location - target))
+                camera_data.dof.focus_distance = focus
+                radius = max(float(sensor.aperture_radius), 1e-4)
+                camera_data.dof.aperture_fstop = 0.28 / radius
+
+        logger.debug(f"Camera set at {location}, target {target}, up {up}")
+
+    @staticmethod
+    def _resolve_sensor_fit(fov_axis: str, width: int, height: int) -> str | None:
+        """Map a hakowan ``fov_axis`` to a Blender camera ``sensor_fit``.
+
+        Returns ``"HORIZONTAL"`` / ``"VERTICAL"``, or ``None`` for axes Blender
+        cannot express directly (``"diagonal"`` or unknown values).
+        """
+        if fov_axis == "x":
+            return "HORIZONTAL"
+        if fov_axis == "y":
+            return "VERTICAL"
+        if fov_axis == "smaller":
+            return "HORIZONTAL" if width <= height else "VERTICAL"
+        if fov_axis == "larger":
+            return "HORIZONTAL" if width >= height else "VERTICAL"
+        return None
 
     def _setup_lighting(self, config: Config, **kwargs):
         """Setup Blender lighting from config.
