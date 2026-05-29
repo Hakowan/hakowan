@@ -137,6 +137,19 @@ class TestImageTexture:
         assert "UVMap" in mesh.uv_layers.keys()
 
 
+class TestSmoke:
+    def test_blender_render_produces_image(self, triangle, tmp_path):
+        """End-to-end smoke: exercises the full bpy render path (EEVEE, 16×16)."""
+        config = hkw.config()
+        config.film.width = 16
+        config.film.height = 16
+        config.sampler.sample_count = 1
+        layer = hkw.layer().data(triangle).mark(hkw.mark.Surface)
+        out = tmp_path / "smoke.png"
+        hkw.render(layer, config, filename=out, backend="blender", engine="BLENDER_EEVEE")
+        assert out.exists() and out.stat().st_size > 0
+
+
 class TestNormalAndBumpMap:
     def test_normal_map_wired(self):
         nrm = _write_png(color=(128, 128, 255))
