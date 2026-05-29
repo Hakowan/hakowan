@@ -35,6 +35,18 @@ import bpy
 import mathutils
 
 
+def _ensure_nodes(datablock) -> None:
+    """Ensure a material/world has a shader node tree.
+
+    Newer Blender (4.x+) creates the node tree automatically, so the legacy
+    ``use_nodes = True`` toggle is deprecated (slated for removal in 6.0).
+    Only fall back to it when the node tree is genuinely absent, which keeps
+    compatibility with older Blender without emitting deprecation warnings.
+    """
+    if datablock.node_tree is None:
+        datablock.use_nodes = True
+
+
 class BlenderBackend(RenderBackend):
     """Blender rendering backend.
 
@@ -219,7 +231,7 @@ class BlenderBackend(RenderBackend):
 
             # Flat Emission shader — reads the attribute color, ignores lighting.
             mat = bpy.data.materials.new(name=f"_hakowan_facet_id_{obj.name}")
-            mat.use_nodes = True
+            _ensure_nodes(mat)
             ntree = mat.node_tree
             ntree.nodes.clear()
 
@@ -1033,7 +1045,7 @@ class BlenderBackend(RenderBackend):
         if material_suffix is not None:
             mat_name = f"{mat_name}_{material_suffix}"
         mat = bpy.data.materials.new(name=mat_name)
-        mat.use_nodes = True
+        _ensure_nodes(mat)
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
 
@@ -1645,7 +1657,7 @@ class BlenderBackend(RenderBackend):
         if world is None:
             world = bpy.data.worlds.new("World")
             bpy.context.scene.world = world
-        world.use_nodes = True
+        _ensure_nodes(world)
         nodes = world.node_tree.nodes
         links = world.node_tree.links
 
