@@ -55,6 +55,19 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
 
 
 def compile(root: layer.Layer) -> Scene:
+    """Compile a layer tree into a renderable :class:`Scene`.
+
+    Traverses the layer tree, resolves channels, applies transforms and scales,
+    and finalises per-view data frames so the result is ready to pass directly
+    to a rendering backend.
+
+    Args:
+        root: The root :class:`~hakowan.grammar.layer.Layer` of the visualization.
+
+    Returns:
+        A compiled :class:`Scene` containing one :class:`View` per leaf path in
+        the layer tree.
+    """
     # Step 1: condense each path from root to leaf in the layer tree into a view.
     scene = condense_layer_tree_to_scene(root)
     logger.debug(f"Created scene with {len(scene)} views")

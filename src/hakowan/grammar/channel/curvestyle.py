@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from ..scale import AttributeLike
 
@@ -16,8 +17,10 @@ class Bend(CurveStyle):
 
     Attributes:
         direction (AttributeLike): The attribute used to encode the bending direction.
-        bend_type (str): The type of bending (options are 's', 'r', 'n'). The default value is 'n'.
+        bend_type (Literal["n", "r", "s"]): The type of bending.
+            ``"n"`` = normal bend, ``"r"`` = ribbon bend, ``"s"`` = smooth bend.
+            The default value is ``"n"``.
     """
 
     direction: AttributeLike
-    bend_type: str = "n"
+    bend_type: Literal["n", "r", "s"] = "n"

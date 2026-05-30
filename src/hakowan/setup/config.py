@@ -38,7 +38,7 @@ class Config:
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
 
-    def z_up(self):
+    def z_up(self) -> None:
         """Update configuration for z-up coordinate system."""
         self.sensor.location = np.array([0, -5, 0])
         self.sensor.up = np.array([0, 0, 1])
@@ -47,7 +47,7 @@ class Config:
                 emitter.up = np.array([0, 0, 1])
                 emitter.rotation = 180.0
 
-    def z_down(self):
+    def z_down(self) -> None:
         """Update configuration for z-down coordinate system."""
         self.sensor.location = np.array([0, 5, 0])
         self.sensor.up = np.array([0, 0, -1])
@@ -56,7 +56,7 @@ class Config:
                 emitter.up = np.array([0, 0, -1])
                 emitter.rotation = 180.0
 
-    def y_up(self):
+    def y_up(self) -> None:
         """Update configuration for y-up coordinate system."""
         self.sensor.location = np.array([0, 0, 5])
         self.sensor.up = np.array([0, 1, 0])
@@ -65,7 +65,7 @@ class Config:
                 emitter.up = np.array([0, 1, 0])
                 emitter.rotation = 180.0
 
-    def y_down(self):
+    def y_down(self) -> None:
         """Update configuration for y-down coordinate system."""
         self.sensor.location = np.array([0, 0, -5])
         self.sensor.up = np.array([0, -1, 0])
@@ -93,7 +93,7 @@ class Config:
         return self._render_passes
 
     @render_passes.setter
-    def render_passes(self, value: set[str] | list[str]):
+    def render_passes(self, value: set[str] | list[str]) -> None:
         """Replace the active render-pass set and re-sync AOV integrator."""
         self._render_passes = set(value)
         self.__sync_aovs()
@@ -108,7 +108,7 @@ class Config:
         return "albedo" in self._render_passes
 
     @albedo.setter
-    def albedo(self, value: bool):
+    def albedo(self, value: bool) -> None:
         """Add or remove the albedo pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("albedo")
@@ -122,7 +122,7 @@ class Config:
         return "depth" in self._render_passes
 
     @depth.setter
-    def depth(self, value: bool):
+    def depth(self, value: bool) -> None:
         """Add or remove the depth pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("depth")
@@ -136,7 +136,7 @@ class Config:
         return "normal" in self._render_passes
 
     @normal.setter
-    def normal(self, value: bool):
+    def normal(self, value: bool) -> None:
         """Add or remove the normal pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("normal")
@@ -164,7 +164,7 @@ class Config:
         return "facet_id" in self._render_passes
 
     @facet_id.setter
-    def facet_id(self, value: bool):
+    def facet_id(self, value: bool) -> None:
         """Add or remove the facet-ID pass."""
         if value:
             self._render_passes.add("facet_id")

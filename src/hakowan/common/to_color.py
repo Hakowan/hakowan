@@ -2,7 +2,19 @@ from .color import Color, ColorLike
 from .named_colors import css_colors
 
 
-def to_color(data: ColorLike):
+def to_color(data: ColorLike) -> Color:
+    """Convert a color-like value to a :class:`Color` object.
+
+    Args:
+        data: A float/int (gray), CSS color name, hex string (``"#rrggbb"``),
+            or an ``(r, g, b)`` / ``(r, g, b, a)`` tuple.
+
+    Returns:
+        The corresponding :class:`Color` instance.
+
+    Raises:
+        ValueError: If *data* cannot be converted to a color.
+    """
     match data:
         case float() | int():
             return Color(float(data), float(data), float(data))

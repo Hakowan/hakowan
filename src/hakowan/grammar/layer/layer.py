@@ -32,8 +32,30 @@ from ..texture import TextureLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 import lagrange
+
+_MarkStr = Literal[
+    "point", "Point", "POINT",
+    "curve", "Curve", "CURVE",
+    "surface", "Surface", "SURFACE",
+]
+
+_MaterialTypeStr = Literal[
+    "diffuse", "Diffuse", "DIFFUSE",
+    "conductor", "Conductor", "CONDUCTOR",
+    "rough_conductor", "RoughConductor", "ROUGH_CONDUCTOR",
+    "plastic", "Plastic", "PLASTIC",
+    "rough_plastic", "RoughPlastic", "ROUGH_PLASTIC",
+    "principled", "Principled", "PRINCIPLED",
+    "thin_principled", "ThinPrincipled", "THIN_PRINCIPLED",
+    "dielectric", "Dielectric", "DIELECTRIC",
+    "thin_dielectric", "ThinDielectric", "THIN_DIELECTRIC",
+    "rough_dielectric", "RoughDielectric", "ROUGH_DIELECTRIC",
+    "hair", "Hair", "HAIR",
+]
+
+_BaseShapeStr = Literal["sphere", "disk", "cube"]
 import numpy as np
 import numpy.typing as npt
 
@@ -135,11 +157,14 @@ class Layer:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
         return l
 
-    def mark(self, mark: Mark | str, *, in_place: bool = False) -> "Layer":
+    def mark(self, mark: Mark | _MarkStr, *, in_place: bool = False) -> "Layer":
         """Overwrite the mark component of this layer.
 
         Args:
-            mark (Mark | str): The new mark component.
+            mark (Mark | str): The new mark component. When a string is given, accepted
+                values are ``"point"`` / ``"Point"`` / ``"POINT"``,
+                ``"curve"`` / ``"Curve"`` / ``"CURVE"``, and
+                ``"surface"`` / ``"Surface"`` / ``"SURFACE"``.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
 
@@ -166,7 +191,7 @@ class Layer:
         position: Position | str | None = None,
         normal: Normal | str | None = None,
         size: float | str | Size | None = None,
-        shape: str | Shape | None = None,
+        shape: _BaseShapeStr | Shape | None = None,
         vector_field: VectorField | str | None = None,
         covariance: Covariance | str | None = None,
         material: Material | None = None,
@@ -180,6 +205,8 @@ class Layer:
             position (Position | str, optional): The new position channel.
             normal (Normal | str, optional): The new normal channel.
             size (float | str | Size, optional): The new size channel.
+            shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
+                When a string is given, it sets ``Shape.base_shape`` directly.
             vector_field (VectorField | str, optional): The new vector field channel.
             material (Material, optional): The new material channel.
             bump_map (BumpMap | TextureLike, optional): The new bump map channel.
@@ -247,11 +274,16 @@ class Layer:
                 l._spec.channels.append(NormalMap(normal_map))
         return l
 
-    def material(self, type: str, *args, in_place: bool = False, **kwargs) -> "Layer":
+    def material(self, type: _MaterialTypeStr, *args, in_place: bool = False, **kwargs) -> "Layer":
         """Overwrite material for this layer.
 
         Args:
-            type (str): The material type.
+            type (str): The material type. Accepted values (case-insensitive canonical forms):
+                ``"diffuse"``, ``"conductor"``, ``"rough_conductor"``, ``"plastic"``,
+                ``"rough_plastic"``, ``"principled"``, ``"thin_principled"``,
+                ``"dielectric"``, ``"thin_dielectric"``, ``"rough_dielectric"``,
+                ``"hair"``. PascalCase (e.g. ``"RoughConductor"``) and UPPER_CASE
+                (e.g. ``"ROUGH_CONDUCTOR"``) variants are also accepted.
             in_place (bool, optional): Whether to modify the current layer in place or create new
                 layer. Defaults to False (i.e. create a new layer).
             *args: Variable length argument list that will be forwarded to material constructor.

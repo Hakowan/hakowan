@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from .medium import Medium
 from ..channel import Channel
@@ -44,11 +45,12 @@ class RoughConductor(Conductor):
     """Rough conductor material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
     alpha: Texture | float = 0.1
 
 
@@ -70,11 +72,12 @@ class RoughPlastic(Plastic):
     """Rough plastic material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
     alpha: float = 0.1
 
 
@@ -149,11 +152,12 @@ class RoughDielectric(Dielectric):
     """Rough dielectric material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
     alpha: Texture | float = 0.1
 
 
