@@ -383,9 +383,8 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         min_length=transform.min_length,
     )
 
-    if (
-        transform.id_attr_name != "_hakowan_streamline_id"
-        and sl_mesh.has_attribute("_hakowan_streamline_id")
+    if transform.id_attr_name != "_hakowan_streamline_id" and sl_mesh.has_attribute(
+        "_hakowan_streamline_id"
     ):
         sl_mesh.rename_attribute("_hakowan_streamline_id", transform.id_attr_name)
 

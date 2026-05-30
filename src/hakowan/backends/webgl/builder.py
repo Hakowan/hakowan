@@ -56,9 +56,7 @@ class GLTFBuilder:
         if pad:
             self._bin.extend(b"\x00" * pad)
 
-    def _add_buffer_view(
-        self, data: bytes, target: int | None = None
-    ) -> int:
+    def _add_buffer_view(self, data: bytes, target: int | None = None) -> int:
         self._align(4)
         offset = len(self._bin)
         self._bin.extend(data)
@@ -115,8 +113,8 @@ class GLTFBuilder:
                 pygltflib.Sampler(
                     magFilter=9729,  # LINEAR
                     minFilter=9987,  # LINEAR_MIPMAP_LINEAR
-                    wrapS=10497,     # REPEAT
-                    wrapT=10497,     # REPEAT
+                    wrapS=10497,  # REPEAT
+                    wrapT=10497,  # REPEAT
                 )
             )
         sampler_idx = 0
@@ -176,7 +174,10 @@ class GLTFBuilder:
         if "ior" in pbr:
             material_extensions["KHR_materials_ior"] = {"ior": float(pbr["ior"])}
             self._register_extension("KHR_materials_ior")
-        if any(k in pbr for k in ("thicknessFactor", "attenuationDistance", "attenuationColor")):
+        if any(
+            k in pbr
+            for k in ("thicknessFactor", "attenuationDistance", "attenuationColor")
+        ):
             vol: dict[str, Any] = {}
             if "thicknessFactor" in pbr:
                 vol["thicknessFactor"] = float(pbr["thicknessFactor"])
@@ -352,9 +353,7 @@ class GLTFBuilder:
         self._gltf.cameras.append(cam)
         cam_idx = len(self._gltf.cameras) - 1
 
-        node = pygltflib.Node(
-            camera=cam_idx, matrix=gltf_matrix(world_transform_4x4)
-        )
+        node = pygltflib.Node(camera=cam_idx, matrix=gltf_matrix(world_transform_4x4))
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
         self._gltf.scenes[0].nodes.append(node_idx)
@@ -413,9 +412,7 @@ class GLTFBuilder:
         self._gltf.cameras.append(cam)
         cam_idx = len(self._gltf.cameras) - 1
 
-        node = pygltflib.Node(
-            camera=cam_idx, matrix=gltf_matrix(world_transform_4x4)
-        )
+        node = pygltflib.Node(camera=cam_idx, matrix=gltf_matrix(world_transform_4x4))
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
         self._gltf.scenes[0].nodes.append(node_idx)

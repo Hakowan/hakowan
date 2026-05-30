@@ -105,5 +105,3 @@ class ScalarField(Texture):
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
     categories: bool = False
-
-

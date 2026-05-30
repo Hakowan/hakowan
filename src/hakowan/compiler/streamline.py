@@ -48,16 +48,36 @@ def _trace_seed_task(task):
     polylines = []
     for arm in arms:
         fwd = _trace_half(
-            fi, seed_pt, arm, max_length, num_faces,
-            w["vertices"], w["facets"], w["normals"],
-            w["e1"], w["e2"], w["vec_2d"],
-            w["adj_face"], w["adj_edge"], w["cross_field"],
+            fi,
+            seed_pt,
+            arm,
+            max_length,
+            num_faces,
+            w["vertices"],
+            w["facets"],
+            w["normals"],
+            w["e1"],
+            w["e2"],
+            w["vec_2d"],
+            w["adj_face"],
+            w["adj_edge"],
+            w["cross_field"],
         )
         bwd = _trace_half(
-            fi, seed_pt, -arm, max_length, num_faces,
-            w["vertices"], w["facets"], w["normals"],
-            w["e1"], w["e2"], w["vec_2d"],
-            w["adj_face"], w["adj_edge"], w["cross_field"],
+            fi,
+            seed_pt,
+            -arm,
+            max_length,
+            num_faces,
+            w["vertices"],
+            w["facets"],
+            w["normals"],
+            w["e1"],
+            w["e2"],
+            w["vec_2d"],
+            w["adj_face"],
+            w["adj_edge"],
+            w["cross_field"],
         )
         pts = np.array(list(reversed(bwd)) + [seed_pt] + fwd, dtype=np.float64)
         if len(pts) >= min_length:
@@ -68,8 +88,6 @@ def _trace_seed_task(task):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-
-
 
 
 def _compute_streamlines(
@@ -161,7 +179,17 @@ def _compute_streamlines(
             arms.append(perp_2d[0] * e1[fi] + perp_2d[1] * e2[fi])
         tasks.append((fi, seed_pt, arms, length, min_length))
 
-    shared = (vertices, facets, normals, e1, e2, vec_2d, adj_face, adj_edge, cross_field)
+    shared = (
+        vertices,
+        facets,
+        normals,
+        e1,
+        e2,
+        vec_2d,
+        adj_face,
+        adj_edge,
+        cross_field,
+    )
     n_workers = min(len(tasks), os.cpu_count() or 1)
 
     # Pool setup may fail on some platforms or when the OS rejects new worker
@@ -177,7 +205,9 @@ def _compute_streamlines(
             initargs=shared,
         )
     except (ValueError, OSError, NotImplementedError) as e:
-        logger.debug(f"Streamline parallel pool unavailable, falling back to sequential: {e}")
+        logger.debug(
+            f"Streamline parallel pool unavailable, falling back to sequential: {e}"
+        )
         pool_cm = None
 
     all_polylines: list[npt.NDArray] = []
@@ -201,7 +231,7 @@ def _compute_streamlines(
     ids = np.empty(all_pts.shape[0], dtype=np.int32)
     offset = 0
     for sid, pl in enumerate(all_polylines):
-        ids[offset:offset + len(pl)] = sid
+        ids[offset : offset + len(pl)] = sid
         for k in range(len(pl) - 1):
             segments.append([offset + k, offset + k + 1])
         offset += len(pl)
@@ -333,12 +363,14 @@ def _rotation_matrix(n1: npt.NDArray, n2: npt.NDArray) -> npt.NDArray:
     if s < 1e-12:
         if c > 0:
             return np.eye(3)
-        perp = np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        perp = (
+            np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        )
         perp = perp - np.dot(perp, a) * a
         perp /= np.linalg.norm(perp)
         return 2.0 * np.outer(perp, perp) - np.eye(3)
     kmat = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
-    return np.eye(3) + kmat + kmat @ kmat * ((1.0 - c) / (s ** 2))
+    return np.eye(3) + kmat + kmat @ kmat * ((1.0 - c) / (s**2))
 
 
 def _snap_to_cross(d_2d: npt.NDArray, c_2d: npt.NDArray) -> npt.NDArray:
@@ -397,14 +429,14 @@ def _average_vertex_field_to_facets(mesh, vert_field, num_faces, facets, n_rosy)
     n = float(n_rosy)
 
     for fid in range(num_faces):
-        fb = ops.facet_basis(fid)         # 3x2
+        fb = ops.facet_basis(fid)  # 3x2
         accum_xn = np.zeros(2)
         for lv in range(3):
             vid = int(facets[fid, lv])
             tv = vert_field[vid]
             if np.linalg.norm(tv) < 1e-12:
                 continue
-            vb = ops.vertex_basis(vid)    # 3x2
+            vb = ops.vertex_basis(vid)  # 3x2
             conn = ops.levi_civita_nrosy(fid, lv, n=n_rosy)  # 2x2 (vertex->facet)
 
             local_v = vb.T @ tv
@@ -424,10 +456,13 @@ def _average_vertex_field_to_facets(mesh, vert_field, num_faces, facets, n_rosy)
 
 
 def _project_to_2d(vec_field_3d, e1, e2):
-    vec_2d = np.stack([
-        np.einsum("fi,fi->f", vec_field_3d, e1),
-        np.einsum("fi,fi->f", vec_field_3d, e2),
-    ], axis=1)
+    vec_2d = np.stack(
+        [
+            np.einsum("fi,fi->f", vec_field_3d, e1),
+            np.einsum("fi,fi->f", vec_field_3d, e2),
+        ],
+        axis=1,
+    )
     norms = np.linalg.norm(vec_2d, axis=1)
     safe = norms > 1e-12
     vec_2d[safe] /= norms[safe, None]
@@ -451,26 +486,30 @@ def _build_face_adjacency(mesh, num_faces):
     ).astype(np.int64)
 
     # For each corner c = 3*f + i, record its face and local index.
-    face_of_corner  = np.repeat(np.arange(num_faces, dtype=np.int64), 3)
+    face_of_corner = np.repeat(np.arange(num_faces, dtype=np.int64), 3)
     local_of_corner = np.tile(np.arange(3, dtype=np.int64), num_faces)
 
     # Sort corners by edge so that corners sharing an edge are adjacent.
-    order        = np.argsort(corner_to_edge, kind='stable')
+    order = np.argsort(corner_to_edge, kind="stable")
     edges_sorted = corner_to_edge[order]
     faces_sorted = face_of_corner[order]
     local_sorted = local_of_corner[order]
 
     # Consecutive pairs with the same edge ID are manifold interior edges.
     pair_mask = edges_sorted[:-1] == edges_sorted[1:]
-    s = np.where(pair_mask)[0]   # index of first corner in each pair
+    s = np.where(pair_mask)[0]  # index of first corner in each pair
 
-    f1 = faces_sorted[s];     l1 = local_sorted[s]
-    f2 = faces_sorted[s + 1]; l2 = local_sorted[s + 1]
+    f1 = faces_sorted[s]
+    l1 = local_sorted[s]
+    f2 = faces_sorted[s + 1]
+    l2 = local_sorted[s + 1]
 
     adj_face = -np.ones((num_faces, 3), dtype=np.int64)
     adj_edge = -np.ones((num_faces, 3), dtype=np.int64)
 
-    adj_face[f1, l1] = f2;  adj_edge[f1, l1] = l2
-    adj_face[f2, l2] = f1;  adj_edge[f2, l2] = l1
+    adj_face[f1, l1] = f2
+    adj_edge[f1, l1] = l2
+    adj_face[f2, l2] = f1
+    adj_edge[f2, l2] = l1
 
     return adj_face, adj_edge

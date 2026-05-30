@@ -116,16 +116,16 @@ def _resolve_ior(ior_like: Any, default: float) -> float:
 # Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
 # Sources: Naty Hoffman's PBR Diffuse Lighting course notes; Filament docs.
 _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
-    "Au": (1.000, 0.766, 0.336),     # Gold
-    "Ag": (0.972, 0.960, 0.915),     # Silver
-    "Cu": (0.955, 0.638, 0.538),     # Copper
-    "Al": (0.913, 0.921, 0.925),     # Aluminium
-    "Cr": (0.550, 0.556, 0.554),     # Chromium
-    "Fe": (0.560, 0.570, 0.580),     # Iron
-    "Ni": (0.660, 0.609, 0.526),     # Nickel
-    "Pt": (0.672, 0.637, 0.585),     # Platinum
-    "Ti": (0.542, 0.497, 0.449),     # Titanium
-    "W":  (0.560, 0.520, 0.475),     # Tungsten
+    "Au": (1.000, 0.766, 0.336),  # Gold
+    "Ag": (0.972, 0.960, 0.915),  # Silver
+    "Cu": (0.955, 0.638, 0.538),  # Copper
+    "Al": (0.913, 0.921, 0.925),  # Aluminium
+    "Cr": (0.550, 0.556, 0.554),  # Chromium
+    "Fe": (0.560, 0.570, 0.580),  # Iron
+    "Ni": (0.660, 0.609, 0.526),  # Nickel
+    "Pt": (0.672, 0.637, 0.585),  # Platinum
+    "Ti": (0.542, 0.497, 0.449),  # Titanium
+    "W": (0.560, 0.520, 0.475),  # Tungsten
 }
 
 
@@ -201,6 +201,7 @@ def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> 
     we encode as sRGB so they appear correct when the texture is sampled in
     sRGB mode by the glTF pipeline.
     """
+
     def _linear_to_srgb(c: float) -> int:
         if c <= 0.0031308:
             v = 12.92 * c
@@ -258,7 +259,10 @@ def _apply_image_or_checker(
         pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
         # KHR_texture_transform: scale UVs so the 2×2 checker tiles `size`
         # times per UV unit (matches Mitsuba's to_uv scale-by-size convention).
-        pbr["baseColorTextureScale"] = (float(reflectance.size), float(reflectance.size))
+        pbr["baseColorTextureScale"] = (
+            float(reflectance.size),
+            float(reflectance.size),
+        )
 
 
 def _apply_normal_map(
@@ -280,8 +284,7 @@ def _apply_normal_map(
         pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
-            f"WebGL backend: failed to embed normal map "
-            f"'{texture.filename}': {e}"
+            f"WebGL backend: failed to embed normal map '{texture.filename}': {e}"
         )
 
 
@@ -460,8 +463,13 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         }
         if isinstance(mat, RoughConductor):
             _resolve_roughness_factor(
-                mat.alpha, 0.2, "RoughConductor.alpha",
-                pbr, extras, custom_attrs, view,
+                mat.alpha,
+                0.2,
+                "RoughConductor.alpha",
+                pbr,
+                extras,
+                custom_attrs,
+                view,
             )
         _apply_normal_map(pbr, builder, view.normal_map)
         return MaterialResult(
@@ -490,8 +498,13 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         }
         if isinstance(mat, RoughDielectric):
             _resolve_roughness_factor(
-                mat.alpha, 0.1, "RoughDielectric.alpha",
-                pbr, extras, custom_attrs, view,
+                mat.alpha,
+                0.1,
+                "RoughDielectric.alpha",
+                pbr,
+                extras,
+                custom_attrs,
+                view,
             )
 
         if isinstance(mat, ThinDielectric):
@@ -504,6 +517,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             # transmitted tint; ``medium.scale`` is an extinction multiplier
             # (Mitsuba treats it as ``scale * bbox_diag``).
             from numpy.linalg import norm as _norm
+
             bbox = getattr(view, "bbox", None)
             if bbox is not None:
                 diag = float(_norm(np.asarray(bbox[0]) - np.asarray(bbox[1])))
@@ -513,15 +527,14 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             attn_color = _color_to_rgba(mat.medium.albedo)[:3]
             # Larger ``scale`` → shorter attenuation distance (more absorption).
             scale = float(mat.medium.scale)
-            attn_distance = (
-                diag / scale if scale > 1e-6 else float("inf")
-            )
+            attn_distance = diag / scale if scale > 1e-6 else float("inf")
             pbr["attenuationDistance"] = attn_distance
             pbr["attenuationColor"] = attn_color
         else:
             # Smooth solid dielectric with no volume — still pick a thickness
             # so refraction has an offset, but skip attenuation entirely.
             from numpy.linalg import norm as _norm
+
             bbox = getattr(view, "bbox", None)
             if bbox is not None:
                 pbr["thicknessFactor"] = float(

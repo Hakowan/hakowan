@@ -86,9 +86,7 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     return obj
 
 
-def save_image(
-    image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True
-) -> None:
+def save_image(image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True) -> None:
     """Write an image to disk.
 
     ``srgb_gamma`` controls whether the 8-bit conversion applies the sRGB

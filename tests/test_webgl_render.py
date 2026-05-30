@@ -29,19 +29,44 @@ def _make_icosphere() -> lagrange.SurfaceMesh:
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     verts = np.array(
         [
-            (-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0),
-            (0, -1, phi), (0, 1, phi), (0, -1, -phi), (0, 1, -phi),
-            (phi, 0, -1), (phi, 0, 1), (-phi, 0, -1), (-phi, 0, 1),
+            (-1, phi, 0),
+            (1, phi, 0),
+            (-1, -phi, 0),
+            (1, -phi, 0),
+            (0, -1, phi),
+            (0, 1, phi),
+            (0, -1, -phi),
+            (0, 1, -phi),
+            (phi, 0, -1),
+            (phi, 0, 1),
+            (-phi, 0, -1),
+            (-phi, 0, 1),
         ],
         dtype=np.float64,
     )
     verts = verts / np.linalg.norm(verts, axis=1, keepdims=True)
     tris = np.array(
         [
-            [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-            [2, 11, 10], [4, 5, 11], [9, 1, 5], [8, 7, 1], [6, 10, 7],
-            [4, 9, 5], [9, 8, 1], [8, 6, 7], [6, 2, 10], [2, 4, 11],
-            [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+            [0, 11, 5],
+            [0, 5, 1],
+            [0, 1, 7],
+            [0, 7, 10],
+            [0, 10, 11],
+            [2, 11, 10],
+            [4, 5, 11],
+            [9, 1, 5],
+            [8, 7, 1],
+            [6, 10, 7],
+            [4, 9, 5],
+            [9, 8, 1],
+            [8, 6, 7],
+            [6, 2, 10],
+            [2, 4, 11],
+            [3, 9, 4],
+            [3, 4, 2],
+            [3, 2, 6],
+            [3, 6, 8],
+            [3, 8, 9],
         ],
         dtype=np.uint32,
     )
@@ -99,9 +124,7 @@ class TestEndToEnd:
             .channel(material=hkw.material.Diffuse(reflectance="green"))
         )
         out_path = tmp_path / "scene.html"
-        hkw.render(
-            layer, filename=str(out_path), backend="webgl", embed=False
-        )
+        hkw.render(layer, filename=str(out_path), backend="webgl", embed=False)
         assert (tmp_path / "scene.glb").exists()
 
     def test_glb_round_trips_with_basic_scene(self, tmp_path):
@@ -136,9 +159,7 @@ class TestEndToEnd:
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
         # 3 points × 12 icosphere verts = 36 verts; the position accessor's
         # count should reflect this.
-        positions_acc = gltf.accessors[
-            gltf.meshes[0].primitives[0].attributes.POSITION
-        ]
+        positions_acc = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
         assert positions_acc.count == 36
 
     def test_curve_view_emits_lines_when_no_size(self, tmp_path):

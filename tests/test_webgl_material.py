@@ -118,9 +118,7 @@ class TestConductor:
         assert all(0.0 <= c <= 1.0 for c in bc)
 
     def test_rough_conductor_alpha_maps_to_roughness(self):
-        view = _triangle_view(
-            hkw.material.RoughConductor(material="Cu", alpha=0.35)
-        )
+        view = _triangle_view(hkw.material.RoughConductor(material="Cu", alpha=0.35))
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(0.35)
 
@@ -145,9 +143,7 @@ class TestConductor:
 
 class TestPlastic:
     def test_plastic_low_roughness(self):
-        view = _triangle_view(
-            hkw.material.Plastic(diffuse_reflectance="ivory")
-        )
+        view = _triangle_view(hkw.material.Plastic(diffuse_reflectance="ivory"))
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["metallicFactor"] == 0.0
         assert result.pbr["roughnessFactor"] == pytest.approx(0.1)
@@ -177,9 +173,7 @@ class TestPrincipled:
         view = _triangle_view(
             hkw.material.Principled(
                 color=hkw.texture.Uniform(color="silver"),
-                roughness=hkw.texture.ScalarField(
-                    data=hkw.attribute(name="scalar")
-                ),
+                roughness=hkw.texture.ScalarField(data=hkw.attribute(name="scalar")),
                 metallic=0.5,
             )
         )
@@ -187,14 +181,15 @@ class TestPrincipled:
         assert "_ROUGHNESS_0" in result.custom_attrs
         assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
         assert result.extras is not None
-        assert result.extras["hakowan"]["principled_attrs"]["roughness_attr"] == "_ROUGHNESS_0"
+        assert (
+            result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
+            == "_ROUGHNESS_0"
+        )
 
 
 class TestTwoSided:
     def test_two_sided_propagates(self):
-        view = _triangle_view(
-            hkw.material.Diffuse(reflectance="red", two_sided=True)
-        )
+        view = _triangle_view(hkw.material.Diffuse(reflectance="red", two_sided=True))
         result = translate_material(view, GLTFBuilder())
         assert result.double_sided is True
 
@@ -270,9 +265,7 @@ class TestImage:
         png = tmp_path / "pink.png"
         _write_temp_png(png, size=(4, 4), color=(255, 0, 200))
         view = _triangle_view(
-            hkw.material.Diffuse(
-                reflectance=hkw.texture.Image(filename=png)
-            )
+            hkw.material.Diffuse(reflectance=hkw.texture.Image(filename=png))
         )
         builder = GLTFBuilder()
         result = translate_material(view, builder)

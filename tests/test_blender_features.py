@@ -135,7 +135,11 @@ class TestImageTexture:
             hkw.layer()
             .data(_quad_with_uv())
             .mark(hkw.mark.Surface)
-            .channel(material=hkw.material.Diffuse(reflectance=hkw.texture.Image(filename=png)))
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.Image(filename=png)
+                )
+            )
         )
         assert any(n.type == "TEX_IMAGE" for n in nodes)
         assert _source_type(bsdf.inputs["Base Color"]) == "TEX_IMAGE"
@@ -143,7 +147,10 @@ class TestImageTexture:
 
 
 class TestSmoke:
-    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="headless Blender render not supported in CI")
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
     def test_blender_render_produces_image(self, triangle, tmp_path):
         """End-to-end smoke: exercises the full bpy render path (EEVEE, 16×16)."""
         config = hkw.config()
@@ -152,7 +159,9 @@ class TestSmoke:
         config.sampler.sample_count = 1
         layer = hkw.layer().data(triangle).mark(hkw.mark.Surface)
         out = tmp_path / "smoke.png"
-        hkw.render(layer, config, filename=out, backend="blender", engine="BLENDER_EEVEE")
+        hkw.render(
+            layer, config, filename=out, backend="blender", engine="BLENDER_EEVEE"
+        )
         assert out.exists() and out.stat().st_size > 0
 
 

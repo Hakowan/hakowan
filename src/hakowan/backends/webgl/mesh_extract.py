@@ -177,8 +177,7 @@ def extract_surface_arrays(
     color_is_facet = (
         color_name is not None
         and not mesh.is_attribute_indexed(color_name)
-        and mesh.attribute(color_name).element_type
-        == lagrange.AttributeElement.Facet
+        and mesh.attribute(color_name).element_type == lagrange.AttributeElement.Facet
     )
     if color_is_facet and per_corner_normals is None:
         corner_idx = facets.reshape(-1)
@@ -221,9 +220,7 @@ def extract_surface_arrays(
             "custom_attributes": remapped_custom or None,
         }
 
-    colors = (
-        _read_color_attribute(mesh, color_name) if color_name is not None else None
-    )
+    colors = _read_color_attribute(mesh, color_name) if color_name is not None else None
     uvs = (
         np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)
         if uv_name is not None

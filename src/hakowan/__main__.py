@@ -32,9 +32,7 @@ def _whiteness_arg(value: str) -> float:
     except ValueError:
         raise argparse.ArgumentTypeError(f"whiteness must be a number, got {value!r}")
     if not math.isfinite(v) or not 0.0 <= v <= 1.0:
-        raise argparse.ArgumentTypeError(
-            f"whiteness must be in [0, 1], got {v}"
-        )
+        raise argparse.ArgumentTypeError(f"whiteness must be in [0, 1], got {v}")
     return v
 
 
@@ -260,7 +258,9 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
-def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0):
+def extract_material(
+    scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
+):
     """
     Extracts materials from a Lagrange scene and converts them to hakowan material objects.
 
@@ -283,7 +283,9 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 im = Image.fromarray(tex_img.image.data).convert("RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
+                    color=hkw.texture.Image(
+                        Path(tex_file), saturation=saturation, whiteness=whiteness
+                    ),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -308,7 +310,9 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
+                    color=hkw.texture.Image(
+                        diffuse_file, saturation=saturation, whiteness=whiteness
+                    ),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -507,7 +511,9 @@ def main():
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
-            layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
+            layer = embed_texture(
+                args.input_mesh, saturation=args.saturation, whiteness=args.whiteness
+            )
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
@@ -608,7 +614,14 @@ def main():
             else:
                 texture_file = Path(args.material)
                 assert texture_file.is_file(), f"Texture file {texture_file} not found"
-                layer = layer.material("Principled", hkw.texture.Image(texture_file, saturation=args.saturation, whiteness=args.whiteness))
+                layer = layer.material(
+                    "Principled",
+                    hkw.texture.Image(
+                        texture_file,
+                        saturation=args.saturation,
+                        whiteness=args.whiteness,
+                    ),
+                )
 
     if args.point_cloud:
         assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
@@ -662,7 +675,9 @@ def main():
                     vec_field=vec_field_attr,
                     cross_field=is_cross,
                     n=args.streamline_seeds,
-                    length=args.streamline_length * bbox_diag if args.streamline_length is not None else None,
+                    length=args.streamline_length * bbox_diag
+                    if args.streamline_length is not None
+                    else None,
                 )
             )
             .mark("Curve")
@@ -817,8 +832,10 @@ def main():
             # The webgl backend always lands at <stem>.html (even when the
             # user passed a .png filename, render() rewrites the suffix).
             # Trust the backend's returned path when available.
-            opened_path = Path(result) if isinstance(result, (str, Path)) else (
-                output_file.with_suffix(".html")
+            opened_path = (
+                Path(result)
+                if isinstance(result, (str, Path))
+                else (output_file.with_suffix(".html"))
             )
             webbrowser.open(opened_path.resolve().as_uri())
     else:

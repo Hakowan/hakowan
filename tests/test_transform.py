@@ -123,9 +123,7 @@ class TestStreamlineCompiler:
 
     def test_valid_input_produces_output(self):
         mesh = self._make_grid_mesh()
-        out = _compute_streamlines(
-            mesh, "vec", n=2, cross_field=False, min_length=2
-        )
+        out = _compute_streamlines(mesh, "vec", n=2, cross_field=False, min_length=2)
         # Should produce at least one streamline segment.
         assert out.num_vertices > 0
         assert out.num_facets > 0

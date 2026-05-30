@@ -36,23 +36,51 @@ from typing import Literal, Optional, Sequence
 import lagrange
 
 _MarkStr = Literal[
-    "point", "Point", "POINT",
-    "curve", "Curve", "CURVE",
-    "surface", "Surface", "SURFACE",
+    "point",
+    "Point",
+    "POINT",
+    "curve",
+    "Curve",
+    "CURVE",
+    "surface",
+    "Surface",
+    "SURFACE",
 ]
 
 _MaterialTypeStr = Literal[
-    "diffuse", "Diffuse", "DIFFUSE",
-    "conductor", "Conductor", "CONDUCTOR",
-    "rough_conductor", "RoughConductor", "ROUGH_CONDUCTOR",
-    "plastic", "Plastic", "PLASTIC",
-    "rough_plastic", "RoughPlastic", "ROUGH_PLASTIC",
-    "principled", "Principled", "PRINCIPLED",
-    "thin_principled", "ThinPrincipled", "THIN_PRINCIPLED",
-    "dielectric", "Dielectric", "DIELECTRIC",
-    "thin_dielectric", "ThinDielectric", "THIN_DIELECTRIC",
-    "rough_dielectric", "RoughDielectric", "ROUGH_DIELECTRIC",
-    "hair", "Hair", "HAIR",
+    "diffuse",
+    "Diffuse",
+    "DIFFUSE",
+    "conductor",
+    "Conductor",
+    "CONDUCTOR",
+    "rough_conductor",
+    "RoughConductor",
+    "ROUGH_CONDUCTOR",
+    "plastic",
+    "Plastic",
+    "PLASTIC",
+    "rough_plastic",
+    "RoughPlastic",
+    "ROUGH_PLASTIC",
+    "principled",
+    "Principled",
+    "PRINCIPLED",
+    "thin_principled",
+    "ThinPrincipled",
+    "THIN_PRINCIPLED",
+    "dielectric",
+    "Dielectric",
+    "DIELECTRIC",
+    "thin_dielectric",
+    "ThinDielectric",
+    "THIN_DIELECTRIC",
+    "rough_dielectric",
+    "RoughDielectric",
+    "ROUGH_DIELECTRIC",
+    "hair",
+    "Hair",
+    "HAIR",
 ]
 
 _BaseShapeStr = Literal["sphere", "disk", "cube"]
@@ -274,7 +302,9 @@ class Layer:
                 l._spec.channels.append(NormalMap(normal_map))
         return l
 
-    def material(self, type: _MaterialTypeStr, *args, in_place: bool = False, **kwargs) -> "Layer":
+    def material(
+        self, type: _MaterialTypeStr, *args, in_place: bool = False, **kwargs
+    ) -> "Layer":
         """Overwrite material for this layer.
 
         Args:

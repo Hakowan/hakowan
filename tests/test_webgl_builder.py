@@ -75,13 +75,9 @@ class TestGLBRoundtrip:
         b = GLTFBuilder()
         mat = b.add_material({})
         positions, indices = _basic_triangle_positions_indices()
-        colors = np.array(
-            [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1]], dtype=np.float32
-        )
+        colors = np.array([[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1]], dtype=np.float32)
         uvs = np.array([[0, 0], [1, 0], [0, 1]], dtype=np.float32)
-        b.add_mesh_node(
-            positions, indices, colors=colors, uvs=uvs, material_idx=mat
-        )
+        b.add_mesh_node(positions, indices, colors=colors, uvs=uvs, material_idx=mat)
         gltf = _roundtrip(b.finalize())
         attrs = gltf.meshes[0].primitives[0].attributes
         assert attrs.COLOR_0 is not None
@@ -117,7 +113,9 @@ class TestGLBRoundtrip:
         b.add_mesh_node(
             positions,
             indices,
-            custom_attributes={"_SCALAR_0": np.array([0.1, 0.5, 0.9], dtype=np.float32)},
+            custom_attributes={
+                "_SCALAR_0": np.array([0.1, 0.5, 0.9], dtype=np.float32)
+            },
             material_idx=mat,
         )
         glb = b.finalize()
@@ -135,7 +133,10 @@ class TestMaterials:
         assert idx == 0
         gltf = _roundtrip(_minimal_with_material(b))
         assert gltf.materials[0].pbrMetallicRoughness.baseColorFactor == [
-            0.2, 0.4, 0.6, 1.0,
+            0.2,
+            0.4,
+            0.6,
+            1.0,
         ]
 
     def test_metallic_roughness(self):
@@ -157,10 +158,12 @@ class TestMaterials:
         # Need a texture index that exists.
         png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50  # dummy; not parsed.
         tex_idx = b.add_image_texture(png)
-        b.add_material({
-            "baseColorTextureIndex": tex_idx,
-            "baseColorTextureScale": (4.0, 4.0),
-        })
+        b.add_material(
+            {
+                "baseColorTextureIndex": tex_idx,
+                "baseColorTextureScale": (4.0, 4.0),
+            }
+        )
         gltf = _roundtrip(_minimal_with_material(b))
         assert "KHR_texture_transform" in gltf.extensionsUsed
         tex_info = gltf.materials[0].pbrMetallicRoughness.baseColorTexture
@@ -200,7 +203,10 @@ class TestCameras:
         positions, indices = _basic_triangle_positions_indices()
         b.add_mesh_node(positions, indices, material_idx=0)
         b.add_perspective_camera(
-            yfov=0.5, aspect_ratio=16 / 9, znear=0.01, zfar=100,
+            yfov=0.5,
+            aspect_ratio=16 / 9,
+            znear=0.01,
+            zfar=100,
             world_transform_4x4=np.eye(4),
         )
         gltf = _roundtrip(b.finalize())
@@ -217,7 +223,10 @@ class TestCameras:
         positions, indices = _basic_triangle_positions_indices()
         b.add_mesh_node(positions, indices, material_idx=0)
         b.add_orthographic_camera(
-            xmag=1.5, ymag=1.0, znear=0.1, zfar=50,
+            xmag=1.5,
+            ymag=1.0,
+            znear=0.1,
+            zfar=50,
             world_transform_4x4=np.eye(4),
         )
         gltf = _roundtrip(b.finalize())
@@ -232,9 +241,7 @@ class TestPointLights:
         b.add_material({})
         positions, indices = _basic_triangle_positions_indices()
         b.add_mesh_node(positions, indices, material_idx=0)
-        b.add_point_light(
-            position=(1, 2, 3), color=(1, 1, 1), intensity=5.0
-        )
+        b.add_point_light(position=(1, 2, 3), color=(1, 1, 1), intensity=5.0)
         glb = b.finalize()
         # Roundtripping via from_bytes drops custom extensions, so inspect
         # the embedded JSON directly.

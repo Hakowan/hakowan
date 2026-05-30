@@ -87,9 +87,7 @@ class TestMitsubaNormal:
             mi.set_variant("scalar_rgb")
         from hakowan.backends.mitsuba.render import generate_scene_config
 
-        scene = hkw.compiler.compile(
-            hkw.layer().data(mesh_in).mark(hkw.mark.Surface)
-        )
+        scene = hkw.compiler.compile(hkw.layer().data(mesh_in).mark(hkw.mark.Surface))
         cfg = generate_scene_config(scene)
         assert len(cfg) == 1
         _, shape = next(iter(cfg.items()))
@@ -140,9 +138,7 @@ class TestBlenderNormal:
         bpy = pytest.importorskip("bpy")
         from hakowan.backends.blender.render import BlenderBackend
 
-        scene = hkw.compiler.compile(
-            hkw.layer().data(mesh_in).mark(hkw.mark.Surface)
-        )
+        scene = hkw.compiler.compile(hkw.layer().data(mesh_in).mark(hkw.mark.Surface))
         backend = BlenderBackend()
         backend._clear_scene()
         backend._create_surface_object(list(scene)[0], 0)
@@ -179,9 +175,7 @@ class TestWebglNormal:
     def _normals(mesh_in) -> np.ndarray:
         from hakowan.backends.webgl.mesh_extract import extract_surface_arrays
 
-        scene = hkw.compiler.compile(
-            hkw.layer().data(mesh_in).mark(hkw.mark.Surface)
-        )
+        scene = hkw.compiler.compile(hkw.layer().data(mesh_in).mark(hkw.mark.Surface))
         arrays = extract_surface_arrays(list(scene)[0])
         assert arrays["normals"] is not None
         return np.asarray(arrays["normals"])

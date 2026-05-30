@@ -482,7 +482,14 @@ class BlenderBackend(RenderBackend):
         else:
             tip_size = size
 
-        return base, ctrl_pts_1, ctrl_pts_2, tip, np.atleast_1d(base_size), np.atleast_1d(tip_size)
+        return (
+            base,
+            ctrl_pts_1,
+            ctrl_pts_2,
+            tip,
+            np.atleast_1d(base_size),
+            np.atleast_1d(tip_size),
+        )
 
     def _create_view_object(self, view: View, index: int):
         """Create Blender object from a view.
@@ -564,7 +571,10 @@ class BlenderBackend(RenderBackend):
         # Apply material
         if view.material_channel is not None:
             mat = self._create_material(
-                view, index, color_layer_name=color_layer_name, uv_layer_name=uv_layer_name
+                view,
+                index,
+                color_layer_name=color_layer_name,
+                uv_layer_name=uv_layer_name,
             )
             if mat:
                 obj.data.materials.append(mat)
@@ -773,7 +783,9 @@ class BlenderBackend(RenderBackend):
         if view.covariance_channel is not None:
             covariance_transforms = self._extract_covariance_transforms(view)
 
-        radii = self._extract_size(view, default_size=0.01 if covariance_transforms is None else 1.0)
+        radii = self._extract_size(
+            view, default_size=0.01 if covariance_transforms is None else 1.0
+        )
         if np.isscalar(radii):
             radii = [float(radii)] * n_points
         radii = np.atleast_1d(radii)
@@ -977,7 +989,6 @@ class BlenderBackend(RenderBackend):
 
         logger.debug(f"Created curve object {index} with {n_segments} segments")
 
-
     # Approximate base colors for common Mitsuba conductor presets.
     _conductor_colors: dict[str, tuple[float, float, float]] = {
         "Au": (1.0, 0.78, 0.34),
@@ -1083,9 +1094,8 @@ class BlenderBackend(RenderBackend):
                 # Fallback if checkerboard creation failed
                 bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
         elif (
-            (image_tex := self._get_image_texture(view)) is not None
-            and uv_layer_name is not None
-        ):
+            image_tex := self._get_image_texture(view)
+        ) is not None and uv_layer_name is not None:
             tex_node = self._build_image_texture_node(
                 image_tex, nodes, links, uv_layer_name, is_data=False
             )
@@ -1131,7 +1141,9 @@ class BlenderBackend(RenderBackend):
 
             case RoughConductor():
                 bsdf.inputs["Metallic"].default_value = 1.0
-                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                alpha = (
+                    mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                )
                 bsdf.inputs["Roughness"].default_value = float(alpha)
 
             case Conductor():
@@ -1139,7 +1151,9 @@ class BlenderBackend(RenderBackend):
                 bsdf.inputs["Roughness"].default_value = 0.0
 
             case RoughDielectric():
-                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs[
+                    "Transmission Weight"
+                ].default_value = mat_data.specular_transmittance
                 # ``specular_reflectance`` is a [0,1] reflectance multiplier where
                 # 1.0 means "unchanged" (Mitsuba convention). Blender's "Specular
                 # IOR Level" is neutral at 0.5 (1.0 ≈ double specular), so map
@@ -1148,12 +1162,16 @@ class BlenderBackend(RenderBackend):
                     0.5 * mat_data.specular_reflectance
                 )
                 bsdf.inputs["IOR"].default_value = self._resolve_ior(mat_data.int_ior)
-                alpha = mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                alpha = (
+                    mat_data.alpha if isinstance(mat_data.alpha, (int, float)) else 0.1
+                )
                 bsdf.inputs["Roughness"].default_value = float(alpha)
                 bsdf.inputs["Metallic"].default_value = 0.0
 
             case Dielectric():
-                bsdf.inputs["Transmission Weight"].default_value = mat_data.specular_transmittance
+                bsdf.inputs[
+                    "Transmission Weight"
+                ].default_value = mat_data.specular_transmittance
                 # See RoughDielectric: remap [0,1] reflectance multiplier (1.0 =
                 # unchanged) onto Blender's 0.5-neutral "Specular IOR Level".
                 bsdf.inputs["Specular IOR Level"].default_value = (
@@ -1254,7 +1272,9 @@ class BlenderBackend(RenderBackend):
 
         return mat
 
-    def _create_thin_dielectric_material(self, mat, mat_data: ThinDielectric, nodes, links):
+    def _create_thin_dielectric_material(
+        self, mat, mat_data: ThinDielectric, nodes, links
+    ):
         """Create a thin dielectric (thin glass) material.
 
         Models a thin sheet of glass where the two refractions cancel out:
@@ -1310,7 +1330,9 @@ class BlenderBackend(RenderBackend):
 
         return mat
 
-    def _create_checkerboard_shader(self, nodes, links, checkerboard_tex: Checkerboard, uv_layer_name: str):
+    def _create_checkerboard_shader(
+        self, nodes, links, checkerboard_tex: Checkerboard, uv_layer_name: str
+    ):
         """Create a checkerboard shader node network.
 
         Args:
@@ -1370,10 +1392,14 @@ class BlenderBackend(RenderBackend):
             return self._extract_color(texture)
         else:
             # Cannot convert complex textures like ScalarField or nested Checkerboard
-            logger.warning(f"Cannot convert texture type {type(texture)} to color for checkerboard")
+            logger.warning(
+                f"Cannot convert texture type {type(texture)} to color for checkerboard"
+            )
             return None
 
-    def _extract_material_color(self, mat_data) -> tuple[float, float, float, float] | None:
+    def _extract_material_color(
+        self, mat_data
+    ) -> tuple[float, float, float, float] | None:
         """Extract base color from any supported material type.
 
         Args:
@@ -1553,7 +1579,14 @@ class BlenderBackend(RenderBackend):
         return bimg
 
     def _build_image_texture_node(
-        self, image: Image, nodes, links, uv_layer_name: str, *, is_data: bool, y: int = 0
+        self,
+        image: Image,
+        nodes,
+        links,
+        uv_layer_name: str,
+        *,
+        is_data: bool,
+        y: int = 0,
     ):
         """Create a UV-mapped ``ShaderNodeTexImage`` node, or None on failure."""
         try:
@@ -1716,7 +1749,9 @@ class BlenderBackend(RenderBackend):
 
             # UV values should be 2D (N x 2)
             if uv_values.ndim != 2 or uv_values.shape[1] < 2:
-                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_values.shape}")
+                logger.warning(
+                    f"UV attribute '{attr_name}' has invalid shape: {uv_values.shape}"
+                )
                 return
 
             # Indexed UVs: expand using indices to corner UVs
@@ -1733,7 +1768,9 @@ class BlenderBackend(RenderBackend):
 
             # UV data should be 2D (N x 2)
             if uv_data.ndim != 2 or uv_data.shape[1] < 2:
-                logger.warning(f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}")
+                logger.warning(
+                    f"UV attribute '{attr_name}' has invalid shape: {uv_data.shape}"
+                )
                 return
 
             element_type = attr.element_type

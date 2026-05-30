@@ -18,9 +18,7 @@ def glb_to_data_uri(glb_bytes: bytes) -> str:
     return f"data:model/gltf-binary;base64,{b64}"
 
 
-def look_at(
-    eye: npt.ArrayLike, target: npt.ArrayLike, up: npt.ArrayLike
-) -> np.ndarray:
+def look_at(eye: npt.ArrayLike, target: npt.ArrayLike, up: npt.ArrayLike) -> np.ndarray:
     """Return the camera's world transform (4x4) for an eye/target/up triple.
 
     Uses the glTF/three.js convention: the camera looks down its local -Z axis,
