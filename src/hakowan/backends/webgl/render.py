@@ -37,6 +37,10 @@ _EMBED_SIZE_LIMIT_BYTES = 512 * 1024 * 1024  # 512 MB
 class WebGLBackend(RenderBackend):
     """Render a hakowan ``Scene`` as a self-contained three.js HTML viewer."""
 
+    # ------------------------------------------------------------------ #
+    # Public interface                                                      #
+    # ------------------------------------------------------------------ #
+
     def render(
         self,
         scene: Scene,
@@ -55,28 +59,9 @@ class WebGLBackend(RenderBackend):
             logger.debug(f"WebGL backend ignoring unknown kwargs: {list(kwargs)}")
 
         out_path = _resolve_output_path(filename)
-        builder = GLTFBuilder()
-
-        for index, view in enumerate(scene):
-            if view.mark is mark_module.Surface:
-                _add_surface_view(builder, view)
-            elif view.mark is mark_module.Point:
-                add_point_view(builder, view)
-            elif view.mark is mark_module.Curve:
-                add_curve_view(builder, view)
-            else:
-                logger.warning(
-                    f"WebGL backend: view {index} has unsupported mark "
-                    f"{view.mark!r} — skipping."
-                )
-
-        _, initial_view = add_camera(builder, config)
-        _add_point_lights(builder, config)
-        glb_bytes = builder.finalize()
-
-        envmap = envmap_descriptor(config)
-        if envmap is not None:
-            envmap["background"] = bool(envmap_background)
+        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+            scene, config, envmap_background
+        )
 
         if _decide_embed(embed, glb_bytes):
             glb_uri = glb_to_data_uri(glb_bytes)
@@ -105,6 +90,85 @@ class WebGLBackend(RenderBackend):
         out_path.write_bytes(html.encode("utf-8"))
         logger.info(f"WebGL viewer saved to {out_path}")
         return out_path
+
+    def html_string(
+        self,
+        scene: Scene,
+        config: Config,
+        *,
+        three_version: str = _DEFAULT_THREE_VERSION,
+        bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
+        title: str = "hakowan",
+        envmap_background: bool = False,
+    ) -> str:
+        """Build and return the viewer HTML as a string without writing any files.
+
+        The GLB is always embedded as a base64 data URI, making the result
+        self-contained regardless of scene size.
+
+        Args:
+            scene: Compiled scene to render.
+            config: Rendering configuration.
+            three_version: Three.js version string to pull from unpkg CDN.
+            bg_color: Background colour as an ``(r, g, b)`` float tuple in [0, 1].
+            title: HTML page title.
+            envmap_background: Whether to show the environment map as background.
+
+        Returns:
+            Complete HTML page as a string.
+        """
+        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+            scene, config, envmap_background
+        )
+        return render_html(
+            glb_uri=glb_to_data_uri(glb_bytes),
+            three_version=three_version,
+            bg_color=bg_color,
+            initial_view=initial_view,
+            title=title,
+            envmap=envmap,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Internal helpers                                                      #
+    # ------------------------------------------------------------------ #
+
+    def _build_scene_artifacts(
+        self,
+        scene: Scene,
+        config: Config,
+        envmap_background: bool = False,
+    ) -> tuple[bytes, dict | None, dict]:
+        """Compile *scene* into GLB bytes, an envmap descriptor, and camera view.
+
+        Args:
+            scene: Compiled scene.
+            config: Rendering configuration.
+            envmap_background: Whether the envmap is visible as the background.
+
+        Returns:
+            ``(glb_bytes, envmap, initial_view)`` where *envmap* may be ``None``.
+        """
+        builder = GLTFBuilder()
+        for index, view in enumerate(scene):
+            if view.mark is mark_module.Surface:
+                _add_surface_view(builder, view)
+            elif view.mark is mark_module.Point:
+                add_point_view(builder, view)
+            elif view.mark is mark_module.Curve:
+                add_curve_view(builder, view)
+            else:
+                logger.warning(
+                    f"WebGL backend: view {index} has unsupported mark "
+                    f"{view.mark!r} — skipping."
+                )
+        _, initial_view = add_camera(builder, config)
+        _add_point_lights(builder, config)
+        glb_bytes = builder.finalize()
+        envmap = envmap_descriptor(config)
+        if envmap is not None:
+            envmap["background"] = bool(envmap_background)
+        return glb_bytes, envmap, initial_view
 
 
 # ---------------------------------------------------------------------- #
@@ -163,7 +227,7 @@ def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
 
 def _add_surface_view(builder: GLTFBuilder, view) -> None:
     # Translate material first so per-vertex custom attributes (e.g.
-    # ``_SCALAR_0`` for isocontour) flow into the extractor and follow the
+    # ``_scalar_0`` for isocontour) flow into the extractor and follow the
     # same de-indexing path as positions/normals when facet normals are used.
     result = translate_material(view, builder)
     arrays = extract_surface_arrays(view, custom_attrs=result.custom_attrs)

@@ -52,13 +52,20 @@ from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uni
 
 from .builder import GLTFBuilder
 
+# glTF allows arbitrary underscore-prefixed names, but three.js GLTFLoader maps
+# unknown attributes with ``name.toLowerCase()`` (see ``addPrimitiveAttributes``).
+# Shader patches must use the lowercased names so attributes bind after load.
+_SCALAR_ATTR = "_scalar_0"
+_ROUGHNESS_ATTR = "_roughness_0"
+_METALLIC_ATTR = "_metallic_0"
+
 
 @dataclass
 class MaterialResult:
     """What ``translate_material`` returns.
 
     ``custom_attrs`` carries per-vertex arrays that must be plumbed onto the
-    mesh node (e.g. a ``"_SCALAR_0"`` array driving an isocontour shader).
+    mesh node (e.g. ``"_scalar_0"`` driving an isocontour shader).
     ``extras`` carries the dict that lands on the glTF material's ``extras``
     field — the viewer JS reads it to wire up ``onBeforeCompile`` patches.
     """
@@ -293,6 +300,8 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     Isocontour ``data`` reference, or None if the source attribute can't be
     resolved.
     """
+    import lagrange
+
     if view.data_frame is None:
         return None
     if isinstance(attr_like, (ScalarField, Isocontour)):
@@ -305,7 +314,24 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     mesh = view.data_frame.mesh
     if not mesh.has_attribute(name):
         return None
-    arr = np.asarray(mesh.attribute(name).data, dtype=np.float32).reshape(-1)
+
+    if mesh.is_attribute_indexed(name):
+        indexed = mesh.indexed_attribute(name)
+        if indexed.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        values = np.asarray(indexed.values.data, dtype=np.float32).reshape(-1)
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        corner_vertices = mesh.facets.reshape(-1)
+        if indices.shape[0] != corner_vertices.shape[0]:
+            return None
+        out = np.zeros(mesh.num_vertices, dtype=np.float32)
+        out[corner_vertices] = values[indices]
+        return out
+
+    attr = mesh.attribute(name)
+    if attr.element_type != lagrange.AttributeElement.Vertex:
+        return None
+    arr = np.asarray(attr.data, dtype=np.float32).reshape(-1)
     if arr.shape[0] != mesh.num_vertices:
         return None
     return arr
@@ -321,7 +347,7 @@ def _apply_isocontour(
     """Wire an Isocontour reflectance via the viewer's ``onBeforeCompile``
     shader patch.
 
-    Bakes the (pre-scaled) scalar field as ``_SCALAR_0`` and stores
+    Bakes the (pre-scaled) scalar field as ``_scalar_0`` and stores
     ``num_contours / ratio / color1 / color2`` in ``extras["isocontour"]``;
     the viewer's fragment-shader injection then re-creates the contour
     stripes per-pixel from the scalar value — no UV gymnastics or texture
@@ -337,7 +363,7 @@ def _apply_isocontour(
         c1 = _resolve_texture_color(reflectance.texture1)
         pbr["baseColorFactor"] = list(c1)
         return
-    custom_attrs["_SCALAR_0"] = arr
+    custom_attrs[_SCALAR_ATTR] = arr
     c1 = _resolve_texture_color(reflectance.texture1)[:3]
     c2 = _resolve_texture_color(reflectance.texture2)[:3]
     extras["isocontour"] = {
@@ -374,7 +400,7 @@ def _bake_scalar_pbr_factor(
     arr = _read_scalar_attribute(view, texture)
     if arr is None:
         return False
-    attr_name = "_ROUGHNESS_0" if kind == "roughness" else "_METALLIC_0"
+    attr_name = _ROUGHNESS_ATTR if kind == "roughness" else _METALLIC_ATTR
     factor_key = "roughnessFactor" if kind == "roughness" else "metallicFactor"
     meta_key = "roughness_attr" if kind == "roughness" else "metallic_attr"
     custom_attrs[attr_name] = arr

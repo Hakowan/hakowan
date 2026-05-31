@@ -202,8 +202,8 @@ function applyHakowanShaderPatches(root) {
         shader.uniforms.uIsoColor2 = {
           value: new THREE.Color(...isoParams.color2),
         };
-        injectVertHead += "attribute float _SCALAR_0;\nvarying float vScalar0;\n";
-        injectVertBody += "vScalar0 = _SCALAR_0;\n";
+        injectVertHead += "attribute float _scalar_0;\nvarying float vScalar0;\n";
+        injectVertBody += "vScalar0 = _scalar_0;\n";
         injectFragHead +=
           "varying float vScalar0;\nuniform float uNumContours;\n"
           + "uniform float uRatio;\nuniform vec3 uIsoColor1;\nuniform vec3 uIsoColor2;\n";
@@ -216,14 +216,16 @@ function applyHakowanShaderPatches(root) {
       }
 
       if (principledAttrs && principledAttrs.roughness_attr) {
-        injectVertHead += "attribute float _ROUGHNESS_0;\nvarying float vRoughness0;\n";
-        injectVertBody += "vRoughness0 = _ROUGHNESS_0;\n";
+        const roughAttr = principledAttrs.roughness_attr;
+        injectVertHead += `attribute float ${roughAttr};\nvarying float vRoughness0;\n`;
+        injectVertBody += `vRoughness0 = ${roughAttr};\n`;
         injectFragHead += "varying float vRoughness0;\n";
         injectFragRough += "roughnessFactor *= clamp(vRoughness0, 0.0, 1.0);\n";
       }
       if (principledAttrs && principledAttrs.metallic_attr) {
-        injectVertHead += "attribute float _METALLIC_0;\nvarying float vMetallic0;\n";
-        injectVertBody += "vMetallic0 = _METALLIC_0;\n";
+        const metalAttr = principledAttrs.metallic_attr;
+        injectVertHead += `attribute float ${metalAttr};\nvarying float vMetallic0;\n`;
+        injectVertBody += `vMetallic0 = ${metalAttr};\n`;
         injectFragHead += "varying float vMetallic0;\n";
         injectFragMetal += "metalnessFactor *= clamp(vMetallic0, 0.0, 1.0);\n";
       }

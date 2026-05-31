@@ -114,7 +114,7 @@ class TestGLBRoundtrip:
             positions,
             indices,
             custom_attributes={
-                "_SCALAR_0": np.array([0.1, 0.5, 0.9], dtype=np.float32)
+                "_scalar_0": np.array([0.1, 0.5, 0.9], dtype=np.float32)
             },
             material_idx=mat,
         )
@@ -123,7 +123,7 @@ class TestGLBRoundtrip:
         # fields as object members; verify they appear in the serialized JSON.
         gltf = _roundtrip(glb)
         attrs_json = gltf.meshes[0].primitives[0].attributes.to_json()
-        assert "_SCALAR_0" in attrs_json
+        assert "_scalar_0" in attrs_json
 
 
 class TestMaterials:

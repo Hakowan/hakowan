@@ -441,3 +441,33 @@ class Layer:
     def children(self, value: Sequence["Layer"]) -> None:
         """Set the child layers of this layer."""
         self._children = list(value)
+
+    def _repr_html_(self) -> str:
+        """Return an interactive Three.js viewer for Jupyter display.
+
+        Requires the ``pygltflib`` package (WebGL backend).  If it is not
+        installed the method falls back to a plain-text representation.
+        """
+        try:
+            from ...backends.webgl import WebGLBackend
+        except ImportError:
+            return (
+                "<pre>Install pygltflib for inline preview: "
+                "pip install pygltflib</pre>"
+            )
+        try:
+            from ...compiler.compile import compile as _compile
+            from ...setup.config import Config
+
+            scene = _compile(self)
+            html_str = WebGLBackend().html_string(scene, Config())
+        except Exception as exc:
+            return f"<pre>hakowan preview error: {exc}</pre>"
+
+        # Embed the full HTML page in an srcdoc iframe.
+        # Double-quotes inside srcdoc must be entity-encoded.
+        escaped = html_str.replace("&", "&amp;").replace('"', "&quot;")
+        return (
+            f'<iframe srcdoc="{escaped}" width="100%" height="500"'
+            f' style="border:none;"></iframe>'
+        )

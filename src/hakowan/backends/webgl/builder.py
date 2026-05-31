@@ -222,7 +222,7 @@ class GLTFBuilder:
         ``colors`` may be Nx3 (RGB) or Nx4 (RGBA) float32 in linear [0, 1].
         ``uvs`` is Nx2 float32. ``mode`` is one of the ``MODE_*`` constants.
         ``custom_attributes`` is a name → ndarray map for additional generic
-        vertex attributes (e.g. ``"_SCALAR_0"`` for shader-injection paths);
+        vertex attributes (e.g. ``"_scalar_0"`` for shader-injection paths);
         names must follow the glTF underscore-prefix convention.
         """
         positions = np.ascontiguousarray(positions, dtype=np.float32)

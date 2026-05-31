@@ -232,6 +232,42 @@ class TestEndToEnd:
         assert "function setPass(pass)" in html
         assert 'id="passes"' in html
 
+    def test_isocontour_exports_scalar_attribute_and_shader(self, tmp_path):
+        mesh = _make_icosphere()
+        h = np.asarray(mesh.vertices[:, 1], dtype=np.float64)
+        mesh.create_attribute(
+            "h",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=h,
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.Isocontour(
+                        data=hkw.attribute(name="h"),
+                        num_contours=6,
+                        ratio=0.3,
+                        texture1=hkw.texture.Uniform(color="black"),
+                        texture2=hkw.texture.Uniform(color="white"),
+                    )
+                )
+            )
+        )
+        out_path = tmp_path / "iso.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        html = out_path.read_text(encoding="utf-8")
+        glb = _decode_glb_from_html(html)
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        attrs_json = gltf.meshes[0].primitives[0].attributes.to_json()
+        assert "_scalar_0" in attrs_json
+        iso = gltf.materials[0].extras["hakowan"]["isocontour"]
+        assert iso["num_contours"] == 6
+        # Viewer shader must reference the lowercased glTF attribute name.
+        assert "attribute float _scalar_0" in html
+
     def test_multiview_layer_chain(self, tmp_path):
         sphere = _make_icosphere()
         a = (

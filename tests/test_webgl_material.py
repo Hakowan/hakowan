@@ -133,11 +133,11 @@ class TestConductor:
         # ScalarField alpha is baked per-vertex; the viewer multiplies it into
         # roughnessFactor (which is set to 1.0 so the multiply is exact).
         assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
-        assert "_ROUGHNESS_0" in result.custom_attrs
-        assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
+        assert "_roughness_0" in result.custom_attrs
+        assert result.custom_attrs["_roughness_0"].shape == (3,)
         assert (
             result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
-            == "_ROUGHNESS_0"
+            == "_roughness_0"
         )
 
 
@@ -178,12 +178,12 @@ class TestPrincipled:
             )
         )
         result = translate_material(view, GLTFBuilder())
-        assert "_ROUGHNESS_0" in result.custom_attrs
-        assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
+        assert "_roughness_0" in result.custom_attrs
+        assert result.custom_attrs["_roughness_0"].shape == (3,)
         assert result.extras is not None
         assert (
             result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
-            == "_ROUGHNESS_0"
+            == "_roughness_0"
         )
 
 
@@ -229,10 +229,10 @@ class TestDielectric:
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
         assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
-        assert "_ROUGHNESS_0" in result.custom_attrs
+        assert "_roughness_0" in result.custom_attrs
         assert (
             result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
-            == "_ROUGHNESS_0"
+            == "_roughness_0"
         )
 
     def test_dielectric_with_medium_emits_volume(self):
@@ -313,9 +313,9 @@ class TestIsocontour:
         assert "baseColorTextureScale" not in result.pbr
         assert result.pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
         # Scalar field baked as a per-vertex custom attribute the viewer JS
-        # binds to ``_SCALAR_0``.
-        assert "_SCALAR_0" in result.custom_attrs
-        assert result.custom_attrs["_SCALAR_0"].shape == (3,)
+        # binds to ``_scalar_0`` (lowercase for three.js GLTFLoader).
+        assert "_scalar_0" in result.custom_attrs
+        assert result.custom_attrs["_scalar_0"].shape == (3,)
         # Isocontour parameters land on the material's extras dict.
         assert result.extras is not None
         iso = result.extras["hakowan"]["isocontour"]
