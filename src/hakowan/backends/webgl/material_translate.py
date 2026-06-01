@@ -46,13 +46,11 @@ from ...grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
-    ThinPrincipled,
 )
 from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uniform
 
 from .builder import (
     GLTFBuilder,
-    _FILTER_LINEAR,
     _FILTER_NEAREST,
 )
 

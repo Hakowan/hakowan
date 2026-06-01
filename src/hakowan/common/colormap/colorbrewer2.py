@@ -7,7 +7,6 @@ Source: https://colorbrewer2.org/
 
 import numpy as np
 from .colormap import ColorMap
-from ..color import Color
 
 accent = ColorMap(
     np.array(

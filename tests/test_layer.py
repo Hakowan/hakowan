@@ -1,17 +1,15 @@
-import pytest
 import hakowan as hkw
-from hakowan import channel, dataframe, layer, scale
 import lagrange
 
 
 class TestLayer:
     def test_empty_layer(self):
-        l = hkw.layer()
-        assert l._spec.data is None
-        assert l._spec.mark is None
-        assert l._spec.channels == []
-        assert l._spec.transform is None
-        assert l._children == []
+        lyr = hkw.layer()
+        assert lyr._spec.data is None
+        assert lyr._spec.mark is None
+        assert lyr._spec.channels == []
+        assert lyr._spec.transform is None
+        assert lyr._children == []
 
     def test_chain_layers(self):
         l0 = hkw.layer()
@@ -23,8 +21,8 @@ class TestLayer:
         l2 = l0.channel(position=hkw.channel.Position(data=position))
         assert l0 in l2._children
 
-        l = l1 + l2
-        assert l._children == [l1, l2]
+        lyr = l1 + l2
+        assert lyr._children == [l1, l2]
 
     def test_normal(self, triangle):
         mesh = triangle

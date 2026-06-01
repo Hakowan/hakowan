@@ -244,9 +244,7 @@ class TestEndToEnd:
             "uv",
             element=lagrange.AttributeElement.Vertex,
             usage=lagrange.AttributeUsage.UV,
-            initial_values=np.array(
-                [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float64
-            ),
+            initial_values=np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float64),
         )
         layer = (
             hkw.layer(mesh)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 
 import numpy as np
 import pytest
@@ -11,7 +10,6 @@ pygltflib = pytest.importorskip("pygltflib")
 
 from hakowan.backends.webgl.builder import (
     MODE_LINES,
-    MODE_TRIANGLES,
     GLTFBuilder,
 )
 

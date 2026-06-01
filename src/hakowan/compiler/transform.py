@@ -1,6 +1,5 @@
 from .view import View
 from ..grammar.mark import Mark
-from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
 from ..grammar.transform import (
     Affine,
@@ -112,7 +111,7 @@ def _apply_filter_transform(view: View, transform: Filter):
             else:
                 # TODO: Add curve support.
                 raise NotImplementedError(
-                    f"Filter transform does not support curve mark yet."
+                    "Filter transform does not support curve mark yet."
                 )
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")

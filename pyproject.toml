@@ -52,3 +52,18 @@ default = { solve-group = "default" }
 python = "==3.13"
 pytest = ">=9.0.3,<10"
 libllvm18 = ">=18.1.8,<19"
+# Pinned to a minor range so the enforced lint rule set does not drift when a
+# new ruff is released (a wider range could surface new violations and break CI).
+ruff = ">=0.12,<0.13"
+
+[tool.ruff.lint]
+# Pyflakes (F) catches real problems — unused/duplicate imports, unused
+# variables, redefinitions. The E4/E7/E9 + W pycodestyle subset covers import
+# placement, ambiguous names, lambda-assignment and syntax/whitespace errors.
+select = ["E4", "E7", "E9", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules guard backend imports behind ``pytest.importorskip`` and
+# platform skips, which must execute *before* those imports — so their
+# module-level imports are intentionally not at the top of the file.
+"tests/*" = ["E402"]

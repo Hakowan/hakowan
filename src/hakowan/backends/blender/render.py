@@ -725,10 +725,10 @@ class BlenderBackend(RenderBackend):
 
         # General case: use Rodrigues' rotation formula
         v = axis / sin_a
-        I = np.eye(3)
+        eye3 = np.eye(3)
         H = np.outer(v, v)
-        S = np.cross(I, v)
-        M = I * cos_a + S * sin_a + H * (1 - cos_a)
+        S = np.cross(eye3, v)
+        M = eye3 * cos_a + S * sin_a + H * (1 - cos_a)
         rot = mathutils.Matrix.Identity(4)
         for r in range(3):
             for c in range(3):
@@ -2139,7 +2139,6 @@ class BlenderBackend(RenderBackend):
 
         stem = filename.stem
         suffix = filename.suffix.lower()
-        parent = filename.parent
 
         # Map the user's output suffix to a Blender file-format token.
         fmt_map = {".exr": "OPEN_EXR", ".png": "PNG", ".jpg": "JPEG"}
@@ -2149,7 +2148,6 @@ class BlenderBackend(RenderBackend):
 
         # '//' resolves to filename.parent because we saved a temp .blend there
         # in render() before calling this method.
-        output_dir = filename.parent
 
         if config.albedo:
             fo = nodes.new(type="CompositorNodeOutputFile")

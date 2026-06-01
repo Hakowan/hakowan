@@ -10,10 +10,10 @@ def rotation(from_vector: npt.NDArray, to_vector: npt.NDArray):
         return np.eye(4)
     else:
         v = np.array(axis / sin_a, dtype=np.float64)
-        I = np.eye(3)
+        eye3 = np.eye(3)
         H = np.outer(v, v)
-        S = np.cross(I, v)
-        M = I * cos_a + S * sin_a + H * (1 - cos_a)
+        S = np.cross(eye3, v)
+        M = eye3 * cos_a + S * sin_a + H * (1 - cos_a)
 
         A = np.eye(4, dtype=np.float64)
         A[:3, :3] = M

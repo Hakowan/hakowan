@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 
 from hakowan.backends.webgl.envmap import (
     _align_y_to,

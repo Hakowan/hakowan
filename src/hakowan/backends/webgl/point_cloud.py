@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-import lagrange
 import numpy as np
 
 from ...common import logger

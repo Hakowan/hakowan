@@ -567,7 +567,6 @@ def main():
                 two_sided=args.two_sided,
             )
         case "uv":
-            diag_len = bbox_diag
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
             assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
             uv_id = uv_ids[0]

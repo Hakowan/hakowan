@@ -20,17 +20,17 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
         :return: a view.
         """
         view = View()
-        for l in ancestors:
+        for lyr in ancestors:
             if view.data_frame is None:
-                view.data_frame = copy.deepcopy(l._spec.data)
+                view.data_frame = copy.deepcopy(lyr._spec.data)
             if view.mark is None:
-                view.mark = l._spec.mark
+                view.mark = lyr._spec.mark
             if view.transform is None:
-                view.transform = copy.deepcopy(l._spec.transform)
-            elif l._spec.transform is not None:
-                view.transform *= l._spec.transform
-            if len(l._spec.channels) > 0:
-                view.channels.extend(copy.deepcopy(l._spec.channels))
+                view.transform = copy.deepcopy(lyr._spec.transform)
+            elif lyr._spec.transform is not None:
+                view.transform *= lyr._spec.transform
+            if len(lyr._spec.channels) > 0:
+                view.channels.extend(copy.deepcopy(lyr._spec.channels))
 
         if view.mark is None:
             logger.debug("Apply default surface mark.")
@@ -40,13 +40,13 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
         view.initialize_bbox()
         return view
 
-    def traverse(l: layer.Layer, ancestors: list[layer.Layer]) -> None:
+    def traverse(lyr: layer.Layer, ancestors: list[layer.Layer]) -> None:
         # `ancestors` is a list of layers from the root to the current layer.
-        ancestors.append(l)
-        if len(l._children) == 0:
+        ancestors.append(lyr)
+        if len(lyr._children) == 0:
             scene.append(generate_view(ancestors))
         else:
-            for child in l._children:
+            for child in lyr._children:
                 traverse(child, ancestors)
         ancestors.pop()
 

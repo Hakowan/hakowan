@@ -1,5 +1,4 @@
 import math
-import numpy as np
 import numpy.typing as npt
 
 from ..color import Color

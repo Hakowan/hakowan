@@ -3,7 +3,6 @@ from .spectrum import generate_spectrum_config
 from .utils import rotation
 
 from typing import Any
-import numpy.typing as npt
 import numpy as np
 import mitsuba as mi
 

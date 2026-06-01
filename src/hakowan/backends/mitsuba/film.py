@@ -1,7 +1,5 @@
 from ...setup.film import Film
 
-import mitsuba as mi
-
 
 def generate_film_config(film: Film) -> dict:
     """Generate a Mitsuba film description dict from a Film."""

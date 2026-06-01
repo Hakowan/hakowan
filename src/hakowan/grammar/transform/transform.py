@@ -4,6 +4,8 @@ import copy
 import numpy as np
 import numpy.typing as npt
 
+from ..scale import AttributeLike
+
 __all__ = [
     "Transform",
     "Filter",
@@ -20,9 +22,6 @@ __all__ = [
 
 def _default_condition(x) -> bool:  # module-level so it is picklable
     return True
-
-
-from ..scale import AttributeLike
 
 
 @dataclass(kw_only=True, slots=True)

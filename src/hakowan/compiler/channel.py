@@ -7,7 +7,6 @@ from .utils import unique_name
 from ..common import logger
 from ..grammar.channel import (
     BumpMap,
-    Channel,
     Covariance,
     Normal,
     NormalMap,
@@ -32,14 +31,10 @@ from ..grammar.channel.material import (
 )
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
-from ..grammar.mark import Mark
-from ..grammar import scale
-from ..grammar.scale import Attribute, Normalize, to_attribute
-from ..grammar.texture import Texture, Uniform, ScalarField, Image
+from ..grammar.scale import Attribute, to_attribute
+from ..grammar.texture import Texture, Uniform, Image
 
-import lagrange
 import numpy as np
-from numpy.linalg import norm
 
 ### Public API
 

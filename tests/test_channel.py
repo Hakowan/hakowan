@@ -1,4 +1,3 @@
-import pytest
 from hakowan import channel, material, scale, texture
 
 

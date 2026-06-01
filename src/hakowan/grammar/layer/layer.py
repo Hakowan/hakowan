@@ -32,8 +32,10 @@ from ..texture import TextureLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Optional, Sequence
+from typing import Any, Literal, Sequence
 import lagrange
+import numpy as np
+import numpy.typing as npt
 
 _MarkStr = Literal[
     "point",
@@ -84,8 +86,6 @@ _MaterialTypeStr = Literal[
 ]
 
 _BaseShapeStr = Literal["sphere", "disk", "cube"]
-import numpy as np
-import numpy.typing as npt
 
 
 @dataclass(kw_only=True, slots=True)
@@ -148,9 +148,9 @@ class Layer:
         if in_place:
             return self
         else:
-            l = Layer()
-            l._children = [self]
-            return l
+            layer = Layer()
+            layer._children = [self]
+            return layer
 
     def data(
         self,
@@ -170,20 +170,20 @@ class Layer:
         Returns:
             result (Layer): The layer object with data component overwritten.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         match data:
             case str() | Path():
                 mesh = lagrange.io.load_mesh(data, quiet=True, stitch_vertices=True)  # type: ignore
-                l._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
+                layer._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
             case lagrange.SurfaceMesh():
-                l._spec.data = DataFrame(mesh=data, roi_box=roi_box)
+                layer._spec.data = DataFrame(mesh=data, roi_box=roi_box)
             case DataFrame():
-                l._spec.data = data
+                layer._spec.data = data
                 if roi_box is not None:
-                    l._spec.data.roi_box = roi_box
+                    layer._spec.data.roi_box = roi_box
             case _:
                 raise TypeError(f"Unsupported data type: {type(data)}!")
-        return l
+        return layer
 
     def mark(self, mark: Mark | _MarkStr, *, in_place: bool = False) -> "Layer":
         """Overwrite the mark component of this layer.
@@ -199,19 +199,19 @@ class Layer:
         Returns:
             result (Layer): The layer object with mark component overwritten.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         match mark:
             case Mark():
-                l._spec.mark = mark
+                layer._spec.mark = mark
             case "point" | "Point" | "POINT":
-                l._spec.mark = Mark.Point
+                layer._spec.mark = Mark.Point
             case "curve" | "Curve" | "CURVE":
-                l._spec.mark = Mark.Curve
+                layer._spec.mark = Mark.Curve
             case "surface" | "Surface" | "SURFACE":
-                l._spec.mark = Mark.Surface
+                layer._spec.mark = Mark.Surface
             case _:
                 raise ValueError(f"Unsupported mark type: {mark}!")
-        return l
+        return layer
 
     def channel(
         self,
@@ -247,7 +247,7 @@ class Layer:
         Returns:
             result (Layer): The layer object with the channel component overwritten.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
 
         def convert(value, cls):
             if isinstance(value, (str, Attribute)):
@@ -258,51 +258,51 @@ class Layer:
             assert isinstance(position, (Position, str, Attribute)), (
                 f"Unsupported position type: {type(position)}!"
             )
-            l._spec.channels.append(convert(position, Position))
+            layer._spec.channels.append(convert(position, Position))
         if normal is not None:
             assert isinstance(normal, (Normal, str, Attribute)), (
                 f"Unsupported normal type: {type(normal)}!"
             )
-            l._spec.channels.append(convert(normal, Normal))
+            layer._spec.channels.append(convert(normal, Normal))
         if size is not None:
             if isinstance(size, (int, float)):
-                l._spec.channels.append(Size(data=float(size)))
+                layer._spec.channels.append(Size(data=float(size)))
             else:
                 assert isinstance(size, (Size, str, Attribute)), (
                     f"Unsupported size type: {type(size)}!"
                 )
-                l._spec.channels.append(convert(size, Size))
+                layer._spec.channels.append(convert(size, Size))
         if shape is not None:
             if isinstance(shape, str):
-                l._spec.channels.append(Shape(base_shape=shape))
+                layer._spec.channels.append(Shape(base_shape=shape))
             else:
                 assert isinstance(shape, Shape), (
                     f"Unsupported shape type: {type(shape)}!"
                 )
-                l._spec.channels.append(shape)
+                layer._spec.channels.append(shape)
         if vector_field is not None:
             assert isinstance(vector_field, (VectorField, str)), (
                 f"Unsupported vector_field type: {type(vector_field)}!"
             )
-            l._spec.channels.append(convert(vector_field, VectorField))
+            layer._spec.channels.append(convert(vector_field, VectorField))
         if covariance is not None:
             assert isinstance(covariance, (Covariance, str)), (
                 f"Unsupported covariance type: {type(covariance)}!"
             )
-            l._spec.channels.append(convert(covariance, Covariance))
+            layer._spec.channels.append(convert(covariance, Covariance))
         if material is not None:
-            l._spec.channels.append(material)
+            layer._spec.channels.append(material)
         if bump_map is not None:
             if isinstance(bump_map, BumpMap):
-                l._spec.channels.append(bump_map)
+                layer._spec.channels.append(bump_map)
             else:
-                l._spec.channels.append(BumpMap(bump_map))
+                layer._spec.channels.append(BumpMap(bump_map))
         if normal_map is not None:
             if isinstance(normal_map, NormalMap):
-                l._spec.channels.append(normal_map)
+                layer._spec.channels.append(normal_map)
             else:
-                l._spec.channels.append(NormalMap(normal_map))
-        return l
+                layer._spec.channels.append(NormalMap(normal_map))
+        return layer
 
     def material(
         self, type: _MaterialTypeStr, *args: Any, in_place: bool = False, **kwargs: Any
@@ -324,33 +324,33 @@ class Layer:
         Returns:
             result (Layer): The layer object with the channel component overwritten.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         match type:
             case "diffuse" | "Diffuse" | "DIFFUSE":
-                l._spec.channels.append(Diffuse(*args, **kwargs))
+                layer._spec.channels.append(Diffuse(*args, **kwargs))
             case "conductor" | "Conductor" | "CONDUCTOR":
-                l._spec.channels.append(Conductor(*args, **kwargs))
+                layer._spec.channels.append(Conductor(*args, **kwargs))
             case "rough_conductor" | "RoughConductor" | "ROUGH_CONDUCTOR":
-                l._spec.channels.append(RoughConductor(*args, **kwargs))
+                layer._spec.channels.append(RoughConductor(*args, **kwargs))
             case "plastic" | "Plastic" | "PLASTIC":
-                l._spec.channels.append(Plastic(*args, **kwargs))
+                layer._spec.channels.append(Plastic(*args, **kwargs))
             case "rough_plastic" | "RoughPlastic" | "ROUGH_PLASTIC":
-                l._spec.channels.append(RoughPlastic(*args, **kwargs))
+                layer._spec.channels.append(RoughPlastic(*args, **kwargs))
             case "principled" | "Principled" | "PRINCIPLED":
-                l._spec.channels.append(Principled(*args, **kwargs))
+                layer._spec.channels.append(Principled(*args, **kwargs))
             case "thin_principled" | "ThinPrincipled" | "THIN_PRINCIPLED":
-                l._spec.channels.append(ThinPrincipled(*args, **kwargs))
+                layer._spec.channels.append(ThinPrincipled(*args, **kwargs))
             case "dielectric" | "Dielectric" | "DIELECTRIC":
-                l._spec.channels.append(Dielectric(*args, **kwargs))
+                layer._spec.channels.append(Dielectric(*args, **kwargs))
             case "thin_dielectric" | "ThinDielectric" | "THIN_DIELECTRIC":
-                l._spec.channels.append(ThinDielectric(*args, **kwargs))
+                layer._spec.channels.append(ThinDielectric(*args, **kwargs))
             case "rough_dielectric" | "RoughDielectric" | "ROUGH_DIELECTRIC":
-                l._spec.channels.append(RoughDielectric(*args, **kwargs))
+                layer._spec.channels.append(RoughDielectric(*args, **kwargs))
             case "hair" | "Hair" | "HAIR":
-                l._spec.channels.append(Hair(*args, **kwargs))
+                layer._spec.channels.append(Hair(*args, **kwargs))
             case _:
                 raise ValueError(f"Unsupported material type: {type}!")
-        return l
+        return layer
 
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":
         """Overwrite the transform component of this layer.
@@ -363,9 +363,9 @@ class Layer:
         Returns:
             result (Layer): The layer object with transform component overwritten.
         """
-        l = self.__get_working_layer(in_place)
-        l._spec.transform = transform
-        return l
+        layer = self.__get_working_layer(in_place)
+        layer._spec.transform = transform
+        return layer
 
     def rotate(
         self, axis: npt.ArrayLike, angle: float, in_place: bool = False
@@ -381,17 +381,17 @@ class Layer:
         Returns:
             result (Layer): The layer object with transform component updated.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         v = np.array(axis, dtype=np.float64)
-        I = np.eye(3)
+        eye3 = np.eye(3)
         H = np.outer(v, v)
-        S = np.cross(I, v)
-        M = I * np.cos(angle) + S * np.sin(angle) + H * (1 - np.cos(angle))
-        if l._spec.transform is None:
-            l._spec.transform = Affine(M)
+        S = np.cross(eye3, v)
+        M = eye3 * np.cos(angle) + S * np.sin(angle) + H * (1 - np.cos(angle))
+        if layer._spec.transform is None:
+            layer._spec.transform = Affine(M)
         else:
-            l._spec.transform *= Affine(M)
-        return l
+            layer._spec.transform *= Affine(M)
+        return layer
 
     def translate(self, offset: npt.ArrayLike, in_place: bool = False) -> "Layer":
         """Update the transform component of the current layer by applying a translation.
@@ -404,15 +404,15 @@ class Layer:
         Returns:
             result (Layer): The layer object with transform component updated.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[:3, 3] = np.array(offset, dtype=np.float64)
 
-        if l._spec.transform is None:
-            l._spec.transform = Affine(M)
+        if layer._spec.transform is None:
+            layer._spec.transform = Affine(M)
         else:
-            l._spec.transform *= Affine(M)
-        return l
+            layer._spec.transform *= Affine(M)
+        return layer
 
     def scale(self, factor: float, in_place: bool = False) -> "Layer":
         """Update the transform component of the current layer by applying uniform scaling.
@@ -425,14 +425,14 @@ class Layer:
         Returns:
             result (Layer): The layer object with transform component updated.
         """
-        l = self.__get_working_layer(in_place)
+        layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[0, 0] = M[1, 1] = M[2, 2] = factor
-        if l._spec.transform is None:
-            l._spec.transform = Affine(M)
+        if layer._spec.transform is None:
+            layer._spec.transform = Affine(M)
         else:
-            l._spec.transform *= Affine(M)
-        return l
+            layer._spec.transform *= Affine(M)
+        return layer
 
     @property
     def children(self) -> list["Layer"]:

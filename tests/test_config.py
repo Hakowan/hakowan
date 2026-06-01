@@ -1,4 +1,3 @@
-import pytest
 from hakowan import config
 from hakowan.setup.integrator import AOV, Path
 

@@ -73,7 +73,7 @@ class TestRender:
         l0 = base.mark(hkw.mark.Point).channel(size="size")
         l1 = base.mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(l0 + l1)
-        scene_config = generate_scene_config(scene)
+        generate_scene_config(scene)
 
     def test_identity_colormap(self, triangle):
         mesh = triangle
@@ -89,4 +89,4 @@ class TestRender:
             )
         )
         scene = hkw.compiler.compile(base)
-        scene_config = generate_scene_config(scene)
+        generate_scene_config(scene)

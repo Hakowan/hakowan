@@ -14,3 +14,19 @@ from .material import (
 )
 
 from .medium import Medium
+
+__all__ = [
+    "Conductor",
+    "Dielectric",
+    "Diffuse",
+    "Hair",
+    "Material",
+    "Plastic",
+    "Principled",
+    "RoughConductor",
+    "RoughDielectric",
+    "RoughPlastic",
+    "ThinDielectric",
+    "ThinPrincipled",
+    "Medium",
+]

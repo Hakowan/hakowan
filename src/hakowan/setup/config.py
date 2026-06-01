@@ -3,7 +3,6 @@ from .film import Film
 from .sampler import Sampler, Independent
 from .emitter import Emitter, Envmap
 from .integrator import Integrator, Path, AOV
-from ..common import logger
 
 import numpy as np
 from dataclasses import dataclass, field

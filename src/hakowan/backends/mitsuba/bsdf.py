@@ -7,7 +7,6 @@ from ...grammar.channel.material import (
     Dielectric,
     Diffuse,
     Hair,
-    Material,
     Plastic,
     Principled,
     RoughConductor,
@@ -133,27 +132,39 @@ def generate_principled_bsdf_config(
     # Check size and generate getters
     if isinstance(colors, dict) and "colors" in colors:
         n = len(colors["colors"])
-        get_color = lambda i: generate_color_config(colors["colors"][i])
+
+        def get_color(i):
+            return generate_color_config(colors["colors"][i])
     else:
-        get_color = lambda i: colors
+
+        def get_color(i):
+            return colors
 
     if isinstance(roughness, dict) and "values" in roughness:
         if n is None:
             n = len(roughness["values"])
         else:
             assert n == len(roughness["values"])
-        get_roughness = lambda i: roughness["values"][i]
+
+        def get_roughness(i):
+            return roughness["values"][i]
     else:
-        get_roughness = lambda i: roughness
+
+        def get_roughness(i):
+            return roughness
 
     if isinstance(metallic, dict) and "values" in metallic:
         if n is None:
             n = len(metallic["values"])
         else:
             assert n == len(metallic["values"])
-        get_metallic = lambda i: metallic["values"][i]
+
+        def get_metallic(i):
+            return metallic["values"][i]
     else:
-        get_metallic = lambda i: metallic
+
+        def get_metallic(i):
+            return metallic
 
     mat_name = "principled" if not thin else "principledthin"
     base_config: dict[str, Any] = {

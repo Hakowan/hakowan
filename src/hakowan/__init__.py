@@ -60,6 +60,7 @@ __all__ = [
     "texture",
     "transform",
     "layer",
+    "attribute",
     "material",
     "norm",
     "compile",

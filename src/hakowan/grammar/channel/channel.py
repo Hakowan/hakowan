@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 
 from .curvestyle import CurveStyle
-from ..scale import Attribute, AttributeLike
+from ..scale import AttributeLike
 from ..texture import TextureLike
 
 

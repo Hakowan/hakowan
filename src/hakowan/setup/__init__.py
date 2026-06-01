@@ -5,3 +5,5 @@ from . import film
 from . import integrator
 from . import sampler
 from . import sensor
+
+__all__ = ["Config", "emitter", "film", "integrator", "sampler", "sensor"]

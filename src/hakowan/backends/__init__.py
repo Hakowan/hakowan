@@ -1,9 +1,10 @@
 """Backend abstraction for different rendering engines."""
 
+import importlib.util
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from ..compiler import Scene
 from ..setup import Config
-from ..grammar import layer
 from pathlib import Path
 from typing import Any
 
@@ -32,9 +33,6 @@ class RenderBackend(ABC):
         """
         pass
 
-
-import importlib.util
-from collections.abc import Callable
 
 # Backend registry.
 #

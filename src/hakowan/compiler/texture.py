@@ -1,6 +1,5 @@
-from .view import View
-from .attribute import compute_attribute_minmax, compute_scaled_attribute
-from .utils import get_default_uv, unique_name
+from .attribute import compute_scaled_attribute
+from .utils import get_default_uv
 from ..grammar.dataframe import DataFrame
 from ..grammar.texture import (
     Texture,
