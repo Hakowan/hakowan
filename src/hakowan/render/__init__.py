@@ -19,7 +19,7 @@ def render(
     config: Config | None = None,
     filename: Path | str | None = None,
     backend: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Any:
     """Render a layer using the specified backend.
 

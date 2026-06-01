@@ -32,7 +32,7 @@ from ..texture import TextureLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Sequence
+from typing import Any, Literal, Optional, Sequence
 import lagrange
 
 _MarkStr = Literal[
@@ -307,7 +307,7 @@ class Layer:
         return l
 
     def material(
-        self, type: _MaterialTypeStr, *args, in_place: bool = False, **kwargs
+        self, type: _MaterialTypeStr, *args: Any, in_place: bool = False, **kwargs: Any
     ) -> "Layer":
         """Overwrite material for this layer.
 

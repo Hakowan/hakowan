@@ -31,7 +31,7 @@ positions are available (e.g. animation or decimation).
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The position attribute |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The position attribute |
 
 ```py
 # To specify an attribute as the position channel data:
@@ -57,7 +57,7 @@ checkerboard texture (left).
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The normal attribute |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The normal attribute |
 
 
 ```py
@@ -81,7 +81,7 @@ channel of the points. The edges are of uniform size.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The size attribute |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The size attribute |
 
 ```py
 # To specify an attribute as the size channel data:
@@ -95,6 +95,14 @@ ch = hkw.channel.Size(data = 0.1)
 ```
 
 Note that `Size` channel uses the same unit as the `Position` channel.
+
+To scale marks by the magnitude of a vector field, pass a [`hkw.norm()`](attribute.md#the-norm-shorthand)
+attribute as the size data:
+
+```py
+# Point/curve radius proportional to a vector field's magnitude.
+ch = hkw.channel.Size(data = hkw.norm("velocity"))
+```
 
 ## Vector field channel
 
@@ -112,7 +120,7 @@ material.
 
 | Channel | Type | Description |
 |-----------|------|-------------|
-| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The attribute containing vector field data |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The attribute containing vector field data |
 
 
 Here is a snippet for creating a `VectorField` channel.
@@ -125,15 +133,49 @@ ch = hkw.channel.VectorField(data = hkw.attribute(name = "attr_name"))
 ch = hkw.channel.VectorField(data = "attr_name")
 ```
 
-Note that each vector in the vector field is visualized as a b-spline curve. The vector field's
-magnitude determines the curve length. The `Size` channel defines the thickness of the curve.
+Note that each vector in the vector field is visualized as a b-spline curve. By default, the vector
+field's magnitude determines the curve length. The `Size` channel defines the thickness of the curve.
 Vector field channel also takes the following parameters.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `refinement_level` | `int` | The refinement level (default: 0) |
-| `end_type` | `str` | The end type of each vector (options: `point` (default), `flat`) |
-| `style` | [CurveStyle][hakowan.channel.curvestyle.CurveStyle] | The curve style to use (default: None) |
+| `end_type` | `str` | The end type of each vector (options: `point` (default), `arrow`) |
+| `style` | [CurveStyle][hakowan.grammar.channel.curvestyle.CurveStyle] | The curve style to use (default: None) |
+| `normalize` | `bool` | If True, rescale every vector to unit length so arrows encode direction only (default: False) |
+
+### Encoding magnitude
+
+By default, each arrow's length is proportional to the vector's magnitude. Set `normalize=True` to
+draw all arrows at the same length (direction-only); the magnitude is then freed up to be mapped to
+another channel. Because normalization is applied *before* any scale attached to `data`, a uniform
+scale on `data` controls the common arrow length:
+
+```py
+# Direction-only arrows, all with length 0.1.
+ch = hkw.channel.VectorField(
+    data=hkw.attribute("velocity", scale=hkw.scale.Uniform(factor=0.1)),
+    normalize=True,
+)
+```
+
+To also convey magnitude when normalizing, map it to size or color with the
+[`hkw.norm()`](attribute.md#the-norm-shorthand) shorthand:
+
+```py
+l = (
+    hkw.layer(data=mesh, mark=hkw.mark.Curve)
+    .channel(
+        vector_field=hkw.channel.VectorField(data="velocity", normalize=True, end_type="arrow"),
+        # Tube radius proportional to magnitude.
+        size=hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.004, range_max=0.012)),
+        # Color by magnitude.
+        material=hkw.material.Diffuse(
+            reflectance=hkw.texture.ScalarField(data=hkw.norm("velocity"))
+        ),
+    )
+)
+```
 
 ## Covariance channel
 
@@ -143,7 +185,7 @@ The covariance matrix defines the stretch and rotation applied to each point sha
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.scale.attribute.AttributeLike] | The attribute containing covariance data |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The attribute containing covariance data |
 | `full` | `bool` | If True, the full 3x3 covariance matrix is stored. If False (default), the "square root" matrix M is stored where Σ = M @ M^T |
 
 ```py
@@ -162,7 +204,7 @@ ch = hkw.channel.Covariance(data="covariance_attr")
 | Channel | Type | Description |
 |---------|------|-------------|
 | `base_shape` | `str` | The base shape: "sphere" (default), "cube", or "disk" |
-| `orientation` | [AttributeLike][hakowan.scale.attribute.AttributeLike] or `None` | The attribute defining the orientation of each shape (default: None) |
+| `orientation` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] or `None` | The attribute defining the orientation of each shape (default: None) |
 
 ```py
 # Use cubes for point visualization
@@ -179,7 +221,7 @@ the actual geometry. This is useful for adding visual complexity to surfaces.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `texture` | [TextureLike][hakowan.texture.TextureLike] | The texture defining the bump map |
+| `texture` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | The texture defining the bump map |
 | `scale` | `float` | The scale factor for the bump effect (default: 1.0) |
 
 ```py
@@ -200,7 +242,7 @@ over lighting than bump maps. Normal maps are commonly used in game engines and 
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `texture` | [TextureLike][hakowan.texture.TextureLike] | The texture defining the normal map |
+| `texture` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | The texture defining the normal map |
 
 ```py
 # Add normal map from image

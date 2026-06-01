@@ -37,7 +37,7 @@ data without any interference from specular highlight.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `reflectance` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
 
 Here is a simple example of creating a `Diffuse` material.
 
@@ -93,7 +93,7 @@ channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -132,8 +132,8 @@ Hakowan exposes two visual channels in this material:
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `diffuse_reflectance` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
 
 Here is a snippet to create a `Plastic` material:
 
@@ -162,8 +162,8 @@ and `beckmann` (default). The `alpha` parameter control the roughness of the mat
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `diffuse_reflectance` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
 
 Addition to the above visual channels, this material also expose the following parameters.
 
@@ -204,9 +204,9 @@ extension. It can be used to approximate almost all other materials.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `color` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
 
 As a rule of thumb, `roughness` and `metallic` are effective at encoding binary categorical data,
 but not very effective for quantitative data.
@@ -242,9 +242,9 @@ material, it also supports diffuse transmission.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `color` | [TextureLike][hakowan.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
+| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
 | `diff_trans` | `float` | Diffuse transmission amount from 0 to 1 (default: 0.0) |
 
 Here is a snippet to create a `ThinPrincipled` material:
@@ -307,7 +307,7 @@ material, This material exposes an `alpha` visual channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Although `alpha` channel is available to encode data, based on our experiments, its effect is
 somewhat limited.

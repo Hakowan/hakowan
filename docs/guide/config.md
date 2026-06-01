@@ -164,4 +164,4 @@ It is useful for visualizing specific attribute without shading.
 
 The `VolPath` integrator mirrors the [Mitsuba's `VolPath` integrator](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#volumetric-path-tracer-volpath).
 It is useful for rendering scene with volumetric elements (e.g. with
-[Dielectric][hakowan.material.Dielectric] material).
+[Dielectric][hakowan.grammar.channel.material.material.Dielectric] material).

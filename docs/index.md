@@ -41,7 +41,7 @@ Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:
 
 * [__Data__](guide/data.md): consists of the geometry as well as
-[_attributes_](guide/data.md#Attribute) associated with the geometry.
+[_attributes_](guide/attribute.md) associated with the geometry.
 
 * [__Mark__](guide/mark.md): determines the geometry type (e.g. point, curve or surface).
 
