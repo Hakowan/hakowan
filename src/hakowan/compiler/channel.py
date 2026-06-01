@@ -138,6 +138,8 @@ def _process_channels(view: View):
         assert isinstance(view.vector_field_channel, VectorField)
         assert isinstance(view.vector_field_channel.data, Attribute)
         attr = view.vector_field_channel.data
+        if view.vector_field_channel.normalize:
+            _normalize_vector_field(df, attr)
         compute_scaled_attribute(df, attr)
         view._active_attributes.append(attr)
         match view.vector_field_channel.style:
@@ -227,3 +229,45 @@ def _process_channels(view: View):
                 raise NotImplementedError(
                     f"Channel type {type(view.material_channel)} is not supported"
                 )
+
+
+def _normalize_vector_field(df: DataFrame, attr: Attribute):
+    """Rescale a vector-field attribute to unit length in place.
+
+    A new attribute holding the unit-length vectors is created, and ``attr`` is
+    repointed to it so that any scale attached to ``attr`` is subsequently
+    applied on top of the normalized field. This is idempotent across recompiles
+    (guarded by ``attr._internal_name`` being already set).
+    """
+    if attr._internal_name is not None:
+        # Already processed in a previous compile pass.
+        return
+    mesh = df.mesh
+    assert mesh is not None
+    if mesh.is_attribute_indexed(attr.name):
+        logger.warning(
+            "Vector field normalization is not supported for indexed attributes; "
+            "skipping normalization."
+        )
+        return
+
+    src = mesh.attribute(attr.name)
+    values = np.asarray(src.data, dtype=np.float64)
+    if values.ndim != 2 or values.shape[1] < 2:
+        logger.warning(
+            "Vector field normalization expects a vector attribute; skipping."
+        )
+        return
+
+    lengths = np.linalg.norm(values, axis=1, keepdims=True)
+    lengths[lengths < 1e-12] = 1.0
+    unit = values / lengths
+
+    unit_name = unique_name(mesh, f"_unit_{attr.name}")
+    mesh.create_attribute(
+        unit_name,
+        element=src.element_type,
+        usage=src.usage,
+        initial_values=unit,
+    )
+    attr.name = unit_name

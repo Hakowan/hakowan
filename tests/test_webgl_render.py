@@ -232,6 +232,53 @@ class TestEndToEnd:
         assert "function setPass(pass)" in html
         assert 'id="passes"' in html
 
+    def test_checkerboard_uses_non_mipmap_nearest_sampler(self, tmp_path):
+        mesh = lagrange.SurfaceMesh()
+        vertices = np.array(
+            [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64
+        )
+        facets = np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32)
+        mesh.add_vertices(vertices)
+        mesh.add_triangles(facets)
+        mesh.create_attribute(
+            "uv",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.UV,
+            initial_values=np.array(
+                [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float64
+            ),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.Checkerboard(
+                        uv="uv",
+                        texture1=hkw.texture.Uniform(color="white"),
+                        texture2=hkw.texture.Uniform(color="black"),
+                        size=8,
+                    )
+                )
+            )
+        )
+        out_path = tmp_path / "checker.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        page_html = out_path.read_text(encoding="utf-8")
+        glb = _decode_glb_from_html(page_html)
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        attrs_json = gltf.meshes[0].primitives[0].attributes.to_json()
+        assert "TEXCOORD_0" in attrs_json
+        tex_idx = gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index
+        sampler_idx = gltf.textures[tex_idx].sampler
+        sampler = gltf.samplers[sampler_idx]
+        assert sampler.magFilter == 9728
+        assert sampler.minFilter == 9728
+        assert gltf.materials[0].extras["hakowan"]["checkerboard"] is True
+        base_tex = gltf.materials[0].pbrMetallicRoughness.baseColorTexture
+        assert not base_tex.extensions
+        assert "applyCrispCheckerTextures" in page_html
+
     def test_isocontour_exports_scalar_attribute_and_shader(self, tmp_path):
         mesh = _make_icosphere()
         h = np.asarray(mesh.vertices[:, 1], dtype=np.float64)

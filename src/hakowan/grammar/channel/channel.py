@@ -80,12 +80,21 @@ class VectorField(Channel):
         end_type (Literal["point", "arrow"]): The type of the vector field end.
             ``"point"`` renders a plain tip; ``"arrow"`` renders an arrowhead.
             The default value is ``"point"``.
+        normalize (bool): If True, every vector is rescaled to unit length so
+            that all arrows have the same length and only encode direction.
+            The magnitude is freed up to be mapped to another channel (e.g.
+            ``size`` or color via ``hakowan.norm()``). Normalization is
+            applied *before* any scale attached to ``data``, so a uniform scale
+            on ``data`` controls the common arrow length. By default (False),
+            arrow length is proportional to the vector magnitude. The default
+            value is ``False``.
     """
 
     data: AttributeLike
     refinement_level: int = 0
     style: CurveStyle | None = None
     end_type: Literal["point", "arrow"] = "point"
+    normalize: bool = False
 
 
 @dataclass(slots=True)

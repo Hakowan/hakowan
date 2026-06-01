@@ -216,9 +216,9 @@ class Layer:
     def channel(
         self,
         *,
-        position: Position | str | None = None,
-        normal: Normal | str | None = None,
-        size: float | str | Size | None = None,
+        position: Position | str | Attribute | None = None,
+        normal: Normal | str | Attribute | None = None,
+        size: float | str | Size | Attribute | None = None,
         shape: _BaseShapeStr | Shape | None = None,
         vector_field: VectorField | str | None = None,
         covariance: Covariance | str | None = None,
@@ -230,9 +230,11 @@ class Layer:
         """Overwrite a channel component of this layer.
 
         Args:
-            position (Position | str, optional): The new position channel.
-            normal (Normal | str, optional): The new normal channel.
-            size (float | str | Size, optional): The new size channel.
+            position (Position | str | Attribute, optional): The new position channel.
+            normal (Normal | str | Attribute, optional): The new normal channel.
+            size (float | str | Size | Attribute, optional): The new size channel.
+                An ``Attribute`` (e.g. from ``hakowan.norm()``) maps a data
+                field to size.
             shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
                 When a string is given, it sets ``Shape.base_shape`` directly.
             vector_field (VectorField | str, optional): The new vector field channel.
@@ -247,18 +249,20 @@ class Layer:
         """
         l = self.__get_working_layer(in_place)
 
-        convert = (
-            lambda value, cls: cls(data=Attribute(name=value))
-            if isinstance(value, str)
-            else value
-        )
+        def convert(value, cls):
+            if isinstance(value, str):
+                return cls(data=Attribute(name=value))
+            if isinstance(value, Attribute):
+                return cls(data=value)
+            return value
+
         if position is not None:
-            assert isinstance(position, (Position, str)), (
+            assert isinstance(position, (Position, str, Attribute)), (
                 f"Unsupported position type: {type(position)}!"
             )
             l._spec.channels.append(convert(position, Position))
         if normal is not None:
-            assert isinstance(normal, (Normal, str)), (
+            assert isinstance(normal, (Normal, str, Attribute)), (
                 f"Unsupported normal type: {type(normal)}!"
             )
             l._spec.channels.append(convert(normal, Normal))
@@ -266,7 +270,7 @@ class Layer:
             if isinstance(size, (int, float)):
                 l._spec.channels.append(Size(data=float(size)))
             else:
-                assert isinstance(size, (Size, str)), (
+                assert isinstance(size, (Size, str, Attribute)), (
                     f"Unsupported size type: {type(size)}!"
                 )
                 l._spec.channels.append(convert(size, Size))
@@ -452,8 +456,7 @@ class Layer:
             from ...backends.webgl import WebGLBackend
         except ImportError:
             return (
-                "<pre>Install pygltflib for inline preview: "
-                "pip install pygltflib</pre>"
+                "<pre>Install pygltflib for inline preview: pip install pygltflib</pre>"
             )
         try:
             from ...compiler.compile import compile as _compile

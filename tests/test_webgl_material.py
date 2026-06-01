@@ -289,7 +289,9 @@ class TestCheckerboard:
         builder = GLTFBuilder()
         result = translate_material(view, builder)
         assert "baseColorTextureIndex" in result.pbr
-        assert result.pbr["baseColorTextureScale"] == (5.0, 5.0)
+        assert "baseColorTextureScale" not in result.pbr
+        assert result.extras is not None
+        assert result.extras["hakowan"]["checkerboard"] is True
 
 
 class TestIsocontour:

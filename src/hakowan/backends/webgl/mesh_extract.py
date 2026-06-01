@@ -61,6 +61,42 @@ def _find_uv_attribute_name(mesh: lagrange.SurfaceMesh) -> str | None:
     return mesh.get_attribute_name(uv_ids[0])
 
 
+def _read_uv_coordinates(
+    mesh: lagrange.SurfaceMesh,
+    uv_name: str,
+    corner_idx: np.ndarray | None = None,
+) -> np.ndarray:
+    """Read UVs as (N, 2) float32.
+
+    When ``corner_idx`` is set (de-indexed mesh path), expand indexed UVs per
+    corner. Otherwise return one UV per mesh vertex.
+    """
+    if mesh.is_attribute_indexed(uv_name):
+        indexed = mesh.indexed_attribute(uv_name)
+        values = np.asarray(indexed.values.data, dtype=np.float32)
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        if corner_idx is not None:
+            if indices.shape[0] != corner_idx.shape[0]:
+                raise ValueError(
+                    f"UV index count {indices.shape[0]} != corner count "
+                    f"{corner_idx.shape[0]}"
+                )
+            return np.ascontiguousarray(values[indices])
+        corner_vertices = mesh.facets.reshape(-1)
+        if indices.shape[0] != corner_vertices.shape[0]:
+            raise ValueError(
+                f"UV index count {indices.shape[0]} != corner count "
+                f"{corner_vertices.shape[0]}"
+            )
+        out = np.zeros((mesh.num_vertices, 2), dtype=np.float32)
+        out[corner_vertices] = values[indices]
+        return out
+    data = np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)
+    if corner_idx is not None:
+        return np.ascontiguousarray(data[corner_idx])
+    return np.ascontiguousarray(data)
+
+
 def _read_color_attribute(mesh: lagrange.SurfaceMesh, name: str) -> np.ndarray:
     """Read a baked color attribute. Returns (N, 4) float32 in linear RGBA."""
     raw = np.asarray(mesh.attribute(name).data, dtype=np.float32)
@@ -203,7 +239,7 @@ def extract_surface_arrays(
         else:
             colors = _read_color_attribute(mesh, color_name)[corner_idx]
         uvs = (
-            np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)[corner_idx]
+            _read_uv_coordinates(mesh, uv_name, corner_idx)
             if uv_name is not None
             else None
         )
@@ -221,11 +257,7 @@ def extract_surface_arrays(
         }
 
     colors = _read_color_attribute(mesh, color_name) if color_name is not None else None
-    uvs = (
-        np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)
-        if uv_name is not None
-        else None
-    )
+    uvs = _read_uv_coordinates(mesh, uv_name) if uv_name is not None else None
 
     return {
         "positions": positions,

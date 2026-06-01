@@ -50,7 +50,11 @@ from ...grammar.channel.material import (
 )
 from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uniform
 
-from .builder import GLTFBuilder
+from .builder import (
+    GLTFBuilder,
+    _FILTER_LINEAR,
+    _FILTER_NEAREST,
+)
 
 # glTF allows arbitrary underscore-prefixed names, but three.js GLTFLoader maps
 # unknown attributes with ``name.toLowerCase()`` (see ``addPrimitiveAttributes``).
@@ -203,10 +207,17 @@ def _load_image_as_png_bytes(image: Image) -> bytes:
     return buf.getvalue()
 
 
-def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> bytes:
-    """Generate a 2x2 PNG with two checkered cells. Colors must be linear RGB;
-    we encode as sRGB so they appear correct when the texture is sampled in
-    sRGB mode by the glTF pipeline.
+def _bake_checkerboard_png(
+    tex1_color: list[float],
+    tex2_color: list[float],
+    size: int,
+) -> bytes:
+    """Bake an ``size × size`` cell checker into an ``n × n`` PNG (``n = size``).
+
+    One texel per cell keeps edges sharp under ``NEAREST`` filtering.  Mitsuba
+    tiles via UV scale; we bake the repeats into the image instead of relying
+    on a 2×2 texture plus ``KHR_texture_transform`` (which blurs under
+    ``LINEAR`` minification in three.js).
     """
 
     def _linear_to_srgb(c: float) -> int:
@@ -218,11 +229,13 @@ def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> 
 
     c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
     c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
-    img = PILImage.new("RGB", (2, 2))
-    img.putpixel((0, 0), c1)
-    img.putpixel((1, 1), c1)
-    img.putpixel((0, 1), c2)
-    img.putpixel((1, 0), c2)
+    n = max(int(size), 1)
+    img = PILImage.new("RGB", (n, n))
+    for y in range(n):
+        for x in range(n):
+            img.putpixel((x, y), c1 if (x + y) % 2 == 0 else c2)
+    # Match Image textures: hakowan UVs use V=0 at the image bottom (OBJ-style).
+    img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -247,7 +260,10 @@ def _resolve_texture_color(texture_like: Any) -> list[float]:
 
 
 def _apply_image_or_checker(
-    pbr: dict[str, Any], builder: GLTFBuilder, reflectance: Any
+    pbr: dict[str, Any],
+    builder: GLTFBuilder,
+    reflectance: Any,
+    extras: dict[str, Any] | None = None,
 ) -> None:
     """Attach a baseColorTexture (and optional UV transform) if applicable."""
     if isinstance(reflectance, Image):
@@ -262,14 +278,14 @@ def _apply_image_or_checker(
     elif isinstance(reflectance, Checkerboard):
         c1 = _resolve_texture_color(reflectance.texture1)
         c2 = _resolve_texture_color(reflectance.texture2)
-        png_bytes = _bake_checkerboard_png(c1, c2)
-        pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
-        # KHR_texture_transform: scale UVs so the 2×2 checker tiles `size`
-        # times per UV unit (matches Mitsuba's to_uv scale-by-size convention).
-        pbr["baseColorTextureScale"] = (
-            float(reflectance.size),
-            float(reflectance.size),
+        png_bytes = _bake_checkerboard_png(c1, c2, reflectance.size)
+        pbr["baseColorTextureIndex"] = builder.add_image_texture(
+            png_bytes,
+            mag_filter=_FILTER_NEAREST,
+            min_filter=_FILTER_NEAREST,
         )
+        if extras is not None:
+            extras["checkerboard"] = True
 
 
 def _apply_normal_map(
@@ -618,7 +634,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
     pbr: dict[str, Any] = {
         "baseColorFactor": _reflectance_to_base_color(reflectance),
     }
-    _apply_image_or_checker(pbr, builder, reflectance)
+    _apply_image_or_checker(pbr, builder, reflectance, extras)
 
     if isinstance(reflectance, Isocontour):
         _apply_isocontour(pbr, extras, custom_attrs, view, reflectance)

@@ -12,7 +12,7 @@ from ..grammar.channel import (
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
-from ..grammar.scale import Attribute
+from ..grammar.scale import Attribute, Norm
 from ..grammar.transform import Transform
 from ..common import logger
 
@@ -242,7 +242,10 @@ class View:
                 else:
                     size_attr = mesh.attribute(attr.name)
 
-                assert size_attr.num_channels == 1
+                # A `Norm` scale reduces a vector attribute to a scalar
+                # magnitude field, so the raw source may have >1 channels.
+                if not isinstance(attr.scale, Norm):
+                    assert size_attr.num_channels == 1
 
         self._size_channel = channel
 

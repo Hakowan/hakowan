@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from .scale import ScaleLike
+from .scale import ScaleLike, Scale, Uniform, Norm
 
 
 @dataclass(slots=True)
@@ -36,3 +36,45 @@ AttributeLike: TypeAlias = str | Attribute
 * A string object will be converted to an attribute with the name set to the string.
 * An attribute object will be unchanged.
 """
+
+
+def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attribute:
+    """Construct an attribute representing the per-element magnitude of a vector field.
+
+    This is a **shorthand** for ``Attribute(name, scale=Norm(order))`` (optionally
+    chained with an extra ``scale``). It turns a vector field (e.g. a velocity or
+    displacement field) into a derived scalar field, usable anywhere a scalar
+    attribute is expected, such as the ``size`` channel (arrow/tube width
+    proportional to magnitude) or a ``ScalarField`` texture (color by magnitude).
+
+    The two forms below are equivalent::
+
+        hkw.norm("velocity")
+        hkw.attribute("velocity", scale=hkw.scale.Norm())
+
+    Args:
+        name: The name of the vector attribute in the data frame.
+        scale: An optional scale applied *after* the norm is computed
+            (e.g. ``Normalize`` to map magnitudes into a radius range, or a
+            float as a uniform multiplier). ``None`` means no extra scale.
+        order: The order of the norm (e.g. ``2`` for Euclidean length,
+            ``1`` for Manhattan, ``numpy.inf`` for max-abs). Default ``2``.
+
+    Returns:
+        An :class:`Attribute` whose value is the row-wise norm of ``name``.
+
+    Example:
+        >>> # Color a vector field by its magnitude.
+        >>> hkw.texture.ScalarField(data=hkw.norm("velocity"))
+        >>> # Make tube radius proportional to magnitude.
+        >>> hkw.channel.Size(data=hkw.norm("velocity",
+        ...                                 scale=hkw.scale.Normalize(
+        ...                                     range_min=0.005, range_max=0.02)))
+    """
+    norm_scale: Scale = Norm(order=order)
+    if scale is not None:
+        if isinstance(scale, (int, float)):
+            scale = Uniform(factor=float(scale))
+        assert isinstance(scale, Scale)
+        norm_scale = norm_scale * scale
+    return Attribute(name=name, scale=norm_scale)

@@ -7,6 +7,7 @@ from ..grammar.scale import (
     Clip,
     Custom,
     Log,
+    Norm,
     Normalize,
     Offset,
     Scale,
@@ -49,34 +50,45 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
             assert mesh is not None
             attr._internal_name = unique_name(mesh, f"_scaled_{attr.name}")
 
-            if mesh.is_attribute_indexed(attr.name):
-                mesh_attr = mesh.indexed_attribute(attr.name)
-                if np.issubdtype(mesh_attr.values.data.dtype, np.integer):
-                    values = mesh_attr.values.data.astype(np.float64)
-                    indices = mesh_attr.indices.data.copy()
-                    mesh.create_attribute(
-                        attr._internal_name,
-                        element=mesh_attr.element_type,
-                        usage=mesh_attr.usage,
-                        initial_values=values,
-                        initial_indices=indices,
-                    )
-                else:
-                    df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+            scale = attr.scale
+            if isinstance(scale, Norm):
+                # `Norm` reduces a vector attribute to a scalar magnitude field,
+                # so it must materialize a fresh scalar attribute rather than
+                # duplicate-and-scale-in-place. Any chained scales then operate
+                # on the resulting scalar field.
+                _create_norm_attribute(df, attr.name, attr._internal_name, scale.order)
+                remaining = scale._child
             else:
-                mesh_attr = mesh.attribute(attr.name)
-                if np.issubdtype(mesh_attr.data.dtype, np.integer):
-                    values = mesh_attr.data.astype(np.float64)
-                    mesh.create_attribute(
-                        attr._internal_name,
-                        element=mesh_attr.element_type,
-                        usage=mesh_attr.usage,
-                        initial_values=values,
-                    )
+                if mesh.is_attribute_indexed(attr.name):
+                    mesh_attr = mesh.indexed_attribute(attr.name)
+                    if np.issubdtype(mesh_attr.values.data.dtype, np.integer):
+                        values = mesh_attr.values.data.astype(np.float64)
+                        indices = mesh_attr.indices.data.copy()
+                        mesh.create_attribute(
+                            attr._internal_name,
+                            element=mesh_attr.element_type,
+                            usage=mesh_attr.usage,
+                            initial_values=values,
+                            initial_indices=indices,
+                        )
+                    else:
+                        df.mesh.duplicate_attribute(attr.name, attr._internal_name)
                 else:
-                    df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+                    mesh_attr = mesh.attribute(attr.name)
+                    if np.issubdtype(mesh_attr.data.dtype, np.integer):
+                        values = mesh_attr.data.astype(np.float64)
+                        mesh.create_attribute(
+                            attr._internal_name,
+                            element=mesh_attr.element_type,
+                            usage=mesh_attr.usage,
+                            initial_values=values,
+                        )
+                    else:
+                        df.mesh.duplicate_attribute(attr.name, attr._internal_name)
+                remaining = scale
 
-            apply_scale(df, attr._internal_name, attr.scale)
+            if remaining is not None:
+                apply_scale(df, attr._internal_name, remaining)
     else:
         # No scale.
         attr._internal_name = attr.name
@@ -104,6 +116,44 @@ def compute_attribute_minmax(df: DataFrame, attr_name: str):
 
 
 ### Private API
+
+
+def _row_norm(values: npt.NDArray, order: float) -> npt.NDArray:
+    """Row-wise vector norm of ``values`` (Nxd → N). Scalar input → abs."""
+    data = np.asarray(values, dtype=np.float64)
+    if data.ndim == 2 and data.shape[1] > 1:
+        return np.linalg.norm(data, ord=order, axis=1)
+    return np.abs(data.reshape(-1))
+
+
+def _create_norm_attribute(df: DataFrame, src_name: str, dst_name: str, order: float):
+    """Materialize a scalar attribute ``dst_name`` holding the per-element
+    ``order``-norm of the vector attribute ``src_name``.
+    """
+    mesh = df.mesh
+    assert mesh.has_attribute(src_name), (
+        f"Attribute {src_name} does not exist in the mesh"
+    )
+
+    if mesh.is_attribute_indexed(src_name):
+        src = mesh.indexed_attribute(src_name)
+        norms = _row_norm(src.values.data, order)
+        mesh.create_attribute(
+            dst_name,
+            element=src.element_type,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=norms,
+            initial_indices=src.indices.data.copy(),
+        )
+    else:
+        src = mesh.attribute(src_name)
+        norms = _row_norm(src.data, order)
+        mesh.create_attribute(
+            dst_name,
+            element=src.element_type,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=norms,
+        )
 
 
 def _apply_normalize(data: npt.NDArray, scale: Normalize):

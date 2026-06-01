@@ -105,6 +105,25 @@ class Clip(Scale):
     domain: tuple[float, float]
 
 
+@dataclass(slots=True)
+class Norm(Scale):
+    """Reduce a vector attribute to its per-element magnitude (a scalar field).
+
+    Unlike the other scales, `Norm` changes the dimensionality of the attribute:
+    an `N x d` vector field becomes an `N` scalar field holding the row-wise
+    `order`-norm. It is therefore only meaningful as the *leading* scale of an
+    attribute (any chained child scales operate on the resulting scalar field).
+    The `hakowan.norm()` helper is the convenient shorthand for constructing an
+    attribute carrying this scale.
+
+    Attributes:
+        order: The order of the norm (e.g. ``2`` for Euclidean length,
+            ``1`` for Manhattan, ``numpy.inf`` for max-abs). Default ``2``.
+    """
+
+    order: float = 2.0
+
+
 ScaleLike: TypeAlias = float | Scale
 """Type alias for scale-like objects.
 

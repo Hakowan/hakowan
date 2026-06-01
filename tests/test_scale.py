@@ -46,9 +46,41 @@ class TestScale:
         a.name = "curvature"
         assert s.offset.name == "curvature"
 
+    def test_norm(self):
+        s = scale.Norm()
+        assert s._child is None
+        assert s.order == 2.0
+
+        s2 = scale.Norm(order=1)
+        assert s2.order == 1
+
     def test_chaning(self):
         s1 = scale.Normalize(range_min=np.zeros(3), range_max=np.ones(3))
         s2 = scale.Log(base=10)
         s1._child = s2
         assert s1._child.base == 10
         assert s2._child is None
+
+
+class TestNormShorthand:
+    def test_norm_basic(self):
+        a = scale.norm("velocity")
+        assert isinstance(a, scale.Attribute)
+        assert a.name == "velocity"
+        assert isinstance(a.scale, scale.Norm)
+        assert a.scale._child is None
+
+    def test_norm_with_float_scale(self):
+        a = scale.norm("velocity", scale=2.0)
+        assert isinstance(a.scale, scale.Norm)
+        assert isinstance(a.scale._child, scale.Uniform)
+        assert a.scale._child.factor == 2.0
+
+    def test_norm_with_scale_object(self):
+        a = scale.norm("velocity", scale=scale.Log(base=10))
+        assert isinstance(a.scale, scale.Norm)
+        assert isinstance(a.scale._child, scale.Log)
+
+    def test_norm_order(self):
+        a = scale.norm("velocity", order=1)
+        assert a.scale.order == 1

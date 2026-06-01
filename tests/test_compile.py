@@ -166,6 +166,101 @@ class TestCompile:
 
         assert scene[0].vector_field_channel is not None
 
+    def test_vector_field_normalize(self, triangle):
+        mesh = triangle
+        vecs = np.array([[3.0, 0, 0], [0, 4, 0], [0, 0, 0.5]], dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=vecs,
+        )
+
+        base = hkw.layer(data=mesh, mark=hkw.mark.Curve)
+        base = base.channel(
+            vector_field=hkw.channel.VectorField(data="vec", normalize=True)
+        )
+        view = hkw.compiler.compile(base)[0]
+        name = view.vector_field_channel.data._internal_name
+        unit = np.asarray(view.data_frame.mesh.attribute(name).data)
+        assert np.allclose(np.linalg.norm(unit, axis=1), 1.0)
+
+    def test_vector_field_normalize_with_scale(self, triangle):
+        mesh = triangle
+        vecs = np.array([[3.0, 0, 0], [0, 4, 0], [0, 0, 0.5]], dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=vecs,
+        )
+
+        # Normalization happens before the uniform scale, so all arrows end up
+        # with the common length 0.1.
+        base = hkw.layer(data=mesh, mark=hkw.mark.Curve)
+        base = base.channel(
+            vector_field=hkw.channel.VectorField(
+                data=hkw.attribute("vec", scale=hkw.scale.Uniform(factor=0.1)),
+                normalize=True,
+            )
+        )
+        view = hkw.compiler.compile(base)[0]
+        name = view.vector_field_channel.data._internal_name
+        vec = np.asarray(view.data_frame.mesh.attribute(name).data)
+        assert np.allclose(np.linalg.norm(vec, axis=1), 0.1)
+
+    def test_norm_size(self, triangle):
+        mesh = triangle
+        vecs = np.array([[3.0, 0, 0], [0, 4, 0], [0, 0, 0.5]], dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=vecs,
+        )
+
+        base = hkw.layer(data=mesh, mark=hkw.mark.Point)
+        base = base.channel(size=hkw.norm("vec"))
+        view = hkw.compiler.compile(base)[0]
+        assert view.size_channel is not None
+        name = view.size_channel.data._internal_name
+        mags = np.asarray(view.data_frame.mesh.attribute(name).data).reshape(-1)
+        assert np.allclose(sorted(mags), [0.5, 3.0, 4.0])
+
+    def test_norm_with_scale(self, triangle):
+        mesh = triangle
+        vecs = np.array([[3.0, 0, 0], [0, 4, 0], [0, 0, 0.5]], dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=vecs,
+        )
+
+        base = hkw.layer(data=mesh, mark=hkw.mark.Point)
+        base = base.channel(size=hkw.norm("vec", scale=2.0))
+        view = hkw.compiler.compile(base)[0]
+        name = view.size_channel.data._internal_name
+        mags = np.asarray(view.data_frame.mesh.attribute(name).data).reshape(-1)
+        assert np.allclose(sorted(mags), [1.0, 6.0, 8.0])
+
+    def test_norm_facet(self, two_triangles):
+        mesh = two_triangles
+        vecs = np.array([[3.0, 4.0, 0.0], [0.0, 0.0, 5.0]], dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=vecs,
+        )
+
+        base = hkw.layer(data=mesh, mark=hkw.mark.Point)
+        base = base.channel(size=hkw.norm("vec"))
+        view = hkw.compiler.compile(base)[0]
+        name = view.size_channel.data._internal_name
+        mags = np.asarray(view.data_frame.mesh.attribute(name).data).reshape(-1)
+        assert np.allclose(sorted(mags), [5.0, 5.0])
+
     def test_filter_transform(self, two_triangles):
         mesh = two_triangles
         bbox_min = np.amin(mesh.vertices, axis=0)

@@ -30,6 +30,12 @@ MODE_TRIANGLES = 4
 MODE_LINES = 1
 MODE_POINTS = 0
 
+# glTF sampler filters (Khronos enum values)
+_FILTER_NEAREST = 9728
+_FILTER_LINEAR = 9729
+_FILTER_LINEAR_MIPMAP_LINEAR = 9987
+_WRAP_REPEAT = 10497
+
 
 @dataclass
 class GLTFBuilder:
@@ -101,23 +107,33 @@ class GLTFBuilder:
     # Image / texture                                                     #
     # ------------------------------------------------------------------ #
 
-    def add_image_texture(self, png_bytes: bytes) -> int:
-        """Embed a PNG image as a glTF texture and return the texture index."""
+    def add_image_texture(
+        self,
+        png_bytes: bytes,
+        *,
+        mag_filter: int = _FILTER_LINEAR,
+        min_filter: int = _FILTER_LINEAR_MIPMAP_LINEAR,
+    ) -> int:
+        """Embed a PNG image as a glTF texture and return the texture index.
+
+        Each call appends its own sampler so procedural textures (e.g. a 2×2
+        checker) can request NEAREST / non-mipmap filtering without affecting
+        photo textures.
+        """
         view_idx = self._add_buffer_view(png_bytes, target=None)
         image = pygltflib.Image(mimeType="image/png", bufferView=view_idx)
         self._gltf.images.append(image)
         image_idx = len(self._gltf.images) - 1
 
-        if not self._gltf.samplers:
-            self._gltf.samplers.append(
-                pygltflib.Sampler(
-                    magFilter=9729,  # LINEAR
-                    minFilter=9987,  # LINEAR_MIPMAP_LINEAR
-                    wrapS=10497,  # REPEAT
-                    wrapT=10497,  # REPEAT
-                )
+        self._gltf.samplers.append(
+            pygltflib.Sampler(
+                magFilter=mag_filter,
+                minFilter=min_filter,
+                wrapS=_WRAP_REPEAT,
+                wrapT=_WRAP_REPEAT,
             )
-        sampler_idx = 0
+        )
+        sampler_idx = len(self._gltf.samplers) - 1
 
         texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
         self._gltf.textures.append(texture)

@@ -488,10 +488,27 @@ function buildPassUI() {
   container.querySelector('button[data-pass="beauty"]').classList.add('active');
 }
 
+function applyCrispCheckerTextures(root) {
+  // three.js may still build mipmaps for small PNGs; force point sampling so
+  // baked checker cells stay sharp (see material extras from the WebGL backend).
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const meta = obj.material.userData && obj.material.userData.hakowan;
+    if (!meta || !meta.checkerboard) return;
+    const map = obj.material.map;
+    if (!map) return;
+    map.generateMipmaps = false;
+    map.minFilter = THREE.NearestFilter;
+    map.magFilter = THREE.NearestFilter;
+    map.needsUpdate = true;
+  });
+}
+
 const loader = new GLTFLoader();
 const onLoaded = (gltf) => {
   scene.add(gltf.scene);
   applyHakowanShaderPatches(gltf.scene);
+  applyCrispCheckerTextures(gltf.scene);
   loadedRoot = gltf.scene;
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
