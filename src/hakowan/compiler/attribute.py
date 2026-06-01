@@ -50,6 +50,7 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
             attr._internal_name = unique_name(mesh, f"_scaled_{attr.name}")
 
             scale = attr.scale
+            remaining: ScaleLike | None
             if isinstance(scale, Norm):
                 # `Norm` reduces a vector attribute to a scalar magnitude field,
                 # so it must materialize a fresh scalar attribute rather than

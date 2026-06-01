@@ -221,7 +221,7 @@ def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
             color = (1.0, 1.0, 1.0)
             strength = float(intensity)
         builder.add_point_light(
-            position=tuple(emitter.position), color=color, intensity=strength
+            position=list(emitter.position), color=color, intensity=strength
         )
 
 

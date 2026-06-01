@@ -199,7 +199,7 @@ def _load_image_as_png_bytes(image: Image) -> bytes:
     # convention — Mitsuba compensates via ``to_uv = diag(1, -1, 1)``).
     # glTF/three.js samples with V=0 at the top, so we flip the image
     # vertically here to match without touching the UV buffer.
-    img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
+    img = img.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -233,7 +233,7 @@ def _bake_checkerboard_png(
         for x in range(n):
             img.putpixel((x, y), c1 if (x + y) % 2 == 0 else c2)
     # Match Image textures: hakowan UVs use V=0 at the image bottom (OBJ-style).
-    img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
+    img = img.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -491,7 +491,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "built-in LUT; falling back to neutral gray metal."
             )
             albedo = (0.7, 0.7, 0.7)
-        pbr = {
+        pbr: dict[str, Any] = {
             "baseColorFactor": [
                 _srgb_to_linear(albedo[0]),
                 _srgb_to_linear(albedo[1]),
@@ -529,7 +529,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         # same Snell-law math internally.
         relative_ior = int_ior / max(ext_ior, 1e-6)
 
-        pbr: dict[str, Any] = {
+        pbr = {
             "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
             "metallicFactor": 0.0,
             "roughnessFactor": 0.0,
@@ -629,7 +629,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             double_sided=double_sided,
         )
 
-    pbr: dict[str, Any] = {
+    pbr = {
         "baseColorFactor": _reflectance_to_base_color(reflectance),
     }
     _apply_image_or_checker(pbr, builder, reflectance, extras)

@@ -149,6 +149,7 @@ class BlenderBackend(RenderBackend):
         if renames:
             import shutil
 
+            assert filename is not None
             output_dir = filename.parent
             for pass_name, final in renames:
                 src = output_dir / pass_name
@@ -348,7 +349,8 @@ class BlenderBackend(RenderBackend):
 
         sizes = self._extract_size(view)
         if np.isscalar(sizes):
-            sizes = [float(sizes)] * mesh.num_vertices
+            # np.isscalar guarantees a scalar here, but mypy can't narrow it.
+            sizes = [float(sizes)] * mesh.num_vertices  # type: ignore[arg-type]
 
         n_edges = mesh.num_edges
         vertices = mesh.vertices
@@ -787,7 +789,8 @@ class BlenderBackend(RenderBackend):
             view, default_size=0.01 if covariance_transforms is None else 1.0
         )
         if np.isscalar(radii):
-            radii = [float(radii)] * n_points
+            # np.isscalar guarantees a scalar here, but mypy can't narrow it.
+            radii = [float(radii)] * n_points  # type: ignore[arg-type]
         radii = np.atleast_1d(radii)
         assert len(radii) == n_points
 
@@ -2087,7 +2090,7 @@ class BlenderBackend(RenderBackend):
 
     def _setup_compositor_passes(
         self, config: Config, filename: Path
-    ) -> list[tuple[Path, Path]]:
+    ) -> list[tuple[str, Path]]:
         """Set up compositor nodes for albedo, depth, and normal passes.
 
         Enables the relevant view layer passes and routes each through a
@@ -2102,7 +2105,7 @@ class BlenderBackend(RenderBackend):
         Returns:
             List of (temp_path, final_path) rename pairs.
         """
-        renames: list[tuple[Path, Path]] = []
+        renames: list[tuple[str, Path]] = []
         if not (config.albedo or config.depth or config.normal):
             return renames
 

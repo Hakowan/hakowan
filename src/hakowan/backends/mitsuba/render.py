@@ -75,6 +75,7 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     # Mitsuba ScalarTransform4f and similar: convert 4x4 matrix to list of lists
     if isinstance(obj, mi.ScalarTransform4f):
         m = getattr(obj, "matrix", None)
+        assert m is not None
         return m.numpy().tolist()
 
     try:

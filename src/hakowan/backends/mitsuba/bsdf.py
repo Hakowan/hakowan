@@ -48,7 +48,7 @@ def generate_diffuse_bsdf_config(
         mesh, mat.reflectance, True, is_primitive
     )
     mi_config: dict[str, Any]
-    if is_primitive and "colors" in reflectance:
+    if is_primitive and isinstance(reflectance, dict) and "colors" in reflectance:
         mi_config = {
             f"bsdf_{i:06}": {
                 "type": "diffuse",

@@ -55,6 +55,8 @@ libllvm18 = ">=18.1.8,<19"
 # Pinned to a minor range so the enforced lint rule set does not drift when a
 # new ruff is released (a wider range could surface new violations and break CI).
 ruff = ">=0.12,<0.13"
+# Pinned to a minor range so type-checking behavior does not drift unexpectedly.
+mypy = ">=1.19,<1.20"
 
 [tool.ruff.lint]
 # Pyflakes (F) catches real problems — unused/duplicate imports, unused
@@ -67,3 +69,37 @@ select = ["E4", "E7", "E9", "F", "W"]
 # platform skips, which must execute *before* those imports — so their
 # module-level imports are intentionally not at the top of the file.
 "tests/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src/hakowan"]
+# Render backends wrap untyped C-extension libraries (mitsuba, drjit, bpy,
+# lagrange, pygltflib, …). Their bundled stubs are absent or invalid (e.g.
+# mitsuba's __init__.pyi has a syntax error), so don't follow into them — treat
+# them as ``Any`` rather than letting a third-party stub error abort analysis.
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mitsuba",
+    "mitsuba.*",
+    "drjit",
+    "drjit.*",
+    "bpy",
+    "bpy.*",
+    "mathutils",
+    "mathutils.*",
+    "lagrange",
+    "lagrange.*",
+    "pygltflib",
+    "pygltflib.*",
+    "tqdm",
+    "tqdm.*",
+    "yaml",
+    "yaml.*",
+]
+follow_imports = "skip"
+# ``follow_imports`` is ignored for stub (.pyi) files unless this is set; needed
+# because mitsuba ships a stub whose syntax error would otherwise abort mypy.
+follow_imports_for_stubs = true
+ignore_missing_imports = true
