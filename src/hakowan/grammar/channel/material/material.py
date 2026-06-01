@@ -3,8 +3,7 @@ from typing import Literal
 
 from .medium import Medium
 from ..channel import Channel
-from ...texture import Texture, TextureLike
-from ....common.color import ColorLike
+from ...texture import ScalarTextureLike, TextureLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -51,7 +50,7 @@ class RoughConductor(Conductor):
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
-    alpha: Texture | float = 0.1
+    alpha: ScalarTextureLike = 0.1
 
 
 @dataclass(slots=True)
@@ -64,7 +63,7 @@ class Plastic(Material):
     """
 
     diffuse_reflectance: TextureLike = 0.5
-    specular_reflectance: Texture | float = 1.0
+    specular_reflectance: ScalarTextureLike = 1.0
 
 
 @dataclass(slots=True)
@@ -99,8 +98,8 @@ class Principled(Material):
     """
 
     color: TextureLike = 0.5
-    roughness: Texture | float = 0.5
-    metallic: Texture | float = 0.0
+    roughness: ScalarTextureLike = 0.5
+    metallic: ScalarTextureLike = 0.0
     anisotropic: float = 0.0
     spec_trans: float = 0.0
     eta: float = 1.5
@@ -158,7 +157,7 @@ class RoughDielectric(Dielectric):
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
-    alpha: Texture | float = 0.1
+    alpha: ScalarTextureLike = 0.1
 
 
 @dataclass(slots=True)

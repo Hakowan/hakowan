@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from .scale import ScaleLike, Scale, Uniform, Norm
+from .scale import ScaleLike, Scale, Norm, to_scale
 
 
 @dataclass(slots=True)
@@ -36,6 +36,25 @@ AttributeLike: TypeAlias = str | Attribute
 * A string object will be converted to an attribute with the name set to the string.
 * An attribute object will be unchanged.
 """
+
+
+def to_attribute(value: AttributeLike) -> Attribute:
+    """Coerce an attribute-like value into an `Attribute`.
+
+    This is the single coercion point for [`AttributeLike`][hakowan.grammar.scale.attribute.AttributeLike]
+    values: a string is wrapped as `Attribute(name=value)`, while an existing
+    `Attribute` is returned unchanged.
+
+    Args:
+        value: A string (attribute name) or an `Attribute`.
+
+    Returns:
+        The corresponding `Attribute` object.
+    """
+    if isinstance(value, str):
+        return Attribute(name=value)
+    assert isinstance(value, Attribute), f"Cannot convert {type(value)} to Attribute"
+    return value
 
 
 def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attribute:
@@ -73,8 +92,5 @@ def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attri
     """
     norm_scale: Scale = Norm(order=order)
     if scale is not None:
-        if isinstance(scale, (int, float)):
-            scale = Uniform(factor=float(scale))
-        assert isinstance(scale, Scale)
-        norm_scale = norm_scale * scale
+        norm_scale = norm_scale * to_scale(scale)
     return Attribute(name=name, scale=norm_scale)

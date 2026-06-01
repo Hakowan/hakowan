@@ -12,7 +12,7 @@ from ..grammar.channel import (
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
-from ..grammar.scale import Attribute, Norm
+from ..grammar.scale import Attribute, Norm, to_attribute
 from ..grammar.transform import Transform
 from ..common import logger
 
@@ -183,9 +183,7 @@ class View:
     def position_channel(self, channel: Position):
         assert self.data_frame is not None
         assert isinstance(channel, Position)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -205,9 +203,7 @@ class View:
     def normal_channel(self, channel: Normal):
         assert self.data_frame is not None
         assert isinstance(channel, Normal)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -227,8 +223,8 @@ class View:
     def size_channel(self, channel: Size):
         assert isinstance(channel, Size)
 
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
+        if not isinstance(channel.data, (int, float)):
+            channel.data = to_attribute(channel.data)
         assert isinstance(channel.data, (Attribute, float))
 
         match channel.data:
@@ -256,9 +252,7 @@ class View:
     @vector_field_channel.setter
     def vector_field_channel(self, channel: VectorField):
         assert isinstance(channel, VectorField)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         self._vector_field_channel = channel
 
     @property
@@ -268,9 +262,7 @@ class View:
     @covariance_channel.setter
     def covariance_channel(self, channel: Covariance):
         assert isinstance(channel, Covariance)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         self._covariance_channel = channel
 
     @property

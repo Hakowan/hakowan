@@ -34,7 +34,7 @@ from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar import scale
-from ..grammar.scale import Attribute, Normalize
+from ..grammar.scale import Attribute, Normalize, to_attribute
 from ..grammar.texture import Texture, Uniform, ScalarField, Image
 
 import lagrange
@@ -145,8 +145,7 @@ def _process_channels(view: View):
         match view.vector_field_channel.style:
             case Bend():
                 style = view.vector_field_channel.style
-                if isinstance(style.direction, str):
-                    style.direction = Attribute(style.direction)
+                style.direction = to_attribute(style.direction)
                 compute_scaled_attribute(df, style.direction)
                 view._active_attributes.append(style.direction)
     if view.covariance_channel is not None:
@@ -159,11 +158,9 @@ def _process_channels(view: View):
         assert isinstance(view.shape_channel, Shape)
         assert view.shape_channel.base_shape in ["sphere", "cube", "disk"]
         if view.shape_channel.orientation is not None:
-            if isinstance(view.shape_channel.orientation, str):
-                view.shape_channel.orientation = Attribute(
-                    view.shape_channel.orientation
-                )
-            assert isinstance(view.shape_channel.orientation, Attribute)
+            view.shape_channel.orientation = to_attribute(
+                view.shape_channel.orientation
+            )
             attr = view.shape_channel.orientation
             compute_scaled_attribute(df, attr)
             view._active_attributes.append(attr)

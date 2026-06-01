@@ -27,7 +27,7 @@ from ..channel.material import (
     ThinPrincipled,
 )
 from ..transform import Transform, Affine
-from ..scale import Attribute
+from ..scale import Attribute, AttributeLike, to_attribute
 from ..texture import TextureLike
 
 from dataclasses import dataclass, field
@@ -216,9 +216,9 @@ class Layer:
     def channel(
         self,
         *,
-        position: Position | str | Attribute | None = None,
-        normal: Normal | str | Attribute | None = None,
-        size: float | str | Size | Attribute | None = None,
+        position: Position | AttributeLike | None = None,
+        normal: Normal | AttributeLike | None = None,
+        size: float | Size | AttributeLike | None = None,
         shape: _BaseShapeStr | Shape | None = None,
         vector_field: VectorField | str | None = None,
         covariance: Covariance | str | None = None,
@@ -230,9 +230,9 @@ class Layer:
         """Overwrite a channel component of this layer.
 
         Args:
-            position (Position | str | Attribute, optional): The new position channel.
-            normal (Normal | str | Attribute, optional): The new normal channel.
-            size (float | str | Size | Attribute, optional): The new size channel.
+            position (Position | AttributeLike, optional): The new position channel.
+            normal (Normal | AttributeLike, optional): The new normal channel.
+            size (float | Size | AttributeLike, optional): The new size channel.
                 An ``Attribute`` (e.g. from ``hakowan.norm()``) maps a data
                 field to size.
             shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
@@ -250,10 +250,8 @@ class Layer:
         l = self.__get_working_layer(in_place)
 
         def convert(value, cls):
-            if isinstance(value, str):
-                return cls(data=Attribute(name=value))
-            if isinstance(value, Attribute):
-                return cls(data=value)
+            if isinstance(value, (str, Attribute)):
+                return cls(data=to_attribute(value))
             return value
 
         if position is not None:

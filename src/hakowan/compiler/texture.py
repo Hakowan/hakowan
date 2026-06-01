@@ -10,7 +10,7 @@ from ..grammar.texture import (
     Checkerboard,
     Isocontour,
 )
-from ..grammar.scale import Attribute, Clip, Normalize, Scale
+from ..grammar.scale import Attribute, Clip, Normalize, Scale, to_attribute
 
 import lagrange
 import numpy as np
@@ -33,9 +33,7 @@ def apply_texture(
 
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
-    if isinstance(tex.data, str):
-        tex.data = Attribute(name=tex.data)
-    assert isinstance(tex.data, Attribute)
+    tex.data = to_attribute(tex.data)
 
     if tex.domain is not None:
         # Add a clip scale as the last scale to the attribute.
@@ -151,9 +149,7 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
         # This texture is already processed.
         return []
 
-    if isinstance(tex.data, str):
-        tex.data = Attribute(name=tex.data)
-    assert isinstance(tex.data, Attribute)
+    tex.data = to_attribute(tex.data)
 
     if not isinstance(tex.texture1, Texture):
         tex.texture1 = Uniform(color=tex.texture1)

@@ -1,5 +1,6 @@
 from .color import Color, ColorLike
 from .named_colors import css_colors
+from .logger import logger
 
 
 def to_color(data: ColorLike) -> Color:
@@ -28,6 +29,10 @@ def to_color(data: ColorLike) -> Color:
         case (r, g, b):
             return Color(r, g, b)
         case (r, g, b, a):
+            logger.warning(
+                "Color alpha channel is not supported; ignoring alpha value "
+                f"{a} in {(r, g, b, a)}."
+            )
             return Color(r, g, b)
         case _:
             raise ValueError(f"Cannot convert {data} to color")

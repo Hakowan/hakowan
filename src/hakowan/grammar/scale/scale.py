@@ -130,3 +130,22 @@ ScaleLike: TypeAlias = float | Scale
 * A scalar value will be converted to `Uniform` scale with the scalar value as the factor.
 * A Scale object will be unchanged.
 """
+
+
+def to_scale(value: ScaleLike) -> Scale:
+    """Coerce a scale-like value into a `Scale`.
+
+    This is the single coercion point for [`ScaleLike`][hakowan.grammar.scale.scale.ScaleLike]
+    values: a scalar is wrapped as `Uniform(factor=value)`, while an existing
+    `Scale` is returned unchanged.
+
+    Args:
+        value: A float/int (uniform factor) or a `Scale`.
+
+    Returns:
+        The corresponding `Scale` object.
+    """
+    if isinstance(value, (int, float)):
+        return Uniform(factor=float(value))
+    assert isinstance(value, Scale), f"Cannot convert {type(value)} to Scale"
+    return value

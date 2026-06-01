@@ -13,6 +13,7 @@ from ..grammar.scale import (
     Scale,
     ScaleLike,
     Uniform,
+    to_scale,
 )
 
 import lagrange
@@ -30,9 +31,7 @@ def apply_scale(df: DataFrame, attr_name: str, attr_scale: ScaleLike):
     :param attr_name:  Target attribute name
     :param attr_scale: Scale to apply
     """
-    if isinstance(attr_scale, (float, int)):
-        attr_scale = Uniform(factor=float(attr_scale))
-    assert isinstance(attr_scale, Scale)
+    attr_scale = to_scale(attr_scale)
     _apply_scale(df, attr_name, attr_scale)
 
 
