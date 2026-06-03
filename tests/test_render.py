@@ -13,6 +13,8 @@ if sys.platform == "win32" and os.environ.get("CI") == "true":
         allow_module_level=True,
     )
 
+pytest.importorskip("mitsuba", reason="mitsuba not installed")
+
 from hakowan.backends.mitsuba.render import generate_scene_config
 
 

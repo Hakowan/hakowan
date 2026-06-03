@@ -44,7 +44,29 @@ class RenderBackend(ABC):
 _BackendLoader = Callable[[], type[RenderBackend]]
 _backend_loaders: dict[str, tuple[_BackendLoader, str | None]] = {}
 _backends: dict[str, type[RenderBackend]] = {}  # eager registrations + load cache
-_default_backend = "mitsuba"
+
+# The default backend. ``None`` means "auto": at render time, resolve to the
+# first *available* backend in registration order. Backends register in
+# preference order (see ``hakowan/__init__.py``: Mitsuba, then Blender, then the
+# always-present WebGL), so this keeps the historical Mitsuba-first behavior when
+# Mitsuba is installed and degrades gracefully when it is not — with no hardcoded
+# list to keep in sync as backends are added or removed.
+_default_backend: str | None = None
+
+
+def _resolve_default() -> str:
+    # Iterate in registration order. Lazy loaders first (the declared backends,
+    # in declaration order), then any eagerly-registered extras. ``dict.fromkeys``
+    # dedups while preserving order, so a lazily-loaded backend that has since
+    # been cached into ``_backends`` does not jump the queue.
+    for name in dict.fromkeys((*_backend_loaders, *_backends)):
+        if _is_available(name):
+            return name
+    raise ValueError(
+        "No rendering backend is available. Install one with e.g. "
+        "'pip install hakowan[mitsuba]' or 'pip install hakowan[blender]' "
+        "(the WebGL backend should always be present)."
+    )
 
 
 def register_backend(name: str, backend_class: type[RenderBackend]):
@@ -122,7 +144,7 @@ def get_backend(name: str | None = None) -> RenderBackend:
     Raises:
         ValueError: If the backend is unknown or its dependencies are missing.
     """
-    backend_name = name or _default_backend
+    backend_name = name or _default_backend or _resolve_default()
     if backend_name not in _backends and backend_name not in _backend_loaders:
         raise ValueError(
             f"Unknown backend: {backend_name}. Available: {list_backends()}"

@@ -184,8 +184,8 @@ def parse_args():
     parser.add_argument(
         "--backend",
         choices=hkw.list_backends(),
-        default="mitsuba",
-        help="Rendering backend to use",
+        default=None,
+        help="Rendering backend to use (default: first available backend)",
     )
     parser.add_argument(
         "--log-level",
@@ -476,6 +476,11 @@ def main():
     Parses command-line arguments and orchestrates the mesh rendering process.
     """
     args = parse_args()
+
+    # Resolve the effective backend early so string comparisons below are safe.
+    if args.backend is None:
+        from hakowan.backends import _resolve_default
+        args.backend = _resolve_default()
 
     hkw.logger.setLevel(args.log_level.upper())
     lagrange.logger.setLevel(args.log_level.upper())
