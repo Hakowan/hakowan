@@ -270,6 +270,46 @@ let currentPass = 'beauty';
 let loadedRoot = null;
 let sceneBbox = null;
 
+// --------------------------------------------------------------------- //
+// Wireframe overlay                                                       //
+// --------------------------------------------------------------------- //
+// For each triangle mesh we create a THREE.LineSegments child whose
+// geometry is WireframeGeometry(mesh.geometry). THREE.LineSegments draws
+// with gl.LINES, so every triangle edge becomes a line primitive.
+// Parenting to the mesh means the overlay follows the mesh transform for
+// free and no world-matrix bookkeeping is needed.
+
+let wireframeVisible = false;
+const wireframeObjects = [];
+const wireframeMat = new THREE.LineBasicMaterial({
+  color: 0x000000,
+  opacity: 0.3,
+  transparent: true,
+});
+
+function buildWireframe(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const lines = new THREE.LineSegments(
+      new THREE.WireframeGeometry(obj.geometry),
+      wireframeMat,
+    );
+    lines.visible = false;
+    lines.userData.isWireframe = true;
+    obj.add(lines);
+    wireframeObjects.push(lines);
+  });
+}
+
+function toggleWireframe() {
+  wireframeVisible = !wireframeVisible;
+  for (const wf of wireframeObjects) {
+    wf.visible = wireframeVisible;
+  }
+  const btn = document.getElementById('btn-wireframe');
+  if (btn) btn.classList.toggle('active', wireframeVisible);
+}
+
 // The renderer is sRGB-output; built-in materials like MeshBasic include the
 // `<colorspace_fragment>` chunk that does linear→sRGB. ShaderMaterial doesn't,
 // and neither does MeshNormalMaterial — they'd push linear values into an
@@ -352,6 +392,7 @@ function makeNormalMaterial(side) {
 
 function ensurePassMaterials(obj) {
   if (!obj.isMesh && !obj.isLine && !obj.isPoints) return null;
+  if (obj.userData && obj.userData.isWireframe) return null;
   if (obj[PASS_CACHE]) return obj[PASS_CACHE];
   const orig = obj.material;
   obj[PASS_ORIGINAL] = orig;
@@ -478,6 +519,12 @@ function buildPassUI() {
   const sep = document.createElement('div');
   sep.className = 'sep';
   container.appendChild(sep);
+  const wfBtn = document.createElement('button');
+  wfBtn.id = 'btn-wireframe';
+  wfBtn.textContent = 'wireframe';
+  wfBtn.title = 'Toggle wireframe overlay (gl.LINES)';
+  wfBtn.addEventListener('click', toggleWireframe);
+  container.appendChild(wfBtn);
   const save = document.createElement('button');
   save.textContent = 'save png';
   save.title = 'Download the current pass as PNG';
@@ -509,6 +556,7 @@ const onLoaded = (gltf) => {
   scene.add(gltf.scene);
   applyHakowanShaderPatches(gltf.scene);
   applyCrispCheckerTextures(gltf.scene);
+  buildWireframe(gltf.scene);
   loadedRoot = gltf.scene;
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
