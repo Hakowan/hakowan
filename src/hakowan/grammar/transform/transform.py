@@ -9,6 +9,7 @@ from ..scale import AttributeLike
 __all__ = [
     "Transform",
     "Filter",
+    "Clip",
     "UVMesh",
     "Affine",
     "PrincipalAxes",
@@ -72,6 +73,29 @@ class Filter(Transform):
 
     data: AttributeLike | None = None
     condition: Callable = field(default=_default_condition)
+
+
+@dataclass(slots=True)
+class Clip(Transform):
+    """Clip the mesh against a plane, keeping only the half-space the normal points into.
+
+    Unlike :class:`Filter`, which keeps or drops whole facets, ``Clip`` slices
+    through triangles: facets straddling the plane are cut so that only the part
+    on the positive side of the plane is kept (partial triangles are produced).
+    The exposed cross-section is left open (it is not capped).
+
+    The plane is defined in the data/object coordinate space (the same space the
+    raw mesh lives in, before any layer-level :class:`Affine` transform), keeping
+    its meaning consistent with :class:`Filter`.
+
+    Attributes:
+        point: A point lying on the clipping plane.
+        normal: The plane normal. The half-space where
+            ``dot(normal, x - point) >= 0`` is kept; the rest is clipped away.
+    """
+
+    point: npt.ArrayLike = field(default_factory=lambda: np.zeros(3))
+    normal: npt.ArrayLike = field(default_factory=lambda: np.array([1.0, 0.0, 0.0]))
 
 
 @dataclass(slots=True)

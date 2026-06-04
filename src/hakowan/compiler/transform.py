@@ -4,6 +4,7 @@ from ..grammar.scale import Attribute
 from ..grammar.transform import (
     Affine,
     Boundary,
+    Clip,
     Compute,
     Explode,
     Filter,
@@ -115,6 +116,191 @@ def _apply_filter_transform(view: View, transform: Filter):
                 )
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
+
+
+def _interp_corner_values(
+    corner_values: np.ndarray, weights: np.ndarray
+) -> np.ndarray:
+    """Barycentrically combine per-corner attribute values.
+
+    ``corner_values`` is ``(Nc, 3)`` for scalar attributes or ``(Nc, 3, C)`` for
+    multi-channel ones, holding the three parent-triangle corner values for each
+    output corner; ``weights`` is the matching ``(Nc, 3)`` barycentric weights.
+
+    Floating-point attributes are interpolated; integer attributes (e.g. ids)
+    are not meaningfully averaged, so the value of the dominant corner is taken.
+    """
+    cv = np.asarray(corner_values)
+    if cv.shape[0] == 0:
+        return np.ascontiguousarray(cv.reshape((0,) + cv.shape[2:]))
+    if np.issubdtype(cv.dtype, np.integer) or cv.dtype == bool:
+        pick = np.argmax(weights, axis=1)
+        return np.ascontiguousarray(cv[np.arange(cv.shape[0]), pick])
+    if cv.ndim == 2:
+        out = np.einsum("nk,nk->n", weights, cv)
+    else:
+        out = np.einsum("nk,nkc->nc", weights, cv)
+    return np.ascontiguousarray(out)
+
+
+def _clip_mesh(
+    mesh: lagrange.SurfaceMesh,
+    point: np.ndarray,
+    normal: np.ndarray,
+) -> lagrange.SurfaceMesh:
+    """Clip ``mesh`` against the plane through ``point`` with the given ``normal``.
+
+    The half-space where ``dot(normal, x - point) >= 0`` is kept. Triangles
+    straddling the plane are cut via Sutherland-Hodgman clipping (partial
+    triangles are produced); the exposed cross-section is left open.
+
+    The result is a triangle soup (one independent vertex per output corner) so
+    that vertex, corner, and indexed attributes are all interpolated correctly at
+    the cut. Per-facet attributes are copied to the child triangles.
+    """
+    n = np.asarray(normal, dtype=np.float64).reshape(3)
+    n_len = np.linalg.norm(n)
+    if n_len == 0.0:
+        raise ValueError("Clip plane normal must be non-zero.")
+    n = n / n_len
+    p = np.asarray(point, dtype=np.float64).reshape(3)
+
+    # Work on a triangulated copy so the caller's mesh is untouched and every
+    # facet has exactly three corners.
+    mesh = copy.deepcopy(mesh)
+    if mesh.has_edges:
+        mesh.clear_edges()
+    if not mesh.is_triangle_mesh:
+        lagrange.triangulate_polygonal_facets(mesh)
+
+    vertices = mesh.vertices
+    facets = mesh.facets  # (Nf, 3)
+
+    # Signed distance to the plane; keep where sd >= 0.
+    sd = (vertices - p) @ n
+    inside = sd >= 0.0
+
+    eye3 = np.eye(3, dtype=np.float64)
+    sd_tri = sd[facets]  # (Nf, 3)
+    inside_count = inside[facets].sum(axis=1)  # (Nf,)
+
+    # Each output corner records its parent facet and barycentric weights over
+    # the parent triangle's three corners. Output triangles are consecutive
+    # triples of corners.
+    out_facet: list[int] = []
+    out_weights: list[np.ndarray] = []
+
+    # Whole triangles fully inside: copy as-is (identity barycentric per corner).
+    full_in = np.flatnonzero(inside_count == 3)
+    if full_in.size:
+        out_facet.extend(np.repeat(full_in, 3).tolist())
+        out_weights.extend(np.tile(eye3, (full_in.size, 1)))
+
+    # Straddling triangles: Sutherland-Hodgman clip against the half-space, then
+    # fan-triangulate the resulting convex polygon.
+    for f in np.flatnonzero((inside_count == 1) | (inside_count == 2)):
+        d = sd_tri[f]
+        poly: list[np.ndarray] = []
+        for k in range(3):
+            j = (k + 1) % 3
+            cur_in = d[k] >= 0.0
+            nxt_in = d[j] >= 0.0
+            if nxt_in:
+                if not cur_in:
+                    t = d[k] / (d[k] - d[j])
+                    poly.append((1.0 - t) * eye3[k] + t * eye3[j])
+                poly.append(eye3[j])
+            elif cur_in:
+                t = d[k] / (d[k] - d[j])
+                poly.append((1.0 - t) * eye3[k] + t * eye3[j])
+        if len(poly) < 3:
+            continue
+        for i in range(1, len(poly) - 1):
+            out_facet.extend((int(f), int(f), int(f)))
+            out_weights.extend((poly[0], poly[i], poly[i + 1]))
+
+    out_facet_arr = np.asarray(out_facet, dtype=np.int64)
+    weights = np.asarray(out_weights, dtype=np.float64).reshape(-1, 3)
+    num_corners = out_facet_arr.shape[0]
+
+    out = lagrange.SurfaceMesh(mesh.dimension)
+    if num_corners == 0:
+        logger.warning("Clip transform removed the entire mesh.")
+        return out
+
+    corner_vtx = facets[out_facet_arr]  # (Nc, 3) parent vertex indices
+    corner_idx = (3 * out_facet_arr)[:, None] + np.arange(3)  # (Nc, 3) parent corner ids
+    parent_facet_per_tri = out_facet_arr[::3]  # (Nt,)
+
+    out_positions = np.einsum("nk,nkc->nc", weights, vertices[corner_vtx])
+    out.add_vertices(np.ascontiguousarray(out_positions))
+    out.add_triangles(np.arange(num_corners, dtype=np.uint32).reshape(-1, 3))
+
+    for attr_id in mesh.get_matching_attribute_ids():
+        attr_name = mesh.get_attribute_name(attr_id)
+        if mesh.attr_name_is_reserved(attr_name):
+            continue  # positions (rebuilt above) and other internal attributes.
+
+        if mesh.is_attribute_indexed(attr_id):
+            attr = mesh.indexed_attribute(attr_id)
+            corner_vals = attr.values.data[attr.indices.data[corner_idx]]
+            out.create_attribute(
+                attr_name,
+                element=lagrange.AttributeElement.Vertex,
+                usage=attr.usage,
+                initial_values=_interp_corner_values(corner_vals, weights),
+            )
+            continue
+
+        attr = mesh.attribute(attr_id)
+        match attr.element_type:
+            case lagrange.AttributeElement.Vertex:
+                out.create_attribute(
+                    attr_name,
+                    element=lagrange.AttributeElement.Vertex,
+                    usage=attr.usage,
+                    initial_values=_interp_corner_values(
+                        attr.data[corner_vtx], weights
+                    ),
+                )
+            case lagrange.AttributeElement.Corner:
+                out.create_attribute(
+                    attr_name,
+                    element=lagrange.AttributeElement.Vertex,
+                    usage=attr.usage,
+                    initial_values=_interp_corner_values(
+                        attr.data[corner_idx], weights
+                    ),
+                )
+            case lagrange.AttributeElement.Facet:
+                out.create_attribute(
+                    attr_name,
+                    element=lagrange.AttributeElement.Facet,
+                    usage=attr.usage,
+                    initial_values=np.ascontiguousarray(
+                        attr.data[parent_facet_per_tri]
+                    ),
+                )
+            case _:
+                logger.warning(
+                    f"Clip transform: skipping attribute '{attr_name}' with "
+                    f"unsupported element type {attr.element_type}."
+                )
+
+    return out
+
+
+def _apply_clip_transform(view: View, transform: Clip):
+    """Clip the data frame against the plane specified in the transform."""
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+    point = np.asarray(transform.point, dtype=np.float64).reshape(3)
+    normal = np.asarray(transform.normal, dtype=np.float64).reshape(3)
+    df.mesh = _clip_mesh(mesh, point, normal)
 
 
 def _apply_uv_mesh_transform(view: View, transform: UVMesh):
@@ -407,6 +593,9 @@ def apply_transform(view: View):
             case Filter():
                 assert view.data_frame is not None
                 _apply_filter_transform(view, t)
+            case Clip():
+                assert view.data_frame is not None
+                _apply_clip_transform(view, t)
             case UVMesh():
                 assert view.data_frame is not None
                 _apply_uv_mesh_transform(view, t)

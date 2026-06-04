@@ -29,12 +29,29 @@
   #passes button:hover { background: rgba(255,255,255,0.18); }
   #passes button.active { background: rgba(255,255,255,0.28); }
   #passes .sep { width: 1px; background: rgba(255,255,255,0.18); margin: 0 2px; }
+  #clip-controls {
+    position: absolute; top: 44px; right: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #eee;
+    background: rgba(0,0,0,0.45); padding: 6px; border-radius: 4px;
+    display: none; flex-direction: column; gap: 4px;
+  }
+  #clip-controls.visible { display: flex; }
+  #clip-controls .row { display: flex; gap: 4px; align-items: center; }
+  #clip-controls button {
+    background: rgba(255,255,255,0.08); color: #eee; border: 0;
+    padding: 4px 8px; border-radius: 3px; font: inherit; cursor: pointer;
+  }
+  #clip-controls button:hover { background: rgba(255,255,255,0.18); }
+  #clip-controls button.active { background: rgba(255,255,255,0.28); }
+  #clip-controls input[type=range] { width: 150px; accent-color: #ccc; }
 </style>
 </head>
 <body>
 <canvas id="viewer"></canvas>
 <div id="status">loading…</div>
 <div id="passes"></div>
+<div id="clip-controls"></div>
 <script type="importmap">
 {
   "imports": {
@@ -310,6 +327,143 @@ function toggleWireframe() {
   if (btn) btn.classList.toggle('active', wireframeVisible);
 }
 
+// --------------------------------------------------------------------- //
+// Clipping plane                                                         //
+// --------------------------------------------------------------------- //
+// A single world-space THREE.Plane fed to renderer.clippingPlanes (a global
+// clip applied to every material that supports clipping — the built-in PBR /
+// basic / line materials do automatically, and our custom depth/normal pass
+// shaders opt in via `clipping: true` + the clipping_planes include chunks).
+// The plane keeps the half-space its normal points into; the slider slides it
+// along that normal across the scene bbox, and partial triangles fall out of
+// the GPU fragment clip for free (no re-meshing).
+
+let clipEnabled = false;
+let clipAxis = 'x';      // 'x' | 'y' | 'z'
+let clipFlip = false;    // flip which side is kept
+let clipOffset = 0.0;    // position along the axis, as a fraction of half-extent
+const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+
+function updateClipPlane() {
+  if (sceneBbox === null) return;
+  const center = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  sceneBbox.getCenter(center);
+  sceneBbox.getSize(size);
+  const n = new THREE.Vector3(
+    clipAxis === 'x' ? 1 : 0,
+    clipAxis === 'y' ? 1 : 0,
+    clipAxis === 'z' ? 1 : 0,
+  );
+  if (clipFlip) n.negate();
+  const extent = clipAxis === 'x' ? size.x : clipAxis === 'y' ? size.y : size.z;
+  const half = 0.5 * (extent || 1.0);
+  const pt = center.clone().addScaledVector(n, clipOffset * half);
+  clipPlane.setFromNormalAndCoplanarPoint(n, pt);
+  renderer.clippingPlanes = clipEnabled ? [clipPlane] : [];
+}
+
+function toggleClip() {
+  clipEnabled = !clipEnabled;
+  const btn = document.getElementById('btn-clip');
+  if (btn) btn.classList.toggle('active', clipEnabled);
+  const panel = document.getElementById('clip-controls');
+  if (panel) panel.classList.toggle('visible', clipEnabled);
+  updateClipPlane();
+}
+
+function buildClipUI() {
+  const panel = document.getElementById('clip-controls');
+  if (!panel) return;
+  const axisRow = document.createElement('div');
+  axisRow.className = 'row';
+  for (const ax of ['x', 'y', 'z']) {
+    const b = document.createElement('button');
+    b.textContent = ax.toUpperCase();
+    b.dataset.axis = ax;
+    if (ax === clipAxis) b.classList.add('active');
+    b.addEventListener('click', () => {
+      clipAxis = ax;
+      for (const bb of panel.querySelectorAll('button[data-axis]')) {
+        bb.classList.toggle('active', bb.dataset.axis === ax);
+      }
+      updateClipPlane();
+    });
+    axisRow.appendChild(b);
+  }
+  const flip = document.createElement('button');
+  flip.textContent = 'flip';
+  flip.title = 'Flip which side of the plane is kept';
+  flip.addEventListener('click', () => {
+    clipFlip = !clipFlip;
+    flip.classList.toggle('active', clipFlip);
+    updateClipPlane();
+  });
+  axisRow.appendChild(flip);
+  panel.appendChild(axisRow);
+
+  const sliderRow = document.createElement('div');
+  sliderRow.className = 'row';
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '-1';
+  slider.max = '1';
+  slider.step = '0.005';
+  slider.value = '0';
+  slider.title = 'Slide the plane along its normal';
+  slider.addEventListener('input', () => {
+    clipOffset = parseFloat(slider.value);
+    updateClipPlane();
+  });
+  sliderRow.appendChild(slider);
+  panel.appendChild(sliderRow);
+}
+
+// --------------------------------------------------------------------- //
+// Two-sided rendering                                                    //
+// --------------------------------------------------------------------- //
+// A global override that forces every surface material to THREE.DoubleSide so
+// back faces (e.g. the open cross-section left by a clipping plane, or
+// inward-facing facets of a non-watertight mesh) are shaded instead of culled.
+// Each material's natural side is remembered so the toggle can restore it.
+
+let twoSided = false;
+
+function baseSideOf(mat) {
+  mat.userData = mat.userData || {};
+  if (mat.userData.__baseSide === undefined) {
+    mat.userData.__baseSide = mat.side ?? THREE.FrontSide;
+  }
+  return mat.userData.__baseSide;
+}
+
+function applyTwoSided() {
+  if (loadedRoot === null) return;
+  loadedRoot.traverse((obj) => {
+    if (obj.userData && obj.userData.isWireframe) return;
+    const mats = [];
+    if (obj.material) mats.push(obj.material);
+    if (obj[PASS_CACHE]) {
+      for (const key in obj[PASS_CACHE]) {
+        const m = obj[PASS_CACHE][key];
+        if (m && !mats.includes(m)) mats.push(m);
+      }
+    }
+    for (const m of mats) {
+      const base = baseSideOf(m);
+      m.side = twoSided ? THREE.DoubleSide : base;
+      m.needsUpdate = true;
+    }
+  });
+}
+
+function toggleTwoSided() {
+  twoSided = !twoSided;
+  const btn = document.getElementById('btn-twosided');
+  if (btn) btn.classList.toggle('active', twoSided);
+  applyTwoSided();
+}
+
 // The renderer is sRGB-output; built-in materials like MeshBasic include the
 // `<colorspace_fragment>` chunk that does linear→sRGB. ShaderMaterial doesn't,
 // and neither does MeshNormalMaterial — they'd push linear values into an
@@ -334,18 +488,23 @@ const depthUniforms = {
   uDepthMax: { value: 1.0 },
 };
 const DEPTH_VS = `
+  #include <clipping_planes_pars_vertex>
   varying float vDepth;
   void main() {
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-    vDepth = -mvPos.z;
-    gl_Position = projectionMatrix * mvPos;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vDepth = -mvPosition.z;
+    gl_Position = projectionMatrix * mvPosition;
+    #include <clipping_planes_vertex>
   }
 `;
-const DEPTH_FS = SRGB_GLSL + `
+const DEPTH_FS = `
+  #include <clipping_planes_pars_fragment>
+` + SRGB_GLSL + `
   varying float vDepth;
   uniform float uDepthMin;
   uniform float uDepthMax;
   void main() {
+    #include <clipping_planes_fragment>
     float range = max(uDepthMax - uDepthMin, 1e-6);
     float t = clamp((vDepth - uDepthMin) / range, 0.0, 1.0);
     gl_FragColor = vec4(linearToSRGB(vec3(t)), 1.0);
@@ -359,6 +518,7 @@ function makeDepthMaterial(side) {
     fragmentShader: DEPTH_FS,
     side: side ?? THREE.FrontSide,
     toneMapped: false,
+    clipping: true,
   });
 }
 
@@ -366,15 +526,21 @@ function makeDepthMaterial(side) {
 // in view space; we apply sRGB encoding manually because MeshNormalMaterial
 // skips `<colorspace_fragment>` and would otherwise look crushed-dark.
 const NORMAL_VS = `
+  #include <clipping_planes_pars_vertex>
   varying vec3 vViewNormal;
   void main() {
     vViewNormal = normalize(normalMatrix * normal);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    #include <clipping_planes_vertex>
   }
 `;
-const NORMAL_FS = SRGB_GLSL + `
+const NORMAL_FS = `
+  #include <clipping_planes_pars_fragment>
+` + SRGB_GLSL + `
   varying vec3 vViewNormal;
   void main() {
+    #include <clipping_planes_fragment>
     vec3 n = normalize(vViewNormal);
     vec3 packed = n * 0.5 + 0.5;
     gl_FragColor = vec4(linearToSRGB(packed), 1.0);
@@ -387,6 +553,7 @@ function makeNormalMaterial(side) {
     fragmentShader: NORMAL_FS,
     side: side ?? THREE.FrontSide,
     toneMapped: false,
+    clipping: true,
   });
 }
 
@@ -397,7 +564,11 @@ function ensurePassMaterials(obj) {
   const orig = obj.material;
   obj[PASS_ORIGINAL] = orig;
   const cache = { beauty: orig };
-  const side = orig.side ?? THREE.FrontSide;
+  // `baseSide` is the material's natural side; the live side is derived from it
+  // and the global two-sided override so the two stay consistent regardless of
+  // the order in which passes are opened and the toggle is flipped.
+  const baseSide = baseSideOf(orig);
+  const side = twoSided ? THREE.DoubleSide : baseSide;
   const meta = orig.userData && orig.userData.hakowan;
   const isCurve = !!(meta && meta.kind === 'curve');
 
@@ -436,6 +607,14 @@ function ensurePassMaterials(obj) {
       : new THREE.PointsMaterial({ color: rgb, size: orig.size ?? 1, toneMapped: false });
     cache.albedo = flat(orig.color ? orig.color.clone() : new THREE.Color(0xffffff));
     cache.normal = flat(new THREE.Color(0x808080));
+  }
+  // Remember each pass material's natural side so the two-sided toggle can
+  // restore it when switched off.
+  for (const key in cache) {
+    const m = cache[key];
+    if (m === orig) continue;
+    m.userData = m.userData || {};
+    m.userData.__baseSide = baseSide;
   }
   obj[PASS_CACHE] = cache;
   return cache;
@@ -525,6 +704,19 @@ function buildPassUI() {
   wfBtn.title = 'Toggle wireframe overlay (gl.LINES)';
   wfBtn.addEventListener('click', toggleWireframe);
   container.appendChild(wfBtn);
+  const clipBtn = document.createElement('button');
+  clipBtn.id = 'btn-clip';
+  clipBtn.textContent = 'clip';
+  clipBtn.title = 'Toggle an interactive clipping plane';
+  clipBtn.addEventListener('click', toggleClip);
+  container.appendChild(clipBtn);
+  buildClipUI();
+  const twoSidedBtn = document.createElement('button');
+  twoSidedBtn.id = 'btn-twosided';
+  twoSidedBtn.textContent = '2-sided';
+  twoSidedBtn.title = 'Toggle two-sided (double-sided) rendering';
+  twoSidedBtn.addEventListener('click', toggleTwoSided);
+  container.appendChild(twoSidedBtn);
   const save = document.createElement('button');
   save.textContent = 'save png';
   save.title = 'Download the current pass as PNG';

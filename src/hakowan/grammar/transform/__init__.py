@@ -1,6 +1,7 @@
 from .transform import (
     Transform,
     Filter,
+    Clip,
     UVMesh,
     Affine,
     PrincipalAxes,
@@ -14,6 +15,7 @@ from .transform import (
 __all__ = [
     "Transform",
     "Filter",
+    "Clip",
     "UVMesh",
     "Affine",
     "PrincipalAxes",
