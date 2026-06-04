@@ -187,6 +187,41 @@ def _resolve_reflectance(mat: Material) -> Any | None:
     return None
 
 
+def _back_base_color(mat: Material) -> list[float]:
+    """Best-effort linear RGB (3 floats) for a back-face material.
+
+    The viewer renders the back face by overriding only the diffuse base colour
+    in the fragment shader (``gl_FrontFacing`` branch — see ``viewer.html``), so
+    a back material collapses to a single flat colour here. Materials whose
+    appearance isn't a single base colour (Conductor / Dielectric / Hair, or a
+    textured reflectance) are approximated with a warning.
+    """
+    if isinstance(mat, Conductor):
+        albedo = _CONDUCTOR_PRESETS.get(mat.material, (0.7, 0.7, 0.7))
+        logger.warning(
+            "WebGL backend: back_side Conductor approximated as a flat metal color."
+        )
+        return [_srgb_to_linear(c) for c in albedo]
+    if isinstance(mat, Dielectric):
+        logger.warning(
+            "WebGL backend: back_side Dielectric approximated as white "
+            "(no back-face transmission)."
+        )
+        return [1.0, 1.0, 1.0]
+    if isinstance(mat, Hair):
+        logger.warning("WebGL backend: back_side Hair approximated as brown.")
+        return _color_to_rgba("saddlebrown")[:3]
+    reflectance = _resolve_reflectance(mat)
+    if reflectance is None:
+        return list(_DEFAULT_BASE_COLOR[:3])
+    if isinstance(reflectance, (ScalarField, Image, Checkerboard, Isocontour)):
+        logger.warning(
+            "WebGL backend: textured back_side color not supported; using white."
+        )
+        return [1.0, 1.0, 1.0]
+    return _reflectance_to_base_color(reflectance)[:3]
+
+
 def _load_image_as_png_bytes(image: Image) -> bytes:
     path = Path(image.filename)
     img = PILImage.open(path).convert("RGBA")
@@ -478,9 +513,15 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             double_sided=False,
         )
 
-    double_sided = bool(getattr(mat, "two_sided", False))
+    # A back-side material is rendered via a ``gl_FrontFacing`` fragment-shader
+    # branch, which is only valid under double-sided rendering — so back_side
+    # forces double-sided regardless of the ``two_sided`` flag.
+    back_mat = getattr(mat, "back_side", None)
+    double_sided = bool(getattr(mat, "two_sided", False)) or back_mat is not None
     custom_attrs: dict[str, np.ndarray] = {}
     extras: dict[str, Any] = {}
+    if back_mat is not None:
+        extras["back"] = {"color": _back_base_color(back_mat)}
 
     # Intrinsic-colour materials: Conductor / Dielectric / Hair.
     if isinstance(mat, Conductor):
@@ -611,6 +652,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "roughnessFactor": 0.8,
             },
             double_sided=double_sided,
+            extras={"hakowan": extras} if extras else None,
         )
 
     # Reflectance-bearing materials.
@@ -627,6 +669,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "roughnessFactor": 1.0,
             },
             double_sided=double_sided,
+            extras={"hakowan": extras} if extras else None,
         )
 
     pbr = {

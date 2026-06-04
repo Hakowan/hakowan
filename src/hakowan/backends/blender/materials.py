@@ -109,7 +109,17 @@ class _MaterialMixin:
         # Clear default nodes
         nodes.clear()
 
-        # Hair and ThinDielectric use dedicated shader node graphs
+        # Hair and ThinDielectric use dedicated shader node graphs that the
+        # front/back Principled-mix path below does not cover, so a back_side on
+        # such a front material is ignored.
+        if (
+            isinstance(mat_data, (Hair, ThinDielectric))
+            and mat_data.back_side is not None
+        ):
+            logger.warning(
+                f"Blender backend: back_side is ignored for "
+                f"{type(mat_data).__name__} front materials."
+            )
         if isinstance(mat_data, Hair):
             return self._create_hair_material(mat, mat_data, nodes, links)
         if isinstance(mat_data, ThinDielectric):
@@ -119,10 +129,10 @@ class _MaterialMixin:
         bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location = (0, 0)
 
-        # Material output
+        # Material output. The BSDF is linked to it below — directly when there
+        # is no back_side, or through a Backfacing mix shader when there is.
         output = nodes.new(type="ShaderNodeOutputMaterial")
-        output.location = (300, 0)
-        links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+        output.location = (600, 0)
 
         # Base color: checkerboard, scalar field, override, or material default.
         checkerboard_tex = self._get_checkerboard_texture(view)
@@ -160,7 +170,63 @@ class _MaterialMixin:
             else:
                 bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
 
-        # Configure based on material type (non-color inputs)
+        # Configure based on material type (non-color inputs).
+        self._apply_bsdf_inputs(
+            mat,
+            bsdf,
+            mat_data,
+            warn_unsupported=(color_layer_name is None and override_color is None),
+        )
+
+        # Normal / bump maps drive the Principled BSDF's "Normal" input. When
+        # both are present the normal map feeds the bump node so they compose
+        # (mirrors Mitsuba's bumpmap-over-normalmap nesting). Both require UVs.
+        normal_socket = None
+        if uv_layer_name is not None and view.normal_map is not None:
+            normal_socket = self._build_normal_map_node(
+                view.normal_map, nodes, links, uv_layer_name
+            )
+        if uv_layer_name is not None and view.bump_map is not None:
+            bump_socket = self._build_bump_map_node(
+                view.bump_map, nodes, links, uv_layer_name, normal_socket
+            )
+            if bump_socket is not None:
+                normal_socket = bump_socket
+        if normal_socket is not None and "Normal" in bsdf.inputs:
+            links.new(normal_socket, bsdf.inputs["Normal"])
+
+        # Front/back routing: link the front BSDF straight to the output, or —
+        # when a back_side material is set — mix it with a separate back BSDF
+        # selected by the Geometry node's "Backfacing" output (1.0 on back
+        # faces, which routes the MixShader to its second shader input).
+        back = mat_data.back_side
+        if back is None:
+            links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+        else:
+            back_bsdf = self._build_back_bsdf(mat, back, nodes, links, normal_socket)
+            geo = nodes.new(type="ShaderNodeNewGeometry")
+            geo.location = (0, -900)
+            mix = nodes.new(type="ShaderNodeMixShader")
+            mix.location = (300, 0)
+            links.new(geo.outputs["Backfacing"], mix.inputs["Fac"])
+            links.new(bsdf.outputs["BSDF"], mix.inputs[1])  # Fac=0 → front
+            links.new(back_bsdf.outputs["BSDF"], mix.inputs[2])  # Fac=1 → back
+            links.new(mix.outputs["Shader"], output.inputs["Surface"])
+            mat.use_backface_culling = False
+
+        # Two-sided rendering: disable backface culling
+        if mat_data.two_sided:
+            mat.use_backface_culling = False
+
+        return mat
+
+    def _apply_bsdf_inputs(self, mat, bsdf, mat_data, *, warn_unsupported: bool):
+        """Set the non-color Principled BSDF inputs for a material type.
+
+        Operates on the given ``bsdf`` node so it can configure both the front
+        BSDF and a back_side BSDF. ``mat`` is the owning Blender material (used
+        only to disable backface culling for inherently two-sided types).
+        """
         match mat_data:
             case Diffuse():
                 bsdf.inputs["Roughness"].default_value = 1.0
@@ -256,33 +322,31 @@ class _MaterialMixin:
                 bsdf.inputs["Sheen Weight"].default_value = mat_data.sheen
 
             case _:
-                if color_layer_name is None and override_color is None:
+                if warn_unsupported:
                     logger.warning(
                         f"Material type {type(mat_data)} not fully supported, using default"
                     )
 
-        # Normal / bump maps drive the Principled BSDF's "Normal" input. When
-        # both are present the normal map feeds the bump node so they compose
-        # (mirrors Mitsuba's bumpmap-over-normalmap nesting). Both require UVs.
-        normal_socket = None
-        if uv_layer_name is not None and view.normal_map is not None:
-            normal_socket = self._build_normal_map_node(
-                view.normal_map, nodes, links, uv_layer_name
-            )
-        if uv_layer_name is not None and view.bump_map is not None:
-            bump_socket = self._build_bump_map_node(
-                view.bump_map, nodes, links, uv_layer_name, normal_socket
-            )
-            if bump_socket is not None:
-                normal_socket = bump_socket
-        if normal_socket is not None and "Normal" in bsdf.inputs:
-            links.new(normal_socket, bsdf.inputs["Normal"])
+    def _build_back_bsdf(self, mat, back_mat, nodes, links, normal_socket):
+        """Build a Principled BSDF for the back face from a uniform-color material.
 
-        # Two-sided rendering: disable backface culling
-        if mat_data.two_sided:
-            mat.use_backface_culling = False
-
-        return mat
+        Back faces support a flat (uniform) color only; textured back colors
+        (ScalarField/Image/Checkerboard) fall back to gray with a warning.
+        """
+        back_bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
+        back_bsdf.location = (0, -500)
+        color = self._extract_material_color(back_mat)
+        if color is None:
+            logger.warning(
+                "Blender backend: back_side color is not a uniform color "
+                "(textured back faces are not supported); using gray."
+            )
+            color = (0.8, 0.8, 0.8, 1.0)
+        back_bsdf.inputs["Base Color"].default_value = color
+        self._apply_bsdf_inputs(mat, back_bsdf, back_mat, warn_unsupported=True)
+        if normal_socket is not None and "Normal" in back_bsdf.inputs:
+            links.new(normal_socket, back_bsdf.inputs["Normal"])
+        return back_bsdf
 
     def _create_hair_material(self, mat, mat_data: Hair, nodes, links):
         """Create a Principled Hair BSDF material.

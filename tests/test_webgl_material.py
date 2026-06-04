@@ -336,3 +336,32 @@ class TestNoMaterial:
         view = View()
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["baseColorFactor"] == [0.5, 0.5, 0.5, 1.0]
+
+
+class TestBackSide:
+    def test_back_side_emits_back_color_and_forces_double_sided(self):
+        view = _triangle_view(
+            hkw.material.Diffuse(
+                "red", back_side=hkw.material.Diffuse(reflectance="blue")
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        # Back color must force double-sided so gl_FrontFacing is meaningful.
+        assert result.double_sided is True
+        assert result.extras is not None
+        back = result.extras["hakowan"]["back"]
+        assert back["color"] == [0.0, 0.0, 1.0]  # blue, linear
+        # Front color is untouched.
+        assert result.pbr["baseColorFactor"] == [1.0, 0.0, 0.0, 1.0]
+
+    def test_back_side_conductor_approximated_to_flat_color(self, caplog):
+        view = _triangle_view(
+            hkw.material.Diffuse(
+                "red", back_side=hkw.material.Conductor(material="Au")
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        assert result.double_sided is True
+        back_color = result.extras["hakowan"]["back"]["color"]
+        assert len(back_color) == 3
+        assert all(0.0 <= c <= 1.0 for c in back_color)

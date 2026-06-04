@@ -12,9 +12,16 @@ class Material(Channel):
 
     Attributes:
         two_sided: Whether to render both sides of the surface (default: False).
+        back_side: An independent material for the back face of each facet
+            (default: None). When set, the front face uses this material's
+            owning material and the back face uses ``back_side``; this implies
+            two-sided rendering regardless of ``two_sided``. Only meaningful for
+            surface marks. A nested ``back_side`` on the back material itself is
+            ignored.
     """
 
     two_sided: bool = False
+    back_side: "Material | None" = None
 
 
 @dataclass(slots=True)

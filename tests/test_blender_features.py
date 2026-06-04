@@ -220,3 +220,51 @@ class TestNormalAndBumpMap:
         # Bump drives the BSDF normal; the normal map feeds the bump node.
         assert _source_type(bsdf.inputs["Normal"]) == "BUMP"
         assert _source_type(bump.inputs["Normal"]) == "NORMAL_MAP"
+
+
+class TestBackSide:
+    def test_back_side_builds_mix_shader(self):
+        _, nodes, _ = _build_material(
+            hkw.layer()
+            .data(_quad_with_uv())
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    "red",
+                    back_side=hkw.material.Principled(color="blue", metallic=1.0),
+                )
+            )
+        )
+        # A back_side mixes a second BSDF in via the Geometry "Backfacing" output.
+        assert any(n.type == "MIX_SHADER" for n in nodes)
+        assert any(n.type == "NEW_GEOMETRY" for n in nodes)
+        assert sum(1 for n in nodes if n.type == "BSDF_PRINCIPLED") == 2
+        assert bpy.data.materials["material_000"].use_backface_culling is False
+
+    def test_back_side_textured_back_falls_back(self):
+        mesh = _quad_with_uv()
+        mesh.create_attribute(
+            "scalar",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0.0, 0.3, 0.6, 1.0], dtype=np.float64),
+        )
+        _, nodes, _ = _build_material(
+            hkw.layer()
+            .data(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    "red",
+                    back_side=hkw.material.Diffuse(
+                        reflectance=hkw.texture.ScalarField(
+                            data=hkw.attribute(name="scalar")
+                        )
+                    ),
+                )
+            )
+        )
+        # The textured back color is unsupported; it falls back to a flat BSDF
+        # but the mix structure is still built.
+        assert any(n.type == "MIX_SHADER" for n in nodes)
+        assert sum(1 for n in nodes if n.type == "BSDF_PRINCIPLED") == 2

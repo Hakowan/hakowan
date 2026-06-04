@@ -31,6 +31,7 @@ from ..grammar.channel.material import (
 )
 from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
+from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, to_attribute
 from ..grammar.texture import Texture, Uniform, Image
 
@@ -177,50 +178,91 @@ def _process_channels(view: View):
             view._active_attributes += apply_texture(df, tex, view.uv_attribute)
             view.uv_attribute = tex._uv
     if view.material_channel is not None:
-        match view.material_channel:
-            case Diffuse():
-                if isinstance(view.material_channel.reflectance, Texture):
-                    tex = view.material_channel.reflectance
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-                    apply_colormap(df, tex)
-            case RoughConductor() | RoughDielectric():
-                if isinstance(view.material_channel.alpha, Texture):
-                    tex = view.material_channel.alpha
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-                    apply_colormap(df, tex)  # TODO: is this needed?
-            case Conductor() | Dielectric() | ThinDielectric() | Hair():
-                # Nothing to do.
-                pass
-            case RoughPlastic() | Plastic():
-                if isinstance(view.material_channel.diffuse_reflectance, Texture):
-                    tex = view.material_channel.diffuse_reflectance
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-                    apply_colormap(df, tex)
-                if isinstance(view.material_channel.specular_reflectance, Texture):
-                    tex = view.material_channel.specular_reflectance
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-            case Principled() | ThinPrincipled():
-                if isinstance(view.material_channel.color, Texture):
-                    tex = view.material_channel.color
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-                    apply_colormap(df, tex)
-                if isinstance(view.material_channel.metallic, Texture):
-                    tex = view.material_channel.metallic
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-                if isinstance(view.material_channel.roughness, Texture):
-                    tex = view.material_channel.roughness
-                    view._active_attributes += apply_texture(df, tex, view.uv_attribute)
-                    view.uv_attribute = tex._uv
-            case _:
-                raise NotImplementedError(
-                    f"Channel type {type(view.material_channel)} is not supported"
-                )
+        _validate_back_side(view)
+        _process_material(view, df, view.material_channel)
+        if view.material_channel.back_side is not None:
+            _process_material(view, df, view.material_channel.back_side)
+
+
+def _validate_back_side(view: View):
+    """Normalize ``material_channel.back_side`` and warn on unsupported uses.
+
+    ``back_side`` is only meaningful for surface marks, and a nested
+    ``back_side`` on the back-side material itself has no meaning (a facet has
+    exactly two sides). Both are dropped here (the view's material is a deep
+    copy, so this never mutates the user's spec). Done once so all backends see
+    a clean ``back_side``.
+    """
+    mat = view.material_channel
+    assert mat is not None
+    back = mat.back_side
+    if back is None:
+        return
+    if view.mark is not Mark.Surface:
+        logger.warning(
+            "Material.back_side is only supported for surface marks; "
+            f"ignoring it for the {view.mark} mark."
+        )
+        mat.back_side = None
+        return
+    if back.back_side is not None:
+        logger.warning(
+            "A nested Material.back_side on a back-side material is not "
+            "meaningful; ignoring it."
+        )
+        back.back_side = None
+
+
+def _process_material(view: View, df: DataFrame, mat: Material):
+    """Resolve the texture-typed fields (color/alpha/roughness/metallic) of a
+    single material against the data frame, accumulating active attributes and
+    threading the shared UV attribute. Called for both the front material and
+    its ``back_side`` (whose textures must share the front's UVs).
+    """
+    match mat:
+        case Diffuse():
+            if isinstance(mat.reflectance, Texture):
+                tex = mat.reflectance
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+                apply_colormap(df, tex)
+        case RoughConductor() | RoughDielectric():
+            if isinstance(mat.alpha, Texture):
+                tex = mat.alpha
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+                apply_colormap(df, tex)  # TODO: is this needed?
+        case Conductor() | Dielectric() | ThinDielectric() | Hair():
+            # Nothing to do.
+            pass
+        case RoughPlastic() | Plastic():
+            if isinstance(mat.diffuse_reflectance, Texture):
+                tex = mat.diffuse_reflectance
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+                apply_colormap(df, tex)
+            if isinstance(mat.specular_reflectance, Texture):
+                tex = mat.specular_reflectance
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+        case Principled() | ThinPrincipled():
+            if isinstance(mat.color, Texture):
+                tex = mat.color
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+                apply_colormap(df, tex)
+            if isinstance(mat.metallic, Texture):
+                tex = mat.metallic
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+            if isinstance(mat.roughness, Texture):
+                tex = mat.roughness
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+        case _:
+            raise NotImplementedError(
+                f"Channel type {type(mat)} is not supported"
+            )
 
 
 def _normalize_vector_field(df: DataFrame, attr: Attribute):

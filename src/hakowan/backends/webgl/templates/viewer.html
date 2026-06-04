@@ -201,6 +201,7 @@ function applyHakowanShaderPatches(root) {
     const material = obj.material;
     const isoParams = meta.isocontour;
     const principledAttrs = meta.principled_attrs;
+    const backParams = meta.back;
 
     material.onBeforeCompile = (shader) => {
       let injectVertHead = "";
@@ -245,6 +246,18 @@ function applyHakowanShaderPatches(root) {
         injectVertBody += `vMetallic0 = ${metalAttr};\n`;
         injectFragHead += "varying float vMetallic0;\n";
         injectFragMetal += "metalnessFactor *= clamp(vMetallic0, 0.0, 1.0);\n";
+      }
+
+      if (backParams) {
+        // Override the diffuse base color on back faces. `gl_FrontFacing` is
+        // only meaningful when the material is double-sided, which the WebGL
+        // material translator guarantees whenever back_side is set. Appended
+        // last so it wins over any front-only tint (e.g. isocontour stripes).
+        shader.uniforms.uBackColor = {
+          value: new THREE.Color(...backParams.color),
+        };
+        injectFragHead += "uniform vec3 uBackColor;\n";
+        injectFragDiffuse += "if (!gl_FrontFacing) { diffuseColor.rgb = uBackColor; }\n";
       }
 
       shader.vertexShader = (injectVertHead + shader.vertexShader).replace(

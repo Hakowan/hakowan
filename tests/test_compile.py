@@ -604,3 +604,63 @@ class TestTexture:
 
         assert attr._internal_name is not None
         assert mesh.has_attribute(attr._internal_name)
+
+
+class TestBackSide:
+    @staticmethod
+    def _surface_mesh():
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.eye(3))
+        mesh.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+        return mesh
+
+    def test_back_side_texture_resolution(self):
+        # Both the front and back ScalarField colors must be resolved into
+        # distinct internal attributes on the compiled mesh.
+        mesh = self._surface_mesh()
+        mesh.create_attribute(
+            "front_data",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0.0, 0.5, 1.0], dtype=np.float64),
+        )
+        mesh.create_attribute(
+            "back_data",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([1.0, 0.5, 0.0], dtype=np.float64),
+        )
+        front = hkw.material.Diffuse(
+            reflectance=hkw.texture.ScalarField(data=hkw.attribute(name="front_data"))
+        )
+        front.back_side = hkw.material.Diffuse(
+            reflectance=hkw.texture.ScalarField(data=hkw.attribute(name="back_data"))
+        )
+        layer = hkw.layer(mesh).mark(hkw.mark.Surface).channel(material=front)
+        view = hkw.compiler.compile(layer)[0]
+
+        out_mesh = view.data_frame.mesh
+        front_attr = view.material_channel.reflectance.data
+        back_attr = view.material_channel.back_side.reflectance.data
+        assert front_attr._internal_name is not None
+        assert back_attr._internal_name is not None
+        assert front_attr._internal_name != back_attr._internal_name
+        assert out_mesh.has_attribute(front_attr._internal_name)
+        assert out_mesh.has_attribute(back_attr._internal_name)
+
+    def test_back_side_recursion_ignored(self):
+        mesh = self._surface_mesh()
+        inner = hkw.material.Diffuse("green")
+        inner.back_side = hkw.material.Diffuse("yellow")
+        front = hkw.material.Diffuse("red", back_side=inner)
+        layer = hkw.layer(mesh).mark(hkw.mark.Surface).channel(material=front)
+        view = hkw.compiler.compile(layer)[0]
+        assert view.material_channel.back_side is not None
+        assert view.material_channel.back_side.back_side is None
+
+    def test_back_side_dropped_on_point_mark(self):
+        mesh = self._surface_mesh()
+        front = hkw.material.Diffuse("red", back_side=hkw.material.Diffuse("blue"))
+        layer = hkw.layer(mesh).mark(hkw.mark.Point).channel(material=front)
+        view = hkw.compiler.compile(layer)[0]
+        assert view.material_channel.back_side is None
