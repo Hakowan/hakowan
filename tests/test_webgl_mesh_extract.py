@@ -96,10 +96,7 @@ class TestNormalChannel:
             initial_values=custom.astype(np.float64),
         )
         layer = (
-            hkw.layer()
-            .data(mesh)
-            .mark(hkw.mark.Surface)
-            .channel(normal="my_normals")
+            hkw.layer().data(mesh).mark(hkw.mark.Surface).channel(normal="my_normals")
         )
         view = list(hkw.compiler.compile(layer))[0]
         arrays = extract_surface_arrays(view)

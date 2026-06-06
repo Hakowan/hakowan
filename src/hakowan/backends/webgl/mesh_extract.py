@@ -159,7 +159,9 @@ def extract_surface_arrays(
         # distinct normals, retaining creases on hard-surface models like cubes.
         # Three.js requires a NORMAL accessor; without one the normal/lit passes
         # render black.
-        normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+        normal_ids = mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
         if not normal_ids:
             try:
                 lagrange.compute_normal(mesh)
