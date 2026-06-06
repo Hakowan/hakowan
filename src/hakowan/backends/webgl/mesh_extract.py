@@ -75,26 +75,16 @@ def _read_uv_coordinates(
         indexed = mesh.indexed_attribute(uv_name)
         values = np.asarray(indexed.values.data, dtype=np.float32)
         indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
-        if corner_idx is not None:
-            if indices.shape[0] != corner_idx.shape[0]:
-                raise ValueError(
-                    f"UV index count {indices.shape[0]} != corner count "
-                    f"{corner_idx.shape[0]}"
-                )
-            return np.ascontiguousarray(values[indices])
-        corner_vertices = mesh.facets.reshape(-1)
-        if indices.shape[0] != corner_vertices.shape[0]:
+        assert corner_idx is not None, (
+            "indexed UV attribute requires corner_idx; "
+            "caller must ensure uv_is_indexed forces the de-indexed path"
+        )
+        if indices.shape[0] != corner_idx.shape[0]:
             raise ValueError(
                 f"UV index count {indices.shape[0]} != corner count "
-                f"{corner_vertices.shape[0]}"
+                f"{corner_idx.shape[0]}"
             )
-        # Indexed UVs are per-corner; callers must provide corner_idx to
-        # expand them correctly. The lossy vertex-scatter path is removed to
-        # prevent silent UV seam corruption.
-        raise ValueError(
-            "Indexed UV attribute requires corner_idx for correct expansion. "
-            "Pass corner_idx or force the de-indexed output path before calling."
-        )
+        return np.ascontiguousarray(values[indices])
     data = np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)
     if corner_idx is not None:
         return np.ascontiguousarray(data[corner_idx])
@@ -220,6 +210,7 @@ def extract_surface_arrays(
         and mesh.attribute(color_name).element_type == lagrange.AttributeElement.Facet
     )
     uv_is_indexed = uv_name is not None and mesh.is_attribute_indexed(uv_name)
+    corner_idx: np.ndarray | None = None
     if (color_is_facet or uv_is_indexed) and per_corner_normals is None:
         corner_idx = facets.reshape(-1)
         per_corner_normals = (
@@ -233,7 +224,8 @@ def extract_surface_arrays(
         # De-index every other vertex-element attribute (positions, colors,
         # UVs, custom shader attrs) to per-corner so they all line up with
         # the per-corner normal array.
-        corner_idx = facets.reshape(-1)
+        if corner_idx is None:
+            corner_idx = facets.reshape(-1)
         new_positions = positions[corner_idx]
         if color_name is None:
             colors = None
