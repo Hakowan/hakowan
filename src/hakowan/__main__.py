@@ -83,6 +83,12 @@ def parse_args():
     )
     parser.add_argument("--color", help="Material color", type=str, default="ivory")
     parser.add_argument(
+        "--back-color",
+        help="Back-face color (enables two-sided rendering with a distinct back material).",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
         "--orient-pca",
         action="store_true",
         help=(
@@ -470,6 +476,17 @@ def save_camera_matrix(data: dict, output_path: Path):
         np.savez(str(out), **data)
 
 
+def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Material":
+    """Build a back-face material matching the front material type but with back_color."""
+    match material_type:
+        case "diffuse":
+            return hkw.material.Diffuse(back_color)
+        case "roughplastic":
+            return hkw.material.RoughPlastic(back_color)
+        case "plastic" | _:
+            return hkw.material.Plastic(back_color)
+
+
 def main():
     """
     Entry point for the command-line interface for mesh rendering.
@@ -506,13 +523,20 @@ def main():
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
+    back_side = (
+        _back_side_material(args.material, args.back_color)
+        if args.back_color is not None
+        else None
+    )
+    two_sided = args.two_sided or (args.back_color is not None)
+
     match args.material:
         case "diffuse":
-            layer = layer.material("Diffuse", args.color, two_sided=args.two_sided)
+            layer = layer.material("Diffuse", args.color, two_sided=two_sided, back_side=back_side)
         case "plastic":
-            layer = layer.material("Plastic", args.color, two_sided=args.two_sided)
+            layer = layer.material("Plastic", args.color, two_sided=two_sided, back_side=back_side)
         case "roughplastic":
-            layer = layer.material("RoughPlastic", args.color, two_sided=args.two_sided)
+            layer = layer.material("RoughPlastic", args.color, two_sided=two_sided, back_side=back_side)
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
@@ -531,7 +555,7 @@ def main():
             layer = layer.material(
                 "Principled",
                 hkw.texture.ScalarField(color_attr_name, colormap="identity"),
-                two_sided=args.two_sided,
+                two_sided=two_sided,
             )
         case "normal":
             normal_attr_ids = mesh.get_matching_attribute_ids(
@@ -569,7 +593,7 @@ def main():
                 hkw.texture.ScalarField(
                     hkw.attribute(normal_attr_name, scale=scale), colormap="identity"
                 ),
-                two_sided=args.two_sided,
+                two_sided=two_sided,
             )
         case "uv":
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
@@ -607,13 +631,13 @@ def main():
                     layer = layer.material(
                         "Principled",
                         color=isoline_texture,
-                        two_sided=args.two_sided,
+                        two_sided=two_sided,
                     )
                 else:
                     layer = layer.material(
                         "Principled",
                         color=scalar_texture,
-                        two_sided=args.two_sided,
+                        two_sided=two_sided,
                     )
             else:
                 texture_file = Path(args.material)
