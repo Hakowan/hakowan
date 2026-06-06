@@ -140,39 +140,53 @@ def extract_surface_arrays(
     uv_name = _find_uv_attribute_name(mesh)
     custom_attrs = custom_attrs or {}
 
-    # Compute indexed normals if the input mesh has none. We use
-    # ``lagrange.compute_normal`` (rather than ``compute_vertex_normal``) so
-    # sharp edges above the default 45° feature-angle threshold split into
-    # distinct normals, retaining creases on hard-surface models like cubes.
-    # Three.js requires a NORMAL accessor; without one the normal/lit passes
-    # render black.
-    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
-    if not normal_ids:
-        try:
-            lagrange.compute_normal(mesh)
-            normal_ids = mesh.get_matching_attribute_ids(
-                usage=lagrange.AttributeUsage.Normal
+    # Determine which attribute supplies normals.
+    # Priority: explicit Normal channel > AttributeUsage.Normal in mesh > compute.
+    normal_name: str | None = None
+    if view.normal_channel is not None:
+        _nc_name = view.normal_channel.data._internal_name
+        if _nc_name and mesh.has_attribute(_nc_name):
+            normal_name = _nc_name
+        else:
+            logger.warning(
+                "WebGL backend: normal_channel attribute not found in mesh; "
+                "falling back to auto-computed normals."
             )
-        except Exception as e:  # pragma: no cover - lagrange edge case
-            logger.debug(
-                f"WebGL backend: compute_normal failed ({e}); "
-                "falling back to per-vertex normal computation."
-            )
+    if normal_name is None:
+        # Compute indexed normals if the input mesh has none. We use
+        # ``lagrange.compute_normal`` (rather than ``compute_vertex_normal``) so
+        # sharp edges above the default 45° feature-angle threshold split into
+        # distinct normals, retaining creases on hard-surface models like cubes.
+        # Three.js requires a NORMAL accessor; without one the normal/lit passes
+        # render black.
+        normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+        if not normal_ids:
             try:
-                lagrange.compute_vertex_normal(mesh)
+                lagrange.compute_normal(mesh)
                 normal_ids = mesh.get_matching_attribute_ids(
                     usage=lagrange.AttributeUsage.Normal
                 )
-            except Exception as e2:  # pragma: no cover
+            except Exception as e:  # pragma: no cover - lagrange edge case
                 logger.debug(
-                    f"WebGL backend: compute_vertex_normal also failed ({e2}); "
-                    "the normal pass will render black."
+                    f"WebGL backend: compute_normal failed ({e}); "
+                    "falling back to per-vertex normal computation."
                 )
+                try:
+                    lagrange.compute_vertex_normal(mesh)
+                    normal_ids = mesh.get_matching_attribute_ids(
+                        usage=lagrange.AttributeUsage.Normal
+                    )
+                except Exception as e2:  # pragma: no cover
+                    logger.debug(
+                        f"WebGL backend: compute_vertex_normal also failed ({e2}); "
+                        "the normal pass will render black."
+                    )
+        if normal_ids:
+            normal_name = mesh.get_attribute_name(normal_ids[0])
 
     normals: np.ndarray | None = None
     per_corner_normals: np.ndarray | None = None
-    if normal_ids:
-        normal_name = mesh.get_attribute_name(normal_ids[0])
+    if normal_name is not None:
         if mesh.is_attribute_indexed(normal_name):
             # Indexed normal: per-corner lookup into a (V_unique, 3) value
             # table — preserves sharp edges by giving the same vertex
@@ -182,7 +196,7 @@ def extract_surface_arrays(
             norm_idx = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
             per_corner_normals = values[norm_idx]
         else:
-            normal_attr = mesh.attribute(normal_ids[0])  # type: ignore
+            normal_attr = mesh.attribute(normal_name)
             if normal_attr.element_type == lagrange.AttributeElement.Vertex:
                 normals = np.ascontiguousarray(normal_attr.data, dtype=np.float32)
             elif normal_attr.element_type == lagrange.AttributeElement.Facet:

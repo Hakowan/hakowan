@@ -189,7 +189,7 @@ async function loadEnvmap() {
   }
 }
 
-function applyHakowanShaderPatches(root) {
+function applyHakowanShaderPatches(root, gltf) {
   // Walk the loaded glTF tree, find materials with userData.hakowan, and
   // patch their shader compile step. The glTF "extras" object lands on
   // material.userData when read by GLTFLoader.
@@ -202,6 +202,7 @@ function applyHakowanShaderPatches(root) {
     const isoParams = meta.isocontour;
     const principledAttrs = meta.principled_attrs;
     const backParams = meta.back;
+    const bumpParams = meta.bump;
 
     material.onBeforeCompile = (shader) => {
       let injectVertHead = "";
@@ -280,6 +281,19 @@ function applyHakowanShaderPatches(root) {
     };
     // Force a recompile next frame.
     material.needsUpdate = true;
+
+    // Bump map: glTF has no standard bump slot, so we embed the texture and
+    // record its index in extras. Load it here (outside onBeforeCompile) so
+    // the material compiles once with bumpMap already assigned.
+    if (bumpParams && gltf && gltf.parser) {
+      gltf.parser.loadTexture(bumpParams.texture_idx).then((tex) => {
+        material.bumpMap = tex;
+        material.bumpScale = bumpParams.scale ?? 1.0;
+        material.needsUpdate = true;
+      }).catch((e) => {
+        console.warn('hakowan: failed to load bump texture:', e);
+      });
+    }
   });
 }
 
@@ -759,7 +773,7 @@ function applyCrispCheckerTextures(root) {
 const loader = new GLTFLoader();
 const onLoaded = (gltf) => {
   scene.add(gltf.scene);
-  applyHakowanShaderPatches(gltf.scene);
+  applyHakowanShaderPatches(gltf.scene, gltf);
   applyCrispCheckerTextures(gltf.scene);
   buildWireframe(gltf.scene);
   loadedRoot = gltf.scene;

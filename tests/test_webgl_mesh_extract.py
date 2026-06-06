@@ -78,3 +78,32 @@ class TestFacetColor:
         # Colors line up with the emitted vertex/corner positions.
         assert arrays["colors"] is not None
         assert arrays["colors"].shape[0] == arrays["positions"].shape[0]
+
+
+class TestNormalChannel:
+    """Custom Normal channel overrides auto-computed normals."""
+
+    def test_custom_per_vertex_normals_used(self):
+        mesh = _quad()
+        custom = np.array(
+            [[0, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1]], dtype=np.float32
+        )
+        custom /= np.linalg.norm(custom, axis=1, keepdims=True)
+        mesh.create_attribute(
+            "my_normals",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Normal,
+            initial_values=custom.astype(np.float64),
+        )
+        layer = (
+            hkw.layer()
+            .data(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(normal="my_normals")
+        )
+        view = list(hkw.compiler.compile(layer))[0]
+        arrays = extract_surface_arrays(view)
+        normals = arrays["normals"]
+        assert normals is not None
+        assert normals.shape == (4, 3)
+        np.testing.assert_allclose(normals, custom, atol=1e-5)

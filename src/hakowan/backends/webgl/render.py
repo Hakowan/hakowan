@@ -234,7 +234,14 @@ def _add_surface_view(builder: GLTFBuilder, view) -> None:
     pbr = result.pbr
     if arrays["colors"] is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
-    needs_uvs = "baseColorTextureIndex" in pbr or "normalTextureIndex" in pbr
+    needs_uvs = (
+        "baseColorTextureIndex" in pbr
+        or "normalTextureIndex" in pbr
+        or (
+            result.extras is not None
+            and result.extras.get("hakowan", {}).get("bump") is not None
+        )
+    )
     uvs = arrays["uvs"] if needs_uvs else None
     if result.extras is not None:
         pbr["extras"] = result.extras

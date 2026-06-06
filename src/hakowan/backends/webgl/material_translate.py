@@ -33,7 +33,7 @@ from PIL import Image as PILImage, ImageEnhance
 from ...common import logger
 from ...common.to_color import to_color
 from ...compiler import View
-from ...grammar.channel import NormalMap
+from ...grammar.channel import BumpMap, NormalMap
 from ...grammar.channel.material import (
     Conductor,
     Dielectric,
@@ -321,6 +321,38 @@ def _apply_image_or_checker(
             extras["checkerboard"] = True
 
 
+def _apply_bump_map(
+    extras: dict[str, Any],
+    builder: GLTFBuilder,
+    bump_map: BumpMap | None,
+) -> None:
+    """Embed a bump map image and store its glTF texture index in extras.
+
+    glTF has no standard bump-map slot, so we embed the texture as a
+    plain glTF image and record its index in ``extras["hakowan"]["bump"]``.
+    The viewer JS loads it via ``gltf.parser.loadTexture`` and assigns it
+    to ``material.bumpMap`` / ``material.bumpScale`` directly on the
+    three.js material.
+    """
+    if bump_map is None:
+        return
+    texture = bump_map.texture
+    if not isinstance(texture, Image):
+        logger.warning(
+            f"WebGL backend: BumpMap.texture type {type(texture).__name__} "
+            "not supported; only Image is wired."
+        )
+        return
+    try:
+        png_bytes = _load_image_as_png_bytes(texture)
+        idx = builder.add_image_texture(png_bytes)
+        extras["bump"] = {"texture_idx": idx, "scale": float(bump_map.scale)}
+    except Exception as e:
+        logger.warning(
+            f"WebGL backend: failed to embed bump map '{texture.filename}': {e}"
+        )
+
+
 def _apply_normal_map(
     pbr: dict[str, Any], builder: GLTFBuilder, normal_map: NormalMap | None
 ) -> None:
@@ -553,6 +585,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 view,
             )
         _apply_normal_map(pbr, builder, view.normal_map)
+        _apply_bump_map(extras, builder, view.bump_map)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -634,6 +667,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
 
         _apply_normal_map(pbr, builder, view.normal_map)
+        _apply_bump_map(extras, builder, view.bump_map)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -719,6 +753,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         pbr["roughnessFactor"] = 1.0
 
     _apply_normal_map(pbr, builder, view.normal_map)
+    _apply_bump_map(extras, builder, view.bump_map)
     return MaterialResult(
         pbr=pbr,
         double_sided=double_sided,
