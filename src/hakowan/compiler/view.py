@@ -223,7 +223,9 @@ class View:
     def size_channel(self, channel: Size):
         assert isinstance(channel, Size)
 
-        if not isinstance(channel.data, (int, float)):
+        if isinstance(channel.data, int):
+            channel.data = float(channel.data)
+        elif not isinstance(channel.data, float):
             channel.data = to_attribute(channel.data)
         assert isinstance(channel.data, (Attribute, float))
 
