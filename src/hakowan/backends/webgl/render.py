@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import numpy as np
 
@@ -27,11 +27,6 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-# Modern browsers happily decode multi-hundred-MB data URIs. We use a high cap
-# so the HTML stays self-contained — sidecar GLBs only kick in for truly huge
-# scenes, and they require the user to serve the file over HTTP (browsers
-# refuse sibling fetches under ``file://``).
-_EMBED_SIZE_LIMIT_BYTES = 512 * 1024 * 1024  # 512 MB
 
 
 class WebGLBackend(RenderBackend):
@@ -48,7 +43,6 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        embed: bool | Literal["auto"] = "auto",
         bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
         title: str = "hakowan",
         envmap_background: bool = False,
@@ -63,23 +57,8 @@ class WebGLBackend(RenderBackend):
             scene, config, envmap_background
         )
 
-        if _decide_embed(embed, glb_bytes):
-            glb_uri = glb_to_data_uri(glb_bytes)
-        else:
-            sidecar = out_path.with_suffix(".glb")
-            sidecar.write_bytes(glb_bytes)
-            size_mb = len(glb_bytes) / (1024 * 1024)
-            logger.warning(
-                f"WebGL backend: scene GLB is {size_mb:.1f} MB (> embed cap); "
-                f"writing sidecar to '{sidecar}'. Opening the HTML directly "
-                f"under file:// will fail with 'TypeError: Failed to fetch' — "
-                f"serve the directory over HTTP, e.g. "
-                f"`python -m http.server -d {out_path.parent}`."
-            )
-            glb_uri = sidecar.name
-
         html = render_html(
-            glb_uri=glb_uri,
+            glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
             bg_color=bg_color,
             initial_view=initial_view,
@@ -102,9 +81,6 @@ class WebGLBackend(RenderBackend):
         envmap_background: bool = False,
     ) -> str:
         """Build and return the viewer HTML as a string without writing any files.
-
-        The GLB is always embedded as a base64 data URI, making the result
-        self-contained regardless of scene size.
 
         Args:
             scene: Compiled scene to render.
@@ -190,14 +166,6 @@ def _resolve_output_path(filename: Path | str | None) -> Path:
         path = new_path
     path.parent.mkdir(parents=True, exist_ok=True)
     return path.resolve()
-
-
-def _decide_embed(mode: bool | Literal["auto"], glb_bytes: bytes) -> bool:
-    if mode is True:
-        return True
-    if mode is False:
-        return False
-    return len(glb_bytes) <= _EMBED_SIZE_LIMIT_BYTES
 
 
 def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
