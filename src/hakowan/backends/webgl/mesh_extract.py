@@ -15,6 +15,7 @@ from ...grammar.channel.material import (
     Principled,
     Plastic,
 )
+from ...grammar.scale import Attribute
 from ...grammar.texture import Image, ScalarField
 
 
@@ -142,9 +143,13 @@ def extract_surface_arrays(
 
     # Determine which attribute supplies normals.
     # Priority: explicit Normal channel > AttributeUsage.Normal in mesh > compute.
+    # The compiler asserts normal_channel.data is an Attribute (not a raw str) by
+    # the time finalize() runs, but the type is AttributeLike = str | Attribute so
+    # we narrow before accessing _internal_name.
     normal_name: str | None = None
     if view.normal_channel is not None:
-        _nc_name = view.normal_channel.data._internal_name
+        _nc_data = view.normal_channel.data
+        _nc_name = _nc_data._internal_name if isinstance(_nc_data, Attribute) else None
         if _nc_name and mesh.has_attribute(_nc_name):
             normal_name = _nc_name
         else:
