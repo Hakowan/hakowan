@@ -28,7 +28,7 @@ TextureLike: TypeAlias = ColorLike | Texture
 """TextureLike is a type alias for a texture or color."""
 
 
-ScalarTextureLike: TypeAlias = float | Texture
+ScalarTextureLike: TypeAlias = float | int | Texture
 """Type alias for a scalar-valued-or-texture quantity (e.g. roughness, metallic, alpha).
 
 Unlike `TextureLike`, this deliberately does **not** accept general color-like values

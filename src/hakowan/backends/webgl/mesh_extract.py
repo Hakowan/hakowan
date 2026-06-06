@@ -88,9 +88,13 @@ def _read_uv_coordinates(
                 f"UV index count {indices.shape[0]} != corner count "
                 f"{corner_vertices.shape[0]}"
             )
-        out = np.zeros((mesh.num_vertices, 2), dtype=np.float32)
-        out[corner_vertices] = values[indices]
-        return out
+        # Indexed UVs are per-corner; callers must provide corner_idx to
+        # expand them correctly. The lossy vertex-scatter path is removed to
+        # prevent silent UV seam corruption.
+        raise ValueError(
+            "Indexed UV attribute requires corner_idx for correct expansion. "
+            "Pass corner_idx or force the de-indexed output path before calling."
+        )
     data = np.asarray(mesh.attribute(uv_name).data, dtype=np.float32)
     if corner_idx is not None:
         return np.ascontiguousarray(data[corner_idx])
@@ -215,7 +219,8 @@ def extract_surface_arrays(
         and not mesh.is_attribute_indexed(color_name)
         and mesh.attribute(color_name).element_type == lagrange.AttributeElement.Facet
     )
-    if color_is_facet and per_corner_normals is None:
+    uv_is_indexed = uv_name is not None and mesh.is_attribute_indexed(uv_name)
+    if (color_is_facet or uv_is_indexed) and per_corner_normals is None:
         corner_idx = facets.reshape(-1)
         per_corner_normals = (
             normals[corner_idx]
