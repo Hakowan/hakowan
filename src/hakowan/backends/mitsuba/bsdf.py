@@ -321,9 +321,7 @@ def _generate_single_bsdf(
         case Principled():
             return generate_principled_bsdf_config(mesh, mat, is_primitive)
         case ThinPrincipled():
-            return generate_principled_bsdf_config(
-                mesh, mat, is_primitive, thin=True
-            )
+            return generate_principled_bsdf_config(mesh, mat, is_primitive, thin=True)
         case RoughDielectric():
             return generate_rough_dielectric_bsdf_config(mesh, mat)
         case ThinDielectric():

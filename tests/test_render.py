@@ -98,9 +98,7 @@ class TestBackSide:
     @staticmethod
     def _surface_layer(front_color, back_color):
         mesh = lagrange.SurfaceMesh()
-        mesh.add_vertices(
-            np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64)
-        )
+        mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64))
         mesh.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
         front = hkw.material.Diffuse(front_color)
         front.back_side = hkw.material.Diffuse(back_color)

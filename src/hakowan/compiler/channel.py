@@ -260,9 +260,7 @@ def _process_material(view: View, df: DataFrame, mat: Material):
                 view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                 view.uv_attribute = tex._uv
         case _:
-            raise NotImplementedError(
-                f"Channel type {type(mat)} is not supported"
-            )
+            raise NotImplementedError(f"Channel type {type(mat)} is not supported")
 
 
 def _normalize_vector_field(df: DataFrame, attr: Attribute):

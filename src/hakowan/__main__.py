@@ -497,6 +497,7 @@ def main():
     # Resolve the effective backend early so string comparisons below are safe.
     if args.backend is None:
         from hakowan.backends import _resolve_default
+
         args.backend = _resolve_default()
 
     hkw.logger.setLevel(args.log_level.upper())
@@ -532,11 +533,17 @@ def main():
 
     match args.material:
         case "diffuse":
-            layer = layer.material("Diffuse", args.color, two_sided=two_sided, back_side=back_side)
+            layer = layer.material(
+                "Diffuse", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "plastic":
-            layer = layer.material("Plastic", args.color, two_sided=two_sided, back_side=back_side)
+            layer = layer.material(
+                "Plastic", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "roughplastic":
-            layer = layer.material("RoughPlastic", args.color, two_sided=two_sided, back_side=back_side)
+            layer = layer.material(
+                "RoughPlastic", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":

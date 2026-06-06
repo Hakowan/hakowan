@@ -118,9 +118,7 @@ def _apply_filter_transform(view: View, transform: Filter):
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
 
-def _interp_corner_values(
-    corner_values: np.ndarray, weights: np.ndarray
-) -> np.ndarray:
+def _interp_corner_values(corner_values: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """Barycentrically combine per-corner attribute values.
 
     ``corner_values`` is ``(Nc, 3)`` for scalar attributes or ``(Nc, 3, C)`` for
@@ -229,7 +227,9 @@ def _clip_mesh(
         return out
 
     corner_vtx = facets[out_facet_arr]  # (Nc, 3) parent vertex indices
-    corner_idx = (3 * out_facet_arr)[:, None] + np.arange(3)  # (Nc, 3) parent corner ids
+    corner_idx = (3 * out_facet_arr)[:, None] + np.arange(
+        3
+    )  # (Nc, 3) parent corner ids
     parent_facet_per_tri = out_facet_arr[::3]  # (Nt,)
 
     out_positions = np.einsum("nk,nkc->nc", weights, vertices[corner_vtx])

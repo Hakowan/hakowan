@@ -356,9 +356,7 @@ class TestBackSide:
 
     def test_back_side_conductor_approximated_to_flat_color(self, caplog):
         view = _triangle_view(
-            hkw.material.Diffuse(
-                "red", back_side=hkw.material.Conductor(material="Au")
-            )
+            hkw.material.Diffuse("red", back_side=hkw.material.Conductor(material="Au"))
         )
         result = translate_material(view, GLTFBuilder())
         assert result.double_sided is True
