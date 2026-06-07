@@ -137,6 +137,10 @@ def _create_norm_attribute(df: DataFrame, src_name: str, dst_name: str, order: f
 
     if mesh.is_attribute_indexed(src_name):
         src = mesh.indexed_attribute(src_name)
+        # Norms are computed over the *unique* values (shape: N_unique × d → N_unique).
+        # Reusing the same index array is correct for any element_type: each element
+        # already points to its unique value via that index, and the norm preserves
+        # that one-to-one correspondence.
         norms = _row_norm(src.values.data, order)
         mesh.create_attribute(
             dst_name,

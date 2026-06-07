@@ -63,9 +63,9 @@ def _resolve_default() -> str:
         if _is_available(name):
             return name
     raise ValueError(
-        "No rendering backend is available. Install one with e.g. "
-        "'pip install hakowan[mitsuba]' or 'pip install hakowan[blender]' "
-        "(the WebGL backend should always be present)."
+        "No rendering backend is available. "
+        "Install at least one with e.g. 'pip install hakowan[webgl]', "
+        "'pip install hakowan[mitsuba]', or 'pip install hakowan[blender]'."
     )
 
 
