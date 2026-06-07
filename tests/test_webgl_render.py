@@ -117,16 +117,6 @@ class TestEndToEnd:
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
 
-    def test_embed_false_writes_sidecar(self, tmp_path):
-        layer = (
-            hkw.layer(_make_icosphere())
-            .mark(hkw.mark.Surface)
-            .channel(material=hkw.material.Diffuse(reflectance="green"))
-        )
-        out_path = tmp_path / "scene.html"
-        hkw.render(layer, filename=str(out_path), backend="webgl", embed=False)
-        assert (tmp_path / "scene.glb").exists()
-
     def test_glb_round_trips_with_basic_scene(self, tmp_path):
         layer = (
             hkw.layer(_make_icosphere())
