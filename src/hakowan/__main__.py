@@ -483,7 +483,14 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Diffuse(back_color)
         case "roughplastic":
             return hkw.material.RoughPlastic(back_color)
-        case "plastic" | _:
+        case "plastic":
+            return hkw.material.Plastic(back_color)
+        case _:
+            hkw.logger.warning(
+                "--back-color is not supported for material type %r; "
+                "back-face will use Plastic material instead.",
+                material_type,
+            )
             return hkw.material.Plastic(back_color)
 
 
