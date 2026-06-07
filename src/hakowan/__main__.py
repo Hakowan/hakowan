@@ -68,7 +68,7 @@ def parse_args():
         "--wire-thickness",
         help="Wireframe/seam thickness relative to bbox diagonal",
         type=float,
-        default=0.001,
+        default=0.0005,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
