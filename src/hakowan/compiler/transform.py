@@ -118,6 +118,43 @@ def _apply_filter_transform(view: View, transform: Filter):
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
 
 
+def _flatten_indexed_attribute(out: lagrange.SurfaceMesh, aid: int) -> None:
+    """Convert an indexed attribute to a per-vertex attribute in-place.
+
+    For corner-indexed attributes, each vertex gets the average of its corners'
+    values (correct for smooth data such as normals; exact when all corners of a
+    vertex share the same value).
+    """
+    ia = out.indexed_attribute(aid)
+    name = out.get_attribute_name(aid)
+    usage = ia.usage  # save before delete invalidates ia
+    corner_values = ia.values.data[ia.indices.data]  # (n_corners, ...) or (n_corners,)
+    # out.facets is a flat corner→vertex array for both triangle and polygon meshes.
+    corner_to_vtx = out.facets.ravel()
+    n_verts = out.num_vertices
+    scalar = corner_values.ndim == 1
+    if scalar:
+        vtx_values = np.zeros(n_verts, dtype=np.float64)
+        counts = np.zeros(n_verts, dtype=np.float64)
+        np.add.at(vtx_values, corner_to_vtx, corner_values)
+        np.add.at(counts, corner_to_vtx, 1.0)
+        vtx_values /= np.maximum(counts, 1.0)
+    else:
+        d = corner_values.shape[1]
+        vtx_values = np.zeros((n_verts, d), dtype=np.float64)
+        counts = np.zeros(n_verts, dtype=np.float64)
+        np.add.at(vtx_values, corner_to_vtx, corner_values)
+        np.add.at(counts, corner_to_vtx, 1.0)
+        vtx_values /= np.maximum(counts, 1.0)[:, None]
+    out.delete_attribute(aid)
+    out.create_attribute(
+        name,
+        element=lagrange.AttributeElement.Vertex,
+        usage=usage,
+        initial_values=np.ascontiguousarray(vtx_values),
+    )
+
+
 def _clip_mesh(
     mesh: lagrange.SurfaceMesh,
     point: np.ndarray,
@@ -145,8 +182,22 @@ def _clip_mesh(
     if mesh.num_vertices == 0:
         return mesh
 
-    sd = ((mesh.vertices - p) @ n).astype(np.float64)
+    # Save facet attributes: trim_by_isoline resets them to zero, so we
+    # recover them afterwards via nearest-input-centroid assignment.
+    facet_attrs: dict[str, tuple[lagrange.AttributeUsage, np.ndarray]] = {}
+    for faid in mesh.get_matching_attribute_ids():
+        fname = mesh.get_attribute_name(faid)
+        if mesh.attr_name_is_reserved(fname) or mesh.is_attribute_indexed(faid):
+            continue
+        fa = mesh.attribute(faid)
+        if fa.element_type == lagrange.AttributeElement.Facet:
+            facet_attrs[fname] = (fa.usage, fa.data.copy())
+    if facet_attrs:
+        in_centroid_id = lagrange.compute_facet_centroid(mesh)
+        in_centroids = mesh.attribute(in_centroid_id).data.copy()
+
     _SD_ATTR = "_hakowan_clip_sd"
+    sd = ((mesh.vertices - p) @ n).astype(np.float64)
     mesh.create_attribute(
         _SD_ATTR,
         element=lagrange.AttributeElement.Vertex,
@@ -159,9 +210,36 @@ def _clip_mesh(
 
     if out.num_vertices == 0:
         logger.warning("Clip transform removed the entire mesh.")
+        return out
 
     if out.has_attribute(_SD_ATTR):
         out.delete_attribute(_SD_ATTR)
+
+    # Recover facet attributes via nearest input centroid.
+    if facet_attrs:
+        out_centroid_id = lagrange.compute_facet_centroid(out)
+        out_centroids = out.attribute(out_centroid_id).data
+        diff = out_centroids[:, None, :] - in_centroids[None, :, :]
+        parent_idx = np.argmin((diff * diff).sum(axis=2), axis=1)
+        for fname, (fusage, fdata) in facet_attrs.items():
+            if out.has_attribute(fname):
+                out.delete_attribute(fname)
+            out.create_attribute(
+                fname,
+                element=lagrange.AttributeElement.Facet,
+                usage=fusage,
+                initial_values=np.ascontiguousarray(fdata[parent_idx]),
+            )
+
+    # Flatten indexed attributes to per-vertex (matches pre-refactor behaviour
+    # and avoids surprises for downstream code that calls mesh.attribute()).
+    for iaid in list(out.get_matching_attribute_ids()):
+        if not out.is_attribute_indexed(iaid):
+            continue
+        ianame = out.get_attribute_name(iaid)
+        if out.attr_name_is_reserved(ianame):
+            continue
+        _flatten_indexed_attribute(out, iaid)
 
     if not out.is_triangle_mesh:
         lagrange.triangulate_polygonal_facets(out)
