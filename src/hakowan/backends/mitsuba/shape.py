@@ -335,7 +335,7 @@ def extract_vector_field(view: View):
         size = np.array(size)
         base_size = np.hstack([size, 2 * size])
         tip_size = np.hstack([size, np.zeros_like(size)])
-    else:
+    else:  # "flat": constant radius at both ends
         tip_size = size
 
     return [base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size]

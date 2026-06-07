@@ -179,7 +179,7 @@ class _GeometryMixin(_MaterialMixin):
             size = np.array(size)
             base_size = np.hstack([size, 2 * size])
             tip_size = np.hstack([size, np.zeros_like(size)])
-        else:
+        else:  # "flat": constant radius at both ends
             tip_size = size
 
         return (

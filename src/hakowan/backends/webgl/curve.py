@@ -166,7 +166,7 @@ def _extract_vector_field(view: View) -> _SegmentData:
             vertex_idx = np.repeat(base_idx, 4)
         else:
             vertex_idx = None
-    else:
+    else:  # "point" and "flat" both render as a plain constant-radius tube in WebGL
         endpoints = np.empty((base.shape[0] * 2, 3), dtype=np.float32)
         endpoints[0::2] = base
         endpoints[1::2] = tip

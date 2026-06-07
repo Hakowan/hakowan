@@ -77,9 +77,10 @@ class VectorField(Channel):
             control the density of the vector field. The default value is 0.
         style (CurveStyle | None): The style of the vector field. If None, the default style will
             be used.
-        end_type (Literal["point", "arrow"]): The type of the vector field end.
-            ``"point"`` renders a plain tip; ``"arrow"`` renders an arrowhead.
-            The default value is ``"point"``.
+        end_type (Literal["point", "arrow", "flat"]): The type of the vector field end.
+            ``"point"`` tapers the tip to zero (cone/spike); ``"arrow"`` renders a
+            flared arrowhead; ``"flat"`` keeps a constant radius at both ends
+            (cylinder). The default value is ``"point"``.
         normalize (bool): If True, every vector is rescaled to unit length so
             that all arrows have the same length and only encode direction.
             The magnitude is freed up to be mapped to another channel (e.g.
@@ -93,7 +94,7 @@ class VectorField(Channel):
     data: AttributeLike
     refinement_level: int = 0
     style: CurveStyle | None = None
-    end_type: Literal["point", "arrow"] = "point"
+    end_type: Literal["point", "arrow", "flat"] = "point"
     normalize: bool = False
 
 
