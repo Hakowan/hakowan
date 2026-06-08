@@ -334,6 +334,10 @@ const wireframeMat = new THREE.LineBasicMaterial({
 function buildWireframe(root) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
+    // WireframeGeometry would wireframe only the single prototype of an
+    // InstancedMesh (e.g. GPU-instanced curve tubes), not each instance —
+    // skip it rather than draw one stray cylinder.
+    if (obj.isInstancedMesh) return;
     const lines = new THREE.LineSegments(
       new THREE.WireframeGeometry(obj.geometry),
       wireframeMat,
@@ -514,13 +518,18 @@ const depthUniforms = {
   uDepthMin: { value: 0.0 },
   uDepthMax: { value: 1.0 },
 };
+// Built from three.js' own vertex ShaderChunks. <project_vertex> applies the
+// instanceMatrix (GPU-instanced curve tubes) under #ifdef USE_INSTANCING, so
+// instancing — plus skinning/morph/batching — is handled out of the box; it
+// declares mvPosition (view space) and writes gl_Position for us.
 const DEPTH_VS = `
+  #include <common>
   #include <clipping_planes_pars_vertex>
   varying float vDepth;
   void main() {
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    #include <begin_vertex>
+    #include <project_vertex>
     vDepth = -mvPosition.z;
-    gl_Position = projectionMatrix * mvPosition;
     #include <clipping_planes_vertex>
   }
 `;
@@ -552,13 +561,19 @@ function makeDepthMaterial(side) {
 // Custom normal-pass shader. Uses the geometry's interpolated vertex normal
 // in view space; we apply sRGB encoding manually because MeshNormalMaterial
 // skips `<colorspace_fragment>` and would otherwise look crushed-dark.
+// <defaultnormal_vertex> produces transformedNormal in view space with the
+// proper instancing correction (inverse-scaled instanceMatrix 3x3), so the
+// normal pass also gets instancing out of the box.
 const NORMAL_VS = `
+  #include <common>
   #include <clipping_planes_pars_vertex>
   varying vec3 vViewNormal;
   void main() {
-    vViewNormal = normalize(normalMatrix * normal);
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
+    #include <beginnormal_vertex>
+    #include <defaultnormal_vertex>
+    vViewNormal = normalize( transformedNormal );
+    #include <begin_vertex>
+    #include <project_vertex>
     #include <clipping_planes_vertex>
   }
 `;

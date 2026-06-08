@@ -349,6 +349,19 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         else:
             # Mesh-edge view with size_channel.
             sizes = _resolve_endpoint_sizes_from_edges(view, data)
+
+        # Constant-radius segments (r0 == r1) become GPU-instanced unit
+        # cylinders — one prototype mesh + a per-segment transform — which
+        # shrinks the GLB ~10x versus baking every tube into triangles. Tapered
+        # shafts and arrow cones (r0 != r1) can't be a single uniform cylinder,
+        # so they keep the explicit extrusion path below.
+        r0 = sizes[0::2]
+        r1 = sizes[1::2]
+        if r0.shape[0] > 0 and np.allclose(r0, r1):
+            return _add_instanced_tubes(
+                builder, view, data, sizes, pbr, double_sided
+            )
+
         positions, normals, indices, ring_to_endpoint = _extrude_tubes(
             data.endpoints, sizes, sides=_DEFAULT_TUBE_SIDES
         )
@@ -392,6 +405,108 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         colors=colors,
         material_idx=material_idx,
         mode=MODE_LINES,
+        transform_4x4=transform,
+    )
+
+
+# ---------------------------------------------------------------------- #
+# Instanced-cylinder path                                                #
+# ---------------------------------------------------------------------- #
+
+
+def _unit_cylinder(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Prototype cylinder: axis +Y, unit radius, unit height, centred on origin.
+
+    Reuses ``_extrude_tubes`` so the lateral triangulation / normals match the
+    baked-tube path exactly; per-instance TRANSLATION/ROTATION/SCALE then maps
+    this canonical tube onto each segment.
+    """
+    endpoints = np.array([[0.0, -0.5, 0.0], [0.0, 0.5, 0.0]], dtype=np.float32)
+    radii = np.array([1.0, 1.0], dtype=np.float32)
+    positions, normals, indices, _ = _extrude_tubes(endpoints, radii, sides=sides)
+    return positions, normals, indices
+
+
+def _quat_from_y_to(dirs: np.ndarray) -> np.ndarray:
+    """Quaternions (xyzw, N×4) rotating +Y onto each unit direction in ``dirs``.
+
+    Shortest-arc construction; the antiparallel case (dir ≈ −Y) falls back to a
+    180° turn about +X.
+    """
+    n = dirs.shape[0]
+    dy = dirs[:, 1]
+    # cross(+Y, d) = (dz, 0, -dx)
+    quat = np.empty((n, 4), dtype=np.float64)
+    quat[:, 0] = dirs[:, 2]
+    quat[:, 1] = 0.0
+    quat[:, 2] = -dirs[:, 0]
+    quat[:, 3] = 1.0 + dy
+    anti = quat[:, 3] < 1e-6
+    quat[anti] = np.array([1.0, 0.0, 0.0, 0.0])  # 180° about +X
+    norm = np.linalg.norm(quat, axis=1, keepdims=True)
+    norm[norm < 1e-12] = 1.0
+    return (quat / norm).astype(np.float32)
+
+
+def _segment_instances(
+    endpoints: np.ndarray, sizes: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-segment (translation, rotation, scale) for the unit cylinder.
+
+    ``scale = (radius, length, radius)``, ``rotation`` aligns +Y with the
+    segment direction, ``translation`` is the segment midpoint.
+    """
+    p0 = endpoints[0::2]
+    p1 = endpoints[1::2]
+    seg = p1 - p0
+    length = np.linalg.norm(seg, axis=1)
+    midpoint = (0.5 * (p0 + p1)).astype(np.float32)
+
+    safe = length > 1e-9
+    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
+    directions[safe] = seg[safe] / length[safe, None]
+    rotations = _quat_from_y_to(directions)
+
+    radius = sizes[0::2]
+    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    return midpoint, rotations, scales
+
+
+def _add_instanced_tubes(
+    builder: GLTFBuilder,
+    view: View,
+    data: _SegmentData,
+    sizes: np.ndarray,
+    pbr: dict,
+    double_sided: bool,
+) -> int:
+    translations, rotations, scales = _segment_instances(data.endpoints, sizes)
+    proto_pos, proto_norm, proto_idx = _unit_cylinder(_DEFAULT_TUBE_SIDES)
+
+    instance_colors: np.ndarray | None = None
+    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    if endpoint_colors is not None:
+        # One flat colour per cylinder: average the two endpoint colours (RGB).
+        instance_colors = (
+            0.5 * (endpoint_colors[0::2, :3] + endpoint_colors[1::2, :3])
+        ).astype(np.float32)
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+
+    material_idx = builder.add_material(pbr, double_sided=double_sided)
+    transform = np.asarray(view.global_transform, dtype=np.float64)
+    logger.debug(
+        f"WebGL backend: curve view → {translations.shape[0]} instanced cylinders "
+        f"({_DEFAULT_TUBE_SIDES} sides)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=proto_pos,
+        indices=proto_idx,
+        normals=proto_norm,
+        translations=translations,
+        rotations=rotations,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=material_idx,
         transform_4x4=transform,
     )
 

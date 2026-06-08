@@ -81,7 +81,7 @@ class GLTFBuilder:
         arr: np.ndarray,
         component_type: int,
         gltf_type: str,
-        target: int,
+        target: int | None,
         compute_minmax: bool,
     ) -> int:
         data = np_to_bytes(arr)
@@ -216,6 +216,13 @@ class GLTFBuilder:
         if name not in self._gltf.extensionsUsed:
             self._gltf.extensionsUsed.append(name)
 
+    def _register_required_extension(self, name: str) -> None:
+        self._register_extension(name)
+        if self._gltf.extensionsRequired is None:
+            self._gltf.extensionsRequired = []
+        if name not in self._gltf.extensionsRequired:
+            self._gltf.extensionsRequired.append(name)
+
     # ------------------------------------------------------------------ #
     # Geometry                                                            #
     # ------------------------------------------------------------------ #
@@ -336,6 +343,135 @@ class GLTFBuilder:
         mesh_idx = len(self._gltf.meshes) - 1
 
         node_kwargs: dict[str, Any] = {"mesh": mesh_idx}
+        if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
+            node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        node = pygltflib.Node(**node_kwargs)
+        self._gltf.nodes.append(node)
+        node_idx = len(self._gltf.nodes) - 1
+        self._gltf.scenes[0].nodes.append(node_idx)
+        self._scene_node_indices.append(node_idx)
+        return node_idx
+
+    def add_instanced_mesh_node(
+        self,
+        positions: np.ndarray,
+        indices: np.ndarray,
+        *,
+        translations: np.ndarray,
+        rotations: np.ndarray,
+        scales: np.ndarray,
+        normals: np.ndarray | None = None,
+        instance_colors: np.ndarray | None = None,
+        material_idx: int,
+        mode: int = MODE_TRIANGLES,
+        transform_4x4: np.ndarray | None = None,
+    ) -> int:
+        """Add a GPU-instanced mesh node (``EXT_mesh_gpu_instancing``).
+
+        A single prototype primitive (``positions`` / ``indices`` / optional
+        ``normals``) is replicated across N instances, each placed by a
+        per-instance ``TRANSLATION`` (N,3), ``ROTATION`` quaternion xyzw (N,4)
+        and ``SCALE`` (N,3). three.js' ``GLTFLoader`` turns this into a single
+        ``THREE.InstancedMesh`` — far smaller than baking every instance into
+        explicit triangles.
+
+        ``instance_colors`` (N,3 linear RGB) is written as the ``_COLOR_0``
+        instance attribute, which three.js maps to ``InstancedMesh.instanceColor``.
+        Because the ``color_fragment`` chunk only multiplies ``diffuseColor`` by
+        ``vColor`` when ``USE_COLOR`` is defined (``instanceColor`` alone is not
+        enough), we also attach an all-white per-vertex ``COLOR_0`` to the
+        prototype so ``GLTFLoader`` enables ``material.vertexColors``; the final
+        tint is ``white * instanceColor``.
+        """
+        positions = np.ascontiguousarray(positions, dtype=np.float32)
+        if positions.ndim != 2 or positions.shape[1] != 3:
+            raise ValueError("positions must be (N, 3)")
+        n_vertices = positions.shape[0]
+
+        index_component = (
+            _COMPONENT_UINT16 if n_vertices <= 65535 else _COMPONENT_UINT32
+        )
+        index_dtype = np.uint16 if index_component == _COMPONENT_UINT16 else np.uint32
+        indices_arr = np.ascontiguousarray(indices, dtype=index_dtype).reshape(-1)
+
+        pos_acc = self._add_accessor(
+            positions, _COMPONENT_FLOAT, "VEC3", _TARGET_ARRAY_BUFFER, True
+        )
+        idx_acc = self._add_accessor(
+            indices_arr,
+            index_component,
+            "SCALAR",
+            _TARGET_ELEMENT_ARRAY_BUFFER,
+            False,
+        )
+        attributes: dict[str, int] = {"POSITION": pos_acc}
+        if normals is not None:
+            normals = np.ascontiguousarray(normals, dtype=np.float32)
+            if normals.shape != positions.shape:
+                raise ValueError("normals must match positions shape")
+            attributes["NORMAL"] = self._add_accessor(
+                normals, _COMPONENT_FLOAT, "VEC3", _TARGET_ARRAY_BUFFER, False
+            )
+        if instance_colors is not None:
+            white = np.ones((n_vertices, 3), dtype=np.float32)
+            attributes["COLOR_0"] = self._add_accessor(
+                white, _COMPONENT_FLOAT, "VEC3", _TARGET_ARRAY_BUFFER, False
+            )
+
+        attrs_obj = pygltflib.Attributes(**attributes)
+        primitive = pygltflib.Primitive(
+            attributes=attrs_obj,
+            indices=idx_acc,
+            material=material_idx,
+            mode=mode,
+        )
+        mesh = pygltflib.Mesh(primitives=[primitive])
+        self._gltf.meshes.append(mesh)
+        mesh_idx = len(self._gltf.meshes) - 1
+
+        # Per-instance attribute accessors. Per the EXT_mesh_gpu_instancing
+        # spec their bufferViews carry no `target` (they are neither vertex nor
+        # index data).
+        translations = np.ascontiguousarray(translations, dtype=np.float32)
+        rotations = np.ascontiguousarray(rotations, dtype=np.float32)
+        scales = np.ascontiguousarray(scales, dtype=np.float32)
+        n_inst = translations.shape[0]
+        if translations.shape != (n_inst, 3):
+            raise ValueError("translations must be (N, 3)")
+        if rotations.shape != (n_inst, 4):
+            raise ValueError("rotations must be (N, 4) quaternion xyzw")
+        if scales.shape != (n_inst, 3):
+            raise ValueError("scales must be (N, 3)")
+        inst_attrs: dict[str, int] = {
+            "TRANSLATION": self._add_accessor(
+                translations, _COMPONENT_FLOAT, "VEC3", None, False
+            ),
+            "ROTATION": self._add_accessor(
+                rotations, _COMPONENT_FLOAT, "VEC4", None, False
+            ),
+            "SCALE": self._add_accessor(
+                scales, _COMPONENT_FLOAT, "VEC3", None, False
+            ),
+        }
+        if instance_colors is not None:
+            instance_colors = np.ascontiguousarray(instance_colors, dtype=np.float32)
+            if instance_colors.shape != (n_inst, 3):
+                raise ValueError("instance_colors must be (N, 3)")
+            inst_attrs["_COLOR_0"] = self._add_accessor(
+                instance_colors, _COMPONENT_FLOAT, "VEC3", None, False
+            )
+
+        # The base node still references `mesh`, so a viewer lacking the
+        # extension would draw a single prototype at the origin — hence the
+        # extension is *required*, not merely *used*.
+        self._register_required_extension("EXT_mesh_gpu_instancing")
+
+        node_kwargs: dict[str, Any] = {
+            "mesh": mesh_idx,
+            "extensions": {
+                "EXT_mesh_gpu_instancing": {"attributes": inst_attrs},
+            },
+        }
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
         node = pygltflib.Node(**node_kwargs)

@@ -233,6 +233,85 @@ class TestCameras:
         assert o.ymag == pytest.approx(1.0)
 
 
+class TestInstancing:
+    def _unit_cylinder(self):
+        positions = np.array(
+            [[1, -0.5, 0], [0, -0.5, 1], [1, 0.5, 0], [0, 0.5, 1]],
+            dtype=np.float32,
+        )
+        normals = np.array(
+            [[1, 0, 0], [0, 0, 1], [1, 0, 0], [0, 0, 1]], dtype=np.float32
+        )
+        indices = np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)
+        return positions, normals, indices
+
+    def test_instanced_node_emits_extension(self):
+        b = GLTFBuilder()
+        mat = b.add_material({})
+        positions, normals, indices = self._unit_cylinder()
+        b.add_instanced_mesh_node(
+            positions,
+            indices,
+            normals=normals,
+            translations=np.zeros((3, 3), dtype=np.float32),
+            rotations=np.tile([0, 0, 0, 1], (3, 1)).astype(np.float32),
+            scales=np.ones((3, 3), dtype=np.float32),
+            material_idx=mat,
+        )
+        gltf = _roundtrip(b.finalize())
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsRequired or [])
+        node = gltf.nodes[0]
+        attrs = node.extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        assert set(attrs) == {"TRANSLATION", "ROTATION", "SCALE"}
+        # Each instance accessor has one entry per instance.
+        for acc_idx in attrs.values():
+            assert gltf.accessors[acc_idx].count == 3
+        rot = gltf.accessors[attrs["ROTATION"]]
+        assert rot.type == "VEC4"
+
+    def test_instance_colors_emit_color0_and_white_vertex_color(self):
+        b = GLTFBuilder()
+        mat = b.add_material({})
+        positions, normals, indices = self._unit_cylinder()
+        colors = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+        b.add_instanced_mesh_node(
+            positions,
+            indices,
+            normals=normals,
+            translations=np.zeros((2, 3), dtype=np.float32),
+            rotations=np.tile([0, 0, 0, 1], (2, 1)).astype(np.float32),
+            scales=np.ones((2, 3), dtype=np.float32),
+            instance_colors=colors,
+            material_idx=mat,
+        )
+        gltf = _roundtrip(b.finalize())
+        node = gltf.nodes[0]
+        attrs = node.extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        assert "_COLOR_0" in attrs
+        assert gltf.accessors[attrs["_COLOR_0"]].count == 2
+        # White per-vertex COLOR_0 on the prototype so three.js enables
+        # USE_COLOR (instanceColor alone wouldn't tint).
+        prim = gltf.meshes[0].primitives[0]
+        assert prim.attributes.COLOR_0 is not None
+        white_acc = gltf.accessors[prim.attributes.COLOR_0]
+        assert white_acc.count == positions.shape[0]
+
+    def test_instance_shape_validation(self):
+        b = GLTFBuilder()
+        mat = b.add_material({})
+        positions, normals, indices = self._unit_cylinder()
+        with pytest.raises(ValueError, match="rotations must be"):
+            b.add_instanced_mesh_node(
+                positions,
+                indices,
+                translations=np.zeros((3, 3), dtype=np.float32),
+                rotations=np.zeros((3, 3), dtype=np.float32),  # wrong: needs 4
+                scales=np.ones((3, 3), dtype=np.float32),
+                material_idx=mat,
+            )
+
+
 class TestPointLights:
     def test_point_light_registers_extension(self):
         b = GLTFBuilder()

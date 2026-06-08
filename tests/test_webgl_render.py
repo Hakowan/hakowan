@@ -182,6 +182,79 @@ class TestEndToEnd:
         # TRIANGLES mode = 4
         assert gltf.meshes[0].primitives[0].mode == 4
 
+    def _vector_field_mesh(self):
+        mesh = _make_icosphere()
+        v = np.asarray(mesh.vertices, dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=(v * 0.3),
+        )
+        mesh.create_attribute(
+            "speed",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.linalg.norm(v, axis=1),
+        )
+        return mesh
+
+    def test_constant_radius_curve_is_instanced(self, tmp_path):
+        # A constant-size vector-field curve must collapse to one prototype
+        # cylinder + per-segment instance transforms, not a baked tube soup.
+        mesh = self._vector_field_mesh()
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                vector_field=hkw.channel.VectorField(data="vec"),
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.ScalarField(data="speed")
+                ),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "stream.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # Exactly one prototype mesh; its vertex count is the cylinder, not the
+        # 12 segments × 16 verts a baked tube would carry.
+        assert len(gltf.meshes) == 1
+        pos = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
+        assert pos.count == 16  # 8-sided unit cylinder, 2 rings
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 12 vertices → 12 instances, and a per-instance colour from the field.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 12
+        assert "_COLOR_0" in attrs
+
+    def test_arrow_curve_stays_baked(self, tmp_path):
+        # Arrow heads taper r0 != r1, which a single uniform cylinder can't
+        # express — these must keep the explicit extrusion path (no instancing).
+        mesh = self._vector_field_mesh()
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                vector_field=hkw.channel.VectorField(data="vec", end_type="arrow"),
+                material=hkw.material.Diffuse(reflectance="white"),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "arrows.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert "EXT_mesh_gpu_instancing" not in (gltf.extensionsUsed or [])
+        assert gltf.meshes[0].primitives[0].mode == 4  # baked TRIANGLES
+
     def test_point_light_registered(self, tmp_path):
         layer = (
             hkw.layer(_make_icosphere())
