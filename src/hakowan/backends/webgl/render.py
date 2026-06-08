@@ -11,6 +11,7 @@ from ...common import logger
 from ...compiler import Scene
 from ...grammar import mark as mark_module
 from ...setup import Config
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL
 from .. import RenderBackend
 
 from ...setup.emitter import Point as PointEmitter
@@ -31,6 +32,12 @@ _DEFAULT_THREE_VERSION = "0.170.0"
 
 class WebGLBackend(RenderBackend):
     """Render a hakowan ``Scene`` as a self-contained three.js HTML viewer."""
+
+    # The interactive viewer always exposes albedo/depth/normal as live,
+    # client-side toggle passes (rendered by three.js, not written to files),
+    # so they are "supported" regardless of config.render_passes. facet_id has
+    # no viewer pass and is therefore unsupported.
+    SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
     # ------------------------------------------------------------------ #
     # Public interface                                                      #

@@ -3,6 +3,7 @@ from .film import Film
 from .sampler import Sampler, Independent
 from .emitter import Emitter, Envmap
 from .integrator import Integrator, Path, AOV
+from .render_pass import RENDER_PASSES, get_render_pass
 
 import numpy as np
 from dataclasses import dataclass, field
@@ -93,8 +94,15 @@ class Config:
 
     @render_passes.setter
     def render_passes(self, value: set[str] | list[str]) -> None:
-        """Replace the active render-pass set and re-sync AOV integrator."""
-        self._render_passes = set(value)
+        """Replace the active render-pass set and re-sync AOV integrator.
+
+        Raises:
+            ValueError: If any name is not a recognised render pass.
+        """
+        names = set(value)
+        for name in names:
+            get_render_pass(name)  # validate; raises on unknown name
+        self._render_passes = names
         self.__sync_aovs()
 
     # ------------------------------------------------------------------ #
@@ -186,14 +194,13 @@ class Config:
             self.integrator = self.integrator.integrator or Path()
 
         # Re-add AOVs for every active pass that has a Mitsuba counterpart.
-        _pass_to_aov = {
-            "albedo": "albedo:albedo",
-            "depth": "depth:depth",
-            "normal": "sh_normal:sh_normal",
-        }
-        for pass_name, aov_str in _pass_to_aov.items():
-            if pass_name in self._render_passes:
-                if not isinstance(self.integrator, AOV):
-                    self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
-                elif aov_str not in self.integrator.aovs:
-                    self.integrator.aovs.append(aov_str)
+        # Iterating the registry (not the unordered set) keeps the AOV channel
+        # layout deterministic: albedo, then depth, then normal.
+        for rp in RENDER_PASSES.values():
+            if rp.name not in self._render_passes or rp.mitsuba_aov is None:
+                continue
+            aov_str = rp.mitsuba_aov
+            if not isinstance(self.integrator, AOV):
+                self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
+            elif aov_str not in self.integrator.aovs:
+                self.integrator.aovs.append(aov_str)

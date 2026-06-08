@@ -5,12 +5,19 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from ..compiler import Scene
 from ..setup import Config
+from ..setup.render_pass import RenderPass
 from pathlib import Path
 from typing import Any
 
 
 class RenderBackend(ABC):
     """Abstract base class for rendering backends."""
+
+    #: Render passes (AOVs) this backend can honor. Subclasses override with the
+    #: subset of :mod:`hakowan.setup.render_pass` descriptors they implement. The
+    #: render dispatcher warns about any requested pass not in this set, so a
+    #: pass is never silently dropped. Empty by default (supports no passes).
+    SUPPORTED_PASSES: frozenset[RenderPass] = frozenset()
 
     @abstractmethod
     def render(

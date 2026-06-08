@@ -1,3 +1,5 @@
+import pytest
+
 from hakowan import config
 from hakowan.setup.integrator import AOV, Path
 
@@ -48,6 +50,19 @@ class TestRenderPassesInterface:
         cfg = config()
         cfg.render_passes = {"albedo", "albedo"}  # duplicates should collapse
         assert len(cfg.render_passes) == 1
+
+    def test_unknown_pass_rejected(self):
+        cfg = config()
+        with pytest.raises(ValueError, match="Unknown render pass"):
+            cfg.render_passes = {"albedo", "bogus"}
+
+    def test_unknown_pass_does_not_mutate_state(self):
+        cfg = config()
+        cfg.render_passes = {"albedo"}
+        with pytest.raises(ValueError):
+            cfg.render_passes = {"depth", "nope"}
+        # The rejected assignment must leave the previous set untouched.
+        assert cfg.render_passes == {"albedo"}
 
 
 class TestBooleanAliases:

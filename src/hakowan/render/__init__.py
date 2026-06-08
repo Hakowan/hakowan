@@ -57,17 +57,20 @@ def render(
     # Get backend and render
     backend_name = resolve_backend_name(backend)
     logger.info(f"Using backend: {backend_name}")
+    backend_impl = get_backend(backend_name)
 
-    # The facet-ID pass is implemented only by the Blender backend; other
-    # backends silently ignore config.facet_id, so warn rather than mislead.
-    if config.facet_id and backend_name != "blender":
+    # Warn about any requested render pass the chosen backend cannot honor,
+    # rather than silently dropping it. Capability is declared per backend via
+    # RenderBackend.SUPPORTED_PASSES.
+    supported = {p.name for p in backend_impl.SUPPORTED_PASSES}
+    unsupported = config.render_passes - supported
+    if unsupported:
         logger.warning(
-            f"config.facet_id is only supported by the 'blender' backend; "
-            f"the '{backend_name}' backend will ignore it and produce no "
-            f"facet-ID image."
+            f"The '{backend_name}' backend does not support render pass(es) "
+            f"{sorted(unsupported)}; they will be ignored. "
+            f"Supported passes: {sorted(supported)}."
         )
 
-    backend_impl = get_backend(backend_name)
     return backend_impl.render(scene, config, filename, **kwargs)
 
 

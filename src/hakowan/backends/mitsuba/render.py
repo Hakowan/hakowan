@@ -8,6 +8,7 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 from ...common import logger
 from ...compiler import Scene, View
 from ...setup import Config
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL
 from ...grammar import mark
 from .. import RenderBackend
 
@@ -128,6 +129,10 @@ def ensure_variant() -> None:
 
 class MitsubaBackend(RenderBackend):
     """Mitsuba rendering backend."""
+
+    # facet_id has no Mitsuba AOV counterpart; the other passes ride the AOV
+    # integrator (see Config.__sync_aovs and the channel slicing in render()).
+    SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
     def render(
         self,

@@ -3,6 +3,7 @@
 from ...common import logger
 from ...compiler import Scene
 from ...setup import Config
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, FACET_ID
 from .. import RenderBackend
 
 from pathlib import Path
@@ -29,6 +30,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
     - Render passes: albedo, depth, normal, facet ID
     - Lighting setup
     """
+
+    SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL, FACET_ID})
 
     def render(
         self,
