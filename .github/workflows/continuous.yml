@@ -30,7 +30,7 @@ jobs:
         run: pixi run mypy
 
       - name: Test
-        run: pixi run pytest
+        run: pixi run -e full pytest
 
       - name: Build wheels
         run: pipx run build
