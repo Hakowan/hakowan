@@ -132,6 +132,22 @@ def set_default_backend(name: str):
     _default_backend = name
 
 
+def resolve_backend_name(name: str | None = None) -> str:
+    """Resolve the effective backend name.
+
+    Applies the same resolution as :func:`get_backend` (explicit name, else the
+    configured default, else the first available backend) without importing the
+    backend module. Useful for backend-name-dependent decisions before render.
+
+    Args:
+        name: Backend name. If None, uses the default / auto-resolved backend.
+
+    Returns:
+        The resolved backend name.
+    """
+    return name or _default_backend or _resolve_default()
+
+
 def get_backend(name: str | None = None) -> RenderBackend:
     """Get a rendering backend instance, importing it on first use.
 
@@ -144,7 +160,7 @@ def get_backend(name: str | None = None) -> RenderBackend:
     Raises:
         ValueError: If the backend is unknown or its dependencies are missing.
     """
-    backend_name = name or _default_backend or _resolve_default()
+    backend_name = resolve_backend_name(name)
     if backend_name not in _backends and backend_name not in _backend_loaders:
         raise ValueError(
             f"Unknown backend: {backend_name}. Available: {list_backends()}"
@@ -173,5 +189,6 @@ __all__ = [
     "register_backend_loader",
     "set_default_backend",
     "get_backend",
+    "resolve_backend_name",
     "list_backends",
 ]

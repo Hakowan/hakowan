@@ -100,6 +100,8 @@ class _SceneMixin:
           pixel boundaries.
         - **View transform**: ``"Raw"`` — bypasses all gamma and tone-mapping
           so pixel channel values equal the stored linear float values.
+        - **Dither intensity**: 0.0 — prevents ±1 byte noise from corrupting
+          the exact 24-bit RGB facet-ID encoding on 8-bit output.
         - **Compositor node group**: ``None`` — disconnects the compositor so
           albedo / depth / normal file-output nodes are not re-triggered and
           do not overwrite the outputs from the main render.
@@ -119,11 +121,15 @@ class _SceneMixin:
         prev_transform = scene.view_settings.view_transform
         prev_compositor = scene.compositing_node_group
         prev_taa_samples = scene.eevee.taa_render_samples
+        prev_dither = scene.render.dither_intensity
 
         scene.render.engine = "BLENDER_EEVEE"
         scene.eevee.taa_render_samples = 1
         scene.render.filter_size = 0.0
         scene.view_settings.view_transform = "Raw"
+        # Disable dithering so the exact 24-bit RGB facet-ID encoding is not
+        # perturbed by ±1 byte noise when quantised to 8-bit PNG channels.
+        scene.render.dither_intensity = 0.0
         # Disconnect the compositor so albedo/depth/normal passes are not
         # re-rendered and do not overwrite the outputs from the main render.
         scene.compositing_node_group = None
@@ -144,6 +150,7 @@ class _SceneMixin:
         scene.view_settings.view_transform = prev_transform
         scene.compositing_node_group = prev_compositor
         scene.eevee.taa_render_samples = prev_taa_samples
+        scene.render.dither_intensity = prev_dither
 
     def _setup_camera(self, config: Config):
         """Setup Blender camera from config.

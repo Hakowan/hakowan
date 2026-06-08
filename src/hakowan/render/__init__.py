@@ -1,6 +1,11 @@
 """Rendering module - provides unified render interface."""
 
-from ..backends import get_backend, set_default_backend, list_backends
+from ..backends import (
+    get_backend,
+    resolve_backend_name,
+    set_default_backend,
+    list_backends,
+)
 from ..compiler import compile
 from ..grammar import layer
 from ..setup import Config
@@ -50,8 +55,19 @@ def render(
         config = Config()
 
     # Get backend and render
-    logger.info(f"Using backend: {backend or 'default'}")
-    backend_impl = get_backend(backend)
+    backend_name = resolve_backend_name(backend)
+    logger.info(f"Using backend: {backend_name}")
+
+    # The facet-ID pass is implemented only by the Blender backend; other
+    # backends silently ignore config.facet_id, so warn rather than mislead.
+    if config.facet_id and backend_name != "blender":
+        logger.warning(
+            f"config.facet_id is only supported by the 'blender' backend; "
+            f"the '{backend_name}' backend will ignore it and produce no "
+            f"facet-ID image."
+        )
+
+    backend_impl = get_backend(backend_name)
     return backend_impl.render(scene, config, filename, **kwargs)
 
 
