@@ -12,13 +12,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0
 
       - name: Test
-        run: pipx run tox
+        run: pixi run -e full pytest
 
       - name: Build wheels
         run: pipx run build
@@ -57,11 +55,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           key: mkdocs-material-${{ env.cache_id }}
           path: .cache
