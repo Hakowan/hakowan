@@ -216,6 +216,10 @@ def _clip_mesh(
         out.delete_attribute(_SD_ATTR)
 
     # Recover facet attributes via nearest input centroid.
+    # TODO(perf): the brute-force distance matrix below is O(n_out * n_in) in
+    # both time and memory (it materializes an (n_out, n_in, 3) array), so it
+    # will OOM on large meshes. Replace with a spatial index (e.g. a KD-tree /
+    # lagrange nearest-facet query) or chunk the argmin over output facets.
     if facet_attrs:
         out_centroid_id = lagrange.compute_facet_centroid(out)
         out_centroids = out.attribute(out_centroid_id).data

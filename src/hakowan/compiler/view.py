@@ -223,6 +223,10 @@ class View:
     def size_channel(self, channel: Size):
         assert isinstance(channel, Size)
 
+        # ``bool`` is a subclass of ``int``; reject it explicitly so e.g.
+        # ``size=True`` is a clear error rather than silently becoming 1.0.
+        if isinstance(channel.data, bool):
+            raise TypeError(f"Unsupported size type: {type(channel.data)}!")
         if isinstance(channel.data, int):
             channel.data = float(channel.data)
         elif not isinstance(channel.data, float):

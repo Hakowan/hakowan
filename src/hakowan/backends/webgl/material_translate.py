@@ -245,12 +245,15 @@ def _bake_checkerboard_png(
     tex2_color: list[float],
     size: int,
 ) -> bytes:
-    """Bake an ``size × size`` cell checker into an ``n × n`` PNG (``n = size``).
+    """Bake a checker into an ``n × n`` PNG, where ``n`` is ``size`` rounded up
+    to the nearest even number (min 2).
 
-    One texel per cell keeps edges sharp under ``NEAREST`` filtering.  Mitsuba
-    tiles via UV scale; we bake the repeats into the image instead of relying
-    on a 2×2 texture plus ``KHR_texture_transform`` (which blurs under
-    ``LINEAR`` minification in three.js).
+    Rounding to an even period keeps the checker seamless when the texture tiles
+    under ``REPEAT`` wrapping — an odd period puts two same-colored cells side by
+    side at the wrap seam. One texel per cell keeps edges sharp under ``NEAREST``
+    filtering.  Mitsuba tiles via UV scale; we bake the repeats into the image
+    instead of relying on a 2×2 texture plus ``KHR_texture_transform`` (which
+    blurs under ``LINEAR`` minification in three.js).
     """
 
     def _linear_to_srgb(c: float) -> int:
@@ -262,7 +265,12 @@ def _bake_checkerboard_png(
 
     c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
     c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
-    n = max(int(size), 1)
+    # Round the cell count up to an even number so the (x + y) % 2 pattern tiles
+    # seamlessly under REPEAT wrapping (an odd period leaves a seam where two
+    # same-colored cells meet).
+    n = max(int(round(size)), 2)
+    if n % 2:
+        n += 1
     img = PILImage.new("RGB", (n, n))
     for y in range(n):
         for x in range(n):
