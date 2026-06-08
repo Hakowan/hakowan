@@ -52,7 +52,9 @@ class TestAovPath:
         assert rp.aov_path("out.png", "facet_id") == Path("out_facet_id.png")
 
     def test_preserves_directory_and_suffix(self):
-        assert rp.aov_path(Path("/a/b/bust.exr"), rp.DEPTH) == Path("/a/b/bust_depth.exr")
+        assert rp.aov_path(Path("/a/b/bust.exr"), rp.DEPTH) == Path(
+            "/a/b/bust_depth.exr"
+        )
 
 
 # A minimal file-delivery backend so manifest behavior can be tested without

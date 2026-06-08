@@ -23,9 +23,7 @@ def _render_webgl(mesh, facet_id, tmp_path):
     config = hkw.config()
     config.facet_id = facet_id
     layer = hkw.layer().data(mesh).mark(hkw.mark.Surface)
-    hkw.render(
-        layer, config, filename=tmp_path / "out.html", backend="webgl"
-    )
+    hkw.render(layer, config, filename=tmp_path / "out.html", backend="webgl")
 
 
 def test_warns_when_facet_id_on_unsupported_backend(single_triangle, tmp_path, caplog):
@@ -40,6 +38,6 @@ def test_warns_when_facet_id_on_unsupported_backend(single_triangle, tmp_path, c
 def test_no_warning_without_facet_id(single_triangle, tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="hakowan"):
         _render_webgl(single_triangle, False, tmp_path)
-    assert not any(
-        "facet_id" in r.message for r in caplog.records
-    ), "facet_id warning emitted even though facet_id was disabled"
+    assert not any("facet_id" in r.message for r in caplog.records), (
+        "facet_id warning emitted even though facet_id was disabled"
+    )

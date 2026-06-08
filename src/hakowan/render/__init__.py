@@ -117,8 +117,7 @@ def render(
     manifest = _manifest_for(backend_impl, config, filename)
     if manifest:
         logger.info(
-            "Render outputs: "
-            + ", ".join(f"{k}={v}" for k, v in manifest.items())
+            "Render outputs: " + ", ".join(f"{k}={v}" for k, v in manifest.items())
         )
 
     # Normalize the backend's primary return into a RenderResult. Mitsuba
@@ -132,9 +131,7 @@ def render(
         path = Path(raw)
     else:
         path = None
-    return RenderResult(
-        backend=backend_name, outputs=manifest, image=image, path=path
-    )
+    return RenderResult(backend=backend_name, outputs=manifest, image=image, path=path)
 
 
 def _manifest_for(

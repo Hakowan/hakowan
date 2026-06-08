@@ -137,11 +137,11 @@ def _camera_rays(scene, cam, width: int, height: int):
     br, bl = corner(True, False), corner(False, False)
 
     # Pixel centers; PNG row 0 is the top of the image.
-    s = ((np.arange(width) + 0.5) / width)[None, :, None]   # left -> right
+    s = ((np.arange(width) + 0.5) / width)[None, :, None]  # left -> right
     t = ((np.arange(height) + 0.5) / height)[:, None, None]  # top  -> bottom
     top_edge = tl * (1 - s) + tr * s
     bot_edge = bl * (1 - s) + br * s
-    points = top_edge * (1 - t) + bot_edge * t              # (H, W, 3)
+    points = top_edge * (1 - t) + bot_edge * t  # (H, W, 3)
     dirs = points - origin
     dirs /= np.linalg.norm(dirs, axis=-1, keepdims=True)
     return origin, dirs
