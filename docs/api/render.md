@@ -2,6 +2,14 @@
 
 ::: hakowan.render.render
 
+## RenderResult
+
+`hkw.render()` returns a `RenderResult` bundling the in-memory image (Mitsuba),
+the main output path, and the manifest of all files produced (including per-pass
+sidecars).
+
+::: hakowan.render.RenderResult
+
 ## Related Functions
 
 ### set_default_backend

@@ -3,7 +3,7 @@ from .film import Film
 from .sampler import Sampler, Independent
 from .emitter import Emitter, Envmap
 from .integrator import Integrator, Path, AOV
-from ..common import logger
+from .render_pass import RENDER_PASSES, get_render_pass
 
 import numpy as np
 from dataclasses import dataclass, field
@@ -28,7 +28,15 @@ class Config:
 
             The convenience properties :attr:`albedo`, :attr:`depth`,
             :attr:`normal`, and :attr:`facet_id` are thin aliases that add or
-            remove the corresponding string from this set.
+            remove the corresponding string from this set.  Assigning an
+            unrecognised pass name raises :class:`ValueError` (validated against
+            :data:`hakowan.setup.render_pass.RENDER_PASSES`).
+
+            Backend support varies: requesting a pass the chosen backend cannot
+            honor logs a warning and is otherwise ignored.  Each honored pass is
+            written to a ``<stem>_<pass><ext>`` sidecar file (or exposed as a
+            live viewer toggle for WebGL); see
+            :class:`hakowan.render.RenderResult` for the per-render manifest.
     """
 
     sensor: Sensor = field(default_factory=Perspective)
@@ -38,7 +46,7 @@ class Config:
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
 
-    def z_up(self):
+    def z_up(self) -> None:
         """Update configuration for z-up coordinate system."""
         self.sensor.location = np.array([0, -5, 0])
         self.sensor.up = np.array([0, 0, 1])
@@ -47,7 +55,7 @@ class Config:
                 emitter.up = np.array([0, 0, 1])
                 emitter.rotation = 180.0
 
-    def z_down(self):
+    def z_down(self) -> None:
         """Update configuration for z-down coordinate system."""
         self.sensor.location = np.array([0, 5, 0])
         self.sensor.up = np.array([0, 0, -1])
@@ -56,7 +64,7 @@ class Config:
                 emitter.up = np.array([0, 0, -1])
                 emitter.rotation = 180.0
 
-    def y_up(self):
+    def y_up(self) -> None:
         """Update configuration for y-up coordinate system."""
         self.sensor.location = np.array([0, 0, 5])
         self.sensor.up = np.array([0, 1, 0])
@@ -65,7 +73,7 @@ class Config:
                 emitter.up = np.array([0, 1, 0])
                 emitter.rotation = 180.0
 
-    def y_down(self):
+    def y_down(self) -> None:
         """Update configuration for y-down coordinate system."""
         self.sensor.location = np.array([0, 0, -5])
         self.sensor.up = np.array([0, -1, 0])
@@ -93,9 +101,16 @@ class Config:
         return self._render_passes
 
     @render_passes.setter
-    def render_passes(self, value: set[str] | list[str]):
-        """Replace the active render-pass set and re-sync AOV integrator."""
-        self._render_passes = set(value)
+    def render_passes(self, value: set[str] | list[str]) -> None:
+        """Replace the active render-pass set and re-sync AOV integrator.
+
+        Raises:
+            ValueError: If any name is not a recognised render pass.
+        """
+        names = set(value)
+        for name in names:
+            get_render_pass(name)  # validate; raises on unknown name
+        self._render_passes = names
         self.__sync_aovs()
 
     # ------------------------------------------------------------------ #
@@ -108,7 +123,7 @@ class Config:
         return "albedo" in self._render_passes
 
     @albedo.setter
-    def albedo(self, value: bool):
+    def albedo(self, value: bool) -> None:
         """Add or remove the albedo pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("albedo")
@@ -122,7 +137,7 @@ class Config:
         return "depth" in self._render_passes
 
     @depth.setter
-    def depth(self, value: bool):
+    def depth(self, value: bool) -> None:
         """Add or remove the depth pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("depth")
@@ -136,7 +151,7 @@ class Config:
         return "normal" in self._render_passes
 
     @normal.setter
-    def normal(self, value: bool):
+    def normal(self, value: bool) -> None:
         """Add or remove the normal pass.  Also updates the Mitsuba AOV integrator."""
         if value:
             self._render_passes.add("normal")
@@ -153,8 +168,8 @@ class Config:
         zero-based index (R = high byte, G = mid byte, B = low byte) using a
         flat Emission shader so lighting has no effect.  The output is written
         to ``<stem>_facet_id<ext>`` with gamma correction, temporal blending,
-        and pixel filtering all disabled so pixel values can be decoded
-        directly::
+        pixel filtering, and dithering all disabled so pixel values can be
+        decoded directly::
 
             fid = (R << 16) | (G << 8) | B
 
@@ -164,7 +179,7 @@ class Config:
         return "facet_id" in self._render_passes
 
     @facet_id.setter
-    def facet_id(self, value: bool):
+    def facet_id(self, value: bool) -> None:
         """Add or remove the facet-ID pass."""
         if value:
             self._render_passes.add("facet_id")
@@ -187,14 +202,13 @@ class Config:
             self.integrator = self.integrator.integrator or Path()
 
         # Re-add AOVs for every active pass that has a Mitsuba counterpart.
-        _pass_to_aov = {
-            "albedo": "albedo:albedo",
-            "depth": "depth:depth",
-            "normal": "sh_normal:sh_normal",
-        }
-        for pass_name, aov_str in _pass_to_aov.items():
-            if pass_name in self._render_passes:
-                if not isinstance(self.integrator, AOV):
-                    self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
-                elif aov_str not in self.integrator.aovs:
-                    self.integrator.aovs.append(aov_str)
+        # Iterating the registry (not the unordered set) keeps the AOV channel
+        # layout deterministic: albedo, then depth, then normal.
+        for rp in RENDER_PASSES.values():
+            if rp.name not in self._render_passes or rp.mitsuba_aov is None:
+                continue
+            aov_str = rp.mitsuba_aov
+            if not isinstance(self.integrator, AOV):
+                self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
+            elif aov_str not in self.integrator.aovs:
+                self.integrator.aovs.append(aov_str)

@@ -15,6 +15,26 @@ Note that if `data` parameter is `None`, the mesh vertex position attribute will
 See the [Smoothed Particle Hydrodynamics example](../examples/sph.md) for an actual usage of the filter
 transform.
 
+## Clip transform
+
+Clip transform cuts the mesh with a plane, keeping only the half that the plane normal points into.
+Unlike the [Filter transform](#filter-transform), which keeps or drops whole facets, the clip
+transform slices through triangles: facets straddling the plane are cut so that only the part on the
+positive side is kept (partial triangles are produced). The exposed cross-section is left open (it is
+not capped).
+
+```py
+# Keep the half-space where dot(normal, x - point) >= 0.
+tr = hkw.transform.Clip(point=[0, 0, 0], normal=[1, 0, 0])
+```
+
+The plane is defined in the data/object coordinate space, consistent with the
+[Filter transform](#filter-transform).
+
+The [WebGL backend](backend.md) additionally offers an *interactive* clipping plane in the viewer
+(the `clip` button), independent of this transform, so you can slide a plane through the scene live
+without re-rendering.
+
 ## UVMesh transform
 
 UVMesh transform extract the corresponding UV mesh from a given 3D mesh.

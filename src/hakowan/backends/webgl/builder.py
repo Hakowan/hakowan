@@ -30,6 +30,12 @@ MODE_TRIANGLES = 4
 MODE_LINES = 1
 MODE_POINTS = 0
 
+# glTF sampler filters (Khronos enum values)
+_FILTER_NEAREST = 9728
+_FILTER_LINEAR = 9729
+_FILTER_LINEAR_MIPMAP_LINEAR = 9987
+_WRAP_REPEAT = 10497
+
 
 @dataclass
 class GLTFBuilder:
@@ -56,9 +62,7 @@ class GLTFBuilder:
         if pad:
             self._bin.extend(b"\x00" * pad)
 
-    def _add_buffer_view(
-        self, data: bytes, target: int | None = None
-    ) -> int:
+    def _add_buffer_view(self, data: bytes, target: int | None = None) -> int:
         self._align(4)
         offset = len(self._bin)
         self._bin.extend(data)
@@ -103,23 +107,33 @@ class GLTFBuilder:
     # Image / texture                                                     #
     # ------------------------------------------------------------------ #
 
-    def add_image_texture(self, png_bytes: bytes) -> int:
-        """Embed a PNG image as a glTF texture and return the texture index."""
+    def add_image_texture(
+        self,
+        png_bytes: bytes,
+        *,
+        mag_filter: int = _FILTER_LINEAR,
+        min_filter: int = _FILTER_LINEAR_MIPMAP_LINEAR,
+    ) -> int:
+        """Embed a PNG image as a glTF texture and return the texture index.
+
+        Each call appends its own sampler so procedural textures (e.g. a 2×2
+        checker) can request NEAREST / non-mipmap filtering without affecting
+        photo textures.
+        """
         view_idx = self._add_buffer_view(png_bytes, target=None)
         image = pygltflib.Image(mimeType="image/png", bufferView=view_idx)
         self._gltf.images.append(image)
         image_idx = len(self._gltf.images) - 1
 
-        if not self._gltf.samplers:
-            self._gltf.samplers.append(
-                pygltflib.Sampler(
-                    magFilter=9729,  # LINEAR
-                    minFilter=9987,  # LINEAR_MIPMAP_LINEAR
-                    wrapS=10497,     # REPEAT
-                    wrapT=10497,     # REPEAT
-                )
+        self._gltf.samplers.append(
+            pygltflib.Sampler(
+                magFilter=mag_filter,
+                minFilter=min_filter,
+                wrapS=_WRAP_REPEAT,
+                wrapT=_WRAP_REPEAT,
             )
-        sampler_idx = 0
+        )
+        sampler_idx = len(self._gltf.samplers) - 1
 
         texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
         self._gltf.textures.append(texture)
@@ -176,7 +190,10 @@ class GLTFBuilder:
         if "ior" in pbr:
             material_extensions["KHR_materials_ior"] = {"ior": float(pbr["ior"])}
             self._register_extension("KHR_materials_ior")
-        if any(k in pbr for k in ("thicknessFactor", "attenuationDistance", "attenuationColor")):
+        if any(
+            k in pbr
+            for k in ("thicknessFactor", "attenuationDistance", "attenuationColor")
+        ):
             vol: dict[str, Any] = {}
             if "thicknessFactor" in pbr:
                 vol["thicknessFactor"] = float(pbr["thicknessFactor"])
@@ -221,7 +238,7 @@ class GLTFBuilder:
         ``colors`` may be Nx3 (RGB) or Nx4 (RGBA) float32 in linear [0, 1].
         ``uvs`` is Nx2 float32. ``mode`` is one of the ``MODE_*`` constants.
         ``custom_attributes`` is a name → ndarray map for additional generic
-        vertex attributes (e.g. ``"_SCALAR_0"`` for shader-injection paths);
+        vertex attributes (e.g. ``"_scalar_0"`` for shader-injection paths);
         names must follow the glTF underscore-prefix convention.
         """
         positions = np.ascontiguousarray(positions, dtype=np.float32)
@@ -352,9 +369,7 @@ class GLTFBuilder:
         self._gltf.cameras.append(cam)
         cam_idx = len(self._gltf.cameras) - 1
 
-        node = pygltflib.Node(
-            camera=cam_idx, matrix=gltf_matrix(world_transform_4x4)
-        )
+        node = pygltflib.Node(camera=cam_idx, matrix=gltf_matrix(world_transform_4x4))
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
         self._gltf.scenes[0].nodes.append(node_idx)
@@ -413,9 +428,7 @@ class GLTFBuilder:
         self._gltf.cameras.append(cam)
         cam_idx = len(self._gltf.cameras) - 1
 
-        node = pygltflib.Node(
-            camera=cam_idx, matrix=gltf_matrix(world_transform_4x4)
-        )
+        node = pygltflib.Node(camera=cam_idx, matrix=gltf_matrix(world_transform_4x4))
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
         self._gltf.scenes[0].nodes.append(node_idx)

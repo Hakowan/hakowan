@@ -20,13 +20,49 @@ config.y_up() # Change the up direction to +Y axis.
 config.y_down() # Change the up direction to -Y axis.
 ```
 
-Another useful feature is to enable albedo-only rendering:
+## Render passes
+
+In addition to the main rendered image, Hakowan can produce auxiliary render
+passes (AOVs). Enable them with the convenience boolean properties, or assign
+the whole `render_passes` set at once:
 
 ```py
-config.albedo_only = True
+config = hkw.config()
+
+config.albedo = True      # diffuse color without shading
+config.depth = True       # normalized depth buffer
+config.normal = True      # shading normals, remapped to [0, 1]
+config.facet_id = True    # per-face index encoded as RGB (Blender only)
+
+# Bulk form: replaces the entire set, validated against the known passes.
+config.render_passes = {"albedo", "depth", "normal"}
 ```
 
-See the [Penny](../examples/penny.md) example for a usage of albedo-only rendering.
+Assigning an unknown pass name raises `ValueError`. Each enabled pass is written
+to a sidecar file next to the main output, named `<stem>_<pass><ext>` (e.g.
+`out.png` → `out_albedo.png`). The object returned by `hkw.render()` — a
+`RenderResult` — reports exactly which files were produced via its `.outputs`
+manifest.
+
+Backend support differs:
+
+| Pass | Mitsuba | Blender | WebGL |
+|------|:------:|:------:|:-----:|
+| `albedo`   | file | file | viewer |
+| `depth`    | file | file | viewer |
+| `normal`   | file | file | viewer |
+| `facet_id` | —    | file | —      |
+
+*file* = written as a sidecar image; *viewer* = available as a live toggle in
+the interactive WebGL viewer (no file is written); *—* = not supported.
+Requesting a pass the chosen backend does not support logs a warning and is
+otherwise ignored.
+
+The `facet_id` pass is Blender-only. It performs a second, lossless render in
+which every pixel holds its face index packed into RGB
+(`fid = (R << 16) | (G << 8) | B`), with anti-aliasing, pixel filtering, and
+dithering disabled so the index decodes exactly. Background pixels have
+`A = 0`, and it supports up to 2²⁴ − 1 ≈ 16.7 M faces.
 
 ## Sensor settings
 
@@ -164,4 +200,4 @@ It is useful for visualizing specific attribute without shading.
 
 The `VolPath` integrator mirrors the [Mitsuba's `VolPath` integrator](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_integrators.html#volumetric-path-tracer-volpath).
 It is useful for rendering scene with volumetric elements (e.g. with
-[Dielectric][hakowan.material.Dielectric] material).
+[Dielectric][hakowan.grammar.channel.material.material.Dielectric] material).

@@ -60,6 +60,36 @@ to [1, 1, 1].
 s = hkw.scale.Affine(matrix = np.eye(3) * 2)
 ```
 
+## Norm scale
+
+`Norm` scale reduces a vector-valued attribute to its per-element magnitude (a scalar field). Unlike
+the other scales, `Norm` changes the dimensionality of the attribute: an `N x d` vector field becomes
+an `N` scalar field holding the row-wise norm. It is therefore only meaningful as the *leading* scale
+of an attribute; any chained scales operate on the resulting scalar field.
+
+```py
+# Euclidean (L2) magnitude of a vector field.
+s = hkw.scale.Norm()
+
+# Other norms are available via the `order` parameter.
+s = hkw.scale.Norm(order=1)        # Manhattan (L1)
+s = hkw.scale.Norm(order=np.inf)   # max-abs
+```
+
+This is most useful for mapping the *magnitude* of a vector field to another channel, e.g. coloring a
+flow field by its speed or scaling point sizes by displacement magnitude. The
+[`hkw.norm()`](attribute.md#the-norm-shorthand) helper is a convenient shorthand for attaching this
+scale to an attribute:
+
+```py
+# These two are equivalent:
+attr = hkw.norm("velocity")
+attr = hkw.attribute("velocity", scale=hkw.scale.Norm())
+
+# Map magnitude into a radius range for the size channel.
+attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max=0.02))
+```
+
 ## Offset scale
 
 `Offset` scale offsets the current attribute by another attribute. It is useful for showing deformed

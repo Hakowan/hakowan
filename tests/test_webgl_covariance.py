@@ -80,9 +80,9 @@ class TestCovarianceMatrices:
     def test_no_covariance_returns_none(self):
         mesh = lagrange.SurfaceMesh()
         mesh.add_vertices(np.array([[0, 0, 0], [10, 0, 0]], dtype=np.float64))
-        view = list(
-            hkw.compiler.compile(hkw.layer().data(mesh).mark(hkw.mark.Point))
-        )[0]
+        view = list(hkw.compiler.compile(hkw.layer().data(mesh).mark(hkw.mark.Point)))[
+            0
+        ]
         assert pc._covariance_matrices(view, 2) is None
 
 

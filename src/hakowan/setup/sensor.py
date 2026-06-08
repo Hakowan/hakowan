@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from typing import Literal
+import numpy.typing as npt
 
 
 @dataclass(kw_only=True, slots=True)
@@ -13,9 +15,9 @@ class Sensor:
         far_clip: Far clipping plane distance.
     """
 
-    location: list = field(default_factory=lambda: [0, 0, 5])
-    target: list = field(default_factory=lambda: [0, 0, 0])
-    up: list = field(default_factory=lambda: [0, 1, 0])
+    location: npt.ArrayLike = field(default_factory=lambda: [0, 0, 5])
+    target: npt.ArrayLike = field(default_factory=lambda: [0, 0, 0])
+    up: npt.ArrayLike = field(default_factory=lambda: [0, 1, 0])
     near_clip: float = 1e-2
     far_clip: float = 1e4
 
@@ -26,11 +28,13 @@ class Perspective(Sensor):
 
     Attributes:
         fov: Field of view in degrees.
-        fov_axis: Axis to which fov is applied. Can be "x" or "y" or "diagonal" or "smaller" or "larger".
+        fov_axis (Literal["x", "y", "diagonal", "smaller", "larger"]): Axis to which fov
+            is applied. ``"smaller"`` / ``"larger"`` refer to the shorter / longer image
+            dimension, making the field-of-view resolution-independent.
     """
 
     fov: float = 28.8415  # degrees
-    fov_axis: str = "smaller"
+    fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"] = "smaller"
 
 
 @dataclass(kw_only=True, slots=True)

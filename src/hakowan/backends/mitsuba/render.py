@@ -8,6 +8,7 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 from ...common import logger
 from ...compiler import Scene, View
 from ...setup import Config
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
 from ...grammar import mark
 from .. import RenderBackend
 
@@ -75,6 +76,7 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     # Mitsuba ScalarTransform4f and similar: convert 4x4 matrix to list of lists
     if isinstance(obj, mi.ScalarTransform4f):
         m = getattr(obj, "matrix", None)
+        assert m is not None
         return m.numpy().tolist()
 
     try:
@@ -86,9 +88,7 @@ def _mi_config_to_serializable(obj: Any) -> Any:
     return obj
 
 
-def save_image(
-    image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True
-) -> None:
+def save_image(image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True) -> None:
     """Write an image to disk.
 
     ``srgb_gamma`` controls whether the 8-bit conversion applies the sRGB
@@ -129,6 +129,10 @@ def ensure_variant() -> None:
 
 class MitsubaBackend(RenderBackend):
     """Mitsuba rendering backend."""
+
+    # facet_id has no Mitsuba AOV counterpart; the other passes ride the AOV
+    # integrator (see Config.__sync_aovs and the channel slicing in render()).
+    SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
     def render(
         self,
@@ -254,22 +258,13 @@ class MitsubaBackend(RenderBackend):
             save_image(image, filename)
 
             if config.albedo and albedo_offset is not None:
-                albedo_filename = filename.with_name(
-                    filename.stem + "_albedo" + filename.suffix
-                )
-                save_image(albedo_image, albedo_filename)
+                save_image(albedo_image, aov_path(filename, ALBEDO))
 
             if config.depth and depth_offset is not None:
-                depth_filename = filename.with_name(
-                    filename.stem + "_depth" + filename.suffix
-                )
-                save_image(depth_image, depth_filename)
+                save_image(depth_image, aov_path(filename, DEPTH))
 
             if config.normal and normal_offset is not None:
-                normal_filename = filename.with_name(
-                    filename.stem + "_normal" + filename.suffix
-                )
                 # Packed normals are linear data, not colour — save without gamma.
-                save_image(normal_image, normal_filename, srgb_gamma=False)
+                save_image(normal_image, aov_path(filename, NORMAL), srgb_gamma=False)
 
         return image

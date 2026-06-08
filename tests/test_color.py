@@ -1,5 +1,4 @@
-import pytest
-from hakowan.common.color import Color, ColorLike
+from hakowan.common.color import Color
 from hakowan.common.to_color import to_color
 
 

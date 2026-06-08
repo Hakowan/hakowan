@@ -31,6 +31,17 @@ class TestTransform:
         assert t2._child is not t1._child
         assert t2._child.data is not t1._child.data
 
+    def test_clip(self):
+        t = transform.Clip(point=[0.0, 0.0, 0.0], normal=[1.0, 0.0, 0.0])
+        assert np.allclose(np.asarray(t.point), [0.0, 0.0, 0.0])
+        assert np.allclose(np.asarray(t.normal), [1.0, 0.0, 0.0])
+        assert t._child is None
+
+    def test_clip_defaults(self):
+        t = transform.Clip()
+        assert np.allclose(np.asarray(t.point), [0.0, 0.0, 0.0])
+        assert np.allclose(np.asarray(t.normal), [1.0, 0.0, 0.0])
+
     def test_uv_mesh(self):
         t = transform.UVMesh(uv="@uv")
         assert t.uv == "@uv"
@@ -71,6 +82,107 @@ class TestTransform:
         assert t.length is None
         assert t.id_attr_name == "_hakowan_streamline_id"
         assert t._child is None
+
+
+class TestClipCompiler:
+    def _make_square(self):
+        # Unit square in the z=0 plane, split into two triangles, with a
+        # per-vertex scalar equal to the x coordinate and a per-facet id.
+        mesh = lagrange.SurfaceMesh()
+        for v in [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]:
+            mesh.add_vertex(v)
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        mesh.create_attribute(
+            "xcoord",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=mesh.vertices[:, 0].copy(),
+        )
+        mesh.create_attribute(
+            "fid",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([10.0, 20.0], dtype=np.float64),
+        )
+        return mesh
+
+    def test_clip_keeps_positive_side(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        assert out.num_vertices > 0
+        # Every surviving vertex is on (or on the boundary of) the kept side.
+        assert np.all(out.vertices[:, 0] >= 0.5 - 1e-9)
+
+    def test_clip_interpolates_vertex_attribute(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        # The xcoord attribute must track the (re-cut) vertex x coordinate.
+        xc = out.attribute("xcoord").data.ravel()
+        assert np.allclose(xc, out.vertices[:, 0])
+
+    def test_clip_copies_facet_attribute(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        fid = out.attribute("fid").data.ravel()
+        # Child triangles inherit their parent's facet value (10 from tri 0, 20 from tri 1).
+        assert set(fid.tolist()).issubset({10.0, 20.0})
+        assert out.num_facets == len(fid)
+
+    def test_clip_integer_attribute_not_averaged(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        mesh.create_attribute(
+            "vid",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0, 1, 2, 3], dtype=np.int32),
+        )
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        vid = out.attribute("vid").data
+        assert np.issubdtype(vid.dtype, np.integer)
+        # Dominant-corner pick => values stay in the original integer set.
+        assert set(vid.ravel().tolist()).issubset({0, 1, 2, 3})
+
+    def test_clip_indexed_attribute(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        lagrange.compute_normal(mesh, output_attribute_name="nrm")
+        assert mesh.is_attribute_indexed("nrm")
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        nrm = out.attribute("nrm").data
+        assert nrm.shape == (out.num_vertices, 3)
+        assert np.allclose(np.linalg.norm(nrm, axis=1), 1.0, atol=1e-6)
+
+    def test_clip_fully_inside_is_unchanged(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        out = _clip_mesh(mesh, np.array([-1.0, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        assert out.num_facets == mesh.num_facets
+
+    def test_clip_fully_outside_is_empty(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        out = _clip_mesh(mesh, np.array([2.0, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+        assert out.num_vertices == 0
+        assert out.num_facets == 0
+
+    def test_clip_zero_normal_raises(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = self._make_square()
+        with pytest.raises(ValueError, match="non-zero"):
+            _clip_mesh(mesh, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0]))
 
 
 class TestStreamlineCompiler:
@@ -123,9 +235,7 @@ class TestStreamlineCompiler:
 
     def test_valid_input_produces_output(self):
         mesh = self._make_grid_mesh()
-        out = _compute_streamlines(
-            mesh, "vec", n=2, cross_field=False, min_length=2
-        )
+        out = _compute_streamlines(mesh, "vec", n=2, cross_field=False, min_length=2)
         # Should produce at least one streamline segment.
         assert out.num_vertices > 0
         assert out.num_facets > 0

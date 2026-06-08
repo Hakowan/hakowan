@@ -1,6 +1,4 @@
 from .color import generate_color_config
-from ...common.color import Color
-from ...common.named_colors import css_colors
 from ...grammar.scale import Attribute
 from ...grammar.texture import (
     Texture,

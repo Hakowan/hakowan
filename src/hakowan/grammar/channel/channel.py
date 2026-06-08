@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from typing import Optional, Union
+from typing import Literal, Optional
 
 from .curvestyle import CurveStyle
-from ..scale import Attribute, AttributeLike
+from ..scale import AttributeLike
 from ..texture import TextureLike
 
 
@@ -77,13 +77,25 @@ class VectorField(Channel):
             control the density of the vector field. The default value is 0.
         style (CurveStyle | None): The style of the vector field. If None, the default style will
             be used.
-        end_type (str): The type of the vector field end. The default value is "point".
+        end_type (Literal["point", "arrow", "flat"]): The type of the vector field end.
+            ``"point"`` tapers the tip to zero (cone/spike); ``"arrow"`` renders a
+            flared arrowhead; ``"flat"`` keeps a constant radius at both ends
+            (cylinder). The default value is ``"point"``.
+        normalize (bool): If True, every vector is rescaled to unit length so
+            that all arrows have the same length and only encode direction.
+            The magnitude is freed up to be mapped to another channel (e.g.
+            ``size`` or color via ``hakowan.norm()``). Normalization is
+            applied *before* any scale attached to ``data``, so a uniform scale
+            on ``data`` controls the common arrow length. By default (False),
+            arrow length is proportional to the vector magnitude. The default
+            value is ``False``.
     """
 
     data: AttributeLike
     refinement_level: int = 0
     style: CurveStyle | None = None
-    end_type: str = "point"
+    end_type: Literal["point", "arrow", "flat"] = "point"
+    normalize: bool = False
 
 
 @dataclass(slots=True)
@@ -113,14 +125,13 @@ class Shape(Channel):
     This channel is only used for point mark.
 
     Attributes:
-        base_shape (str): The base shape used to represent a point.
-            Options include "sphere", "disk" and "cube".
-            The default value is "sphere".
+        base_shape (Literal["sphere", "disk", "cube"]): The base shape used to represent a point.
+            The default value is ``"sphere"``.
         orientation (AttributeLike | None): The attribute used to encode the normal orientation
             of the shape. If None, orientation will be identity (i.e. normal along z-axis).
     """
 
-    base_shape: str = "sphere"
+    base_shape: Literal["sphere", "disk", "cube"] = "sphere"
     orientation: Optional[AttributeLike] = None
 
 

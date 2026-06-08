@@ -1,15 +1,21 @@
 """Hakowan: A 3D data visualization grammar"""
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 from .common import logger
 from .setup import Config as config
 from .grammar import dataframe, mark, channel, scale, texture, transform
 from .grammar.layer import Layer as layer
 from .grammar.scale import Attribute as attribute
+from .grammar.scale import norm
 from .grammar.channel import material
 from .compiler import compile
-from .render import render, set_default_backend, list_backends
+from .render import (
+    render,
+    RenderResult,
+    set_default_backend,
+    list_backends,
+)
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
 # bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
@@ -59,9 +65,12 @@ __all__ = [
     "texture",
     "transform",
     "layer",
+    "attribute",
     "material",
+    "norm",
     "compile",
     "render",
+    "RenderResult",
     "set_default_backend",
     "list_backends",
 ]

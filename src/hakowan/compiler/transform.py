@@ -1,10 +1,10 @@
 from .view import View
 from ..grammar.mark import Mark
-from ..grammar.dataframe import DataFrame
 from ..grammar.scale import Attribute
 from ..grammar.transform import (
     Affine,
     Boundary,
+    Clip,
     Compute,
     Explode,
     Filter,
@@ -112,10 +112,156 @@ def _apply_filter_transform(view: View, transform: Filter):
             else:
                 # TODO: Add curve support.
                 raise NotImplementedError(
-                    f"Filter transform does not support curve mark yet."
+                    "Filter transform does not support curve mark yet."
                 )
         case _:
             raise RuntimeError(f"Unsupported element type: {attr.element_type}!")
+
+
+def _flatten_indexed_attribute(out: lagrange.SurfaceMesh, aid: int) -> None:
+    """Convert an indexed attribute to a per-vertex attribute in-place.
+
+    For corner-indexed attributes, each vertex gets the average of its corners'
+    values (correct for smooth data such as normals; exact when all corners of a
+    vertex share the same value).
+    """
+    ia = out.indexed_attribute(aid)
+    name = out.get_attribute_name(aid)
+    usage = ia.usage  # save before delete invalidates ia
+    corner_values = ia.values.data[ia.indices.data]  # (n_corners, ...) or (n_corners,)
+    # out.facets is a flat corner→vertex array for both triangle and polygon meshes.
+    corner_to_vtx = out.facets.ravel()
+    n_verts = out.num_vertices
+    scalar = corner_values.ndim == 1
+    if scalar:
+        vtx_values = np.zeros(n_verts, dtype=np.float64)
+        counts = np.zeros(n_verts, dtype=np.float64)
+        np.add.at(vtx_values, corner_to_vtx, corner_values)
+        np.add.at(counts, corner_to_vtx, 1.0)
+        vtx_values /= np.maximum(counts, 1.0)
+    else:
+        d = corner_values.shape[1]
+        vtx_values = np.zeros((n_verts, d), dtype=np.float64)
+        counts = np.zeros(n_verts, dtype=np.float64)
+        np.add.at(vtx_values, corner_to_vtx, corner_values)
+        np.add.at(counts, corner_to_vtx, 1.0)
+        vtx_values /= np.maximum(counts, 1.0)[:, None]
+    out.delete_attribute(aid)
+    out.create_attribute(
+        name,
+        element=lagrange.AttributeElement.Vertex,
+        usage=usage,
+        initial_values=np.ascontiguousarray(vtx_values),
+    )
+
+
+def _clip_mesh(
+    mesh: lagrange.SurfaceMesh,
+    point: np.ndarray,
+    normal: np.ndarray,
+) -> lagrange.SurfaceMesh:
+    """Clip ``mesh`` against the plane through ``point`` with the given ``normal``.
+
+    The half-space where ``dot(normal, x - point) >= 0`` is kept. Uses
+    ``lagrange.trim_by_isoline`` on the signed-distance field, which handles
+    attribute interpolation and produces a proper connected mesh.
+    """
+    n = np.asarray(normal, dtype=np.float64).reshape(3)
+    n_len = np.linalg.norm(n)
+    if n_len == 0.0:
+        raise ValueError("Clip plane normal must be non-zero.")
+    n = n / n_len
+    p = np.asarray(point, dtype=np.float64).reshape(3)
+
+    mesh = copy.deepcopy(mesh)
+    if mesh.has_edges:
+        mesh.clear_edges()
+    if not mesh.is_triangle_mesh:
+        lagrange.triangulate_polygonal_facets(mesh)
+
+    if mesh.num_vertices == 0:
+        return mesh
+
+    # Save facet attributes: trim_by_isoline resets them to zero, so we
+    # recover them afterwards via nearest-input-centroid assignment.
+    facet_attrs: dict[str, tuple[lagrange.AttributeUsage, np.ndarray]] = {}
+    for faid in mesh.get_matching_attribute_ids():
+        fname = mesh.get_attribute_name(faid)
+        if mesh.attr_name_is_reserved(fname) or mesh.is_attribute_indexed(faid):
+            continue
+        fa = mesh.attribute(faid)
+        if fa.element_type == lagrange.AttributeElement.Facet:
+            facet_attrs[fname] = (fa.usage, fa.data.copy())
+    if facet_attrs:
+        in_centroid_id = lagrange.compute_facet_centroid(mesh)
+        in_centroids = mesh.attribute(in_centroid_id).data.copy()
+
+    _SD_ATTR = "_hakowan_clip_sd"
+    sd = ((mesh.vertices - p) @ n).astype(np.float64)
+    mesh.create_attribute(
+        _SD_ATTR,
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=sd,
+    )
+
+    # keep_below=False keeps the side where sd >= isovalue (i.e. sd >= 0).
+    out = lagrange.trim_by_isoline(mesh, _SD_ATTR, isovalue=0.0, keep_below=False)
+
+    if out.num_vertices == 0:
+        logger.warning("Clip transform removed the entire mesh.")
+        return out
+
+    if out.has_attribute(_SD_ATTR):
+        out.delete_attribute(_SD_ATTR)
+
+    # Recover facet attributes via nearest input centroid.
+    # TODO(perf): the brute-force distance matrix below is O(n_out * n_in) in
+    # both time and memory (it materializes an (n_out, n_in, 3) array), so it
+    # will OOM on large meshes. Replace with a spatial index (e.g. a KD-tree /
+    # lagrange nearest-facet query) or chunk the argmin over output facets.
+    if facet_attrs:
+        out_centroid_id = lagrange.compute_facet_centroid(out)
+        out_centroids = out.attribute(out_centroid_id).data
+        diff = out_centroids[:, None, :] - in_centroids[None, :, :]
+        parent_idx = np.argmin((diff * diff).sum(axis=2), axis=1)
+        for fname, (fusage, fdata) in facet_attrs.items():
+            if out.has_attribute(fname):
+                out.delete_attribute(fname)
+            out.create_attribute(
+                fname,
+                element=lagrange.AttributeElement.Facet,
+                usage=fusage,
+                initial_values=np.ascontiguousarray(fdata[parent_idx]),
+            )
+
+    # Flatten indexed attributes to per-vertex (matches pre-refactor behaviour
+    # and avoids surprises for downstream code that calls mesh.attribute()).
+    for iaid in list(out.get_matching_attribute_ids()):
+        if not out.is_attribute_indexed(iaid):
+            continue
+        ianame = out.get_attribute_name(iaid)
+        if out.attr_name_is_reserved(ianame):
+            continue
+        _flatten_indexed_attribute(out, iaid)
+
+    if not out.is_triangle_mesh:
+        lagrange.triangulate_polygonal_facets(out)
+
+    return out
+
+
+def _apply_clip_transform(view: View, transform: Clip):
+    """Clip the data frame against the plane specified in the transform."""
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+    point = np.asarray(transform.point, dtype=np.float64).reshape(3)
+    normal = np.asarray(transform.normal, dtype=np.float64).reshape(3)
+    df.mesh = _clip_mesh(mesh, point, normal)
 
 
 def _apply_uv_mesh_transform(view: View, transform: UVMesh):
@@ -383,9 +529,8 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         min_length=transform.min_length,
     )
 
-    if (
-        transform.id_attr_name != "_hakowan_streamline_id"
-        and sl_mesh.has_attribute("_hakowan_streamline_id")
+    if transform.id_attr_name != "_hakowan_streamline_id" and sl_mesh.has_attribute(
+        "_hakowan_streamline_id"
     ):
         sl_mesh.rename_attribute("_hakowan_streamline_id", transform.id_attr_name)
 
@@ -409,6 +554,9 @@ def apply_transform(view: View):
             case Filter():
                 assert view.data_frame is not None
                 _apply_filter_transform(view, t)
+            case Clip():
+                assert view.data_frame is not None
+                _apply_clip_transform(view, t)
             case UVMesh():
                 assert view.data_frame is not None
                 _apply_uv_mesh_transform(view, t)

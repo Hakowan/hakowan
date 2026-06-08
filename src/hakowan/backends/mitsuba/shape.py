@@ -15,7 +15,6 @@ import mitsuba as mi
 import numpy as np
 import numpy.typing as npt
 import pathlib
-import re
 import tempfile
 
 
@@ -93,7 +92,6 @@ def generate_point_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     shapes: list[dict[str, Any]] = []
-    shape_group: dict[str, Any] = {}
 
     # Extract shape
     base_shape = "sphere"
@@ -337,7 +335,7 @@ def extract_vector_field(view: View):
         size = np.array(size)
         base_size = np.hstack([size, 2 * size])
         tip_size = np.hstack([size, np.zeros_like(size)])
-    else:
+    else:  # "flat": constant radius at both ends
         tip_size = size
 
     return [base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size]
@@ -370,8 +368,6 @@ def extract_edges(view: View):
 
 def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
-    mesh = view.data_frame.mesh
-    shapes: list[dict[str, Any]] = []
 
     # The radius of the linearcurve shape in Mitsuba 3.4.0 will not be transformed using the
     # `to_world` transform. This seems to be a bug on Mitsuba's part. Thus, we use a temporary fix
@@ -469,7 +465,7 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
         # It seems mitsuba requires a "_#" suffix to work propertly with scalar/vector
         # attributes. Color/position/normal/uv attributes all has their own representation in ply
         # format, so they do not need to be changed.
-        mesh.rename_attribute(name, f"{name}_0")
+        mesh.rename_attribute(name, new_name)
         processed_names.add(name)
 
         # Note that we will keep attr._internal_name the same.

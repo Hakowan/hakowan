@@ -1,9 +1,9 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from .medium import Medium
 from ..channel import Channel
-from ...texture import Texture, TextureLike
-from ....common.color import ColorLike
+from ...texture import ScalarTextureLike, TextureLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -12,9 +12,16 @@ class Material(Channel):
 
     Attributes:
         two_sided: Whether to render both sides of the surface (default: False).
+        back_side: An independent material for the back face of each facet
+            (default: None). When set, the front face uses this material's
+            owning material and the back face uses ``back_side``; this implies
+            two-sided rendering regardless of ``two_sided``. Only meaningful for
+            surface marks. A nested ``back_side`` on the back material itself is
+            ignored.
     """
 
     two_sided: bool = False
+    back_side: "Material | None" = None
 
 
 @dataclass(slots=True)
@@ -44,12 +51,13 @@ class RoughConductor(Conductor):
     """Rough conductor material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
-    alpha: Texture | float = 0.1
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    alpha: ScalarTextureLike = 0.1
 
 
 @dataclass(slots=True)
@@ -62,7 +70,7 @@ class Plastic(Material):
     """
 
     diffuse_reflectance: TextureLike = 0.5
-    specular_reflectance: Texture | float = 1.0
+    specular_reflectance: ScalarTextureLike = 1.0
 
 
 @dataclass(slots=True)
@@ -70,11 +78,12 @@ class RoughPlastic(Plastic):
     """Rough plastic material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
     alpha: float = 0.1
 
 
@@ -96,8 +105,8 @@ class Principled(Material):
     """
 
     color: TextureLike = 0.5
-    roughness: Texture | float = 0.5
-    metallic: Texture | float = 0.0
+    roughness: ScalarTextureLike = 0.5
+    metallic: ScalarTextureLike = 0.0
     anisotropic: float = 0.0
     spec_trans: float = 0.0
     eta: float = 1.5
@@ -149,12 +158,13 @@ class RoughDielectric(Dielectric):
     """Rough dielectric material.
 
     Attributes:
-        distribution: Microfacet distribution (default: "beckmann").
+        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+            (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
     """
 
-    distribution: str = "beckmann"
-    alpha: Texture | float = 0.1
+    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    alpha: ScalarTextureLike = 0.1
 
 
 @dataclass(slots=True)

@@ -1,8 +1,21 @@
 from .color import Color, ColorLike
 from .named_colors import css_colors
+from .logger import logger
 
 
-def to_color(data: ColorLike):
+def to_color(data: ColorLike) -> Color:
+    """Convert a color-like value to a :class:`Color` object.
+
+    Args:
+        data: A float/int (gray), CSS color name, hex string (``"#rrggbb"``),
+            or an ``(r, g, b)`` / ``(r, g, b, a)`` tuple.
+
+    Returns:
+        The corresponding :class:`Color` instance.
+
+    Raises:
+        ValueError: If *data* cannot be converted to a color.
+    """
     match data:
         case float() | int():
             return Color(float(data), float(data), float(data))
@@ -16,6 +29,10 @@ def to_color(data: ColorLike):
         case (r, g, b):
             return Color(r, g, b)
         case (r, g, b, a):
+            logger.warning(
+                "Color alpha channel is not supported; ignoring alpha value "
+                f"{a} in {(r, g, b, a)}."
+            )
             return Color(r, g, b)
         case _:
             raise ValueError(f"Cannot convert {data} to color")

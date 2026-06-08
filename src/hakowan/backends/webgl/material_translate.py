@@ -33,7 +33,7 @@ from PIL import Image as PILImage, ImageEnhance
 from ...common import logger
 from ...common.to_color import to_color
 from ...compiler import View
-from ...grammar.channel import NormalMap
+from ...grammar.channel import BumpMap, NormalMap
 from ...grammar.channel.material import (
     Conductor,
     Dielectric,
@@ -46,11 +46,20 @@ from ...grammar.channel.material import (
     RoughDielectric,
     RoughPlastic,
     ThinDielectric,
-    ThinPrincipled,
 )
 from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uniform
 
-from .builder import GLTFBuilder
+from .builder import (
+    GLTFBuilder,
+    _FILTER_NEAREST,
+)
+
+# glTF allows arbitrary underscore-prefixed names, but three.js GLTFLoader maps
+# unknown attributes with ``name.toLowerCase()`` (see ``addPrimitiveAttributes``).
+# Shader patches must use the lowercased names so attributes bind after load.
+_SCALAR_ATTR = "_scalar_0"
+_ROUGHNESS_ATTR = "_roughness_0"
+_METALLIC_ATTR = "_metallic_0"
 
 
 @dataclass
@@ -58,7 +67,7 @@ class MaterialResult:
     """What ``translate_material`` returns.
 
     ``custom_attrs`` carries per-vertex arrays that must be plumbed onto the
-    mesh node (e.g. a ``"_SCALAR_0"`` array driving an isocontour shader).
+    mesh node (e.g. ``"_scalar_0"`` driving an isocontour shader).
     ``extras`` carries the dict that lands on the glTF material's ``extras``
     field — the viewer JS reads it to wire up ``onBeforeCompile`` patches.
     """
@@ -116,16 +125,16 @@ def _resolve_ior(ior_like: Any, default: float) -> float:
 # Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
 # Sources: Naty Hoffman's PBR Diffuse Lighting course notes; Filament docs.
 _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
-    "Au": (1.000, 0.766, 0.336),     # Gold
-    "Ag": (0.972, 0.960, 0.915),     # Silver
-    "Cu": (0.955, 0.638, 0.538),     # Copper
-    "Al": (0.913, 0.921, 0.925),     # Aluminium
-    "Cr": (0.550, 0.556, 0.554),     # Chromium
-    "Fe": (0.560, 0.570, 0.580),     # Iron
-    "Ni": (0.660, 0.609, 0.526),     # Nickel
-    "Pt": (0.672, 0.637, 0.585),     # Platinum
-    "Ti": (0.542, 0.497, 0.449),     # Titanium
-    "W":  (0.560, 0.520, 0.475),     # Tungsten
+    "Au": (1.000, 0.766, 0.336),  # Gold
+    "Ag": (0.972, 0.960, 0.915),  # Silver
+    "Cu": (0.955, 0.638, 0.538),  # Copper
+    "Al": (0.913, 0.921, 0.925),  # Aluminium
+    "Cr": (0.550, 0.556, 0.554),  # Chromium
+    "Fe": (0.560, 0.570, 0.580),  # Iron
+    "Ni": (0.660, 0.609, 0.526),  # Nickel
+    "Pt": (0.672, 0.637, 0.585),  # Platinum
+    "Ti": (0.542, 0.497, 0.449),  # Titanium
+    "W": (0.560, 0.520, 0.475),  # Tungsten
 }
 
 
@@ -178,6 +187,41 @@ def _resolve_reflectance(mat: Material) -> Any | None:
     return None
 
 
+def _back_base_color(mat: Material) -> list[float]:
+    """Best-effort linear RGB (3 floats) for a back-face material.
+
+    The viewer renders the back face by overriding only the diffuse base colour
+    in the fragment shader (``gl_FrontFacing`` branch — see ``viewer.html``), so
+    a back material collapses to a single flat colour here. Materials whose
+    appearance isn't a single base colour (Conductor / Dielectric / Hair, or a
+    textured reflectance) are approximated with a warning.
+    """
+    if isinstance(mat, Conductor):
+        albedo = _CONDUCTOR_PRESETS.get(mat.material, (0.7, 0.7, 0.7))
+        logger.warning(
+            "WebGL backend: back_side Conductor approximated as a flat metal color."
+        )
+        return [_srgb_to_linear(c) for c in albedo]
+    if isinstance(mat, Dielectric):
+        logger.warning(
+            "WebGL backend: back_side Dielectric approximated as white "
+            "(no back-face transmission)."
+        )
+        return [1.0, 1.0, 1.0]
+    if isinstance(mat, Hair):
+        logger.warning("WebGL backend: back_side Hair approximated as brown.")
+        return _color_to_rgba("saddlebrown")[:3]
+    reflectance = _resolve_reflectance(mat)
+    if reflectance is None:
+        return list(_DEFAULT_BASE_COLOR[:3])
+    if isinstance(reflectance, (ScalarField, Image, Checkerboard, Isocontour)):
+        logger.warning(
+            "WebGL backend: textured back_side color not supported; using white."
+        )
+        return [1.0, 1.0, 1.0]
+    return _reflectance_to_base_color(reflectance)[:3]
+
+
 def _load_image_as_png_bytes(image: Image) -> bytes:
     path = Path(image.filename)
     img = PILImage.open(path).convert("RGBA")
@@ -190,17 +234,28 @@ def _load_image_as_png_bytes(image: Image) -> bytes:
     # convention — Mitsuba compensates via ``to_uv = diag(1, -1, 1)``).
     # glTF/three.js samples with V=0 at the top, so we flip the image
     # vertically here to match without touching the UV buffer.
-    img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
+    img = img.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
 
 
-def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> bytes:
-    """Generate a 2x2 PNG with two checkered cells. Colors must be linear RGB;
-    we encode as sRGB so they appear correct when the texture is sampled in
-    sRGB mode by the glTF pipeline.
+def _bake_checkerboard_png(
+    tex1_color: list[float],
+    tex2_color: list[float],
+    size: int,
+) -> bytes:
+    """Bake a checker into an ``n × n`` PNG, where ``n`` is ``size`` rounded up
+    to the nearest even number (min 2).
+
+    Rounding to an even period keeps the checker seamless when the texture tiles
+    under ``REPEAT`` wrapping — an odd period puts two same-colored cells side by
+    side at the wrap seam. One texel per cell keeps edges sharp under ``NEAREST``
+    filtering.  Mitsuba tiles via UV scale; we bake the repeats into the image
+    instead of relying on a 2×2 texture plus ``KHR_texture_transform`` (which
+    blurs under ``LINEAR`` minification in three.js).
     """
+
     def _linear_to_srgb(c: float) -> int:
         if c <= 0.0031308:
             v = 12.92 * c
@@ -210,11 +265,18 @@ def _bake_checkerboard_png(tex1_color: list[float], tex2_color: list[float]) -> 
 
     c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
     c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
-    img = PILImage.new("RGB", (2, 2))
-    img.putpixel((0, 0), c1)
-    img.putpixel((1, 1), c1)
-    img.putpixel((0, 1), c2)
-    img.putpixel((1, 0), c2)
+    # Round the cell count up to an even number so the (x + y) % 2 pattern tiles
+    # seamlessly under REPEAT wrapping (an odd period leaves a seam where two
+    # same-colored cells meet).
+    n = max(int(round(size)), 2)
+    if n % 2:
+        n += 1
+    img = PILImage.new("RGB", (n, n))
+    for y in range(n):
+        for x in range(n):
+            img.putpixel((x, y), c1 if (x + y) % 2 == 0 else c2)
+    # Match Image textures: hakowan UVs use V=0 at the image bottom (OBJ-style).
+    img = img.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -239,7 +301,10 @@ def _resolve_texture_color(texture_like: Any) -> list[float]:
 
 
 def _apply_image_or_checker(
-    pbr: dict[str, Any], builder: GLTFBuilder, reflectance: Any
+    pbr: dict[str, Any],
+    builder: GLTFBuilder,
+    reflectance: Any,
+    extras: dict[str, Any] | None = None,
 ) -> None:
     """Attach a baseColorTexture (and optional UV transform) if applicable."""
     if isinstance(reflectance, Image):
@@ -254,11 +319,46 @@ def _apply_image_or_checker(
     elif isinstance(reflectance, Checkerboard):
         c1 = _resolve_texture_color(reflectance.texture1)
         c2 = _resolve_texture_color(reflectance.texture2)
-        png_bytes = _bake_checkerboard_png(c1, c2)
-        pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
-        # KHR_texture_transform: scale UVs so the 2×2 checker tiles `size`
-        # times per UV unit (matches Mitsuba's to_uv scale-by-size convention).
-        pbr["baseColorTextureScale"] = (float(reflectance.size), float(reflectance.size))
+        png_bytes = _bake_checkerboard_png(c1, c2, reflectance.size)
+        pbr["baseColorTextureIndex"] = builder.add_image_texture(
+            png_bytes,
+            mag_filter=_FILTER_NEAREST,
+            min_filter=_FILTER_NEAREST,
+        )
+        if extras is not None:
+            extras["checkerboard"] = True
+
+
+def _apply_bump_map(
+    extras: dict[str, Any],
+    builder: GLTFBuilder,
+    bump_map: BumpMap | None,
+) -> None:
+    """Embed a bump map image and store its glTF texture index in extras.
+
+    glTF has no standard bump-map slot, so we embed the texture as a
+    plain glTF image and record its index in ``extras["hakowan"]["bump"]``.
+    The viewer JS loads it via ``gltf.parser.loadTexture`` and assigns it
+    to ``material.bumpMap`` / ``material.bumpScale`` directly on the
+    three.js material.
+    """
+    if bump_map is None:
+        return
+    texture = bump_map.texture
+    if not isinstance(texture, Image):
+        logger.warning(
+            f"WebGL backend: BumpMap.texture type {type(texture).__name__} "
+            "not supported; only Image is wired."
+        )
+        return
+    try:
+        png_bytes = _load_image_as_png_bytes(texture)
+        idx = builder.add_image_texture(png_bytes)
+        extras["bump"] = {"texture_idx": idx, "scale": float(bump_map.scale)}
+    except Exception as e:
+        logger.warning(
+            f"WebGL backend: failed to embed bump map '{texture.filename}': {e}"
+        )
 
 
 def _apply_normal_map(
@@ -280,8 +380,7 @@ def _apply_normal_map(
         pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
-            f"WebGL backend: failed to embed normal map "
-            f"'{texture.filename}': {e}"
+            f"WebGL backend: failed to embed normal map '{texture.filename}': {e}"
         )
 
 
@@ -290,6 +389,8 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     Isocontour ``data`` reference, or None if the source attribute can't be
     resolved.
     """
+    import lagrange
+
     if view.data_frame is None:
         return None
     if isinstance(attr_like, (ScalarField, Isocontour)):
@@ -302,7 +403,24 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     mesh = view.data_frame.mesh
     if not mesh.has_attribute(name):
         return None
-    arr = np.asarray(mesh.attribute(name).data, dtype=np.float32).reshape(-1)
+
+    if mesh.is_attribute_indexed(name):
+        indexed = mesh.indexed_attribute(name)
+        if indexed.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        values = np.asarray(indexed.values.data, dtype=np.float32).reshape(-1)
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        corner_vertices = mesh.facets.reshape(-1)
+        if indices.shape[0] != corner_vertices.shape[0]:
+            return None
+        out = np.zeros(mesh.num_vertices, dtype=np.float32)
+        out[corner_vertices] = values[indices]
+        return out
+
+    attr = mesh.attribute(name)
+    if attr.element_type != lagrange.AttributeElement.Vertex:
+        return None
+    arr = np.asarray(attr.data, dtype=np.float32).reshape(-1)
     if arr.shape[0] != mesh.num_vertices:
         return None
     return arr
@@ -318,7 +436,7 @@ def _apply_isocontour(
     """Wire an Isocontour reflectance via the viewer's ``onBeforeCompile``
     shader patch.
 
-    Bakes the (pre-scaled) scalar field as ``_SCALAR_0`` and stores
+    Bakes the (pre-scaled) scalar field as ``_scalar_0`` and stores
     ``num_contours / ratio / color1 / color2`` in ``extras["isocontour"]``;
     the viewer's fragment-shader injection then re-creates the contour
     stripes per-pixel from the scalar value — no UV gymnastics or texture
@@ -334,7 +452,7 @@ def _apply_isocontour(
         c1 = _resolve_texture_color(reflectance.texture1)
         pbr["baseColorFactor"] = list(c1)
         return
-    custom_attrs["_SCALAR_0"] = arr
+    custom_attrs[_SCALAR_ATTR] = arr
     c1 = _resolve_texture_color(reflectance.texture1)[:3]
     c2 = _resolve_texture_color(reflectance.texture2)[:3]
     extras["isocontour"] = {
@@ -371,7 +489,7 @@ def _bake_scalar_pbr_factor(
     arr = _read_scalar_attribute(view, texture)
     if arr is None:
         return False
-    attr_name = "_ROUGHNESS_0" if kind == "roughness" else "_METALLIC_0"
+    attr_name = _ROUGHNESS_ATTR if kind == "roughness" else _METALLIC_ATTR
     factor_key = "roughnessFactor" if kind == "roughness" else "metallicFactor"
     meta_key = "roughness_attr" if kind == "roughness" else "metallic_attr"
     custom_attrs[attr_name] = arr
@@ -435,9 +553,15 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             double_sided=False,
         )
 
-    double_sided = bool(getattr(mat, "two_sided", False))
+    # A back-side material is rendered via a ``gl_FrontFacing`` fragment-shader
+    # branch, which is only valid under double-sided rendering — so back_side
+    # forces double-sided regardless of the ``two_sided`` flag.
+    back_mat = getattr(mat, "back_side", None)
+    double_sided = bool(getattr(mat, "two_sided", False)) or back_mat is not None
     custom_attrs: dict[str, np.ndarray] = {}
     extras: dict[str, Any] = {}
+    if back_mat is not None:
+        extras["back"] = {"color": _back_base_color(back_mat)}
 
     # Intrinsic-colour materials: Conductor / Dielectric / Hair.
     if isinstance(mat, Conductor):
@@ -448,7 +572,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "built-in LUT; falling back to neutral gray metal."
             )
             albedo = (0.7, 0.7, 0.7)
-        pbr = {
+        pbr: dict[str, Any] = {
             "baseColorFactor": [
                 _srgb_to_linear(albedo[0]),
                 _srgb_to_linear(albedo[1]),
@@ -460,10 +584,16 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         }
         if isinstance(mat, RoughConductor):
             _resolve_roughness_factor(
-                mat.alpha, 0.2, "RoughConductor.alpha",
-                pbr, extras, custom_attrs, view,
+                mat.alpha,
+                0.2,
+                "RoughConductor.alpha",
+                pbr,
+                extras,
+                custom_attrs,
+                view,
             )
         _apply_normal_map(pbr, builder, view.normal_map)
+        _apply_bump_map(extras, builder, view.bump_map)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -481,7 +611,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         # same Snell-law math internally.
         relative_ior = int_ior / max(ext_ior, 1e-6)
 
-        pbr: dict[str, Any] = {
+        pbr = {
             "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
             "metallicFactor": 0.0,
             "roughnessFactor": 0.0,
@@ -490,8 +620,13 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         }
         if isinstance(mat, RoughDielectric):
             _resolve_roughness_factor(
-                mat.alpha, 0.1, "RoughDielectric.alpha",
-                pbr, extras, custom_attrs, view,
+                mat.alpha,
+                0.1,
+                "RoughDielectric.alpha",
+                pbr,
+                extras,
+                custom_attrs,
+                view,
             )
 
         if isinstance(mat, ThinDielectric):
@@ -504,6 +639,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             # transmitted tint; ``medium.scale`` is an extinction multiplier
             # (Mitsuba treats it as ``scale * bbox_diag``).
             from numpy.linalg import norm as _norm
+
             bbox = getattr(view, "bbox", None)
             if bbox is not None:
                 diag = float(_norm(np.asarray(bbox[0]) - np.asarray(bbox[1])))
@@ -513,15 +649,14 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             attn_color = _color_to_rgba(mat.medium.albedo)[:3]
             # Larger ``scale`` → shorter attenuation distance (more absorption).
             scale = float(mat.medium.scale)
-            attn_distance = (
-                diag / scale if scale > 1e-6 else float("inf")
-            )
+            attn_distance = diag / scale if scale > 1e-6 else float("inf")
             pbr["attenuationDistance"] = attn_distance
             pbr["attenuationColor"] = attn_color
         else:
             # Smooth solid dielectric with no volume — still pick a thickness
             # so refraction has an offset, but skip attenuation entirely.
             from numpy.linalg import norm as _norm
+
             bbox = getattr(view, "bbox", None)
             if bbox is not None:
                 pbr["thicknessFactor"] = float(
@@ -540,6 +675,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
 
         _apply_normal_map(pbr, builder, view.normal_map)
+        _apply_bump_map(extras, builder, view.bump_map)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -558,6 +694,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "roughnessFactor": 0.8,
             },
             double_sided=double_sided,
+            extras={"hakowan": extras} if extras else None,
         )
 
     # Reflectance-bearing materials.
@@ -574,12 +711,13 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 "roughnessFactor": 1.0,
             },
             double_sided=double_sided,
+            extras={"hakowan": extras} if extras else None,
         )
 
-    pbr: dict[str, Any] = {
+    pbr = {
         "baseColorFactor": _reflectance_to_base_color(reflectance),
     }
-    _apply_image_or_checker(pbr, builder, reflectance)
+    _apply_image_or_checker(pbr, builder, reflectance, extras)
 
     if isinstance(reflectance, Isocontour):
         _apply_isocontour(pbr, extras, custom_attrs, view, reflectance)
@@ -623,6 +761,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         pbr["roughnessFactor"] = 1.0
 
     _apply_normal_map(pbr, builder, view.normal_map)
+    _apply_bump_map(extras, builder, view.bump_map)
     return MaterialResult(
         pbr=pbr,
         double_sided=double_sided,

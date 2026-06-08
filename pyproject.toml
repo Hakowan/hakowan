@@ -9,13 +9,14 @@ license = {file = "LICENSE"}
 readme = "README.md"
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["description", "version"]
+# Core dependencies. The WebGL backend (pygltflib) ships by default and works
+# with no extra install. The heavier Mitsuba and Blender backends are optional
+# extras (see ``[project.optional-dependencies]``).
 dependencies=[
     "adobe-lagrange>=6.44",
     "numpy>=2.0",
     "Pillow>=11.0",
     "PyYAML>=6.0",
-    "mitsuba~=3.8",
-    "bpy>=5.1,<6; python_version == '3.13'",
     "tqdm>=4.66",
     "colorcet>=3.2.1,<4",
     "pygltflib>=1.16.5,<2",
@@ -23,6 +24,12 @@ dependencies=[
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
+# Optional rendering backends. Install with e.g. ``pip install hakowan[mitsuba]``,
+# ``hakowan[blender]``, or ``hakowan[mitsuba,blender]``. The WebGL backend needs
+# no extra. A backend whose dependency is absent simply does not appear in
+# ``hakowan.list_backends()``.
+mitsuba = ["mitsuba~=3.8"]
+blender = ["bpy>=5.1,<6; python_version == '3.13'"]
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
@@ -34,21 +41,95 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
+# Base install: WebGL backend only (no extras). Mitsuba and Blender are added
+# per-feature below, and selected via the ``mitsuba`` / ``blender`` / ``full``
+# environments (e.g. ``pixi shell -e full``).
 hakowan = { path = ".", editable = true }
 
-[tool.pixi.target.osx-arm64.activation.env]
-# macOS only: Mitsuba 3.8 / Dr.Jit 1.3 need a loadable libLLVM at render time even
-# for the scalar_rgb variant (mi.render initializes Dr.Jit's JIT thread state).
-# Dr.Jit dlopens the unversioned name "libLLVM.dylib", but the macOS libllvm18
-# package ships only the versioned "libLLVM-18.dylib", so point Dr.Jit at it
-# explicitly. On linux libllvm18 ships an unversioned "libLLVM.so" that Dr.Jit
-# finds on its own, so no override is needed (and a .dylib path would be wrong).
+# --- Mitsuba backend feature -------------------------------------------------
+[tool.pixi.feature.mitsuba.pypi-dependencies]
+hakowan = { path = ".", editable = true, extras = ["mitsuba"] }
+
+[tool.pixi.feature.mitsuba.dependencies]
+# Mitsuba 3.8 / Dr.Jit 1.3 need a loadable libLLVM at render time (mi.render
+# initializes Dr.Jit's JIT thread state even for the scalar_rgb variant).
+libllvm18 = ">=18.1.8,<19"
+
+[tool.pixi.feature.mitsuba.target.osx-arm64.activation.env]
+# macOS only: Dr.Jit dlopens the unversioned name "libLLVM.dylib", but the macOS
+# libllvm18 package ships only the versioned "libLLVM-18.dylib", so point Dr.Jit
+# at it explicitly. On linux libllvm18 ships an unversioned "libLLVM.so" that
+# Dr.Jit finds on its own, so no override is needed (and a .dylib path would be
+# wrong).
 DRJIT_LIBLLVM_PATH = "$CONDA_PREFIX/lib/libLLVM-18.dylib"
 
+# --- Blender backend feature -------------------------------------------------
+[tool.pixi.feature.blender.pypi-dependencies]
+hakowan = { path = ".", editable = true, extras = ["blender"] }
+
 [tool.pixi.environments]
+# ``default`` is WebGL-only. Pick a heavier backend with ``pixi shell -e <env>``
+# or ``pixi run -e <env> ...``. All share one solve-group so the common deps
+# resolve to identical versions across environments.
 default = { solve-group = "default" }
+mitsuba = { features = ["mitsuba"], solve-group = "default" }
+blender = { features = ["blender"], solve-group = "default" }
+full = { features = ["mitsuba", "blender"], solve-group = "default" }
 
 [tool.pixi.dependencies]
 python = "==3.13"
 pytest = ">=9.0.3,<10"
-libllvm18 = ">=18.1.8,<19"
+# Pinned to a minor range so the enforced lint rule set does not drift when a
+# new ruff is released (a wider range could surface new violations and break CI).
+ruff = ">=0.12,<0.13"
+# Pinned to a minor range so type-checking behavior does not drift unexpectedly.
+mypy = ">=1.19,<1.20"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+# Pyflakes (F) catches real problems — unused/duplicate imports, unused
+# variables, redefinitions. The E4/E7/E9 + W pycodestyle subset covers import
+# placement, ambiguous names, lambda-assignment and syntax/whitespace errors.
+select = ["E4", "E7", "E9", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules guard backend imports behind ``pytest.importorskip`` and
+# platform skips, which must execute *before* those imports — so their
+# module-level imports are intentionally not at the top of the file.
+"tests/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src/hakowan"]
+# Render backends wrap untyped C-extension libraries (mitsuba, drjit, bpy,
+# lagrange, pygltflib, …). Their bundled stubs are absent or invalid (e.g.
+# mitsuba's __init__.pyi has a syntax error), so don't follow into them — treat
+# them as ``Any`` rather than letting a third-party stub error abort analysis.
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mitsuba",
+    "mitsuba.*",
+    "drjit",
+    "drjit.*",
+    "bpy",
+    "bpy.*",
+    "mathutils",
+    "mathutils.*",
+    "lagrange",
+    "lagrange.*",
+    "pygltflib",
+    "pygltflib.*",
+    "tqdm",
+    "tqdm.*",
+    "yaml",
+    "yaml.*",
+]
+follow_imports = "skip"
+# ``follow_imports`` is ignored for stub (.pyi) files unless this is set; needed
+# because mitsuba ships a stub whose syntax error would otherwise abort mypy.
+follow_imports_for_stubs = true
+ignore_missing_imports = true

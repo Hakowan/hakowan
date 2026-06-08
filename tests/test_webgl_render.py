@@ -29,19 +29,44 @@ def _make_icosphere() -> lagrange.SurfaceMesh:
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     verts = np.array(
         [
-            (-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0),
-            (0, -1, phi), (0, 1, phi), (0, -1, -phi), (0, 1, -phi),
-            (phi, 0, -1), (phi, 0, 1), (-phi, 0, -1), (-phi, 0, 1),
+            (-1, phi, 0),
+            (1, phi, 0),
+            (-1, -phi, 0),
+            (1, -phi, 0),
+            (0, -1, phi),
+            (0, 1, phi),
+            (0, -1, -phi),
+            (0, 1, -phi),
+            (phi, 0, -1),
+            (phi, 0, 1),
+            (-phi, 0, -1),
+            (-phi, 0, 1),
         ],
         dtype=np.float64,
     )
     verts = verts / np.linalg.norm(verts, axis=1, keepdims=True)
     tris = np.array(
         [
-            [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-            [2, 11, 10], [4, 5, 11], [9, 1, 5], [8, 7, 1], [6, 10, 7],
-            [4, 9, 5], [9, 8, 1], [8, 6, 7], [6, 2, 10], [2, 4, 11],
-            [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+            [0, 11, 5],
+            [0, 5, 1],
+            [0, 1, 7],
+            [0, 7, 10],
+            [0, 10, 11],
+            [2, 11, 10],
+            [4, 5, 11],
+            [9, 1, 5],
+            [8, 7, 1],
+            [6, 10, 7],
+            [4, 9, 5],
+            [9, 8, 1],
+            [8, 6, 7],
+            [6, 2, 10],
+            [2, 4, 11],
+            [3, 9, 4],
+            [3, 4, 2],
+            [3, 2, 6],
+            [3, 6, 8],
+            [3, 8, 9],
         ],
         dtype=np.uint32,
     )
@@ -64,9 +89,10 @@ class TestEndToEnd:
         out_path = tmp_path / "out.html"
         result = hkw.render(layer, filename=str(out_path), backend="webgl")
         assert out_path.exists()
-        # render() may return a Path or None depending on backend.
-        if result is not None:
-            assert str(result) == str(out_path.resolve())
+        # render() returns a RenderResult; .path is the main output as given.
+        assert isinstance(result, hkw.RenderResult)
+        assert result.path == out_path
+        assert result.backend == "webgl"
 
     def test_filename_suffix_normalised(self, tmp_path):
         layer = (
@@ -91,18 +117,6 @@ class TestEndToEnd:
         assert text.lstrip().startswith("<!DOCTYPE html>")
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
-
-    def test_embed_false_writes_sidecar(self, tmp_path):
-        layer = (
-            hkw.layer(_make_icosphere())
-            .mark(hkw.mark.Surface)
-            .channel(material=hkw.material.Diffuse(reflectance="green"))
-        )
-        out_path = tmp_path / "scene.html"
-        hkw.render(
-            layer, filename=str(out_path), backend="webgl", embed=False
-        )
-        assert (tmp_path / "scene.glb").exists()
 
     def test_glb_round_trips_with_basic_scene(self, tmp_path):
         layer = (
@@ -136,9 +150,7 @@ class TestEndToEnd:
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
         # 3 points × 12 icosphere verts = 36 verts; the position accessor's
         # count should reflect this.
-        positions_acc = gltf.accessors[
-            gltf.meshes[0].primitives[0].attributes.POSITION
-        ]
+        positions_acc = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
         assert positions_acc.count == 36
 
     def test_curve_view_emits_lines_when_no_size(self, tmp_path):
@@ -210,6 +222,87 @@ class TestEndToEnd:
         assert 'RENDER_PASSES = ["albedo", "depth", "normal"]' in html
         assert "function setPass(pass)" in html
         assert 'id="passes"' in html
+
+    def test_checkerboard_uses_non_mipmap_nearest_sampler(self, tmp_path):
+        mesh = lagrange.SurfaceMesh()
+        vertices = np.array(
+            [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64
+        )
+        facets = np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32)
+        mesh.add_vertices(vertices)
+        mesh.add_triangles(facets)
+        mesh.create_attribute(
+            "uv",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.UV,
+            initial_values=np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float64),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.Checkerboard(
+                        uv="uv",
+                        texture1=hkw.texture.Uniform(color="white"),
+                        texture2=hkw.texture.Uniform(color="black"),
+                        size=8,
+                    )
+                )
+            )
+        )
+        out_path = tmp_path / "checker.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        page_html = out_path.read_text(encoding="utf-8")
+        glb = _decode_glb_from_html(page_html)
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        attrs_json = gltf.meshes[0].primitives[0].attributes.to_json()
+        assert "TEXCOORD_0" in attrs_json
+        tex_idx = gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index
+        sampler_idx = gltf.textures[tex_idx].sampler
+        sampler = gltf.samplers[sampler_idx]
+        assert sampler.magFilter == 9728
+        assert sampler.minFilter == 9728
+        assert gltf.materials[0].extras["hakowan"]["checkerboard"] is True
+        base_tex = gltf.materials[0].pbrMetallicRoughness.baseColorTexture
+        assert not base_tex.extensions
+        assert "applyCrispCheckerTextures" in page_html
+
+    def test_isocontour_exports_scalar_attribute_and_shader(self, tmp_path):
+        mesh = _make_icosphere()
+        h = np.asarray(mesh.vertices[:, 1], dtype=np.float64)
+        mesh.create_attribute(
+            "h",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=h,
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.Isocontour(
+                        data=hkw.attribute(name="h"),
+                        num_contours=6,
+                        ratio=0.3,
+                        texture1=hkw.texture.Uniform(color="black"),
+                        texture2=hkw.texture.Uniform(color="white"),
+                    )
+                )
+            )
+        )
+        out_path = tmp_path / "iso.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        html = out_path.read_text(encoding="utf-8")
+        glb = _decode_glb_from_html(html)
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        attrs_json = gltf.meshes[0].primitives[0].attributes.to_json()
+        assert "_scalar_0" in attrs_json
+        iso = gltf.materials[0].extras["hakowan"]["isocontour"]
+        assert iso["num_contours"] == 6
+        # Viewer shader must reference the lowercased glTF attribute name.
+        assert "attribute float _scalar_0" in html
 
     def test_multiview_layer_chain(self, tmp_path):
         sphere = _make_icosphere()

@@ -22,6 +22,29 @@ attr = hkw.attribute(name="normal", scale=hkw.scale.Uniform(factor=2))
 attr = hkw.scale.Attribute(name="normal", scale=hkw.scale.Uniform(factor=2))
 ```
 
+## The `norm()` shorthand
+
+`hkw.norm()` is a convenient shorthand for creating an attribute that represents the per-element
+**magnitude** of a vector field. It builds an `Attribute` carrying a leading [`Norm`](scale.md#norm-scale)
+scale, turning a vector field (e.g. velocity or displacement) into a derived scalar field. The result
+can be used anywhere a scalar attribute is expected, such as the [size channel](channel.md#size-channel)
+(width proportional to magnitude) or a `ScalarField` texture (color by magnitude).
+
+```py
+# These two are equivalent:
+attr = hkw.norm("velocity")
+attr = hkw.attribute("velocity", scale=hkw.scale.Norm())
+
+# An optional scale is applied *after* the norm is computed.
+attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max=0.02))
+
+# The norm order can be customized (default is Euclidean / L2).
+attr = hkw.norm("velocity", order=1)
+
+# Color a surface by the magnitude of a vector field.
+mat = hkw.material.Diffuse(reflectance=hkw.texture.ScalarField(data=hkw.norm("velocity")))
+```
+
 ## Attribute-Like Objects
 
 Many Hakowan functions accept "attribute-like" objects, which can be either:

@@ -1,7 +1,6 @@
 from ...setup.sensor import Sensor, Perspective, Orthographic, ThinLens
 
 import mitsuba as mi
-import numpy as np
 
 
 def generate_sensor_config(sensor: Sensor) -> dict:

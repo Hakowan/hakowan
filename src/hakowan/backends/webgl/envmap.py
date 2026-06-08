@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from ...common import logger
 from ...setup import Config
@@ -139,7 +140,7 @@ env-local frame so the same .exr renders the same way under both backends.
 """
 
 
-def _build_rotation_matrix(rotation_deg: float, up: list[float]) -> np.ndarray:
+def _build_rotation_matrix(rotation_deg: float, up: npt.ArrayLike) -> np.ndarray:
     """Env→world rotation matrix for three.js's env-local frame.
 
     Mirrors Mitsuba's ``to_world = align_y_to(up) @ rotate_y(rotation_deg)``,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 
 import numpy as np
 import pytest
@@ -118,9 +117,7 @@ class TestConductor:
         assert all(0.0 <= c <= 1.0 for c in bc)
 
     def test_rough_conductor_alpha_maps_to_roughness(self):
-        view = _triangle_view(
-            hkw.material.RoughConductor(material="Cu", alpha=0.35)
-        )
+        view = _triangle_view(hkw.material.RoughConductor(material="Cu", alpha=0.35))
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(0.35)
 
@@ -135,19 +132,17 @@ class TestConductor:
         # ScalarField alpha is baked per-vertex; the viewer multiplies it into
         # roughnessFactor (which is set to 1.0 so the multiply is exact).
         assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
-        assert "_ROUGHNESS_0" in result.custom_attrs
-        assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
+        assert "_roughness_0" in result.custom_attrs
+        assert result.custom_attrs["_roughness_0"].shape == (3,)
         assert (
             result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
-            == "_ROUGHNESS_0"
+            == "_roughness_0"
         )
 
 
 class TestPlastic:
     def test_plastic_low_roughness(self):
-        view = _triangle_view(
-            hkw.material.Plastic(diffuse_reflectance="ivory")
-        )
+        view = _triangle_view(hkw.material.Plastic(diffuse_reflectance="ivory"))
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["metallicFactor"] == 0.0
         assert result.pbr["roughnessFactor"] == pytest.approx(0.1)
@@ -177,24 +172,23 @@ class TestPrincipled:
         view = _triangle_view(
             hkw.material.Principled(
                 color=hkw.texture.Uniform(color="silver"),
-                roughness=hkw.texture.ScalarField(
-                    data=hkw.attribute(name="scalar")
-                ),
+                roughness=hkw.texture.ScalarField(data=hkw.attribute(name="scalar")),
                 metallic=0.5,
             )
         )
         result = translate_material(view, GLTFBuilder())
-        assert "_ROUGHNESS_0" in result.custom_attrs
-        assert result.custom_attrs["_ROUGHNESS_0"].shape == (3,)
+        assert "_roughness_0" in result.custom_attrs
+        assert result.custom_attrs["_roughness_0"].shape == (3,)
         assert result.extras is not None
-        assert result.extras["hakowan"]["principled_attrs"]["roughness_attr"] == "_ROUGHNESS_0"
+        assert (
+            result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
+            == "_roughness_0"
+        )
 
 
 class TestTwoSided:
     def test_two_sided_propagates(self):
-        view = _triangle_view(
-            hkw.material.Diffuse(reflectance="red", two_sided=True)
-        )
+        view = _triangle_view(hkw.material.Diffuse(reflectance="red", two_sided=True))
         result = translate_material(view, GLTFBuilder())
         assert result.double_sided is True
 
@@ -234,10 +228,10 @@ class TestDielectric:
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["roughnessFactor"] == pytest.approx(1.0)
         assert result.pbr["transmissionFactor"] == pytest.approx(1.0)
-        assert "_ROUGHNESS_0" in result.custom_attrs
+        assert "_roughness_0" in result.custom_attrs
         assert (
             result.extras["hakowan"]["principled_attrs"]["roughness_attr"]
-            == "_ROUGHNESS_0"
+            == "_roughness_0"
         )
 
     def test_dielectric_with_medium_emits_volume(self):
@@ -270,9 +264,7 @@ class TestImage:
         png = tmp_path / "pink.png"
         _write_temp_png(png, size=(4, 4), color=(255, 0, 200))
         view = _triangle_view(
-            hkw.material.Diffuse(
-                reflectance=hkw.texture.Image(filename=png)
-            )
+            hkw.material.Diffuse(reflectance=hkw.texture.Image(filename=png))
         )
         builder = GLTFBuilder()
         result = translate_material(view, builder)
@@ -296,7 +288,9 @@ class TestCheckerboard:
         builder = GLTFBuilder()
         result = translate_material(view, builder)
         assert "baseColorTextureIndex" in result.pbr
-        assert result.pbr["baseColorTextureScale"] == (5.0, 5.0)
+        assert "baseColorTextureScale" not in result.pbr
+        assert result.extras is not None
+        assert result.extras["hakowan"]["checkerboard"] is True
 
 
 class TestIsocontour:
@@ -320,9 +314,9 @@ class TestIsocontour:
         assert "baseColorTextureScale" not in result.pbr
         assert result.pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
         # Scalar field baked as a per-vertex custom attribute the viewer JS
-        # binds to ``_SCALAR_0``.
-        assert "_SCALAR_0" in result.custom_attrs
-        assert result.custom_attrs["_SCALAR_0"].shape == (3,)
+        # binds to ``_scalar_0`` (lowercase for three.js GLTFLoader).
+        assert "_scalar_0" in result.custom_attrs
+        assert result.custom_attrs["_scalar_0"].shape == (3,)
         # Isocontour parameters land on the material's extras dict.
         assert result.extras is not None
         iso = result.extras["hakowan"]["isocontour"]
@@ -342,3 +336,30 @@ class TestNoMaterial:
         view = View()
         result = translate_material(view, GLTFBuilder())
         assert result.pbr["baseColorFactor"] == [0.5, 0.5, 0.5, 1.0]
+
+
+class TestBackSide:
+    def test_back_side_emits_back_color_and_forces_double_sided(self):
+        view = _triangle_view(
+            hkw.material.Diffuse(
+                "red", back_side=hkw.material.Diffuse(reflectance="blue")
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        # Back color must force double-sided so gl_FrontFacing is meaningful.
+        assert result.double_sided is True
+        assert result.extras is not None
+        back = result.extras["hakowan"]["back"]
+        assert back["color"] == [0.0, 0.0, 1.0]  # blue, linear
+        # Front color is untouched.
+        assert result.pbr["baseColorFactor"] == [1.0, 0.0, 0.0, 1.0]
+
+    def test_back_side_conductor_approximated_to_flat_color(self, caplog):
+        view = _triangle_view(
+            hkw.material.Diffuse("red", back_side=hkw.material.Conductor(material="Au"))
+        )
+        result = translate_material(view, GLTFBuilder())
+        assert result.double_sided is True
+        back_color = result.extras["hakowan"]["back"]["color"]
+        assert len(back_color) == 3
+        assert all(0.0 <= c <= 1.0 for c in back_color)

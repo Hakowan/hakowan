@@ -32,9 +32,7 @@ def _whiteness_arg(value: str) -> float:
     except ValueError:
         raise argparse.ArgumentTypeError(f"whiteness must be a number, got {value!r}")
     if not math.isfinite(v) or not 0.0 <= v <= 1.0:
-        raise argparse.ArgumentTypeError(
-            f"whiteness must be in [0, 1], got {v}"
-        )
+        raise argparse.ArgumentTypeError(f"whiteness must be in [0, 1], got {v}")
     return v
 
 
@@ -70,7 +68,7 @@ def parse_args():
         "--wire-thickness",
         help="Wireframe/seam thickness relative to bbox diagonal",
         type=float,
-        default=0.001,
+        default=0.0005,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
@@ -84,6 +82,12 @@ def parse_args():
         ),
     )
     parser.add_argument("--color", help="Material color", type=str, default="ivory")
+    parser.add_argument(
+        "--back-color",
+        help="Back-face color (enables two-sided rendering with a distinct back material).",
+        type=str,
+        default=None,
+    )
     parser.add_argument(
         "--orient-pca",
         action="store_true",
@@ -186,8 +190,8 @@ def parse_args():
     parser.add_argument(
         "--backend",
         choices=hkw.list_backends(),
-        default="mitsuba",
-        help="Rendering backend to use",
+        default=None,
+        help="Rendering backend to use (default: first available backend)",
     )
     parser.add_argument(
         "--log-level",
@@ -260,7 +264,9 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
-def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0):
+def extract_material(
+    scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
+):
     """
     Extracts materials from a Lagrange scene and converts them to hakowan material objects.
 
@@ -283,7 +289,9 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 im = Image.fromarray(tex_img.image.data).convert("RGBA")
                 im.save(str(tex_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(Path(tex_file), saturation=saturation, whiteness=whiteness),
+                    color=hkw.texture.Image(
+                        Path(tex_file), saturation=saturation, whiteness=whiteness
+                    ),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -308,7 +316,9 @@ def extract_material(scene: lagrange.scene.Scene, saturation: float = 1.0, white
                 im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(
-                    color=hkw.texture.Image(diffuse_file, saturation=saturation, whiteness=whiteness),
+                    color=hkw.texture.Image(
+                        diffuse_file, saturation=saturation, whiteness=whiteness
+                    ),
                     roughness=0.5,
                     metallic=0.0,
                     two_sided=True,
@@ -466,12 +476,36 @@ def save_camera_matrix(data: dict, output_path: Path):
         np.savez(str(out), **data)
 
 
+def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Material":
+    """Build a back-face material matching the front material type but with back_color."""
+    match material_type:
+        case "diffuse":
+            return hkw.material.Diffuse(back_color)
+        case "roughplastic":
+            return hkw.material.RoughPlastic(back_color)
+        case "plastic":
+            return hkw.material.Plastic(back_color)
+        case _:
+            hkw.logger.warning(
+                "--back-color is not supported for material type %r; "
+                "back-face will use Plastic material instead.",
+                material_type,
+            )
+            return hkw.material.Plastic(back_color)
+
+
 def main():
     """
     Entry point for the command-line interface for mesh rendering.
     Parses command-line arguments and orchestrates the mesh rendering process.
     """
     args = parse_args()
+
+    # Resolve the effective backend early so string comparisons below are safe.
+    if args.backend is None:
+        from hakowan.backends import _resolve_default
+
+        args.backend = _resolve_default()
 
     hkw.logger.setLevel(args.log_level.upper())
     lagrange.logger.setLevel(args.log_level.upper())
@@ -497,17 +531,32 @@ def main():
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
+    back_side = (
+        _back_side_material(args.material, args.back_color)
+        if args.back_color is not None
+        else None
+    )
+    two_sided = args.two_sided or (args.back_color is not None)
+
     match args.material:
         case "diffuse":
-            layer = layer.material("Diffuse", args.color, two_sided=args.two_sided)
+            layer = layer.material(
+                "Diffuse", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "plastic":
-            layer = layer.material("Plastic", args.color, two_sided=args.two_sided)
+            layer = layer.material(
+                "Plastic", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "roughplastic":
-            layer = layer.material("RoughPlastic", args.color, two_sided=args.two_sided)
+            layer = layer.material(
+                "RoughPlastic", args.color, two_sided=two_sided, back_side=back_side
+            )
         case "glass":
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
-            layer = embed_texture(args.input_mesh, saturation=args.saturation, whiteness=args.whiteness)
+            layer = embed_texture(
+                args.input_mesh, saturation=args.saturation, whiteness=args.whiteness
+            )
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
@@ -520,7 +569,7 @@ def main():
             layer = layer.material(
                 "Principled",
                 hkw.texture.ScalarField(color_attr_name, colormap="identity"),
-                two_sided=args.two_sided,
+                two_sided=two_sided,
             )
         case "normal":
             normal_attr_ids = mesh.get_matching_attribute_ids(
@@ -558,10 +607,9 @@ def main():
                 hkw.texture.ScalarField(
                     hkw.attribute(normal_attr_name, scale=scale), colormap="identity"
                 ),
-                two_sided=args.two_sided,
+                two_sided=two_sided,
             )
         case "uv":
-            diag_len = bbox_diag
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
             assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
             uv_id = uv_ids[0]
@@ -597,18 +645,25 @@ def main():
                     layer = layer.material(
                         "Principled",
                         color=isoline_texture,
-                        two_sided=args.two_sided,
+                        two_sided=two_sided,
                     )
                 else:
                     layer = layer.material(
                         "Principled",
                         color=scalar_texture,
-                        two_sided=args.two_sided,
+                        two_sided=two_sided,
                     )
             else:
                 texture_file = Path(args.material)
                 assert texture_file.is_file(), f"Texture file {texture_file} not found"
-                layer = layer.material("Principled", hkw.texture.Image(texture_file, saturation=args.saturation, whiteness=args.whiteness))
+                layer = layer.material(
+                    "Principled",
+                    hkw.texture.Image(
+                        texture_file,
+                        saturation=args.saturation,
+                        whiteness=args.whiteness,
+                    ),
+                )
 
     if args.point_cloud:
         assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
@@ -662,7 +717,9 @@ def main():
                     vec_field=vec_field_attr,
                     cross_field=is_cross,
                     n=args.streamline_seeds,
-                    length=args.streamline_length * bbox_diag if args.streamline_length is not None else None,
+                    length=args.streamline_length * bbox_diag
+                    if args.streamline_length is not None
+                    else None,
                 )
             )
             .mark("Curve")
@@ -817,8 +874,10 @@ def main():
             # The webgl backend always lands at <stem>.html (even when the
             # user passed a .png filename, render() rewrites the suffix).
             # Trust the backend's returned path when available.
-            opened_path = Path(result) if isinstance(result, (str, Path)) else (
-                output_file.with_suffix(".html")
+            opened_path = (
+                Path(result)
+                if isinstance(result, (str, Path))
+                else (output_file.with_suffix(".html"))
             )
             webbrowser.open(opened_path.resolve().as_uri())
     else:

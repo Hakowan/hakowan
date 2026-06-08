@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-import lagrange
 import numpy as np
 
 from ...common import logger
@@ -31,22 +30,47 @@ from .material_translate import translate_material
 @lru_cache(maxsize=4)
 def _icosphere(refinement: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(positions, normals, triangles)`` for a unit icosphere."""
-    phi = (1.0 + 5 ** 0.5) / 2.0
+    phi = (1.0 + 5**0.5) / 2.0
     verts = np.array(
         [
-            (-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0),
-            (0, -1, phi), (0, 1, phi), (0, -1, -phi), (0, 1, -phi),
-            (phi, 0, -1), (phi, 0, 1), (-phi, 0, -1), (-phi, 0, 1),
+            (-1, phi, 0),
+            (1, phi, 0),
+            (-1, -phi, 0),
+            (1, -phi, 0),
+            (0, -1, phi),
+            (0, 1, phi),
+            (0, -1, -phi),
+            (0, 1, -phi),
+            (phi, 0, -1),
+            (phi, 0, 1),
+            (-phi, 0, -1),
+            (-phi, 0, 1),
         ],
         dtype=np.float64,
     )
     verts = verts / np.linalg.norm(verts, axis=1, keepdims=True)
     tris = np.array(
         [
-            [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-            [2, 11, 10], [4, 5, 11], [9, 1, 5], [8, 7, 1], [6, 10, 7],
-            [4, 9, 5], [9, 8, 1], [8, 6, 7], [6, 2, 10], [2, 4, 11],
-            [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+            [0, 11, 5],
+            [0, 5, 1],
+            [0, 1, 7],
+            [0, 7, 10],
+            [0, 10, 11],
+            [2, 11, 10],
+            [4, 5, 11],
+            [9, 1, 5],
+            [8, 7, 1],
+            [6, 10, 7],
+            [4, 9, 5],
+            [9, 8, 1],
+            [8, 6, 7],
+            [6, 2, 10],
+            [2, 4, 11],
+            [3, 9, 4],
+            [3, 4, 2],
+            [3, 2, 6],
+            [3, 6, 8],
+            [3, 8, 9],
         ],
         dtype=np.uint32,
     )
@@ -111,9 +135,12 @@ def _cube() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # normal without sharing across edges.
     face_normals = np.array(
         [
-            [1, 0, 0], [-1, 0, 0],
-            [0, 1, 0], [0, -1, 0],
-            [0, 0, 1], [0, 0, -1],
+            [1, 0, 0],
+            [-1, 0, 0],
+            [0, 1, 0],
+            [0, -1, 0],
+            [0, 0, 1],
+            [0, 0, -1],
         ],
         dtype=np.float32,
     )
@@ -230,9 +257,7 @@ def _orientation_matrices(view: View, n: int) -> np.ndarray | None:
     name = sc.orientation._internal_name
     assert name is not None
     assert view.data_frame is not None
-    normals = np.asarray(
-        view.data_frame.mesh.attribute(name).data, dtype=np.float32
-    )
+    normals = np.asarray(view.data_frame.mesh.attribute(name).data, dtype=np.float32)
     if normals.shape[0] != n:
         logger.warning(
             f"WebGL backend: orientation attribute length {normals.shape[0]} "
@@ -291,9 +316,7 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     mesh = view.data_frame.mesh
 
     base_shape = (
-        view.shape_channel.base_shape
-        if view.shape_channel is not None
-        else "sphere"
+        view.shape_channel.base_shape if view.shape_channel is not None else "sphere"
     )
     if base_shape not in _BASE_SHAPE_BUILDERS:
         logger.warning(
@@ -319,9 +342,7 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
         linear = covariances * sizes[:, None, None]  # (N, 3, 3)
     else:
         rotations = _orientation_matrices(view, n_points)
-        linear = (
-            rotations * sizes[:, None, None] if rotations is not None else None
-        )
+        linear = rotations * sizes[:, None, None] if rotations is not None else None
 
     base_positions, base_normals, base_tris = _BASE_SHAPE_BUILDERS[base_shape]()
     n_base_verts = base_positions.shape[0]
@@ -331,12 +352,15 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     if linear is None:
         # Uniform scale only — the fast path.
         pos = (
-            base_positions[None, :, :] * sizes[:, None, None]
-            + centers[:, None, :]
-        ).reshape(-1, 3).astype(np.float32)
-        nor = np.broadcast_to(
-            base_normals[None, :, :], (n_points, n_base_verts, 3)
-        ).reshape(-1, 3).astype(np.float32)
+            (base_positions[None, :, :] * sizes[:, None, None] + centers[:, None, :])
+            .reshape(-1, 3)
+            .astype(np.float32)
+        )
+        nor = (
+            np.broadcast_to(base_normals[None, :, :], (n_points, n_base_verts, 3))
+            .reshape(-1, 3)
+            .astype(np.float32)
+        )
     else:
         # out = (L @ base) + center, with L (N,3,3) the per-point linear map.
         transformed = np.einsum("nij,kj->nki", linear, base_positions)

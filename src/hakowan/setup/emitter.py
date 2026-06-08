@@ -2,6 +2,7 @@ from ..common.color import Color
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import numpy.typing as npt
 
 
 @dataclass(kw_only=True, slots=True)
@@ -39,5 +40,5 @@ class Envmap(Emitter):
         default_factory=lambda: Path(__file__).parents[1] / "envmaps" / "museum.exr"
     )
     scale: float = 1.0
-    up: list = field(default_factory=lambda: [0, 1, 0])
+    up: npt.ArrayLike = field(default_factory=lambda: [0, 1, 0])
     rotation: float = 180.0

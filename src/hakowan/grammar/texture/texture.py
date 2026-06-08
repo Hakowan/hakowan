@@ -5,6 +5,17 @@ from typing import TypeAlias
 from ...common.color import ColorLike
 from ..scale import Attribute, AttributeLike
 
+__all__ = [
+    "Texture",
+    "TextureLike",
+    "ScalarTextureLike",
+    "Uniform",
+    "Image",
+    "Checkerboard",
+    "Isocontour",
+    "ScalarField",
+]
+
 
 @dataclass(kw_only=True, slots=True)
 class Texture:
@@ -15,6 +26,18 @@ class Texture:
 
 TextureLike: TypeAlias = ColorLike | Texture
 """TextureLike is a type alias for a texture or color."""
+
+
+ScalarTextureLike: TypeAlias = float | int | Texture
+"""Type alias for a scalar-valued-or-texture quantity (e.g. roughness, metallic, alpha).
+
+Unlike `TextureLike`, this deliberately does **not** accept general color-like values
+(color-name strings, RGB tuples/lists), because these fields encode a scalar quantity
+rather than a color.
+
+* A float is used as a constant scalar value.
+* A `Texture` object provides a spatially-varying value.
+"""
 
 
 @dataclass(slots=True)
@@ -105,5 +128,3 @@ class ScalarField(Texture):
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
     categories: bool = False
-
-

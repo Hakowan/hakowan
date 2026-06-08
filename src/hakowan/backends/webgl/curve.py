@@ -95,9 +95,7 @@ def _refine_barycentric(
         if b0 + b1 + b2 != n:
             continue
         d = (
-            data[facets[:, 0]] * b0
-            + data[facets[:, 1]] * b1
-            + data[facets[:, 2]] * b2
+            data[facets[:, 0]] * b0 + data[facets[:, 1]] * b1 + data[facets[:, 2]] * b2
         ) / n
         out.append(d)
     return np.vstack(out).astype(np.float32)
@@ -137,13 +135,13 @@ def _extract_vector_field(view: View) -> _SegmentData:
     elif element_type == lagrange.AttributeElement.Facet:
         centroid_attr_id = lagrange.compute_facet_centroid(mesh)
         base = np.asarray(
-            mesh.attribute(centroid_attr_id).data, dtype=np.float32  # type: ignore
+            mesh.attribute(centroid_attr_id).data,
+            dtype=np.float32,  # type: ignore
         )
         per_vertex_size = _resolve_facet_size(view, mesh.num_facets)
     else:
         logger.warning(
-            f"WebGL backend: vector field element type {element_type} not "
-            "supported."
+            f"WebGL backend: vector field element type {element_type} not supported."
         )
         return _SegmentData(np.zeros((0, 3), dtype=np.float32), None, None)
 
@@ -159,16 +157,16 @@ def _extract_vector_field(view: View) -> _SegmentData:
         endpoints[1::4] = stem
         endpoints[2::4] = stem
         endpoints[3::4] = tip
-        sizes[0::4] = per_vertex_size                # shaft base
-        sizes[1::4] = per_vertex_size                # shaft end
-        sizes[2::4] = 2.0 * per_vertex_size          # cone base
-        sizes[3::4] = 0.0                             # cone tip
+        sizes[0::4] = per_vertex_size  # shaft base
+        sizes[1::4] = per_vertex_size  # shaft end
+        sizes[2::4] = 2.0 * per_vertex_size  # cone base
+        sizes[3::4] = 0.0  # cone tip
         if element_type == lagrange.AttributeElement.Vertex:
             base_idx = np.arange(base.shape[0], dtype=np.uint32)
             vertex_idx = np.repeat(base_idx, 4)
         else:
             vertex_idx = None
-    else:
+    else:  # "point" and "flat" both render as a plain constant-radius tube in WebGL
         endpoints = np.empty((base.shape[0] * 2, 3), dtype=np.float32)
         endpoints[0::2] = base
         endpoints[1::2] = tip
@@ -315,9 +313,7 @@ def _extract_segments(view: View) -> _SegmentData:
     return _extract_mesh_edges(view)
 
 
-def _segment_colors(
-    view: View, vertex_idx: np.ndarray | None
-) -> np.ndarray | None:
+def _segment_colors(view: View, vertex_idx: np.ndarray | None) -> np.ndarray | None:
     if vertex_idx is None:
         return None
     color_name = _find_color_field_name(view)

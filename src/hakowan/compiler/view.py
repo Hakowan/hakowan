@@ -12,7 +12,7 @@ from ..grammar.channel import (
 from ..grammar.channel.material import Material
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
-from ..grammar.scale import Attribute
+from ..grammar.scale import Attribute, Norm, to_attribute
 from ..grammar.transform import Transform
 from ..common import logger
 
@@ -183,9 +183,7 @@ class View:
     def position_channel(self, channel: Position):
         assert self.data_frame is not None
         assert isinstance(channel, Position)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -205,9 +203,7 @@ class View:
     def normal_channel(self, channel: Normal):
         assert self.data_frame is not None
         assert isinstance(channel, Normal)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
@@ -227,8 +223,14 @@ class View:
     def size_channel(self, channel: Size):
         assert isinstance(channel, Size)
 
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
+        # ``bool`` is a subclass of ``int``; reject it explicitly so e.g.
+        # ``size=True`` is a clear error rather than silently becoming 1.0.
+        if isinstance(channel.data, bool):
+            raise TypeError(f"Unsupported size type: {type(channel.data)}!")
+        if isinstance(channel.data, int):
+            channel.data = float(channel.data)
+        elif not isinstance(channel.data, float):
+            channel.data = to_attribute(channel.data)
         assert isinstance(channel.data, (Attribute, float))
 
         match channel.data:
@@ -242,7 +244,10 @@ class View:
                 else:
                     size_attr = mesh.attribute(attr.name)
 
-                assert size_attr.num_channels == 1
+                # A `Norm` scale reduces a vector attribute to a scalar
+                # magnitude field, so the raw source may have >1 channels.
+                if not isinstance(attr.scale, Norm):
+                    assert size_attr.num_channels == 1
 
         self._size_channel = channel
 
@@ -253,9 +258,7 @@ class View:
     @vector_field_channel.setter
     def vector_field_channel(self, channel: VectorField):
         assert isinstance(channel, VectorField)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         self._vector_field_channel = channel
 
     @property
@@ -265,9 +268,7 @@ class View:
     @covariance_channel.setter
     def covariance_channel(self, channel: Covariance):
         assert isinstance(channel, Covariance)
-        if isinstance(channel.data, str):
-            channel.data = Attribute(name=channel.data)
-        assert isinstance(channel.data, Attribute)
+        channel.data = to_attribute(channel.data)
         self._covariance_channel = channel
 
     @property

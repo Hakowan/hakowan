@@ -12,11 +12,12 @@ def generate_medium_config(view: View) -> dict[str, Any]:
     assert view.material_channel.medium is not None
     albedo = view.material_channel.medium.albedo
     scale = view.material_channel.medium.scale
+    albedo_config: Any
     match albedo:
         case float() | int():
-            albedo = float(albedo)
+            albedo_config = float(albedo)
         case str() | list() | tuple():
-            albedo = generate_color_config(albedo)
+            albedo_config = generate_color_config(albedo)
         case _:
             raise NotImplementedError(f"Unsupported albedo type: {type(albedo)}")
 
@@ -24,6 +25,6 @@ def generate_medium_config(view: View) -> dict[str, Any]:
     bbox_diag = scale * norm(view.bbox[0] - view.bbox[1])
     return {
         "type": "homogeneous",
-        "albedo": albedo,
+        "albedo": albedo_config,
         "scale": bbox_diag,
     }

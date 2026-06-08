@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 import numpy as np
-import numpy.typing as npt
 from numpy.linalg import norm
 
 from .view import View

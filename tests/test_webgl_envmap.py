@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 
 from hakowan.backends.webgl.envmap import (
     _align_y_to,
@@ -102,15 +101,15 @@ class TestBuildRotationMatrix:
         # At 90° the azimuth offset cancels, so both orderings accidentally
         # produce the same matrix — confirm they agree here.
         R_correct = _build_rotation_matrix(90.0, [0, 0, 1])
-        R_wrong = _rotate_y(
-            math.radians(90.0) + (-math.pi / 2)
-        ) @ _align_y_to(np.array([0, 0, 1]))
+        R_wrong = _rotate_y(math.radians(90.0) + (-math.pi / 2)) @ _align_y_to(
+            np.array([0, 0, 1])
+        )
         assert np.allclose(R_correct, R_wrong)
         # At 45° there is no cancellation — the two orderings must differ.
         R_correct = _build_rotation_matrix(45.0, [0, 0, 1])
-        R_wrong = _rotate_y(
-            math.radians(45.0) + (-math.pi / 2)
-        ) @ _align_y_to(np.array([0, 0, 1]))
+        R_wrong = _rotate_y(math.radians(45.0) + (-math.pi / 2)) @ _align_y_to(
+            np.array([0, 0, 1])
+        )
         assert not np.allclose(R_correct, R_wrong)
 
 

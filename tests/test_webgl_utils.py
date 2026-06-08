@@ -82,8 +82,20 @@ class TestGltfMatrix:
         flat = gltf_matrix(m)
         # glTF wants column-major: [m00, m10, m20, m30, m01, m11, ...]
         assert flat == [
-            1, 5, 9, 13,
-            2, 6, 10, 14,
-            3, 7, 11, 15,
-            4, 8, 12, 16,
+            1,
+            5,
+            9,
+            13,
+            2,
+            6,
+            10,
+            14,
+            3,
+            7,
+            11,
+            15,
+            4,
+            8,
+            12,
+            16,
         ]
