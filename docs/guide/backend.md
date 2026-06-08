@@ -87,6 +87,25 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
+## Render result
+
+Regardless of backend, `hkw.render()` returns a `RenderResult`:
+
+```py
+result = hkw.render(layer, filename="output.png")
+
+result.path       # main output path, or None if no filename was given
+result.image      # in-memory image (Mitsuba only); None for Blender/WebGL
+result.outputs    # manifest: {"main": ..., "<pass>": <path or "interactive">}
+result.backend    # name of the backend that produced the result
+```
+
+`result.outputs` lists every artifact the render produced, including per-pass
+sidecars (see [render passes](config.md#render-passes)). A `RenderResult` is
+also path-like, so it can be passed straight to `open()` or `pathlib.Path`
+when a main output file was written. For notebook display, use `result.image`
+(Mitsuba).
+
 ## Backend Management
 
 ### List Available Backends

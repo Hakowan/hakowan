@@ -33,7 +33,13 @@ class RenderBackend(ABC):
         filename: Path | str | None = None,
         **kwargs,
     ) -> Any:
-        """Render the scene and return the image.
+        """Render the scene and return the backend's primary artifact.
+
+        Returns whatever the backend produces natively: an in-memory image
+        (Mitsuba), an output path (WebGL), or ``None`` (Blender). The public
+        :func:`hakowan.render` wraps this into a
+        :class:`~hakowan.render.RenderResult` together with the output
+        manifest, so end users see a uniform return type.
 
         Args:
             scene: Compiled scene to render.
@@ -42,7 +48,7 @@ class RenderBackend(ABC):
             **kwargs: Backend-specific options.
 
         Returns:
-            Rendered image (format depends on backend).
+            The backend's primary artifact (image, path, or ``None``).
         """
         pass
 

@@ -28,7 +28,15 @@ class Config:
 
             The convenience properties :attr:`albedo`, :attr:`depth`,
             :attr:`normal`, and :attr:`facet_id` are thin aliases that add or
-            remove the corresponding string from this set.
+            remove the corresponding string from this set.  Assigning an
+            unrecognised pass name raises :class:`ValueError` (validated against
+            :data:`hakowan.setup.render_pass.RENDER_PASSES`).
+
+            Backend support varies: requesting a pass the chosen backend cannot
+            honor logs a warning and is otherwise ignored.  Each honored pass is
+            written to a ``<stem>_<pass><ext>`` sidecar file (or exposed as a
+            live viewer toggle for WebGL); see
+            :class:`hakowan.render.RenderResult` for the per-render manifest.
     """
 
     sensor: Sensor = field(default_factory=Perspective)
@@ -160,8 +168,8 @@ class Config:
         zero-based index (R = high byte, G = mid byte, B = low byte) using a
         flat Emission shader so lighting has no effect.  The output is written
         to ``<stem>_facet_id<ext>`` with gamma correction, temporal blending,
-        and pixel filtering all disabled so pixel values can be decoded
-        directly::
+        pixel filtering, and dithering all disabled so pixel values can be
+        decoded directly::
 
             fid = (R << 16) | (G << 8) | B
 

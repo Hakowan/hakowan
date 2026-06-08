@@ -48,8 +48,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         - **albedo / depth / normal** – extracted from view-layer passes via
           the Blender compositor in the *same* render call.
         - **facet_id** – a second, independent render pass using flat
-          Emission shaders and EEVEE (no gamma, no AA).  Written to
-          ``<stem>_facet_id<ext>``.
+          Emission shaders and EEVEE, rendered losslessly (no gamma, AA,
+          pixel filtering, or dithering).  Written to ``<stem>_facet_id<ext>``.
 
         Args:
             scene: Compiled scene (iterable of :class:`View` objects).
