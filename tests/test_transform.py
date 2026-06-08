@@ -240,3 +240,77 @@ class TestStreamlineCompiler:
         assert out.num_vertices > 0
         assert out.num_facets > 0
         assert out.has_attribute("_hakowan_streamline_id")
+
+    def _make_tent_mesh(self):
+        """A strip folded 90° along a ridge, with a per-facet field flowing
+        across the ridge. The flat half lies in z=0 (field +x); the wall half is
+        vertical at x=1 (field +z). A streamline crossing the ridge therefore
+        bends ~90° in 3D — the crease/kink scenario.
+        """
+        ny = 6
+        verts = []
+        idx = {}
+
+        def add(key, p):
+            idx[key] = len(verts)
+            verts.append(p)
+
+        for j in range(ny + 1):
+            y = j / ny
+            add(("flat", 0, j), [0.0, y, 0.0])
+            add(("flat", 1, j), [1.0, y, 0.0])  # ridge line at x=1
+            add(("wall", 1, j), [1.0, y, 1.0])  # top of the vertical wall
+
+        tris = []
+        field = []
+        for j in range(ny):
+            a, b = idx[("flat", 0, j)], idx[("flat", 1, j)]
+            c, d = idx[("flat", 1, j + 1)], idx[("flat", 0, j + 1)]
+            tris += [[a, b, c], [a, c, d]]
+            field += [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]  # flow +x toward ridge
+            e, f = idx[("flat", 1, j)], idx[("wall", 1, j)]
+            g, h = idx[("wall", 1, j + 1)], idx[("flat", 1, j + 1)]
+            tris += [[e, f, g], [e, g, h]]
+            field += [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]  # flow +z up the wall
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array(verts, dtype=np.float64))
+        mesh.add_triangles(np.array(tris, dtype=np.uint32))
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(field, dtype=np.float64),
+        )
+        return mesh
+
+    @staticmethod
+    def _max_turn_deg(out):
+        """Largest angle (deg) between consecutive segments of any streamline."""
+        if out.num_vertices == 0:
+            return 0.0
+        ids = np.asarray(out.attribute("_hakowan_streamline_id").data)
+        V = np.asarray(out.vertices)
+        worst = 0.0
+        for sid in np.unique(ids):
+            pts = V[ids == sid]
+            if len(pts) < 3:
+                continue
+            seg = np.diff(pts, axis=0)
+            seg = seg / np.maximum(np.linalg.norm(seg, axis=1, keepdims=True), 1e-20)
+            dots = np.einsum("ij,ij->i", seg[:-1], seg[1:]).clip(-1, 1)
+            worst = max(worst, float(np.degrees(np.arccos(dots)).max()))
+        return worst
+
+    def test_crease_bends_geometry_not_reversal(self):
+        # Tracing across the 90° fold yields a ~90° turn in the 3D-embedded
+        # polyline — that is faithful surface geometry (the transported tangent
+        # is continuous; only the embedding folds). What must NOT happen is a
+        # backward reversal (~180°): the forward-direction check guarantees every
+        # emitted segment advances along the travel direction. The tent's only
+        # sharp feature is the 90° crease, so a >150° turn would flag the
+        # backward-crossing bug.
+        mesh = self._make_tent_mesh()
+        out = _compute_streamlines(mesh, "vec", n=20, cross_field=False, min_length=2)
+        assert out.num_vertices > 0
+        assert self._max_turn_deg(out) < 150.0

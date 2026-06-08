@@ -301,17 +301,30 @@ def _trace_half(
             if abs(vals[k]) < 1e-10:
                 vals[k] = 1e-10
 
+        # Pick the exit edge. The sign change of ``vals`` (perpendicular
+        # distance) marks where the *infinite* line through ``p`` along ``±d``
+        # crosses an edge, so we must keep only the *forward* crossing
+        # (``dot(exit - p, d) > 0``) and, of those, the nearest one. Without the
+        # forward test a near-vertex / sliver crossing can select the backward
+        # intersection, which makes the streamline jump straight backwards
+        # (a 180° reversal).
         exit_local = -1
         exit_pt: npt.NDArray | None = None
+        best_fwd = np.inf
         for k in range(3):
             if k == entry_local:
                 continue
             a, b = k, (k + 1) % 3
             if vals[a] * vals[b] < 0:
                 t = vals[a] / (vals[a] - vals[b])
-                exit_local = k
-                exit_pt = vertices[vi[a]] + t * (vertices[vi[b]] - vertices[vi[a]])
-                break
+                cand = vertices[vi[a]] + t * (vertices[vi[b]] - vertices[vi[a]])
+                fwd = float(np.dot(cand - p, d))
+                if fwd <= 0.0:
+                    continue  # backward crossing — skip
+                if fwd < best_fwd:
+                    best_fwd = fwd
+                    exit_local = k
+                    exit_pt = cand
 
         if exit_local < 0 or exit_pt is None:
             break
