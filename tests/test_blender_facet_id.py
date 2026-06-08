@@ -238,3 +238,41 @@ def test_facet_id_matches_raycast(tmp_path):
     assert rendered == set(range(num_facets)), (
         f"missing facet ids: {set(range(num_facets)) - rendered}"
     )
+
+
+def test_lossless_render_state_applies_and_restores():
+    """The discrete-pass lossless context must zero AA/filter/dither and
+    restore every touched setting on exit (no render needed)."""
+    from hakowan.backends.blender.render import BlenderBackend
+
+    backend = BlenderBackend()
+    backend._clear_scene()
+    scene = bpy.context.scene
+
+    # Seed deliberately "lossy" settings to prove they are restored.
+    scene.render.filter_size = 1.5
+    scene.render.dither_intensity = 0.7
+    scene.view_settings.view_transform = "Standard"
+    before = (
+        scene.render.engine,
+        scene.render.filter_size,
+        scene.render.dither_intensity,
+        scene.view_settings.view_transform,
+        scene.eevee.taa_render_samples,
+    )
+
+    with backend._lossless_render_state():
+        assert scene.render.engine == "BLENDER_EEVEE"
+        assert scene.render.filter_size == 0.0
+        assert scene.render.dither_intensity == 0.0
+        assert scene.view_settings.view_transform == "Raw"
+        assert scene.eevee.taa_render_samples == 1
+
+    after = (
+        scene.render.engine,
+        scene.render.filter_size,
+        scene.render.dither_intensity,
+        scene.view_settings.view_transform,
+        scene.eevee.taa_render_samples,
+    )
+    assert before == after

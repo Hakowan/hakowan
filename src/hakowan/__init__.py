@@ -10,7 +10,12 @@ from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
 from .compiler import compile
-from .render import render, set_default_backend, list_backends
+from .render import (
+    render,
+    RenderResult,
+    set_default_backend,
+    list_backends,
+)
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
 # bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
@@ -65,6 +70,7 @@ __all__ = [
     "norm",
     "compile",
     "render",
+    "RenderResult",
     "set_default_backend",
     "list_backends",
 ]

@@ -7,6 +7,7 @@ from .render_pass import (
     FACET_ID,
     RENDER_PASSES,
     get_render_pass,
+    aov_path,
 )
 
 from . import emitter
@@ -25,6 +26,7 @@ __all__ = [
     "FACET_ID",
     "RENDER_PASSES",
     "get_render_pass",
+    "aov_path",
     "emitter",
     "film",
     "integrator",

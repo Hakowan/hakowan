@@ -2,7 +2,9 @@
 
 from ...common import logger
 from ...setup import Config
+from ...setup.render_pass import FACET_ID, aov_path
 
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 import numpy as np
 
@@ -81,6 +83,54 @@ class _SceneMixin:
             obj.data.materials.clear()
             obj.data.materials.append(mat)
 
+    @contextmanager
+    def _lossless_render_state(self):
+        """Temporarily force deterministic, lossless rasterisation.
+
+        Discrete integer-ID passes (:attr:`RenderPass.discrete`) encode data in
+        exact pixel values, so they must render without any process that
+        perturbs those values.  This context manager disables them all and
+        restores every touched setting on exit:
+
+        - **Engine**: ``BLENDER_EEVEE`` — deterministic rasterisation, no
+          path-tracing noise.
+        - **TAA samples**: 1 — disables temporal anti-aliasing / blending.
+        - **Pixel filter** (``filter_size``): 0.0 — no Gaussian spread across
+          pixel boundaries.
+        - **View transform**: ``"Raw"`` — bypasses all gamma and tone-mapping
+          so pixel channel values equal the stored linear float values.
+        - **Dither intensity**: 0.0 — prevents ±1 byte noise on 8-bit output.
+
+        Keeping this state in one place means any future discrete pass renders
+        losslessly by construction — the bug class (e.g. dithering corrupting
+        IDs) cannot silently return.
+        """
+        scene = bpy.context.scene
+        r = scene.render
+        vs = scene.view_settings
+        saved = (
+            r.engine,
+            r.filter_size,
+            r.dither_intensity,
+            vs.view_transform,
+            scene.eevee.taa_render_samples,
+        )
+        r.engine = "BLENDER_EEVEE"
+        scene.eevee.taa_render_samples = 1
+        r.filter_size = 0.0
+        vs.view_transform = "Raw"
+        r.dither_intensity = 0.0
+        try:
+            yield
+        finally:
+            (
+                r.engine,
+                r.filter_size,
+                r.dither_intensity,
+                vs.view_transform,
+                scene.eevee.taa_render_samples,
+            ) = saved
+
     def _render_facet_id_pass(self, filename: Path):
         """Perform a second Blender render that writes per-facet ID colors.
 
@@ -90,21 +140,11 @@ class _SceneMixin:
         The output file is placed next to *filename* with a ``_facet_id``
         suffix, e.g. ``bust.png`` → ``bust_facet_id.png``.
 
-        The following settings are applied exclusively for this pass and
-        restored afterward so they do not affect any subsequent call:
-
-        - **Engine**: ``BLENDER_EEVEE`` — deterministic rasterisation, no
-          path-tracing noise.
-        - **TAA samples**: 1 — disables temporal anti-aliasing / blending.
-        - **Pixel filter** (``filter_size``): 0.0 — no Gaussian spread across
-          pixel boundaries.
-        - **View transform**: ``"Raw"`` — bypasses all gamma and tone-mapping
-          so pixel channel values equal the stored linear float values.
-        - **Dither intensity**: 0.0 — prevents ±1 byte noise from corrupting
-          the exact 24-bit RGB facet-ID encoding on 8-bit output.
-        - **Compositor node group**: ``None`` — disconnects the compositor so
-          albedo / depth / normal file-output nodes are not re-triggered and
-          do not overwrite the outputs from the main render.
+        ``facet_id`` is a discrete (integer-ID) pass, so the render runs inside
+        :meth:`_lossless_render_state` — the lossless settings are a property of
+        :attr:`RenderPass.discrete`, not hardcoded here.  The compositor is also
+        disconnected so the main render's albedo/depth/normal file-output nodes
+        are not re-triggered by this second render.
 
         Args:
             filename: Main output image path used to derive the facet-ID
@@ -115,42 +155,22 @@ class _SceneMixin:
         # Override materials with flat facet-ID emission shaders.
         self._setup_facet_id_mode()
 
-        # Save engine / filter / color-management / compositor state.
-        prev_engine = scene.render.engine
-        prev_filter = scene.render.filter_size
-        prev_transform = scene.view_settings.view_transform
-        prev_compositor = scene.compositing_node_group
-        prev_taa_samples = scene.eevee.taa_render_samples
-        prev_dither = scene.render.dither_intensity
-
-        scene.render.engine = "BLENDER_EEVEE"
-        scene.eevee.taa_render_samples = 1
-        scene.render.filter_size = 0.0
-        scene.view_settings.view_transform = "Raw"
-        # Disable dithering so the exact 24-bit RGB facet-ID encoding is not
-        # perturbed by ±1 byte noise when quantised to 8-bit PNG channels.
-        scene.render.dither_intensity = 0.0
-        # Disconnect the compositor so albedo/depth/normal passes are not
-        # re-rendered and do not overwrite the outputs from the main render.
-        scene.compositing_node_group = None
-
-        # Derive output path: <stem>_facet_id<suffix>
-        facet_id_path = filename.parent / (
-            filename.stem + "_facet_id" + filename.suffix
-        )
+        facet_id_path = aov_path(filename, FACET_ID)
         scene.render.filepath = str(facet_id_path.resolve())
 
-        logger.info("Rendering facet-ID pass...")
-        bpy.ops.render.render(write_still=True)
-        logger.info(f"Facet-ID pass saved to {facet_id_path}")
-
-        # Restore render settings and compositor for any subsequent operations.
-        scene.render.engine = prev_engine
-        scene.render.filter_size = prev_filter
-        scene.view_settings.view_transform = prev_transform
-        scene.compositing_node_group = prev_compositor
-        scene.eevee.taa_render_samples = prev_taa_samples
-        scene.render.dither_intensity = prev_dither
+        # Disconnect the compositor so the main render's albedo/depth/normal
+        # file-output nodes are not re-triggered by this second render.
+        prev_compositor = scene.compositing_node_group
+        scene.compositing_node_group = None
+        try:
+            logger.info("Rendering facet-ID pass...")
+            # Lossless render iff the pass is discrete (always true for facet_id).
+            ctx = self._lossless_render_state() if FACET_ID.discrete else nullcontext()
+            with ctx:
+                bpy.ops.render.render(write_still=True)
+            logger.info(f"Facet-ID pass saved to {facet_id_path}")
+        finally:
+            scene.compositing_node_group = prev_compositor
 
     def _setup_camera(self, config: Config):
         """Setup Blender camera from config.

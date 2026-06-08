@@ -8,7 +8,7 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 from ...common import logger
 from ...compiler import Scene, View
 from ...setup import Config
-from ...setup.render_pass import ALBEDO, DEPTH, NORMAL
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
 from ...grammar import mark
 from .. import RenderBackend
 
@@ -258,22 +258,13 @@ class MitsubaBackend(RenderBackend):
             save_image(image, filename)
 
             if config.albedo and albedo_offset is not None:
-                albedo_filename = filename.with_name(
-                    filename.stem + "_albedo" + filename.suffix
-                )
-                save_image(albedo_image, albedo_filename)
+                save_image(albedo_image, aov_path(filename, ALBEDO))
 
             if config.depth and depth_offset is not None:
-                depth_filename = filename.with_name(
-                    filename.stem + "_depth" + filename.suffix
-                )
-                save_image(depth_image, depth_filename)
+                save_image(depth_image, aov_path(filename, DEPTH))
 
             if config.normal and normal_offset is not None:
-                normal_filename = filename.with_name(
-                    filename.stem + "_normal" + filename.suffix
-                )
                 # Packed normals are linear data, not colour — save without gamma.
-                save_image(normal_image, normal_filename, srgb_gamma=False)
+                save_image(normal_image, aov_path(filename, NORMAL), srgb_gamma=False)
 
         return image

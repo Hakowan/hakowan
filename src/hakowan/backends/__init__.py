@@ -19,6 +19,12 @@ class RenderBackend(ABC):
     #: pass is never silently dropped. Empty by default (supports no passes).
     SUPPORTED_PASSES: frozenset[RenderPass] = frozenset()
 
+    #: How render passes are delivered. ``"file"`` (default) writes one sidecar
+    #: image per pass next to the main output; ``"interactive"`` exposes passes
+    #: live inside a viewer (no per-pass files). Used to build the output
+    #: manifest reported in :class:`~hakowan.render.RenderResult.outputs`.
+    PASS_DELIVERY: str = "file"
+
     @abstractmethod
     def render(
         self,

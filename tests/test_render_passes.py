@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -10,7 +11,9 @@ import lagrange
 
 import hakowan as hkw
 from hakowan.setup import render_pass as rp
+from hakowan.backends import RenderBackend
 from hakowan.backends.webgl.render import WebGLBackend
+from hakowan.render import _manifest_for
 
 
 class TestRegistry:
@@ -36,6 +39,100 @@ class TestCapabilities:
         names = {p.name for p in WebGLBackend.SUPPORTED_PASSES}
         assert names == {"albedo", "depth", "normal"}
         assert rp.FACET_ID not in WebGLBackend.SUPPORTED_PASSES
+
+    def test_webgl_delivers_passes_interactively(self):
+        assert WebGLBackend.PASS_DELIVERY == "interactive"
+
+
+class TestAovPath:
+    def test_with_descriptor(self):
+        assert rp.aov_path("out.png", rp.ALBEDO) == Path("out_albedo.png")
+
+    def test_with_name(self):
+        assert rp.aov_path("out.png", "facet_id") == Path("out_facet_id.png")
+
+    def test_preserves_directory_and_suffix(self):
+        assert rp.aov_path(Path("/a/b/bust.exr"), rp.DEPTH) == Path("/a/b/bust_depth.exr")
+
+
+# A minimal file-delivery backend so manifest behavior can be tested without
+# importing a heavy backend (mitsuba/bpy/pygltflib).
+class _StubFileBackend(RenderBackend):
+    SUPPORTED_PASSES = frozenset({rp.ALBEDO, rp.DEPTH, rp.NORMAL})
+    PASS_DELIVERY = "file"
+
+    def render(self, scene, config, filename=None, **kwargs):  # pragma: no cover
+        return None
+
+
+class TestManifest:
+    def test_file_backend_maps_passes_to_paths(self):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo", "normal"}
+        m = _manifest_for(_StubFileBackend(), cfg, "viz.png")
+        assert m["main"] == Path("viz.png")
+        assert m["albedo"] == Path("viz_albedo.png")
+        assert m["normal"] == Path("viz_normal.png")
+        assert "depth" not in m  # not requested
+
+    def test_unsupported_pass_omitted_from_manifest(self):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo", "facet_id"}  # facet_id unsupported here
+        m = _manifest_for(_StubFileBackend(), cfg, "viz.png")
+        assert "facet_id" not in m
+        assert m["albedo"] == Path("viz_albedo.png")
+
+    def test_none_filename_yields_empty_manifest(self):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo"}
+        assert _manifest_for(_StubFileBackend(), cfg, None) == {}
+
+    def test_interactive_backend_marks_passes(self):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo", "depth"}
+        m = _manifest_for(WebGLBackend(), cfg, "viz.html")
+        assert m["main"] == Path("viz.html")
+        assert m["albedo"] == "interactive"
+        assert m["depth"] == "interactive"
+
+
+@pytest.fixture
+def single_triangle_rr():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.eye(3))
+    mesh.add_triangle(0, 1, 2)
+    return mesh
+
+
+class TestRenderResult:
+    def test_webgl_render_returns_result(self, single_triangle_rr, tmp_path):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo"}
+        layer = hkw.layer().data(single_triangle_rr).mark(hkw.mark.Surface)
+        out = tmp_path / "viz.html"
+        result = hkw.render(layer, cfg, filename=out, backend="webgl")
+
+        assert isinstance(result, hkw.RenderResult)
+        assert result.backend == "webgl"
+        assert result.path == out
+        assert result.image is None  # webgl has no in-memory image
+        assert result.outputs["main"] == out
+        assert result.outputs["albedo"] == "interactive"
+
+    def test_result_is_path_like(self, single_triangle_rr, tmp_path):
+        layer = hkw.layer().data(single_triangle_rr).mark(hkw.mark.Surface)
+        out = tmp_path / "viz.html"
+        result = hkw.render(layer, hkw.config(), filename=out, backend="webgl")
+        # __fspath__ lets the result stand in for its main output path.
+        from pathlib import Path as _P
+
+        assert _P(result) == out
+        assert result.path.read_bytes() == _P(result).read_bytes()
+
+    def test_fspath_raises_without_filename(self):
+        result = hkw.RenderResult(backend="webgl")
+        with pytest.raises(TypeError, match="no output path"):
+            _ = result.__fspath__()
 
 
 @pytest.fixture

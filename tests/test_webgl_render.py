@@ -89,9 +89,10 @@ class TestEndToEnd:
         out_path = tmp_path / "out.html"
         result = hkw.render(layer, filename=str(out_path), backend="webgl")
         assert out_path.exists()
-        # render() may return a Path or None depending on backend.
-        if result is not None:
-            assert str(result) == str(out_path.resolve())
+        # render() returns a RenderResult; .path is the main output as given.
+        assert isinstance(result, hkw.RenderResult)
+        assert result.path == out_path
+        assert result.backend == "webgl"
 
     def test_filename_suffix_normalised(self, tmp_path):
         layer = (

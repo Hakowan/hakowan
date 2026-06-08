@@ -43,9 +43,10 @@ class TestRender:
         config.film.height = 16
         base = hkw.layer().data(triangle).mark(hkw.mark.Surface)
         out = tmp_path / "smoke.png"
-        image = hkw.render(base, config, filename=out, backend="mitsuba")
-        assert image is not None
-        assert tuple(image.shape[:2]) == (16, 16)
+        result = hkw.render(base, config, filename=out, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+        assert result.path == out
         assert out.exists() and out.stat().st_size > 0
 
     def test_point_cloud(self, triangle):

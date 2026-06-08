@@ -39,6 +39,9 @@ class WebGLBackend(RenderBackend):
     # no viewer pass and is therefore unsupported.
     SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
+    # Passes are live toggles in the HTML viewer, not separate image files.
+    PASS_DELIVERY = "interactive"
+
     # ------------------------------------------------------------------ #
     # Public interface                                                      #
     # ------------------------------------------------------------------ #
