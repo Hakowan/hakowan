@@ -14,6 +14,31 @@ import mathutils
 from .materials import _MaterialMixin
 
 
+def _decompose_rotation_scale(m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Decompose a 3x3 ``M`` into the rotation + per-axis scale reproducing the
+    ellipsoid ``M`` maps the unit sphere to.
+
+    The glyph is a symmetric sphere, so ``M·sphere`` depends only on the
+    ellipsoid ``M·Mᵀ``; the SVD ``M = U·diag(σ)·Vᵀ`` gives rotation ``U`` and
+    scale ``σ`` (the trailing ``Vᵀ`` rotation is absorbed by the sphere's
+    symmetry). This stays exact even for a sheared covariance ``M`` (non-``full``
+    covariance), which a column-wise normalisation would not. A reflection
+    (``det U < 0``) is folded into a flipped axis — harmless by the same symmetry
+    — so ``U`` is a proper rotation a quaternion can encode.
+    """
+    u, sigma, _ = np.linalg.svd(m)
+    if np.linalg.det(u) < 0.0:
+        u = u.copy()
+        u[:, -1] = -u[:, -1]
+    return u, sigma.astype(np.float32)
+
+
+def _matrix3_to_quaternion(rotation: np.ndarray) -> np.ndarray:
+    """3x3 proper rotation → Blender quaternion array ``(w, x, y, z)``."""
+    q = mathutils.Matrix([list(row) for row in rotation]).to_quaternion()
+    return np.array([q.w, q.x, q.y, q.z], dtype=np.float32)
+
+
 class _GeometryMixin(_MaterialMixin):
     def _extract_size(self, view: View, default_size: float = 0.01):
         """Extract size attribute from a view (scalar or per-vertex).
@@ -359,28 +384,33 @@ class _GeometryMixin(_MaterialMixin):
             mesh.normals_split_custom_set(per_corner.tolist())
 
     def _create_point_base_mesh(self, base_shape: str, index: int):
-        """Create the base mesh for a point mark shape.
+        """Create the shared base mesh (instance prototype) for a point shape.
+
+        The mesh is built once and instanced onto every point by a geometry-nodes
+        modifier, so detail is baked into the prototype rather than added per
+        point: the sphere is a subdivided icosphere (no per-instance Subdivision
+        modifier, which would defeat Cycles' instance de-duplication).
 
         Args:
             base_shape: One of "sphere", "cube", or "disk".
             index: Object index (used for naming).
 
         Returns:
-            Tuple of (base_object, base_mesh, use_smooth, use_subdiv).
+            Tuple of (base_object, base_mesh, use_smooth).
         """
         match base_shape:
             case "sphere":
-                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0)
+                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=1.0)
                 base_obj = bpy.context.active_object
                 base_obj.name = f"base_ico_{index:03d}"
                 base_obj.data.name = f"ico_sphere_{index:03d}"
-                return base_obj, base_obj.data, True, True
+                return base_obj, base_obj.data, True
             case "cube":
                 bpy.ops.mesh.primitive_cube_add(size=2.0)
                 base_obj = bpy.context.active_object
                 base_obj.name = f"base_cube_{index:03d}"
                 base_obj.data.name = f"cube_{index:03d}"
-                return base_obj, base_obj.data, False, False
+                return base_obj, base_obj.data, False
             case "disk":
                 bpy.ops.mesh.primitive_circle_add(
                     vertices=32, radius=1.0, fill_type="NGON"
@@ -388,7 +418,7 @@ class _GeometryMixin(_MaterialMixin):
                 base_obj = bpy.context.active_object
                 base_obj.name = f"base_disk_{index:03d}"
                 base_obj.data.name = f"disk_{index:03d}"
-                return base_obj, base_obj.data, False, False
+                return base_obj, base_obj.data, False
             case _:
                 raise ValueError(f"Unsupported base shape: {base_shape}")
 
@@ -465,7 +495,13 @@ class _GeometryMixin(_MaterialMixin):
             return attr.data.reshape(-1, 3, 3)
 
     def _create_point_object(self, view: View, index: int):
-        """Create Blender point cloud (spheres/cubes/disks at each vertex) from a view.
+        """Create a GPU-instanced point cloud (spheres/cubes/disks) from a view.
+
+        One shared base shape is instanced onto every vertex by a geometry-nodes
+        "Instance on Points" modifier. Per-point placement rides on point-domain
+        attributes — ``hkw_scale`` (FLOAT_VECTOR), ``hkw_rotation`` (QUATERNION),
+        and optional ``hkw_color`` (FLOAT_COLOR). This keeps geometry to a single
+        prototype mesh that Cycles instances, instead of one baked mesh per point.
 
         Args:
             view: Point view.
@@ -475,8 +511,11 @@ class _GeometryMixin(_MaterialMixin):
             return
 
         mesh_data = view.data_frame.mesh
-        vertices = mesh_data.vertices
+        vertices = np.asarray(mesh_data.vertices, dtype=np.float64)
         n_points = mesh_data.num_vertices
+        if n_points == 0:
+            logger.debug(f"Point view {index} has no vertices; skipping.")
+            return
 
         # Extract covariance transforms if specified
         covariance_transforms = None
@@ -488,18 +527,23 @@ class _GeometryMixin(_MaterialMixin):
         )
         if np.isscalar(radii):
             # np.isscalar guarantees a scalar here, but mypy can't narrow it.
-            radii = [float(radii)] * n_points  # type: ignore[arg-type]
-        radii = np.atleast_1d(radii)
+            radii = np.full(n_points, float(radii))  # type: ignore[arg-type]
+        radii = np.atleast_1d(np.asarray(radii, dtype=np.float64))
         assert len(radii) == n_points
 
-        # Determine base shape
+        # Determine base shape (shared instance prototype)
         base_shape = "sphere"
         if view.shape_channel is not None:
             base_shape = view.shape_channel.base_shape
-
-        base_obj, base_mesh, use_smooth, use_subdiv = self._create_point_base_mesh(
+        base_obj, base_mesh, use_smooth = self._create_point_base_mesh(
             base_shape, index
         )
+        if use_smooth:
+            for poly in base_mesh.polygons:
+                poly.use_smooth = True
+        # Keep the base only as a hidden instance source for the modifier.
+        base_obj.hide_render = True
+        base_obj.hide_viewport = True
 
         # Extract orientation normals if specified
         normals = None
@@ -513,78 +557,139 @@ class _GeometryMixin(_MaterialMixin):
             assert mesh_data.has_attribute(normal_attr_name)
             normals = np.asarray(mesh_data.attribute(normal_attr_name).data)
 
-        # Scalar field: get per-vertex color array for points
+        # Per-instance rotation (quaternion w,x,y,z) and scale (x,y,z).
+        quaternions, scales = self._compute_point_instance_transforms(
+            radii, covariance_transforms, normals
+        )
+
+        # Scalar field: per-vertex colour, one RGBA per point.
         point_colors = None
         scalar_info = self._get_scalar_field_color_attr(view)
         if scalar_info is not None:
             attr_name, element_type = scalar_info
             if element_type == lagrange.AttributeElement.Vertex:
-                attr = mesh_data.attribute(attr_name)
-                data = np.asarray(attr.data)
+                data = np.asarray(mesh_data.attribute(attr_name).data)
                 if data.ndim == 2 and data.shape[0] == n_points and data.shape[1] >= 3:
                     rgb = data[:, :3]
-                    a = data[:, 3] if data.shape[1] >= 4 else np.ones(n_points)
-                    point_colors = [
-                        (
-                            float(rgb[i, 0]),
-                            float(rgb[i, 1]),
-                            float(rgb[i, 2]),
-                            float(a[i]),
-                        )
-                        for i in range(n_points)
-                    ]
+                    if data.shape[1] >= 4:
+                        alpha = data[:, 3:4]
+                    else:
+                        alpha = np.ones((n_points, 1))
+                    point_colors = np.hstack([rgb, alpha]).astype(np.float32)
 
-        # Parent empty to apply global transform
-        empty = bpy.data.objects.new(f"points_empty_{index:03d}", None)
-        bpy.context.collection.objects.link(empty)
+        # Points mesh carrying the per-instance attributes.
+        points_mesh = bpy.data.meshes.new(f"points_{index:03d}")
+        points_mesh.from_pydata(vertices.tolist(), [], [])
+        points_mesh.update()
+        scale_attr = points_mesh.attributes.new("hkw_scale", "FLOAT_VECTOR", "POINT")
+        scale_attr.data.foreach_set("vector", scales.reshape(-1))
+        rot_attr = points_mesh.attributes.new("hkw_rotation", "QUATERNION", "POINT")
+        rot_attr.data.foreach_set("value", quaternions.reshape(-1))
+        if point_colors is not None:
+            color_attr = points_mesh.attributes.new(
+                "hkw_color", "FLOAT_COLOR", "POINT"
+            )
+            color_attr.data.foreach_set("color", point_colors.reshape(-1))
+
+        points_obj = bpy.data.objects.new(f"points_{index:03d}", points_mesh)
+        bpy.context.collection.objects.link(points_obj)
         if hasattr(view, "global_transform") and view.global_transform is not None:
-            empty.matrix_world = mathutils.Matrix(view.global_transform.tolist())
+            points_obj.matrix_world = mathutils.Matrix(view.global_transform.tolist())
 
-        # Create one shape per point, parent to empty
-        for i in range(n_points):
-            obj = bpy.data.objects.new(f"point_{index:03d}_{i:06d}", base_mesh.copy())
-            bpy.context.collection.objects.link(obj)
-            r = float(radii[i])
-            obj.parent = empty
+        self._add_instance_on_points_modifier(points_obj, base_obj, index)
 
-            if covariance_transforms is not None:
-                local_transform = np.eye(4)
-                local_transform[:3, :3] = covariance_transforms[i] * r
-                local_transform[:3, 3] = vertices[i]
-                obj.matrix_local = mathutils.Matrix(local_transform.tolist())
-            elif normals is not None:
-                obj.matrix_local = (
-                    mathutils.Matrix.Translation(vertices[i].tolist())
-                    @ self._compute_orientation_rotation(normals[i])
-                    @ mathutils.Matrix.Diagonal((r, r, r, 1.0))
-                )
-            else:
-                obj.location = mathutils.Vector(vertices[i].tolist())
-                obj.scale = (r, r, r)
+        # One material on the shared prototype; per-point colour (when present)
+        # is read off the instancer via an INSTANCER-domain attribute node.
+        if view.material_channel is not None:
+            mat = self._create_material(
+                view,
+                index,
+                color_layer_name="hkw_color" if point_colors is not None else None,
+                color_attribute_type="INSTANCER",
+            )
+            if mat:
+                base_mesh.materials.append(mat)
 
-            if use_smooth:
-                for poly in obj.data.polygons:
-                    poly.use_smooth = True
+        logger.debug(
+            f"Created instanced point object {index} with {n_points} {base_shape}s"
+        )
 
-            if use_subdiv:
-                subd_mod = obj.modifiers.new(name="Subdiv", type="SUBSURF")
-                subd_mod.levels = 1  # viewport
-                subd_mod.render_levels = 3  # render
+    def _compute_point_instance_transforms(
+        self,
+        radii: np.ndarray,
+        covariance_transforms: np.ndarray | None,
+        normals: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Per-point (quaternion w,x,y,z) and (scale x,y,z) for the instancer.
 
-            if view.material_channel is not None:
-                mat = self._create_material(
-                    view,
-                    index,
-                    override_color=point_colors[i] if point_colors else None,
-                    material_suffix=f"{i:06d}" if point_colors else None,
-                )
-                if mat:
-                    obj.data.materials.append(mat)
+        Covariance ``M = U·diag(√S)`` decomposes to rotation + per-axis scale;
+        an orientation normal becomes a rotation with uniform scale; otherwise
+        the rotation is identity and the scale is the uniform radius.
+        """
+        n = len(radii)
+        scales = np.empty((n, 3), dtype=np.float32)
+        quaternions = np.zeros((n, 4), dtype=np.float32)
+        quaternions[:, 0] = 1.0  # identity (w, x, y, z)
 
-        # Remove the temporary base object (mesh is still used by instances)
-        bpy.data.objects.remove(base_obj, do_unlink=True)
+        if covariance_transforms is not None:
+            linear = covariance_transforms * radii[:, None, None]
+            for i in range(n):
+                rotation, scale = _decompose_rotation_scale(linear[i])
+                quaternions[i] = _matrix3_to_quaternion(rotation)
+                scales[i] = scale
+        elif normals is not None:
+            for i in range(n):
+                q = self._compute_orientation_rotation(normals[i]).to_quaternion()
+                quaternions[i] = (q.w, q.x, q.y, q.z)
+                scales[i] = radii[i]
+        else:
+            scales[:] = radii[:, None]
+        return quaternions, scales
 
-        logger.debug(f"Created point object {index} with {n_points} {base_shape}s")
+    def _add_instance_on_points_modifier(self, points_obj, base_obj, index: int):
+        """Attach a geometry-nodes modifier instancing ``base_obj`` on the points.
+
+        Reads ``hkw_scale`` / ``hkw_rotation`` point attributes for the per-point
+        Scale and Rotation sockets of the Instance-on-Points node.
+        """
+        node_group = bpy.data.node_groups.new(
+            f"hkw_instance_{index:03d}", "GeometryNodeTree"
+        )
+        node_group.interface.new_socket(
+            "Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+        )
+        node_group.interface.new_socket(
+            "Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
+        )
+        nodes = node_group.nodes
+        links = node_group.links
+
+        group_in = nodes.new("NodeGroupInput")
+        group_out = nodes.new("NodeGroupOutput")
+        instance_on_points = nodes.new("GeometryNodeInstanceOnPoints")
+        object_info = nodes.new("GeometryNodeObjectInfo")
+        object_info.inputs["Object"].default_value = base_obj
+        object_info.transform_space = "RELATIVE"
+
+        scale_input = nodes.new("GeometryNodeInputNamedAttribute")
+        scale_input.data_type = "FLOAT_VECTOR"
+        scale_input.inputs["Name"].default_value = "hkw_scale"
+        rotation_input = nodes.new("GeometryNodeInputNamedAttribute")
+        rotation_input.data_type = "QUATERNION"
+        rotation_input.inputs["Name"].default_value = "hkw_rotation"
+
+        links.new(group_in.outputs["Geometry"], instance_on_points.inputs["Points"])
+        links.new(object_info.outputs["Geometry"], instance_on_points.inputs["Instance"])
+        links.new(scale_input.outputs["Attribute"], instance_on_points.inputs["Scale"])
+        links.new(
+            rotation_input.outputs["Attribute"], instance_on_points.inputs["Rotation"]
+        )
+        links.new(
+            instance_on_points.outputs["Instances"], group_out.inputs["Geometry"]
+        )
+
+        modifier = points_obj.modifiers.new(f"hkw_instance_{index:03d}", "NODES")
+        modifier.node_group = node_group
 
     def _create_curve_object(self, view: View, index: int):
         """Create Blender curve object from view (mesh edges or vector field).

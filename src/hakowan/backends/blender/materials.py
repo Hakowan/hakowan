@@ -77,6 +77,7 @@ class _MaterialMixin:
         index: int,
         *,
         color_layer_name: str | None = None,
+        color_attribute_type: str = "GEOMETRY",
         override_color: tuple[float, float, float, float] | None = None,
         material_suffix: str | None = None,
         uv_layer_name: str | None = None,
@@ -87,6 +88,9 @@ class _MaterialMixin:
             view: View with material channel.
             index: Material index.
             color_layer_name: If set, use mesh/curve color attribute (ScalarField).
+            color_attribute_type: Attribute node domain for ``color_layer_name`` —
+                ``"GEOMETRY"`` (per-vertex/face) or ``"INSTANCER"`` (per-instance,
+                for geometry-nodes point instances reading a per-point colour).
             override_color: If set, use this RGBA as base color (e.g. per-point).
             material_suffix: Optional suffix for material name (e.g. point index).
             uv_layer_name: If set, use UV layer for texture mapping (Checkerboard).
@@ -159,6 +163,7 @@ class _MaterialMixin:
         elif color_layer_name is not None:
             attr_node = nodes.new(type="ShaderNodeAttribute")
             attr_node.location = (-200, 0)
+            attr_node.attribute_type = color_attribute_type
             attr_node.attribute_name = color_layer_name
             links.new(attr_node.outputs["Color"], bsdf.inputs["Base Color"])
         elif override_color is not None:

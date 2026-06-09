@@ -151,3 +151,7 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             bpy.data.materials.remove(material)
         for light in bpy.data.lights:
             bpy.data.lights.remove(light)
+        # Geometry-nodes groups (point instancing) are not tied to objects, so
+        # remove them explicitly or they accumulate across renders.
+        for node_group in bpy.data.node_groups:
+            bpy.data.node_groups.remove(node_group)
