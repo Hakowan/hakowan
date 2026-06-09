@@ -152,6 +152,13 @@ def _extract_vector_field(view: View) -> _SegmentData:
 
     tip = base + vectors
 
+    _norms = np.linalg.norm(vectors, axis=1)
+    _mask = _norms > 0
+    if not np.all(_mask):
+        base = base[_mask]
+        tip = tip[_mask]
+        per_vertex_size = per_vertex_size[_mask]
+
     if vf.end_type == "arrow":
         # Each vector becomes: shaft (base → stem) at full size,
         # then cone (stem → tip) tapering 2*size → 0.
@@ -371,9 +378,7 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         r0 = sizes[0::2]
         r1 = sizes[1::2]
         if r0.shape[0] > 0 and np.allclose(r0, r1):
-            return _add_instanced_tubes(
-                builder, view, data, sizes, pbr, double_sided
-            )
+            return _add_instanced_tubes(builder, view, data, sizes, pbr, double_sided)
 
         positions, normals, indices, ring_to_endpoint = _extrude_tubes(
             data.endpoints, sizes, sides=_DEFAULT_TUBE_SIDES

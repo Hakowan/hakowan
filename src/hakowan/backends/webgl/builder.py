@@ -449,9 +449,7 @@ class GLTFBuilder:
             "ROTATION": self._add_accessor(
                 rotations, _COMPONENT_FLOAT, "VEC4", None, False
             ),
-            "SCALE": self._add_accessor(
-                scales, _COMPONENT_FLOAT, "VEC3", None, False
-            ),
+            "SCALE": self._add_accessor(scales, _COMPONENT_FLOAT, "VEC3", None, False),
         }
         if instance_colors is not None:
             instance_colors = np.ascontiguousarray(instance_colors, dtype=np.float32)

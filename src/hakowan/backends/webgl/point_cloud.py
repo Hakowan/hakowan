@@ -355,9 +355,7 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     )
 
 
-def _point_instance_colors(
-    view: View, mesh, n_points: int
-) -> np.ndarray | None:
+def _point_instance_colors(view: View, mesh, n_points: int) -> np.ndarray | None:
     """Per-point linear RGB from a ScalarField reflectance, or ``None``."""
     color_name = _find_color_field_name(view)
     if color_name is None:

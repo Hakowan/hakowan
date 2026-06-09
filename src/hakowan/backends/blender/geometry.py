@@ -207,6 +207,18 @@ class _GeometryMixin(_MaterialMixin):
         else:  # "flat": constant radius at both ends
             tip_size = size
 
+        _lengths = np.linalg.norm(tip - base, axis=1)
+        _mask = _lengths > 0
+        if not np.all(_mask):
+            base = base[_mask]
+            tip = tip[_mask]
+            base_size = np.asarray(base_size)[_mask]
+            tip_size = np.asarray(tip_size)[_mask]
+            if ctrl_pts_1 is not None:
+                ctrl_pts_1 = ctrl_pts_1[_mask]
+            if ctrl_pts_2 is not None:
+                ctrl_pts_2 = ctrl_pts_2[_mask]
+
         return (
             base,
             ctrl_pts_1,
@@ -586,9 +598,7 @@ class _GeometryMixin(_MaterialMixin):
         rot_attr = points_mesh.attributes.new("hkw_rotation", "QUATERNION", "POINT")
         rot_attr.data.foreach_set("value", quaternions.reshape(-1))
         if point_colors is not None:
-            color_attr = points_mesh.attributes.new(
-                "hkw_color", "FLOAT_COLOR", "POINT"
-            )
+            color_attr = points_mesh.attributes.new("hkw_color", "FLOAT_COLOR", "POINT")
             color_attr.data.foreach_set("color", point_colors.reshape(-1))
 
         points_obj = bpy.data.objects.new(f"points_{index:03d}", points_mesh)
@@ -679,14 +689,14 @@ class _GeometryMixin(_MaterialMixin):
         rotation_input.inputs["Name"].default_value = "hkw_rotation"
 
         links.new(group_in.outputs["Geometry"], instance_on_points.inputs["Points"])
-        links.new(object_info.outputs["Geometry"], instance_on_points.inputs["Instance"])
+        links.new(
+            object_info.outputs["Geometry"], instance_on_points.inputs["Instance"]
+        )
         links.new(scale_input.outputs["Attribute"], instance_on_points.inputs["Scale"])
         links.new(
             rotation_input.outputs["Attribute"], instance_on_points.inputs["Rotation"]
         )
-        links.new(
-            instance_on_points.outputs["Instances"], group_out.inputs["Geometry"]
-        )
+        links.new(instance_on_points.outputs["Instances"], group_out.inputs["Geometry"])
 
         modifier = points_obj.modifiers.new(f"hkw_instance_{index:03d}", "NODES")
         modifier.node_group = node_group
