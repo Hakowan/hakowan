@@ -11,8 +11,9 @@ Two output modes:
 Vector-field features:
   * ``refinement_level`` — barycentric subdivision of base/tip positions on
     each triangle, ported from ``backends/mitsuba/shape.py:extract_vector_field``.
-  * ``end_type='arrow'`` — split each vector into a constant-width shaft +
-    a cone (radius 2*size → 0) at the tip.
+  * ``end_type='arrow'`` — each vector becomes a constant-width shaft + a cone
+    (radius 2*size → 0) at the tip. The whole arrow is a fixed prototype glyph
+    GPU-instanced per vector (``EXT_mesh_gpu_instancing``) rather than baked.
 
 Per-endpoint colour comes from the view's ``ScalarField`` reflectance via
 ``COLOR_0``.
@@ -350,11 +351,19 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
             # Mesh-edge view with size_channel.
             sizes = _resolve_endpoint_sizes_from_edges(view, data)
 
+        # Vector-field arrows instance a single arrow glyph (shaft + cone) per
+        # vector. The cone tapers (r0 != r1) so it isn't a uniform cylinder, but
+        # the whole arrow is a fixed prototype scaled (r, length, r) per vector,
+        # which still GPU-instances.
+        vf = view.vector_field_channel
+        if vf is not None and vf.end_type == "arrow":
+            return _add_instanced_arrows(builder, view, data, sizes, pbr, double_sided)
+
         # Constant-radius segments (r0 == r1) become GPU-instanced unit
         # cylinders — one prototype mesh + a per-segment transform — which
-        # shrinks the GLB ~10x versus baking every tube into triangles. Tapered
-        # shafts and arrow cones (r0 != r1) can't be a single uniform cylinder,
-        # so they keep the explicit extrusion path below.
+        # shrinks the GLB ~10x versus baking every tube into triangles. Any
+        # other taper (e.g. a mesh-edge size attribute that differs per
+        # endpoint) keeps the explicit extrusion path below.
         r0 = sizes[0::2]
         r1 = sizes[1::2]
         if r0.shape[0] > 0 and np.allclose(r0, r1):
@@ -414,17 +423,42 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
 # ---------------------------------------------------------------------- #
 
 
+def _mesh_to_arrays(
+    mesh: lagrange.SurfaceMesh,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Flatten a generated primitive into glTF-ready (positions, normals, indices).
+
+    ``unify_index_buffer`` collapses the indexed ``@normal`` to per-vertex,
+    splitting a vertex only where its normal differs (e.g. a cap rim), so the
+    POSITION/NORMAL accessors line up one-to-one as the builder requires.
+    """
+    if not mesh.is_triangle_mesh:
+        lagrange.triangulate_polygonal_facets(mesh)
+    mesh = lagrange.unify_index_buffer(mesh)
+    positions = np.ascontiguousarray(mesh.vertices, dtype=np.float32)
+    indices = np.ascontiguousarray(mesh.facets, dtype=np.uint32).reshape(-1)
+    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    normal_name = mesh.get_attribute_name(normal_ids[0])
+    normals = np.ascontiguousarray(
+        mesh.attribute(normal_name).data, dtype=np.float32
+    )
+    return positions, normals, indices
+
+
 def _unit_cylinder(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Prototype cylinder: axis +Y, unit radius, unit height, centred on origin.
 
-    Reuses ``_extrude_tubes`` so the lateral triangulation / normals match the
-    baked-tube path exactly; per-instance TRANSLATION/ROTATION/SCALE then maps
-    this canonical tube onto each segment.
+    ``lagrange.primitive`` emits the canonical capped tube directly; per-instance
+    TRANSLATION/ROTATION/SCALE then maps it onto each segment.
     """
-    endpoints = np.array([[0.0, -0.5, 0.0], [0.0, 0.5, 0.0]], dtype=np.float32)
-    radii = np.array([1.0, 1.0], dtype=np.float32)
-    positions, normals, indices, _ = _extrude_tubes(endpoints, radii, sides=sides)
-    return positions, normals, indices
+    mesh = lagrange.primitive.generate_rounded_cone(
+        radius_top=1.0,
+        radius_bottom=1.0,
+        height=1.0,
+        radial_sections=sides,
+        triangulate=True,
+    )
+    return _mesh_to_arrays(mesh)
 
 
 def _quat_from_y_to(dirs: np.ndarray) -> np.ndarray:
@@ -496,6 +530,112 @@ def _add_instanced_tubes(
     transform = np.asarray(view.global_transform, dtype=np.float64)
     logger.debug(
         f"WebGL backend: curve view → {translations.shape[0]} instanced cylinders "
+        f"({_DEFAULT_TUBE_SIDES} sides)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=proto_pos,
+        indices=proto_idx,
+        normals=proto_norm,
+        translations=translations,
+        rotations=rotations,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=material_idx,
+        transform_4x4=transform,
+    )
+
+
+def _unit_arrow(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Prototype arrow glyph: axis +Y, base at origin, tip at y=1.
+
+    A shaft cylinder (radius 1, y∈[0, 0.75]) plus a cone head (radius 2 → 0,
+    y∈[0.75, 1]), both from ``lagrange.primitive``. The generator caps the shaft
+    base and the cone base, so the glyph is a closed solid (no see-through hollow
+    cone); the shaft top cap is dropped since the head covers it. A per-instance
+    ``SCALE = (r, length, r)`` reproduces any arrow: radial extents scale by
+    ``r``, axial extents by ``length``.
+    """
+    shaft = lagrange.primitive.generate_rounded_cone(
+        radius_top=1.0,
+        radius_bottom=1.0,
+        height=0.75,
+        radial_sections=sides,
+        with_top_cap=False,  # covered by the cone head's base
+        triangulate=True,
+        center=[0.0, 0.375, 0.0],
+    )
+    head = lagrange.primitive.generate_rounded_cone(
+        radius_top=0.0,
+        radius_bottom=2.0,
+        height=0.25,
+        radial_sections=sides,
+        triangulate=True,
+        center=[0.0, 0.875, 0.0],
+    )
+
+    parts = [_mesh_to_arrays(shaft), _mesh_to_arrays(head)]
+    parts_pos: list[np.ndarray] = []
+    parts_norm: list[np.ndarray] = []
+    parts_idx: list[np.ndarray] = []
+    offset = 0
+    for pos, norm, idx in parts:
+        parts_pos.append(pos)
+        parts_norm.append(norm)
+        parts_idx.append(idx + offset)
+        offset += pos.shape[0]
+
+    return (
+        np.vstack(parts_pos),
+        np.vstack(parts_norm),
+        np.concatenate(parts_idx),
+    )
+
+
+def _arrow_instances(
+    base: np.ndarray, tip: np.ndarray, radius: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-vector (translation, rotation, scale) for the unit arrow.
+
+    ``translation`` is the vector base (the prototype starts there, not at its
+    midpoint), ``rotation`` aligns +Y with the vector, ``scale = (r, |vec|, r)``.
+    """
+    seg = tip - base
+    length = np.linalg.norm(seg, axis=1)
+    safe = length > 1e-9
+    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
+    directions[safe] = seg[safe] / length[safe, None]
+    rotations = _quat_from_y_to(directions)
+    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    return base.astype(np.float32), rotations, scales
+
+
+def _add_instanced_arrows(
+    builder: GLTFBuilder,
+    view: View,
+    data: _SegmentData,
+    sizes: np.ndarray,
+    pbr: dict,
+    double_sided: bool,
+) -> int:
+    # Arrow vector fields lay out 4 endpoints (2 segments) per vector — shaft
+    # base, stem, stem, tip — so stride-4 recovers one instance per vector.
+    base = data.endpoints[0::4]
+    tip = data.endpoints[3::4]
+    radius = sizes[0::4]
+    translations, rotations, scales = _arrow_instances(base, tip, radius)
+    proto_pos, proto_norm, proto_idx = _unit_arrow(_DEFAULT_TUBE_SIDES)
+
+    instance_colors: np.ndarray | None = None
+    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    if endpoint_colors is not None:
+        # All four endpoints share the base vertex's colour; take one per arrow.
+        instance_colors = endpoint_colors[0::4, :3].astype(np.float32)
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+
+    material_idx = builder.add_material(pbr, double_sided=double_sided)
+    transform = np.asarray(view.global_transform, dtype=np.float64)
+    logger.debug(
+        f"WebGL backend: curve view → {translations.shape[0]} instanced arrows "
         f"({_DEFAULT_TUBE_SIDES} sides)."
     )
     return builder.add_instanced_mesh_node(

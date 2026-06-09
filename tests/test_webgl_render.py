@@ -223,7 +223,9 @@ class TestEndToEnd:
         # 12 segments × 16 verts a baked tube would carry.
         assert len(gltf.meshes) == 1
         pos = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
-        assert pos.count == 16  # 8-sided unit cylinder, 2 rings
+        # One capped 8-sided unit cylinder prototype (lagrange.primitive), far
+        # smaller than the 12 segments a baked tube would carry.
+        assert pos.count < 100
         inst_nodes = [
             n
             for n in gltf.nodes
@@ -235,9 +237,9 @@ class TestEndToEnd:
         assert gltf.accessors[attrs["TRANSLATION"]].count == 12
         assert "_COLOR_0" in attrs
 
-    def test_arrow_curve_stays_baked(self, tmp_path):
-        # Arrow heads taper r0 != r1, which a single uniform cylinder can't
-        # express — these must keep the explicit extrusion path (no instancing).
+    def test_arrow_curve_is_instanced(self, tmp_path):
+        # The arrow glyph (shaft + tapered cone) is a fixed prototype scaled
+        # (r, length, r) per vector, so the whole field GPU-instances one mesh.
         mesh = self._vector_field_mesh()
         layer = (
             hkw.layer(mesh)
@@ -252,8 +254,21 @@ class TestEndToEnd:
         hkw.render(layer, filename=str(out_path), backend="webgl")
         glb = _decode_glb_from_html(out_path.read_text())
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
-        assert "EXT_mesh_gpu_instancing" not in (gltf.extensionsUsed or [])
-        assert gltf.meshes[0].primitives[0].mode == 4  # baked TRIANGLES
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # One prototype arrow mesh: a capped shaft cylinder + cone head built
+        # from lagrange.primitive — a fixed small glyph, not baked per vector.
+        assert len(gltf.meshes) == 1
+        pos = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
+        assert pos.count < 150
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 12 vectors → 12 instances.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 12
 
     def test_point_light_registered(self, tmp_path):
         layer = (
