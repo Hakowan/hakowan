@@ -95,14 +95,19 @@ class TestCovarianceGeometry:
         return builder.captured
 
     def test_anisotropic_stretch_deforms_first_point(self):
-        # Point 0 stretched 3x along x; point 1 left as identity.
+        # Point 0 stretched 3x along x; point 1 left as identity. Both share the
+        # same base sphere under one uniform scene scale, so point 0's x-extent
+        # is 3x point 1's while the y-extent is unchanged — independent of how
+        # the sphere happens to be tessellated.
         cov = np.stack([np.diag([3.0, 1.0, 1.0]), np.eye(3)])
         cap = self._bake(cov, full=False)
         n_base = pc._icosphere(refinement=0)[0].shape[0]  # 12 sphere vertices
         p0 = cap["positions"][:n_base]
-        ext = p0.max(0) - p0.min(0)
-        # Uniform scene normalization preserves the x:y extent ratio (~3:1).
-        assert ext[0] / ext[1] == pytest.approx(3.0, rel=1e-3)
+        p1 = cap["positions"][n_base : 2 * n_base]
+        ext0 = p0.max(0) - p0.min(0)
+        ext1 = p1.max(0) - p1.min(0)
+        assert ext0[0] / ext1[0] == pytest.approx(3.0, rel=1e-3)
+        assert ext0[1] / ext1[1] == pytest.approx(1.0, rel=1e-3)
 
     def test_normals_unit_length_under_stretch(self):
         cov = np.stack([np.diag([3.0, 0.5, 1.0]), np.eye(3)])

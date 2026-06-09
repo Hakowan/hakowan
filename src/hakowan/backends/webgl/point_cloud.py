@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+import lagrange
 import numpy as np
 
 from ...common import logger
@@ -25,156 +26,64 @@ from ...compiler import View
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder
-from .mesh_extract import _find_color_field_name, _read_color_attribute
+from .mesh_extract import (
+    _find_color_field_name,
+    _read_color_attribute,
+    primitive_arrays,
+)
 from .material_translate import translate_material
 
 
 # ---------------------------------------------------------------------- #
-# Base shapes                                                              #
+# Base shapes (lagrange.primitive)                                         #
 # ---------------------------------------------------------------------- #
 
 
 @lru_cache(maxsize=4)
 def _icosphere(refinement: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return ``(positions, normals, triangles)`` for a unit icosphere."""
-    phi = (1.0 + 5**0.5) / 2.0
-    verts = np.array(
-        [
-            (-1, phi, 0),
-            (1, phi, 0),
-            (-1, -phi, 0),
-            (1, -phi, 0),
-            (0, -1, phi),
-            (0, 1, phi),
-            (0, -1, -phi),
-            (0, 1, -phi),
-            (phi, 0, -1),
-            (phi, 0, 1),
-            (-phi, 0, -1),
-            (-phi, 0, 1),
-        ],
-        dtype=np.float64,
+    """Return ``(positions, normals, triangles)`` for a unit icosphere.
+
+    A subdivided icosahedron projected onto the unit sphere. ``lagrange`` bakes
+    flat per-face normals, but a centred unit sphere's smooth normal at a vertex
+    is just its position, so we use the shared vertices (12 at level 0) with
+    radial normals for smooth shading.
+    """
+    mesh = lagrange.primitive.generate_subdivided_sphere(
+        base_shape=lagrange.primitive.generate_icosahedron(),
+        radius=1.0,
+        subdiv_level=refinement,
     )
-    verts = verts / np.linalg.norm(verts, axis=1, keepdims=True)
-    tris = np.array(
-        [
-            [0, 11, 5],
-            [0, 5, 1],
-            [0, 1, 7],
-            [0, 7, 10],
-            [0, 10, 11],
-            [2, 11, 10],
-            [4, 5, 11],
-            [9, 1, 5],
-            [8, 7, 1],
-            [6, 10, 7],
-            [4, 9, 5],
-            [9, 8, 1],
-            [8, 6, 7],
-            [6, 2, 10],
-            [2, 4, 11],
-            [3, 9, 4],
-            [3, 4, 2],
-            [3, 2, 6],
-            [3, 6, 8],
-            [3, 8, 9],
-        ],
-        dtype=np.uint32,
-    )
-    for _ in range(refinement):
-        verts, tris = _subdivide_on_sphere(verts, tris)
-    positions = verts.astype(np.float32)
+    positions = np.ascontiguousarray(mesh.vertices, dtype=np.float32)
+    tris = np.ascontiguousarray(mesh.facets, dtype=np.uint32)
     normals = positions.copy()  # unit-sphere normals coincide with positions.
     return positions, normals, tris
 
 
-def _subdivide_on_sphere(
-    verts: np.ndarray, tris: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
-    edge_midpoints: dict[tuple[int, int], int] = {}
-    new_verts: list[np.ndarray] = list(verts)
-    new_tris: list[list[int]] = []
-
-    def get_mid(a: int, b: int) -> int:
-        key = (a, b) if a < b else (b, a)
-        if key in edge_midpoints:
-            return edge_midpoints[key]
-        m = (verts[a] + verts[b]) / 2.0
-        m = m / np.linalg.norm(m)
-        new_verts.append(m)
-        idx = len(new_verts) - 1
-        edge_midpoints[key] = idx
-        return idx
-
-    for v1, v2, v3 in tris.tolist():
-        m12 = get_mid(v1, v2)
-        m23 = get_mid(v2, v3)
-        m31 = get_mid(v3, v1)
-        new_tris.extend(
-            [
-                [v1, m12, m31],
-                [v2, m23, m12],
-                [v3, m31, m23],
-                [m12, m23, m31],
-            ]
-        )
-    return np.array(new_verts, dtype=np.float64), np.array(new_tris, dtype=np.uint32)
-
-
 @lru_cache(maxsize=2)
 def _disk(segments: int = 16) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Unit disk in the XY plane facing +Z. One central vertex + ring."""
-    angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False)
-    ring = np.stack([np.cos(angles), np.sin(angles), np.zeros_like(angles)], axis=1)
-    positions = np.vstack([np.zeros((1, 3)), ring]).astype(np.float32)
-    normals = np.zeros_like(positions)
-    normals[:, 2] = 1.0
-    tris = np.zeros((segments, 3), dtype=np.uint32)
-    tris[:, 1] = np.arange(1, segments + 1)
-    tris[:, 2] = np.roll(np.arange(1, segments + 1), -1)
-    return positions, normals, tris
+    """Unit disk in the XY plane facing +Z (central vertex + ring)."""
+    mesh = lagrange.primitive.generate_disc(
+        radius=1.0,
+        normal=[0.0, 0.0, 1.0],
+        radial_sections=segments,
+        triangulate=True,
+    )
+    positions, normals, indices = primitive_arrays(mesh)
+    return positions, normals, indices.reshape(-1, 3)
 
 
 @lru_cache(maxsize=1)
 def _cube() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Unit cube centred at the origin (extent ±1) with flat per-face normals."""
-    # Six faces × four corners → 24 vertices so each face can carry its own
-    # normal without sharing across edges.
-    face_normals = np.array(
-        [
-            [1, 0, 0],
-            [-1, 0, 0],
-            [0, 1, 0],
-            [0, -1, 0],
-            [0, 0, 1],
-            [0, 0, -1],
-        ],
-        dtype=np.float32,
+    """Cube centred at the origin (extent ±1) with flat per-face normals."""
+    mesh = lagrange.primitive.generate_rounded_cube(
+        width=2.0,
+        height=2.0,
+        depth=2.0,
+        bevel_radius=0.0,
+        triangulate=True,
     )
-    face_quads = [
-        # (vertex order CCW when viewed from outside)
-        [(1, -1, -1), (1, 1, -1), (1, 1, 1), (1, -1, 1)],
-        [(-1, -1, 1), (-1, 1, 1), (-1, 1, -1), (-1, -1, -1)],
-        [(-1, 1, -1), (-1, 1, 1), (1, 1, 1), (1, 1, -1)],
-        [(-1, -1, 1), (-1, -1, -1), (1, -1, -1), (1, -1, 1)],
-        [(-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)],
-        [(1, -1, -1), (-1, -1, -1), (-1, 1, -1), (1, 1, -1)],
-    ]
-    positions: list[list[float]] = []
-    normals: list[list[float]] = []
-    tris: list[list[int]] = []
-    for face_idx, quad in enumerate(face_quads):
-        base = len(positions)
-        for v in quad:
-            positions.append(list(v))
-            normals.append(face_normals[face_idx].tolist())
-        tris.append([base + 0, base + 1, base + 2])
-        tris.append([base + 0, base + 2, base + 3])
-    return (
-        np.array(positions, dtype=np.float32),
-        np.array(normals, dtype=np.float32),
-        np.array(tris, dtype=np.uint32),
-    )
+    positions, normals, indices = primitive_arrays(mesh)
+    return positions, normals, indices.reshape(-1, 3)
 
 
 _BASE_SHAPE_BUILDERS = {

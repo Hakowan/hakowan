@@ -31,7 +31,11 @@ from ...compiler import View
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder, MODE_LINES, MODE_TRIANGLES
-from .mesh_extract import _find_color_field_name, _read_color_attribute
+from .mesh_extract import (
+    _find_color_field_name,
+    _read_color_attribute,
+    primitive_arrays,
+)
 from .material_translate import translate_material
 
 
@@ -423,28 +427,6 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
 # ---------------------------------------------------------------------- #
 
 
-def _mesh_to_arrays(
-    mesh: lagrange.SurfaceMesh,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Flatten a generated primitive into glTF-ready (positions, normals, indices).
-
-    ``unify_index_buffer`` collapses the indexed ``@normal`` to per-vertex,
-    splitting a vertex only where its normal differs (e.g. a cap rim), so the
-    POSITION/NORMAL accessors line up one-to-one as the builder requires.
-    """
-    if not mesh.is_triangle_mesh:
-        lagrange.triangulate_polygonal_facets(mesh)
-    mesh = lagrange.unify_index_buffer(mesh)
-    positions = np.ascontiguousarray(mesh.vertices, dtype=np.float32)
-    indices = np.ascontiguousarray(mesh.facets, dtype=np.uint32).reshape(-1)
-    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
-    normal_name = mesh.get_attribute_name(normal_ids[0])
-    normals = np.ascontiguousarray(
-        mesh.attribute(normal_name).data, dtype=np.float32
-    )
-    return positions, normals, indices
-
-
 def _unit_cylinder(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Prototype cylinder: axis +Y, unit radius, unit height, centred on origin.
 
@@ -458,7 +440,7 @@ def _unit_cylinder(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         radial_sections=sides,
         triangulate=True,
     )
-    return _mesh_to_arrays(mesh)
+    return primitive_arrays(mesh)
 
 
 def _quat_from_y_to(dirs: np.ndarray) -> np.ndarray:
@@ -573,7 +555,7 @@ def _unit_arrow(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         center=[0.0, 0.875, 0.0],
     )
 
-    parts = [_mesh_to_arrays(shaft), _mesh_to_arrays(head)]
+    parts = [primitive_arrays(shaft), primitive_arrays(head)]
     parts_pos: list[np.ndarray] = []
     parts_norm: list[np.ndarray] = []
     parts_idx: list[np.ndarray] = []
