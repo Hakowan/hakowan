@@ -14,6 +14,32 @@ import webbrowser
 from tqdm import tqdm
 
 
+_CLIP_AXES = {"x", "-x", "y", "-y", "z", "-z"}
+
+
+def _clip_arg(value: str) -> tuple[str, float]:
+    """Parse AXIS or AXIS:VALUE (e.g. 'x', '-y:0.3')."""
+    if ":" in value:
+        axis, val = value.rsplit(":", 1)
+        try:
+            fval = float(val)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"clip value must be a number, got {val!r}"
+            )
+        if not (0.0 <= fval <= 1.0):
+            raise argparse.ArgumentTypeError(
+                f"clip value must be in [0, 1], got {fval}"
+            )
+    else:
+        axis, fval = value, 0.5
+    if axis not in _CLIP_AXES:
+        raise argparse.ArgumentTypeError(
+            f"clip axis must be one of {sorted(_CLIP_AXES)}, got {axis!r}"
+        )
+    return axis, fval
+
+
 def _saturation_arg(value: str) -> float:
     try:
         v = float(value)
@@ -123,37 +149,32 @@ def parse_args():
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
-        help="Clip the mesh along a coordinate axis",
-        type=str,
+        help="Clip the mesh: AXIS or AXIS:VALUE where AXIS is x/y/z/-x/-y/-z and VALUE is a fraction of the bbox size in [0,1] (default 0.5). E.g. '--clip x' or '--clip -y:0.3'.",
+        type=_clip_arg,
         default=None,
-        choices=["x", "y", "z", "-x", "-y", "-z"],
-    )
-    parser.add_argument(
-        "--clip-value",
-        help="Clip value as percentage of bbox size",
-        type=float,
-        default=0.5,
+        metavar="AXIS[:VALUE]",
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     streamline_group = parser.add_mutually_exclusive_group()
     streamline_group.add_argument(
         "--vector-field",
         metavar="ATTR",
-        help="Overlay streamlines traced from a plain vector field attribute.",
+        help="Overlay a plain vector field attribute (streamlines or arrows, see --field-style).",
         default=None,
     )
     streamline_group.add_argument(
         "--cross-field",
         metavar="ATTR",
-        help="Overlay streamlines traced from a 4-RoSy cross-field attribute.",
+        help="Overlay a 4-RoSy cross-field attribute (streamlines or arrows, see --field-style).",
         default=None,
     )
     parser.add_argument(
-        "--streamline-seeds",
-        help="Number of seed faces for streamline tracing (default 50).",
-        type=int,
-        default=50,
+        "--field-style",
+        choices=["streamline", "arrow"],
+        default="streamline",
+        help="How to visualize --vector-field / --cross-field: 'streamline' (default) or 'arrow'.",
     )
+
     parser.add_argument(
         "--streamline-length",
         help="Max streamline half-length as a fraction of bbox diagonal (default: no limit).",
@@ -162,7 +183,7 @@ def parse_args():
     )
     parser.add_argument(
         "--streamline-color",
-        help="Streamline curve color (default black).",
+        help="Streamline/arrow color (default black).",
         type=str,
         default="black",
     )
@@ -708,25 +729,39 @@ def main():
     vec_field_attr = args.vector_field or args.cross_field
     if vec_field_attr is not None:
         is_cross = args.cross_field is not None
-        sl_mesh = copy.deepcopy(mesh)
-        lagrange.triangulate_polygonal_facets(sl_mesh)
-        sl_layer = (
-            hkw.layer(sl_mesh)
-            .transform(
-                hkw.transform.Streamline(
-                    vec_field=vec_field_attr,
-                    cross_field=is_cross,
-                    n=args.streamline_seeds,
-                    length=args.streamline_length * bbox_diag
-                    if args.streamline_length is not None
-                    else None,
+        vf_mesh = copy.deepcopy(mesh)
+        lagrange.triangulate_polygonal_facets(vf_mesh)
+        if args.field_style == "arrow":
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .mark("Curve")
+                .material("Diffuse", args.streamline_color)
+                .channel(
+                    vector_field=hkw.channel.VectorField(
+                        data=vec_field_attr,
+                        end_type="arrow",
+                        normalize=True,
+                    ),
+                    size=args.wire_thickness * bbox_diag,
                 )
             )
-            .mark("Curve")
-            .material("Diffuse", args.streamline_color)
-            .channel(size=args.wire_thickness * bbox_diag)
-        )
-        layer = layer + sl_layer
+        else:
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .transform(
+                    hkw.transform.Streamline(
+                        vec_field=vec_field_attr,
+                        cross_field=is_cross,
+                        length=args.streamline_length * bbox_diag
+                        if args.streamline_length is not None
+                        else None,
+                    )
+                )
+                .mark("Curve")
+                .material("Diffuse", args.streamline_color)
+                .channel(size=args.wire_thickness * bbox_diag)
+            )
+        layer = layer + vf_layer
 
     if args.singularity:
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
@@ -795,8 +830,8 @@ def main():
         layer = layer.rotate(axis=axis, angle=args.rotate * math.pi / 180)
 
     if args.clip is not None:
-        clip_value = args.clip_value
-        match args.clip:
+        clip_axis, clip_value = args.clip
+        match clip_axis:
             case "x":
 
                 def condition(x):
