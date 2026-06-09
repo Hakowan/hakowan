@@ -176,10 +176,16 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--num-streamlines",
+        help="Number of streamlines to render (default: 500).",
+        type=int,
+        default=500,
+    )
+    parser.add_argument(
         "--streamline-length",
-        help="Max streamline half-length as a fraction of bbox diagonal (default: no limit).",
+        help="Max streamline half-length as a fraction of bbox diagonal (default: 0.5).",
         type=float,
-        default=None,
+        default=0.5,
     )
     parser.add_argument(
         "--streamline-color",
@@ -752,6 +758,7 @@ def main():
                     hkw.transform.Streamline(
                         vec_field=vec_field_attr,
                         cross_field=is_cross,
+                        n=args.num_streamlines,
                         length=args.streamline_length * bbox_diag
                         if args.streamline_length is not None
                         else None,
