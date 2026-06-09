@@ -133,7 +133,9 @@ class TestEndToEnd:
         assert len(gltf.materials) == 1
         assert len(gltf.cameras) == 1
 
-    def test_point_view_emits_mesh(self, tmp_path):
+    def test_point_view_is_instanced(self, tmp_path):
+        # A uniform-size point cloud is translation·scale per point, so it
+        # GPU-instances one prototype sphere instead of baking 3 copies.
         mesh = lagrange.SurfaceMesh()
         mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64))
         layer = (
@@ -148,10 +150,22 @@ class TestEndToEnd:
         hkw.render(layer, filename=str(out_path), backend="webgl")
         glb = _decode_glb_from_html(out_path.read_text())
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
-        # 3 points × 12 icosphere verts = 36 verts; the position accessor's
-        # count should reflect this.
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # One prototype icosphere (12 verts), not 3 × 12 baked.
+        assert len(gltf.meshes) == 1
         positions_acc = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
-        assert positions_acc.count == 36
+        assert positions_acc.count == 12
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 3 points → 3 instances, each with translation/rotation/scale.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 3
+        assert gltf.accessors[attrs["ROTATION"]].count == 3
+        assert gltf.accessors[attrs["SCALE"]].count == 3
 
     def test_curve_view_emits_lines_when_no_size(self, tmp_path):
         layer = (

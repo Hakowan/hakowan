@@ -1,10 +1,17 @@
 """Point mark renderer.
 
-For each vertex of the input mesh we bake the chosen base shape (sphere, disk,
-or cube) into a single combined triangle mesh. This avoids glTF mesh
-instancing complexity while staying correct for moderate point counts
-(~10k–50k spheres at refinement 0). Phase 4 may swap in
-``EXT_mesh_gpu_instancing`` for larger point clouds.
+Each vertex of the input mesh draws the chosen base shape (sphere, disk, or
+cube). When the per-point placement is a translation · rotation · axis-aligned
+scale — i.e. uniform size, an orientation rotation, or a ``full`` covariance
+ellipsoid — we emit a single prototype shape GPU-instanced via
+``EXT_mesh_gpu_instancing`` (one mesh + per-point TRANSLATION/ROTATION/SCALE),
+which keeps the GLB tiny for large clouds.
+
+The baked fallback (every shape copy expanded into one combined triangle mesh)
+handles the cases instancing can't express: raw (non-``full``) covariance, which
+may encode an arbitrary 3x3 stretch/shear, and per-point custom material
+attributes (e.g. a per-point roughness field), which have no instance slot
+beyond ``_COLOR_0``.
 """
 
 from __future__ import annotations
@@ -270,6 +277,85 @@ def _orientation_matrices(view: View, n: int) -> np.ndarray | None:
     return out
 
 
+def _decompose_linear(
+    matrices: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Split per-point ``M = R·diag(s)`` into rotation ``R`` and axis scale ``s``.
+
+    Used for ``full`` covariance, where ``M = U·diag(√S)`` has orthogonal
+    columns: the per-axis scale is each column's length and ``R`` is ``M`` with
+    its columns normalised. A reflection (``det < 0``) is folded into a flipped
+    column — harmless since the base shape is symmetric, so the ellipsoid is
+    unchanged while ``R`` stays a proper rotation a quaternion can encode.
+    """
+    scales = np.linalg.norm(matrices, axis=1)  # (N, 3) per-column norms
+    safe = np.maximum(scales, 1e-12)
+    rotations = matrices / safe[:, None, :]
+    flip = np.linalg.det(rotations) < 0.0
+    rotations[flip, :, 2] *= -1.0
+    return rotations.astype(np.float32), scales.astype(np.float32)
+
+
+def _identity_quaternions(n: int) -> np.ndarray:
+    """``n`` identity quaternions in xyzw order."""
+    quats = np.zeros((n, 4), dtype=np.float32)
+    quats[:, 3] = 1.0
+    return quats
+
+
+def _matrices_to_quaternions(matrices: np.ndarray) -> np.ndarray:
+    """Vectorised (N,3,3) proper-rotation → (N,4) quaternion (xyzw).
+
+    Shepperd's method: pick, per matrix, the branch with the largest
+    denominator (trace or a diagonal term) for numerical stability, then
+    normalise.
+    """
+    m = matrices
+    m00, m01, m02 = m[:, 0, 0], m[:, 0, 1], m[:, 0, 2]
+    m10, m11, m12 = m[:, 1, 0], m[:, 1, 1], m[:, 1, 2]
+    m20, m21, m22 = m[:, 2, 0], m[:, 2, 1], m[:, 2, 2]
+    trace = m00 + m11 + m22
+
+    case0 = trace > 0.0
+    case1 = (~case0) & (m00 >= m11) & (m00 >= m22)
+    case2 = (~case0) & (~case1) & (m11 >= m22)
+    case3 = ~(case0 | case1 | case2)
+
+    n = m.shape[0]
+    x = np.empty(n)
+    y = np.empty(n)
+    z = np.empty(n)
+    w = np.empty(n)
+
+    s = np.sqrt(np.maximum(trace + 1.0, 1e-12)) * 2.0  # s = 4w
+    w[case0] = (0.25 * s)[case0]
+    x[case0] = ((m21 - m12) / s)[case0]
+    y[case0] = ((m02 - m20) / s)[case0]
+    z[case0] = ((m10 - m01) / s)[case0]
+
+    s = np.sqrt(np.maximum(1.0 + m00 - m11 - m22, 1e-12)) * 2.0  # s = 4x
+    w[case1] = ((m21 - m12) / s)[case1]
+    x[case1] = (0.25 * s)[case1]
+    y[case1] = ((m01 + m10) / s)[case1]
+    z[case1] = ((m02 + m20) / s)[case1]
+
+    s = np.sqrt(np.maximum(1.0 + m11 - m00 - m22, 1e-12)) * 2.0  # s = 4y
+    w[case2] = ((m02 - m20) / s)[case2]
+    x[case2] = ((m01 + m10) / s)[case2]
+    y[case2] = (0.25 * s)[case2]
+    z[case2] = ((m12 + m21) / s)[case2]
+
+    s = np.sqrt(np.maximum(1.0 + m22 - m00 - m11, 1e-12)) * 2.0  # s = 4z
+    w[case3] = ((m10 - m01) / s)[case3]
+    x[case3] = ((m02 + m20) / s)[case3]
+    y[case3] = ((m12 + m21) / s)[case3]
+    z[case3] = (0.25 * s)[case3]
+
+    quats = np.stack([x, y, z, w], axis=1)
+    quats /= np.maximum(np.linalg.norm(quats, axis=1, keepdims=True), 1e-12)
+    return quats.astype(np.float32)
+
+
 # ---------------------------------------------------------------------- #
 # Size resolution                                                          #
 # ---------------------------------------------------------------------- #
@@ -310,11 +396,7 @@ def _extract_sizes(view: View, n: int, default_size: float = 0.01) -> np.ndarray
 # ---------------------------------------------------------------------- #
 
 
-def add_point_view(builder: GLTFBuilder, view: View) -> int:
-    """Bake the configured base shape per vertex and emit a single mesh node."""
-    assert view.data_frame is not None
-    mesh = view.data_frame.mesh
-
+def _resolve_base_shape(view: View) -> str:
     base_shape = (
         view.shape_channel.base_shape if view.shape_channel is not None else "sphere"
     )
@@ -324,7 +406,15 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
             "falling back to sphere."
         )
         base_shape = "sphere"
+    return base_shape
 
+
+def add_point_view(builder: GLTFBuilder, view: View) -> int:
+    """Render the point mark, GPU-instanced when the placement allows it."""
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+
+    base_shape = _resolve_base_shape(view)
     centers = np.asarray(mesh.vertices, dtype=np.float32)
     n_points = centers.shape[0]
     if n_points == 0:
@@ -335,9 +425,110 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     # supersedes the orientation channel (matching the Mitsuba backend) and the
     # size acts as an extra uniform scale (default 1.0 instead of 0.01).
     covariances = _covariance_matrices(view, n_points)
+    cov_full = (
+        view.covariance_channel.full if view.covariance_channel is not None else False
+    )
     sizes = _extract_sizes(
         view, n_points, default_size=1.0 if covariances is not None else 0.01
     )
+    result = translate_material(view, builder)
+
+    # Instancing carries only TRANSLATION/ROTATION/SCALE + _COLOR_0. Raw
+    # (non-``full``) covariance may encode an arbitrary 3x3 (shear), and per-point
+    # custom material attributes have no instance slot — both keep the baked path.
+    raw_covariance = covariances is not None and not cov_full
+    if result.custom_attrs or raw_covariance:
+        return _add_baked_points(
+            builder, view, mesh, result, base_shape, centers, sizes, covariances
+        )
+    return _add_instanced_points(
+        builder, view, mesh, result, base_shape, centers, sizes, covariances
+    )
+
+
+def _point_instance_colors(
+    view: View, mesh, n_points: int
+) -> np.ndarray | None:
+    """Per-point linear RGB from a ScalarField reflectance, or ``None``."""
+    color_name = _find_color_field_name(view)
+    if color_name is None:
+        return None
+    per_point = _read_color_attribute(mesh, color_name)
+    if per_point.shape[0] != n_points:
+        logger.warning(
+            f"WebGL backend: color attribute length {per_point.shape[0]} "
+            f"!= vertex count {n_points}; dropping color."
+        )
+        return None
+    return np.ascontiguousarray(per_point[:, :3], dtype=np.float32)
+
+
+def _add_instanced_points(
+    builder: GLTFBuilder,
+    view: View,
+    mesh,
+    result,
+    base_shape: str,
+    centers: np.ndarray,
+    sizes: np.ndarray,
+    covariances: np.ndarray | None,
+) -> int:
+    n_points = centers.shape[0]
+    if covariances is not None:
+        # ``full`` covariance: M = U·diag(√S) → rotation U + per-axis scale √S,
+        # with ``size`` an extra uniform scale on top.
+        rotations, axis_scales = _decompose_linear(covariances)
+        quaternions = _matrices_to_quaternions(rotations)
+        scales = (axis_scales * sizes[:, None]).astype(np.float32)
+    else:
+        rotations = _orientation_matrices(view, n_points)
+        quaternions = (
+            _matrices_to_quaternions(rotations)
+            if rotations is not None
+            else _identity_quaternions(n_points)
+        )
+        scales = np.repeat(sizes[:, None], 3, axis=1).astype(np.float32)
+
+    base_positions, base_normals, base_tris = _BASE_SHAPE_BUILDERS[base_shape]()
+    proto_idx = base_tris.reshape(-1).astype(np.uint32)
+
+    instance_colors = _point_instance_colors(view, mesh, n_points)
+    pbr = result.pbr
+    if instance_colors is not None:
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+    if result.extras is not None:
+        pbr["extras"] = result.extras
+    material_idx = builder.add_material(pbr, double_sided=result.double_sided)
+
+    transform = np.asarray(view.global_transform, dtype=np.float64)
+    logger.debug(
+        f"WebGL backend: point view → {n_points} instanced '{base_shape}' marks "
+        f"({base_positions.shape[0]}-vert prototype)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=base_positions,
+        indices=proto_idx,
+        normals=base_normals,
+        translations=np.ascontiguousarray(centers, dtype=np.float32),
+        rotations=quaternions,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=material_idx,
+        transform_4x4=transform,
+    )
+
+
+def _add_baked_points(
+    builder: GLTFBuilder,
+    view: View,
+    mesh,
+    result,
+    base_shape: str,
+    centers: np.ndarray,
+    sizes: np.ndarray,
+    covariances: np.ndarray | None,
+) -> int:
+    n_points = centers.shape[0]
     if covariances is not None:
         linear = covariances * sizes[:, None, None]  # (N, 3, 3)
     else:
@@ -393,7 +584,6 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
         else:
             colors = np.repeat(per_point, n_base_verts, axis=0).astype(np.float32)
 
-    result = translate_material(view, builder)
     pbr = result.pbr
     if colors is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
@@ -418,7 +608,7 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
 
     transform = np.asarray(view.global_transform, dtype=np.float64)
     logger.debug(
-        f"WebGL backend: point view → {n_points} '{base_shape}' marks, "
+        f"WebGL backend: point view → {n_points} baked '{base_shape}' marks, "
         f"{n_points * n_base_verts} verts, {n_points * n_base_tris} tris."
     )
     return builder.add_mesh_node(
