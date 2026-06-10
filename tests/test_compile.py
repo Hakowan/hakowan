@@ -707,6 +707,21 @@ class TestBackSide:
         assert np.allclose((all_min + all_max) / 2, 0, atol=1e-9)
         assert np.linalg.norm(all_max - all_min) == pytest.approx(2.0)
 
+    def test_juxtapose_bounding_spheres_disjoint(self):
+        # Cells must be spaced so their bounding spheres (about each cell's
+        # rotation centre) are disjoint, guaranteeing no overlap under arbitrary
+        # per-cell rotation in the interactive viewer. A tall/thin cell would
+        # overlap its neighbour if spaced merely by axis extent.
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a | b)
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        c0, r0 = (mn0 + mx0) / 2, np.linalg.norm(mx0 - mn0) / 2
+        c1, r1 = (mn1 + mx1) / 2, np.linalg.norm(mx1 - mn1) / 2
+        assert np.linalg.norm(c1 - c0) >= r0 + r1
+
     def test_juxtapose_normalize_equalizes_cells(self):
         import lagrange.primitive as prim
 

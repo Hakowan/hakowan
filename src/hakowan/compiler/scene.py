@@ -42,9 +42,15 @@ class Scene:
         :meth:`compute_global_transform`, which then fits the whole arrangement
         into the unit sphere.
 
+        Cells are spaced by their **bounding-sphere diameter** (the bbox
+        diagonal), not their extent along ``axis``. Because the interactive
+        viewer rotates each cell about its own centre, a cell sweeps its bounding
+        sphere; spacing by the diameter keeps those spheres disjoint so the cells
+        never overlap under *any* rotation.
+
         Args:
             axis: Layout axis (0, 1, or 2).
-            gap: Spacing between cells, as a fraction of the mean cell extent.
+            gap: Spacing between cells, as a fraction of the mean cell diameter.
             normalize: Whether to scale each cell to unit size before placing.
         """
         if len(self.views) == 0:
@@ -58,7 +64,10 @@ class Scene:
             # Nothing to juxtapose (e.g. a pure overlay or a single layer).
             return
 
-        # Compute per-cell bounding box, scale factor, and axis extent.
+        # Compute per-cell bounding box, scale factor, and bounding-sphere
+        # diameter (the bbox diagonal). The cell rotates about its bbox centre,
+        # so its geometry stays within the sphere of that diameter under any
+        # rotation; spacing by the diameter keeps neighbouring cells disjoint.
         cell_specs = []
         for views in cells.values():
             bbox_min = None
@@ -77,22 +86,25 @@ class Scene:
                 # Cell has no geometry; treat it as a zero-size point at origin.
                 center = np.zeros(3)
                 scale = 1.0
-                extent = 0.0
+                diameter = 0.0
             else:
                 center = (bbox_min + bbox_max) / 2
                 diag = norm(bbox_max - bbox_min)
                 scale = (1.0 / diag) if (normalize and diag > 0) else 1.0
-                extent = (bbox_max[axis] - bbox_min[axis]) * scale
-            cell_specs.append((views, center, scale, extent))
+                diameter = diag * scale
+            cell_specs.append((views, center, scale, diameter))
 
-        mean_extent = np.mean([extent for *_, extent in cell_specs])
-        gap_distance = gap * mean_extent if mean_extent > 0 else gap
+        mean_diameter = np.mean([diameter for *_, diameter in cell_specs])
+        gap_distance = gap * mean_diameter if mean_diameter > 0 else gap
 
         # Place cells one after another along ``axis``, centred on the off-axes.
+        # Each centre sits half a diameter past the cursor, so consecutive
+        # centres are separated by ``r_i + r_j + gap`` (sum of bounding-sphere
+        # radii plus the gap) — i.e. the spheres are disjoint with a margin.
         cursor = 0.0
-        for views, center, scale, extent in cell_specs:
+        for views, center, scale, diameter in cell_specs:
             target = np.zeros(3)
-            target[axis] = cursor + extent / 2
+            target[axis] = cursor + diameter / 2
 
             # M = T(target) @ S(scale, about origin) @ T(-center)
             recenter = np.eye(4)
@@ -107,7 +119,7 @@ class Scene:
                 view.global_transform = cell_transform @ view.global_transform
                 view.initialize_bbox()
 
-            cursor += extent + gap_distance
+            cursor += diameter + gap_distance
 
     def compute_global_transform(self):
         """Compute the global transformation matrix to fit all views in a unit sphere.
