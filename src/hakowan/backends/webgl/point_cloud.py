@@ -341,7 +341,9 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     sizes = _extract_sizes(
         view,
         n_points,
-        default_size=DEFAULT_COVARIANCE_SIZE if covariances is not None else DEFAULT_MARK_SIZE,
+        default_size=DEFAULT_COVARIANCE_SIZE
+        if covariances is not None
+        else DEFAULT_MARK_SIZE,
     )
     result = translate_material(view, builder)
 

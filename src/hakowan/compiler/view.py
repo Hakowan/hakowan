@@ -106,7 +106,12 @@ class View:
             roi = np.asarray(self.data_frame.roi_box, dtype=np.float64)
             lo, hi = roi[0], roi[1]
             points = np.array(
-                [[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])],
+                [
+                    [x, y, z]
+                    for x in (lo[0], hi[0])
+                    for y in (lo[1], hi[1])
+                    for z in (lo[2], hi[2])
+                ],
                 dtype=np.float64,
             )
         else:

@@ -537,7 +537,9 @@ class _GeometryMixin(_MaterialMixin):
 
         radii = self._extract_size(
             view,
-            default_size=DEFAULT_MARK_SIZE if covariance_transforms is None else DEFAULT_COVARIANCE_SIZE,
+            default_size=DEFAULT_MARK_SIZE
+            if covariance_transforms is None
+            else DEFAULT_COVARIANCE_SIZE,
         )
         if np.isscalar(radii):
             # np.isscalar guarantees a scalar here, but mypy can't narrow it.

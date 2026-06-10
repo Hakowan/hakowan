@@ -449,7 +449,9 @@ class TestEndToEnd:
         # The layout transform rides on each mesh node's column-major matrix; the
         # X translation (index 12) must differ between the two side-by-side cells.
         x_translations = [
-            node.matrix[12] for node in gltf.nodes if node.mesh is not None and node.matrix
+            node.matrix[12]
+            for node in gltf.nodes
+            if node.mesh is not None and node.matrix
         ]
         assert len(x_translations) == 2
         assert abs(x_translations[0] - x_translations[1]) > 0.5
@@ -462,7 +464,9 @@ class TestEndToEnd:
         b = hkw.layer(sphere).mark(hkw.mark.Surface)
         out_path = tmp_path / "cells.html"
         hkw.render(a | b, filename=str(out_path), backend="webgl")
-        gltf = pygltflib.GLTF2().load_from_bytes(_decode_glb_from_html(out_path.read_text()))
+        gltf = pygltflib.GLTF2().load_from_bytes(
+            _decode_glb_from_html(out_path.read_text())
+        )
         cells = [
             n.extras["hakowan_cell"]
             for n in gltf.nodes
@@ -478,7 +482,9 @@ class TestEndToEnd:
         b = hkw.layer(sphere).mark(hkw.mark.Surface)
         out_path = tmp_path / "overlay.html"
         hkw.render(a + b, filename=str(out_path), backend="webgl")
-        gltf = pygltflib.GLTF2().load_from_bytes(_decode_glb_from_html(out_path.read_text()))
+        gltf = pygltflib.GLTF2().load_from_bytes(
+            _decode_glb_from_html(out_path.read_text())
+        )
         for n in gltf.nodes:
             if n.mesh is not None:
                 assert not (n.extras and n.extras.get("hakowan_cell"))
