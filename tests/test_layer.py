@@ -24,6 +24,49 @@ class TestLayer:
         lyr = l1 + l2
         assert lyr._children == [l1, l2]
 
+    def test_juxtapose_operator(self):
+        l1 = hkw.layer()
+        l2 = hkw.layer()
+
+        # `+` is a plain overlay node.
+        overlay = l1 + l2
+        assert overlay._layout is None
+
+        # `|` is a juxtaposition node with default layout parameters.
+        row = l1 | l2
+        assert row._layout == "row"
+        assert row._children == [l1, l2]
+        assert row._layout_axis == 0
+        assert row._layout_gap == 0.1
+        assert row._layout_normalize is False
+
+    def test_juxtapose_chain(self):
+        l1 = hkw.layer()
+        l2 = hkw.layer()
+        l3 = hkw.layer()
+        row = l1 | l2 | l3
+        assert row._layout == "row"
+        # Left-associative: (l1 | l2) | l3.
+        assert row._children[1] is l3
+        assert row._children[0]._children == [l1, l2]
+
+    def test_juxtapose_method(self):
+        l1 = hkw.layer()
+        l2 = hkw.layer()
+        l3 = hkw.layer()
+        row = l1.juxtapose(l2, l3, axis="y", gap=0.25, normalize=True)
+        assert row._layout == "row"
+        assert row._children == [l1, l2, l3]
+        assert row._layout_axis == 1
+        assert row._layout_gap == 0.25
+        assert row._layout_normalize is True
+
+    def test_juxtapose_bad_axis(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            hkw.layer().juxtapose(hkw.layer(), axis="w")
+
     def test_normal(self, triangle):
         mesh = triangle
         attr_id = lagrange.compute_vertex_normal(mesh)

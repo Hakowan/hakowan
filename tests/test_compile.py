@@ -664,3 +664,67 @@ class TestBackSide:
         layer = hkw.layer(mesh).mark(hkw.mark.Point).channel(material=front)
         view = hkw.compiler.compile(layer)[0]
         assert view.material_channel.back_side is None
+
+    @staticmethod
+    def _world_bbox(view) -> tuple[npt.NDArray, npt.NDArray]:
+        """Bounding box of a view in final scene space (global transform applied)."""
+        vertices = np.asarray(view.data_frame.mesh.vertices)
+        g = view.global_transform
+        world = (g[:3, :3] @ vertices.T).T + g[:3, 3]
+        return world.min(axis=0), world.max(axis=0)
+
+    def test_overlay_views_overlap(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a + b)
+        assert len(scene) == 2
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # `+` overlays in the same coordinate space: bboxes overlap in X.
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_juxtapose_places_cells_side_by_side(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a | b)
+        assert len(scene) == 2
+        # Each view sits in its own juxtaposition cell.
+        assert scene[0]._layout_cell != scene[1]._layout_cell
+
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # Cells are disjoint along the layout axis (X by default).
+        assert mx0[0] <= mn1[0] + 1e-9 or mx1[0] <= mn0[0] + 1e-9
+        # True scale is preserved: the sphere (extent 2) is ~2x the cube (extent 1).
+        sphere_ext = mx0[0] - mn0[0]
+        cube_ext = mx1[0] - mn1[0]
+        assert sphere_ext == pytest.approx(2 * cube_ext, rel=0.05)
+        # The whole arrangement is still centred and fits the unit sphere.
+        all_min = np.minimum(mn0, mn1)
+        all_max = np.maximum(mx0, mx1)
+        assert np.allclose((all_min + all_max) / 2, 0, atol=1e-9)
+        assert np.linalg.norm(all_max - all_min) == pytest.approx(2.0)
+
+    def test_juxtapose_normalize_equalizes_cells(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a.juxtapose(b, normalize=True))
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        diag0 = np.linalg.norm(mx0 - mn0)
+        diag1 = np.linalg.norm(mx1 - mn1)
+        assert diag0 == pytest.approx(diag1)
+
+    def test_juxtapose_axis_y(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a.juxtapose(b, axis="y"))
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # Disjoint along Y, overlapping in X.
+        assert mx0[1] <= mn1[1] + 1e-9 or mx1[1] <= mn0[1] + 1e-9
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]

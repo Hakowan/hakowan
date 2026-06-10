@@ -31,6 +31,84 @@ class Scene:
         self.views.append(view)
         return self
 
+    def apply_layout(self, axis: int = 0, gap: float = 0.1, normalize: bool = False):
+        """Lay out juxtaposition cells side by side along ``axis``.
+
+        Views are grouped by their ``_layout_cell`` key (set during layer-tree
+        flattening). Each cell is translated apart along ``axis`` so the cells do
+        not overlap; optionally each cell is scaled to unit size first. The
+        resulting transform is baked into each view's ``global_transform`` and
+        the view bounding boxes are refreshed. This runs *before*
+        :meth:`compute_global_transform`, which then fits the whole arrangement
+        into the unit sphere.
+
+        Args:
+            axis: Layout axis (0, 1, or 2).
+            gap: Spacing between cells, as a fraction of the mean cell extent.
+            normalize: Whether to scale each cell to unit size before placing.
+        """
+        if len(self.views) == 0:
+            return
+
+        # Group views by cell key, preserving first-seen (left-to-right) order.
+        cells: dict[tuple, list[View]] = {}
+        for view in self.views:
+            cells.setdefault(view._layout_cell, []).append(view)
+        if len(cells) <= 1:
+            # Nothing to juxtapose (e.g. a pure overlay or a single layer).
+            return
+
+        # Compute per-cell bounding box, scale factor, and axis extent.
+        cell_specs = []
+        for views in cells.values():
+            bbox_min = None
+            bbox_max = None
+            for view in views:
+                if view.bbox is None:
+                    continue
+                if bbox_min is None:
+                    bbox_min = view.bbox[0].astype(np.float64).copy()
+                    bbox_max = view.bbox[1].astype(np.float64).copy()
+                else:
+                    np.minimum(bbox_min, view.bbox[0], out=bbox_min)
+                    np.maximum(bbox_max, view.bbox[1], out=bbox_max)
+
+            if bbox_min is None:
+                # Cell has no geometry; treat it as a zero-size point at origin.
+                center = np.zeros(3)
+                scale = 1.0
+                extent = 0.0
+            else:
+                center = (bbox_min + bbox_max) / 2
+                diag = norm(bbox_max - bbox_min)
+                scale = (1.0 / diag) if (normalize and diag > 0) else 1.0
+                extent = (bbox_max[axis] - bbox_min[axis]) * scale
+            cell_specs.append((views, center, scale, extent))
+
+        mean_extent = np.mean([extent for *_, extent in cell_specs])
+        gap_distance = gap * mean_extent if mean_extent > 0 else gap
+
+        # Place cells one after another along ``axis``, centred on the off-axes.
+        cursor = 0.0
+        for views, center, scale, extent in cell_specs:
+            target = np.zeros(3)
+            target[axis] = cursor + extent / 2
+
+            # M = T(target) @ S(scale, about origin) @ T(-center)
+            recenter = np.eye(4)
+            recenter[0:3, 3] = -center
+            scaling = np.eye(4)
+            scaling[0:3, 0:3] *= scale
+            placement = np.eye(4)
+            placement[0:3, 3] = target
+            cell_transform = placement @ scaling @ recenter
+
+            for view in views:
+                view.global_transform = cell_transform @ view.global_transform
+                view.initialize_bbox()
+
+            cursor += extent + gap_distance
+
     def compute_global_transform(self):
         """Compute the global transformation matrix to fit all views in a unit sphere.
 

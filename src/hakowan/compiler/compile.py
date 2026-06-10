@@ -8,8 +8,10 @@ from .channel import preprocess_channels, process_channels
 import copy
 
 
-def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
+def condense_layer_tree_to_scene(root: layer.Layer) -> tuple[Scene, dict | None]:
     scene = Scene()
+    # Layout parameters captured from the root-most juxtaposition node, if any.
+    layout_opts: dict | None = None
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
         """Generate a view from a path in the layer tree.
@@ -40,18 +42,36 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> Scene:
         view.initialize_bbox()
         return view
 
-    def traverse(lyr: layer.Layer, ancestors: list[layer.Layer]) -> None:
+    def traverse(
+        lyr: layer.Layer, ancestors: list[layer.Layer], cell_key: tuple
+    ) -> None:
         # `ancestors` is a list of layers from the root to the current layer.
+        # `cell_key` identifies which juxtaposition cell this branch belongs to.
+        nonlocal layout_opts
         ancestors.append(lyr)
-        if len(lyr._children) == 0:
-            scene.append(generate_view(ancestors))
+        if lyr._layout is not None and len(lyr._children) > 0:
+            # Juxtaposition node: each child becomes a distinct cell.
+            if layout_opts is None:
+                layout_opts = {
+                    "axis": lyr._layout_axis,
+                    "gap": lyr._layout_gap,
+                    "normalize": lyr._layout_normalize,
+                }
+            for i, child in enumerate(lyr._children):
+                traverse(child, ancestors, cell_key + ((id(lyr), i),))
+        elif len(lyr._children) == 0:
+            # Leaf layer: condense the ancestor path into a view.
+            view = generate_view(ancestors)
+            view._layout_cell = cell_key
+            scene.append(view)
         else:
+            # Overlay node (created by `+`): children share the same cell.
             for child in lyr._children:
-                traverse(child, ancestors)
+                traverse(child, ancestors, cell_key)
         ancestors.pop()
 
-    traverse(root, [])
-    return scene
+    traverse(root, [], ())
+    return scene, layout_opts
 
 
 def compile(root: layer.Layer) -> Scene:
@@ -69,7 +89,7 @@ def compile(root: layer.Layer) -> Scene:
         the layer tree.
     """
     # Step 1: condense each path from root to leaf in the layer tree into a view.
-    scene = condense_layer_tree_to_scene(root)
+    scene, layout_opts = condense_layer_tree_to_scene(root)
     logger.debug(f"Created scene with {len(scene)} views")
 
     # Step 2: carry out transform operations on each view.
@@ -87,6 +107,10 @@ def compile(root: layer.Layer) -> Scene:
     # Step 5: finalize the data frame.
     for view in scene:
         view.finalize()
+
+    # Step 5.5: lay out juxtaposition cells side by side (no-op without `|`).
+    if layout_opts is not None:
+        scene.apply_layout(**layout_opts)
 
     # Step 6: compute the global scene transform
     scene.compute_global_transform()

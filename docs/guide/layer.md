@@ -76,3 +76,37 @@ Here, `surface_view` is a visualization of the surface geometry, while `point_vi
 are the visualizations of vertices and edges of the geometry. The addition operations combines all
 three views together to form a composite view that visualizes all three elements.
 
+## Layer comparison
+
+While `+` overlays layers in the same coordinate space, the `|` operator places layers _side by
+side_ so they can be compared.
+
+``` py
+comparison = hkw.layer("before.obj") | hkw.layer("after.obj")
+```
+
+This lays out the two layers in a horizontal row, automatically translating them apart so they do
+not overlap. The original relative scale of each layer is preserved.
+
+For more control, use the [`juxtapose`][hakowan.grammar.layer.layer.Layer.juxtapose] method, which
+`|` calls with default settings:
+
+``` py
+comparison = base.juxtapose(
+    other,
+    axis="y",        # lay out along Y instead of the default X
+    gap=0.2,         # spacing between cells, as a fraction of the mean cell size
+    normalize=True,  # scale each cell to equal size before placing
+)
+```
+
+Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+` and `|`
+combine freely:
+
+``` py
+# Compare a bare surface against the same surface with its wireframe overlaid.
+surface = hkw.layer("shape.obj").mark(hkw.mark.Surface)
+edges = hkw.layer("shape.obj").mark(hkw.mark.Curve)
+comparison = surface | (surface + edges)
+```
+

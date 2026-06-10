@@ -44,6 +44,11 @@ class View:
     _active_attributes: list[Attribute] = field(default_factory=list)
     _bbox: npt.NDArray | None = None
 
+    # Juxtaposition cell key (set during layer-tree flattening). Views sharing
+    # the same key belong to the same side-by-side cell; the empty tuple means
+    # the view is not part of any juxtaposition.
+    _layout_cell: tuple = field(default_factory=tuple)
+
     def initialize_bbox(self):
         assert self.data_frame is not None
         if self.data_frame.roi_box is not None:

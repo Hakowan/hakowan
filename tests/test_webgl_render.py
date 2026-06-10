@@ -426,3 +426,30 @@ class TestEndToEnd:
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
         assert len(gltf.meshes) == 2
         assert len(gltf.materials) == 2
+
+    def test_juxtapose_renders_side_by_side(self, tmp_path):
+        sphere = _make_icosphere()
+        # No manual `.translate`: `|` lays the two layers out side by side.
+        a = (
+            hkw.layer(sphere)
+            .mark(hkw.mark.Surface)
+            .channel(material=hkw.material.Diffuse(reflectance="red"))
+        )
+        b = (
+            hkw.layer(sphere)
+            .mark(hkw.mark.Surface)
+            .channel(material=hkw.material.Diffuse(reflectance="blue"))
+        )
+        out_path = tmp_path / "juxtapose.html"
+        hkw.render(a | b, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert len(gltf.meshes) == 2
+        assert len(gltf.materials) == 2
+        # The layout transform rides on each mesh node's column-major matrix; the
+        # X translation (index 12) must differ between the two side-by-side cells.
+        x_translations = [
+            node.matrix[12] for node in gltf.nodes if node.mesh is not None and node.matrix
+        ]
+        assert len(x_translations) == 2
+        assert abs(x_translations[0] - x_translations[1]) > 0.5
