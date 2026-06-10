@@ -132,10 +132,12 @@ combined_layer = l0 + l1
 
 ### Layer comparison
 
-To compare two layers, use `|` to lay them out side by side instead of overlaying them.
+To compare two layers, use `|` to lay them out side by side (a horizontal row), or `&` to stack
+them vertically (a column), instead of overlaying them.
 
 ```py
-comparison = l0 | l1
+row    = l0 | l1   # horizontal
+column = l0 & l1   # vertical
 ```
 
 See the [layer guide](layer.md) for the configurable `juxtapose` method.

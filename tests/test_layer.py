@@ -40,6 +40,18 @@ class TestLayer:
         assert row._layout.gap == 0.05
         assert row._layout.normalize is False
 
+    def test_vertical_juxtapose_operator(self):
+        l1 = hkw.layer()
+        l2 = hkw.layer()
+
+        # `&` is a juxtaposition node laid out along the Y axis (vertical stack).
+        column = l1 & l2
+        assert column._layout is not None
+        assert column._children == [l1, l2]
+        assert column._layout.axis == 1
+        assert column._layout.gap == 0.05
+        assert column._layout.normalize is False
+
     def test_juxtapose_chain(self):
         l1 = hkw.layer()
         l2 = hkw.layer()

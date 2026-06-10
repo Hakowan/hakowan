@@ -10,10 +10,11 @@ import copy
 
 def condense_layer_tree_to_scene(
     root: layer.Layer,
-) -> tuple[Scene, layer.LayoutOptions | None]:
+) -> tuple[Scene, dict[int, layer.LayoutOptions]]:
     scene = Scene()
-    # Layout options captured from the root-most juxtaposition node, if any.
-    layout_opts: layer.LayoutOptions | None = None
+    # Layout options for every juxtaposition node, keyed by id(node) so the
+    # recursive layout can honour each node's own axis/gap/normalize.
+    node_options: dict[int, layer.LayoutOptions] = {}
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
         """Generate a view from a path in the layer tree.
@@ -49,13 +50,11 @@ def condense_layer_tree_to_scene(
     ) -> None:
         # `ancestors` is a list of layers from the root to the current layer.
         # `cell_key` identifies which juxtaposition cell this branch belongs to.
-        nonlocal layout_opts
         ancestors.append(lyr)
         if lyr._layout is not None and len(lyr._children) > 0:
-            # Juxtaposition node: each child becomes a distinct cell. Capture the
-            # root-most layout options to drive the side-by-side placement.
-            if layout_opts is None:
-                layout_opts = lyr._layout
+            # Juxtaposition node: record its options and extend the cell key so
+            # each child becomes a distinct cell (or sub-layout).
+            node_options[id(lyr)] = lyr._layout
             for i, child in enumerate(lyr._children):
                 traverse(child, ancestors, cell_key + ((id(lyr), i),))
         elif len(lyr._children) == 0:
@@ -70,7 +69,7 @@ def condense_layer_tree_to_scene(
         ancestors.pop()
 
     traverse(root, [], ())
-    return scene, layout_opts
+    return scene, node_options
 
 
 def compile(root: layer.Layer) -> Scene:
@@ -88,7 +87,7 @@ def compile(root: layer.Layer) -> Scene:
         the layer tree.
     """
     # Step 1: condense each path from root to leaf in the layer tree into a view.
-    scene, layout_opts = condense_layer_tree_to_scene(root)
+    scene, node_options = condense_layer_tree_to_scene(root)
     logger.debug(f"Created scene with {len(scene)} views")
 
     # Step 2: carry out transform operations on each view.
@@ -107,9 +106,9 @@ def compile(root: layer.Layer) -> Scene:
     for view in scene:
         view.finalize()
 
-    # Step 5.5: lay out juxtaposition cells side by side (no-op without `|`).
-    if layout_opts is not None:
-        scene.apply_layout(layout_opts)
+    # Step 5.5: lay out juxtaposition cells (no-op without `|` / `&`).
+    if node_options:
+        scene.apply_layout(node_options)
 
     # Step 6: compute the global scene transform
     scene.compute_global_transform()

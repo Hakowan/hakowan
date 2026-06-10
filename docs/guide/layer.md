@@ -88,8 +88,18 @@ comparison = hkw.layer("before.obj") | hkw.layer("after.obj")
 This lays out the two layers in a horizontal row, automatically translating them apart so they do
 not overlap. The original relative scale of each layer is preserved.
 
+The `&` operator is the vertical analogue of `|`: it stacks layers in a column instead of a row.
+
+``` py
+comparison = hkw.layer("before.obj") & hkw.layer("after.obj")
+```
+
+!!! note
+    Python binds `&` tighter than `|`, so `a | b & c` parses as `a | (b & c)`. Parenthesise when
+    mixing the two operators.
+
 For more control, use the [`juxtapose`][hakowan.grammar.layer.layer.Layer.juxtapose] method, which
-`|` calls with default settings:
+`|` and `&` call with default settings (`axis="x"` and `axis="y"` respectively):
 
 ``` py
 comparison = base.juxtapose(
@@ -100,8 +110,8 @@ comparison = base.juxtapose(
 )
 ```
 
-Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+` and `|`
-combine freely:
+Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+`, `|`, and
+`&` combine freely:
 
 ``` py
 # Compare a bare surface against the same surface with its wireframe overlaid.
@@ -109,4 +119,16 @@ surface = hkw.layer("shape.obj").mark(hkw.mark.Surface)
 edges = hkw.layer("shape.obj").mark(hkw.mark.Curve)
 comparison = surface | (surface + edges)
 ```
+
+Nesting `|` and `&` builds a 2-D **grid** — each operator lays out its own operands along its axis,
+so a row of cells can be stacked over another, or several rows tiled into a matrix:
+
+``` py
+top    = a | b           # a row
+grid   = (a | b) & c     # the a–b row stacked above c
+matrix = (a | b) & (c | d)  # a 2x2 grid
+```
+
+Cells are spaced by their bounding spheres, so they never overlap — even as you rotate each cell
+in the interactive viewer.
 

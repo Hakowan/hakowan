@@ -228,6 +228,24 @@ class Layer:
         """
         return self.juxtapose(other)
 
+    def __and__(self, other: "Layer") -> "Layer":
+        """Lay out two layers stacked vertically for comparison.
+
+        ``l1 & l2`` is shorthand for ``l1.juxtapose(l2, axis="y")`` — a vertical
+        column, in contrast to the horizontal row produced by ``|``.
+
+        Note:
+            Python binds ``&`` tighter than ``|``, so ``a | b & c`` parses as
+            ``a | (b & c)``. Parenthesise when mixing the two operators.
+
+        Args:
+            other (Layer): The layer to place below this one.
+
+        Returns:
+            (Layer): The composite juxtaposition layer.
+        """
+        return self.juxtapose(other, axis="y")
+
     def __get_working_layer(self, in_place: bool = False) -> "Layer":
         if in_place:
             return self

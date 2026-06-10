@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import numpy as np
+import numpy.typing as npt
 from numpy.linalg import norm
 
 from .view import View
@@ -32,101 +33,146 @@ class Scene:
         self.views.append(view)
         return self
 
-    def apply_layout(self, options: LayoutOptions):
-        """Lay out juxtaposition cells side by side along ``options.axis``.
+    def apply_layout(self, node_options: dict[int, LayoutOptions]):
+        """Lay out juxtaposition cells, honouring nested ``|`` / ``&`` as a grid.
 
-        Views are grouped by their ``_layout_cell`` key (set during layer-tree
-        flattening). Each cell is translated apart so the cells do not overlap;
-        with ``options.normalize`` each cell is scaled to unit size first. The
-        resulting transform is baked into each view's ``global_transform`` and
-        the view bounding boxes are refreshed. This runs *before*
-        :meth:`compute_global_transform`, which then fits the whole arrangement
-        into the unit sphere.
+        Views carry a ``_layout_cell`` key — a path of ``(layout_node_id, branch)``
+        pairs recorded during layer-tree flattening. ``node_options`` maps each
+        layout node id to its :class:`LayoutOptions`. The layout is applied
+        **recursively**: every layout node positions its direct children along
+        *its own* axis, and a child may itself be a sub-layout (packed first,
+        bottom-up). Thus ``(a | b) & c`` places ``a``/``b`` in a row and stacks
+        that row with ``c``; ``(a | b) & (c | d)`` yields a 2x2 grid.
 
-        Cells are spaced by their **bounding-sphere diameter**, not their extent
-        along the axis. Because the interactive viewer rotates each cell about
-        its own centre, a cell sweeps the sphere centred there that contains its
-        geometry; spacing by that diameter keeps neighbouring spheres disjoint so
-        the cells never overlap under *any* rotation. The radius is the true
-        max-vertex distance from the centre (not the looser bbox half-diagonal),
-        so cells sit as close as that guarantee allows.
+        Cells are spaced by their **bounding-sphere diameter** (true max-vertex
+        distance from the rotation centre), so neighbours never overlap under any
+        per-cell rotation in the interactive viewer. Transforms are baked into
+        each view's ``global_transform``; this runs *before*
+        :meth:`compute_global_transform`, which fits the whole arrangement into
+        the unit sphere.
 
         Args:
-            options: Layout parameters (axis, gap, normalize).
+            node_options: Map from layout node id to its layout parameters.
         """
-        axis, gap, normalize = options.axis, options.gap, options.normalize
         if len(self.views) == 0:
             return
-
-        # Group views by cell key, preserving first-seen (left-to-right) order.
-        cells: dict[tuple, list[View]] = {}
-        for view in self.views:
-            cells.setdefault(view._layout_cell, []).append(view)
-        if len(cells) <= 1:
-            # Nothing to juxtapose (e.g. a pure overlay or a single layer).
+        if not any(len(v._layout_cell) > 0 for v in self.views):
+            # No juxtaposition node in the tree (pure overlay / single layer).
             return
+        self._layout_group(list(self.views), 0, node_options)
 
-        # Compute per-cell bounding box, scale factor, and bounding-sphere
-        # diameter (the bbox diagonal). The cell rotates about its bbox centre,
-        # so its geometry stays within the sphere of that diameter under any
-        # rotation; spacing by the diameter keeps neighbouring cells disjoint.
-        cell_specs = []
-        for views in cells.values():
-            bbox_min = None
-            bbox_max = None
-            for view in views:
-                if view.bbox is None:
-                    continue
-                if bbox_min is None:
-                    bbox_min = view.bbox[0].astype(np.float64).copy()
-                    bbox_max = view.bbox[1].astype(np.float64).copy()
+    def _layout_group(
+        self, views: list[View], depth: int, node_options: dict[int, LayoutOptions]
+    ) -> float:
+        """Recursively lay out ``views`` (sharing a key prefix of length ``depth``).
+
+        Centres the resulting group at the origin and returns its bounding-sphere
+        radius, so the caller can pack it as one unit.
+        """
+        terminal = [v for v in views if len(v._layout_cell) == depth]
+        descending = [v for v in views if len(v._layout_cell) > depth]
+
+        if not descending:
+            # Leaf cell: all views share one coordinate space (overlaid).
+            center, radius = self._cell_sphere(terminal)
+            self._translate_views(terminal, -center)
+            return radius
+
+        # A layout node governs the descending views at this depth.
+        options = node_options[descending[0]._layout_cell[depth][0]]
+
+        # Build ordered child groups (each centred at the origin, with a radius).
+        branches: dict[int, list[View]] = {}
+        for v in descending:
+            branches.setdefault(v._layout_cell[depth][1], []).append(v)
+        child_groups: list[tuple[list[View], float]] = []
+        for branch in sorted(branches):
+            cv = branches[branch]
+            child_groups.append((cv, self._layout_group(cv, depth + 1, node_options)))
+        # Loose overlay views terminating at this level (`+` straddling a layout
+        # operator) become one extra cell.
+        if terminal:
+            center, radius = self._cell_sphere(terminal)
+            self._translate_views(terminal, -center)
+            child_groups.append((terminal, radius))
+
+        # Optionally scale each child group to equal size before packing.
+        if options.normalize:
+            normalized = []
+            for cv, r in child_groups:
+                if r > 0:
+                    self._scale_views(cv, 1.0 / r)
+                    normalized.append((cv, 1.0))
                 else:
-                    np.minimum(bbox_min, view.bbox[0], out=bbox_min)
-                    np.maximum(bbox_max, view.bbox[1], out=bbox_max)
+                    normalized.append((cv, 0.0))
+            child_groups = normalized
 
-            if bbox_min is None:
-                # Cell has no geometry; treat it as a zero-size point at origin.
-                center = np.zeros(3)
-                scale = 1.0
-                diameter = 0.0
-            else:
-                center = (bbox_min + bbox_max) / 2
-                diag = norm(bbox_max - bbox_min)
-                scale = (1.0 / diag) if (normalize and diag > 0) else 1.0
-                # True geometry bounding-sphere radius about the rotation centre.
-                radius = max(
-                    (v.max_vertex_distance(center) for v in views if v.bbox is not None),
-                    default=0.0,
-                )
-                diameter = 2.0 * radius * scale
-            cell_specs.append((views, center, scale, diameter))
-
-        mean_diameter = np.mean([diameter for *_, diameter in cell_specs])
-        gap_distance = gap * mean_diameter if mean_diameter > 0 else gap
-
-        # Place cells one after another along ``axis``, centred on the off-axes.
-        # Each centre sits half a diameter past the cursor, so consecutive
-        # centres are separated by ``r_i + r_j + gap`` (sum of bounding-sphere
-        # radii plus the gap) — i.e. the spheres are disjoint with a margin.
+        # Pack child groups along the node's axis. Consecutive centres are
+        # separated by r_i + r_j + gap, so bounding spheres stay disjoint.
+        axis = options.axis
+        mean_diameter = (
+            float(np.mean([2.0 * r for _, r in child_groups])) if child_groups else 0.0
+        )
+        gap_distance = options.gap * mean_diameter if mean_diameter > 0 else options.gap
         cursor = 0.0
-        for views, center, scale, diameter in cell_specs:
-            target = np.zeros(3)
-            target[axis] = cursor + diameter / 2
+        for cv, r in child_groups:
+            offset = np.zeros(3)
+            offset[axis] = cursor + r
+            self._translate_views(cv, offset)
+            cursor += 2.0 * r + gap_distance
+        total = cursor - gap_distance if child_groups else 0.0
 
-            # M = T(target) @ S(scale, about origin) @ T(-center)
-            recenter = np.eye(4)
-            recenter[0:3, 3] = -center
-            scaling = np.eye(4)
-            scaling[0:3, 0:3] *= scale
-            placement = np.eye(4)
-            placement[0:3, 3] = target
-            cell_transform = placement @ scaling @ recenter
+        # Recentre the packed group at the origin along the layout axis.
+        shift = np.zeros(3)
+        shift[axis] = -total / 2.0
+        all_views = [v for cv, _ in child_groups for v in cv]
+        self._translate_views(all_views, shift)
 
-            for view in views:
-                view.global_transform = cell_transform @ view.global_transform
-                view.initialize_bbox()
+        _, radius = self._cell_sphere(all_views)
+        return radius
 
-            cursor += diameter + gap_distance
+    @staticmethod
+    def _cell_sphere(views: list[View]) -> tuple[npt.NDArray, float]:
+        """Bounding-box centre and true geometry radius of a group of views."""
+        bbox_min = None
+        bbox_max = None
+        for v in views:
+            if v.bbox is None:
+                continue
+            if bbox_min is None:
+                bbox_min = v.bbox[0].astype(np.float64).copy()
+                bbox_max = v.bbox[1].astype(np.float64).copy()
+            else:
+                np.minimum(bbox_min, v.bbox[0], out=bbox_min)
+                np.maximum(bbox_max, v.bbox[1], out=bbox_max)
+        if bbox_min is None:
+            return np.zeros(3), 0.0
+        center = (bbox_min + bbox_max) / 2
+        radius = max(
+            (v.max_vertex_distance(center) for v in views if v.bbox is not None),
+            default=0.0,
+        )
+        return center, radius
+
+    @staticmethod
+    def _translate_views(views: list[View], offset: npt.NDArray) -> None:
+        if not np.any(offset):
+            return
+        transform = np.eye(4)
+        transform[0:3, 3] = offset
+        for v in views:
+            v.global_transform = transform @ v.global_transform
+            v.initialize_bbox()
+
+    @staticmethod
+    def _scale_views(views: list[View], factor: float) -> None:
+        if factor == 1.0:
+            return
+        transform = np.eye(4)
+        transform[0:3, 0:3] *= factor
+        for v in views:
+            v.global_transform = transform @ v.global_transform
+            v.initialize_bbox()
 
     def compute_global_transform(self):
         """Compute the global transformation matrix to fit all views in a unit sphere.

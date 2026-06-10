@@ -731,15 +731,18 @@ class TestBackSide:
         assert np.linalg.norm(c1 - c0) >= r0 + r1
 
     def test_juxtapose_normalize_equalizes_cells(self):
+        # `normalize` scales each cell to equal bounding-sphere radius (the same
+        # size metric used for spacing), not equal bbox diagonal.
         import lagrange.primitive as prim
 
         a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
         b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(a.juxtapose(b, normalize=True))
         (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
-        diag0 = np.linalg.norm(mx0 - mn0)
-        diag1 = np.linalg.norm(mx1 - mn1)
-        assert diag0 == pytest.approx(diag1)
+        c0, c1 = (mn0 + mx0) / 2, (mn1 + mx1) / 2
+        r0 = self._world_radius(scene[0], c0)
+        r1 = self._world_radius(scene[1], c1)
+        assert r0 == pytest.approx(r1)
 
     def test_juxtapose_axis_y(self):
         import lagrange.primitive as prim
@@ -751,3 +754,41 @@ class TestBackSide:
         # Disjoint along Y, overlapping in X.
         assert mx0[1] <= mn1[1] + 1e-9 or mx1[1] <= mn0[1] + 1e-9
         assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_and_operator_stacks_vertically(self):
+        # `&` is the vertical analogue of `|`: cells disjoint along Y.
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a & b)
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        assert mx0[1] <= mn1[1] + 1e-9 or mx1[1] <= mn0[1] + 1e-9
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_nested_layout_forms_grid(self):
+        # Mixed `|` / `&` nest into a true 2-D grid: each layout node lays out its
+        # direct children along its own axis.
+        import lagrange.primitive as prim
+
+        def sphere():
+            return hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+
+        def center(view):
+            mn, mx = self._world_bbox(view)
+            return (mn + mx) / 2
+
+        # (a | b) & c : a, b in a row; that row stacked with c.
+        a, b, c = sphere(), sphere(), sphere()
+        ca, cb, cc = (center(v) for v in hkw.compiler.compile((a | b) & c))
+        assert abs(ca[0] - cb[0]) > 0.1  # a, b separated in X
+        assert ca[1] == pytest.approx(cb[1])  # a, b on the same row (Y)
+        assert abs(cc[1] - ca[1]) > 0.1  # c on a different row
+        assert cc[0] == pytest.approx((ca[0] + cb[0]) / 2)  # c centred over the row
+
+        # (a | b) & (c | d) : 2x2 grid -> exactly two distinct X and two distinct Y.
+        a, b, c, d = sphere(), sphere(), sphere(), sphere()
+        pts = [center(v) for v in hkw.compiler.compile((a | b) & (c | d))]
+        xs = {round(float(p[0]), 5) for p in pts}
+        ys = {round(float(p[1]), 5) for p in pts}
+        assert len(xs) == 2 and len(ys) == 2
