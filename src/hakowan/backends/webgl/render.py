@@ -28,6 +28,8 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
+_DEFAULT_BG_COLOR = (0.1, 0.1, 0.1)
+_DEFAULT_TITLE = "hakowan"
 
 
 class WebGLBackend(RenderBackend):
@@ -53,8 +55,8 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
-        title: str = "hakowan",
+        bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
+        title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
         **kwargs: Any,
     ) -> Path:
@@ -86,8 +88,8 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
-        title: str = "hakowan",
+        bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
+        title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
     ) -> str:
         """Build and return the viewer HTML as a string without writing any files.

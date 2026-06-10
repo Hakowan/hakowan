@@ -23,6 +23,7 @@ import numpy as np
 
 from ...common import logger
 from ...compiler import View
+from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder
@@ -270,7 +271,7 @@ def _matrices_to_quaternions(matrices: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------- #
 
 
-def _extract_sizes(view: View, n: int, default_size: float = 0.01) -> np.ndarray:
+def _extract_sizes(view: View, n: int, default_size: float) -> np.ndarray:
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     if view.size_channel is None:
@@ -338,7 +339,9 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
         view.covariance_channel.full if view.covariance_channel is not None else False
     )
     sizes = _extract_sizes(
-        view, n_points, default_size=1.0 if covariances is not None else 0.01
+        view,
+        n_points,
+        default_size=DEFAULT_COVARIANCE_SIZE if covariances is not None else DEFAULT_MARK_SIZE,
     )
     result = translate_material(view, builder)
 

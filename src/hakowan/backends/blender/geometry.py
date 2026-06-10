@@ -4,6 +4,7 @@ from ...common import logger
 from ...compiler import View
 from ...grammar import mark
 from ...grammar.scale import Attribute
+from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
 
 import numpy as np
@@ -40,7 +41,7 @@ def _matrix3_to_quaternion(rotation: np.ndarray) -> np.ndarray:
 
 
 class _GeometryMixin(_MaterialMixin):
-    def _extract_size(self, view: View, default_size: float = 0.01):
+    def _extract_size(self, view: View, default_size: float = DEFAULT_MARK_SIZE):
         """Extract size attribute from a view (scalar or per-vertex).
 
         Returns:
@@ -535,7 +536,8 @@ class _GeometryMixin(_MaterialMixin):
             covariance_transforms = self._extract_covariance_transforms(view)
 
         radii = self._extract_size(
-            view, default_size=0.01 if covariance_transforms is None else 1.0
+            view,
+            default_size=DEFAULT_MARK_SIZE if covariance_transforms is None else DEFAULT_COVARIANCE_SIZE,
         )
         if np.isscalar(radii):
             # np.isscalar guarantees a scalar here, but mypy can't narrow it.

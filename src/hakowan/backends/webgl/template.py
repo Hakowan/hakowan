@@ -16,7 +16,7 @@ def render_html(
     three_version: str,
     bg_color: tuple[float, float, float],
     initial_view: dict[str, list[float]],
-    title: str = "hakowan",
+    title: str,
     envmap: dict | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.

@@ -4,6 +4,7 @@ from .medium import generate_medium_config
 from ...common import logger
 from ...compiler import View
 from ...grammar.scale import Attribute
+from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
 from ...grammar.channel.material import Dielectric
 from .utils import rotation
@@ -18,7 +19,7 @@ import pathlib
 import tempfile
 
 
-def extract_size(view: View, default_size=0.01):
+def extract_size(view: View, default_size=DEFAULT_MARK_SIZE):
     """Extract the size attribute from a view.
 
     Args:
@@ -194,8 +195,8 @@ def generate_point_config(view: View, stamp: str, index: int) -> dict:
             case "cube":
                 base_shape_config = {"type": "cube"}
 
-        # Compute radii, with default radii as 1.
-        radii = extract_size(view, 1)
+        # Compute radii, defaulting to the covariance glyph size.
+        radii = extract_size(view, DEFAULT_COVARIANCE_SIZE)
         if np.isscalar(radii):
             radii = [radii] * mesh.num_vertices
         assert len(radii) == mesh.num_vertices

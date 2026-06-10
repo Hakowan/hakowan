@@ -28,6 +28,7 @@ import numpy as np
 
 from ...common import logger
 from ...compiler import View
+from ...grammar.channel import DEFAULT_MARK_SIZE
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder, MODE_LINES, MODE_TRIANGLES
@@ -40,7 +41,7 @@ from .material_translate import translate_material
 
 
 _DEFAULT_TUBE_SIDES = 8
-_DEFAULT_SIZE = 0.01
+_DEFAULT_SIZE = DEFAULT_MARK_SIZE
 
 
 @dataclass
