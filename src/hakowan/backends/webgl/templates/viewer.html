@@ -385,6 +385,14 @@ function setObjectRotateEnabled(enabled) {
   objectRotateEnabled = enabled;
   // Left-drag rotates objects in this mode; OrbitControls keeps pan/zoom.
   controls.enableRotate = !enabled;
+  if (enabled) {
+    // Cancel any leftover orbit damping so the camera doesn't keep drifting
+    // after the switch (one update with damping off zeroes the inertia).
+    const damping = controls.enableDamping;
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = damping;
+  }
   const btn = document.getElementById('btn-objrotate');
   if (btn) btn.classList.toggle('active', enabled);
 }
@@ -937,7 +945,20 @@ const onLoaded = (gltf) => {
     }
   }
   buildPassUI();
+  // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
+  // to per-object rotation so dragging compares orientations rather than orbiting
+  // the whole arrangement. Single-object/overlay scenes keep camera orbit.
+  if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
+  // Debug/automation handle: read-only access to the live scene graph and the
+  // object-rotation controls. Handy for inspection and end-to-end tests.
+  window.__hakowan = {
+    THREE, scene, camera, controls, loadedRoot,
+    getCellGroups: () => cellGroups,
+    setObjectRotateEnabled,
+    applyObjectRotation,
+    qObjectRotation,
+  };
   window.__hakowan_loaded = true;
 };
 const onError = (err) => {

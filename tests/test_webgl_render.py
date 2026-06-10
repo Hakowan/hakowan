@@ -495,3 +495,6 @@ class TestEndToEnd:
         assert "btn-objrotate" in html
         assert "buildCellGroups" in html
         assert "hakowan_cell" in html
+        # Juxtaposition scenes default to per-object rotation (>= 2 cells).
+        assert "cellGroups.length >= 2" in html
+        assert "setObjectRotateEnabled(true)" in html
