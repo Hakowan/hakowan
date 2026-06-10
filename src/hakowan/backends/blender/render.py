@@ -1,6 +1,7 @@
 """Blender rendering backend implementation."""
 
 from ...common import logger
+from ...common.output import manage_native_output
 from ...compiler import Scene
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, FACET_ID
@@ -106,11 +107,13 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             # filenames with no directory.  Save a temporary .blend file into
             # the output directory so that '//' resolves to filename.parent.
             _temp_blend = filename.parent / ".hakowan_compositor.blend"
-            bpy.ops.wm.save_as_mainfile(filepath=str(_temp_blend), compress=False)
+            with manage_native_output(logger, prefix="blender"):
+                bpy.ops.wm.save_as_mainfile(filepath=str(_temp_blend), compress=False)
             renames = self._setup_compositor_passes(config, filename)
 
         logger.info("Rendering with Blender...")
-        bpy.ops.render.render(write_still=True)
+        with manage_native_output(logger, prefix="blender"):
+            bpy.ops.render.render(write_still=True)
         logger.info(f"Rendering saved to {filename}")
 
         # Move pass files if needed (src == final means already in the right place).

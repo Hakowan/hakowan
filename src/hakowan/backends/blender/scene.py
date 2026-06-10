@@ -1,6 +1,7 @@
 """Camera, lighting, render-settings, compositor and render-pass setup."""
 
 from ...common import logger
+from ...common.output import manage_native_output
 from ...setup import Config
 from ...setup.render_pass import FACET_ID, aov_path
 
@@ -166,7 +167,7 @@ class _SceneMixin:
             logger.info("Rendering facet-ID pass...")
             # Lossless render iff the pass is discrete (always true for facet_id).
             ctx = self._lossless_render_state() if FACET_ID.discrete else nullcontext()
-            with ctx:
+            with ctx, manage_native_output(logger, prefix="blender"):
                 bpy.ops.render.render(write_still=True)
             logger.info(f"Facet-ID pass saved to {facet_id_path}")
         finally:
