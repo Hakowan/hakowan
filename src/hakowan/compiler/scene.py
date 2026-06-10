@@ -3,6 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from .view import View
+from ..grammar.layer import LayoutOptions
 
 
 @dataclass
@@ -31,28 +32,29 @@ class Scene:
         self.views.append(view)
         return self
 
-    def apply_layout(self, axis: int = 0, gap: float = 0.1, normalize: bool = False):
-        """Lay out juxtaposition cells side by side along ``axis``.
+    def apply_layout(self, options: LayoutOptions):
+        """Lay out juxtaposition cells side by side along ``options.axis``.
 
         Views are grouped by their ``_layout_cell`` key (set during layer-tree
-        flattening). Each cell is translated apart along ``axis`` so the cells do
-        not overlap; optionally each cell is scaled to unit size first. The
+        flattening). Each cell is translated apart so the cells do not overlap;
+        with ``options.normalize`` each cell is scaled to unit size first. The
         resulting transform is baked into each view's ``global_transform`` and
         the view bounding boxes are refreshed. This runs *before*
         :meth:`compute_global_transform`, which then fits the whole arrangement
         into the unit sphere.
 
-        Cells are spaced by their **bounding-sphere diameter** (the bbox
-        diagonal), not their extent along ``axis``. Because the interactive
-        viewer rotates each cell about its own centre, a cell sweeps its bounding
-        sphere; spacing by the diameter keeps those spheres disjoint so the cells
-        never overlap under *any* rotation.
+        Cells are spaced by their **bounding-sphere diameter**, not their extent
+        along the axis. Because the interactive viewer rotates each cell about
+        its own centre, a cell sweeps the sphere centred there that contains its
+        geometry; spacing by that diameter keeps neighbouring spheres disjoint so
+        the cells never overlap under *any* rotation. The radius is the true
+        max-vertex distance from the centre (not the looser bbox half-diagonal),
+        so cells sit as close as that guarantee allows.
 
         Args:
-            axis: Layout axis (0, 1, or 2).
-            gap: Spacing between cells, as a fraction of the mean cell diameter.
-            normalize: Whether to scale each cell to unit size before placing.
+            options: Layout parameters (axis, gap, normalize).
         """
+        axis, gap, normalize = options.axis, options.gap, options.normalize
         if len(self.views) == 0:
             return
 
@@ -91,7 +93,12 @@ class Scene:
                 center = (bbox_min + bbox_max) / 2
                 diag = norm(bbox_max - bbox_min)
                 scale = (1.0 / diag) if (normalize and diag > 0) else 1.0
-                diameter = diag * scale
+                # True geometry bounding-sphere radius about the rotation centre.
+                radius = max(
+                    (v.max_vertex_distance(center) for v in views if v.bbox is not None),
+                    default=0.0,
+                )
+                diameter = 2.0 * radius * scale
             cell_specs.append((views, center, scale, diameter))
 
         mean_diameter = np.mean([diameter for *_, diameter in cell_specs])

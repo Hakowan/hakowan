@@ -88,6 +88,19 @@ _MaterialTypeStr = Literal[
 _BaseShapeStr = Literal["sphere", "disk", "cube"]
 
 
+@dataclass
+class LayoutOptions:
+    """Parameters for a juxtaposition (``|``) layout.
+
+    This is the single source of truth for the layout defaults; everywhere else
+    just constructs or reads a :class:`LayoutOptions`.
+    """
+
+    axis: int = 0  # layout axis: 0 = x, 1 = y, 2 = z
+    gap: float = 0.05  # spacing between cells, as a fraction of mean cell diameter
+    normalize: bool = False  # scale each cell to equal size before placing
+
+
 @dataclass(kw_only=True, slots=True)
 class Layer:
     """Layer contains the specification of data, mark, channels and transform.
@@ -99,14 +112,9 @@ class Layer:
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list["Layer"] = field(default_factory=list)
 
-    # Layout metadata. ``_layout`` is ``None`` for a plain overlay node (created
-    # by ``+``) and ``"row"`` for a juxtaposition node (created by ``|`` /
-    # ``juxtapose``).  The remaining fields hold the layout parameters and are
-    # only meaningful when ``_layout`` is set.
-    _layout: str | None = None
-    _layout_axis: int = 0
-    _layout_gap: float = 0.1
-    _layout_normalize: bool = False
+    # Juxtaposition layout. ``None`` for a plain layer or an overlay node (``+``);
+    # a :class:`LayoutOptions` for a juxtaposition node (``|`` / ``juxtapose``).
+    _layout: LayoutOptions | None = None
 
     def __init__(
         self,
@@ -131,9 +139,6 @@ class Layer:
         self._spec = LayerSpec()
         self._children = []
         self._layout = None
-        self._layout_axis = 0
-        self._layout_gap = 0.1
-        self._layout_normalize = False
 
         if data is not None:
             self.data(data, in_place=True)
@@ -160,9 +165,9 @@ class Layer:
     def juxtapose(
         self,
         *others: "Layer",
-        axis: int | Literal["x", "y", "z"] = "x",
-        gap: float = 0.1,
-        normalize: bool = False,
+        axis: int | Literal["x", "y", "z"] | None = None,
+        gap: float | None = None,
+        normalize: bool | None = None,
     ) -> "Layer":
         """Lay out this layer and ``others`` side by side for comparison.
 
@@ -170,37 +175,43 @@ class Layer:
         creates a *juxtaposition* node whose operands are translated apart along
         ``axis`` at compile time so they sit next to each other.
 
+        Any argument left as ``None`` uses the corresponding default from
+        :class:`LayoutOptions` (horizontal row, small gap, true relative scale).
+
         Args:
             *others (Layer): The other layer(s) to place beside this one.
             axis (int | str, optional): Layout axis, ``"x"`` / ``"y"`` / ``"z"``
-                (or ``0`` / ``1`` / ``2``). Defaults to ``"x"`` (horizontal row).
+                (or ``0`` / ``1`` / ``2``).
             gap (float, optional): Spacing between cells, as a fraction of the
-                mean cell extent along ``axis``. Defaults to ``0.1``.
+                mean cell diameter.
             normalize (bool, optional): If ``True``, scale each cell to equal
-                size before placing them. If ``False`` (default), preserve the
-                true relative scale of each cell.
+                size before placing them; otherwise preserve true relative scale.
 
         Returns:
             (Layer): The composite juxtaposition layer.
         """
         if len(others) == 0:
             raise ValueError("juxtapose() requires at least one other layer.")
-        match axis:
-            case "x" | 0:
-                axis_index = 0
-            case "y" | 1:
-                axis_index = 1
-            case "z" | 2:
-                axis_index = 2
-            case _:
-                raise ValueError(f"Unsupported layout axis: {axis!r}!")
+
+        options = LayoutOptions()
+        if axis is not None:
+            match axis:
+                case "x" | 0:
+                    options.axis = 0
+                case "y" | 1:
+                    options.axis = 1
+                case "z" | 2:
+                    options.axis = 2
+                case _:
+                    raise ValueError(f"Unsupported layout axis: {axis!r}!")
+        if gap is not None:
+            options.gap = float(gap)
+        if normalize is not None:
+            options.normalize = bool(normalize)
 
         parent = Layer()
         parent._children = [self, *others]
-        parent._layout = "row"
-        parent._layout_axis = axis_index
-        parent._layout_gap = float(gap)
-        parent._layout_normalize = bool(normalize)
+        parent._layout = options
         return parent
 
     def __or__(self, other: "Layer") -> "Layer":

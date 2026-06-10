@@ -90,6 +90,34 @@ class View:
             bbox_max = np.amax(vertices, axis=0)
             self.bbox = np.stack([bbox_min, bbox_max])
 
+    def max_vertex_distance(self, center: npt.NDArray) -> float:
+        """Largest distance from ``center`` to the transformed geometry.
+
+        Returns the radius of the smallest sphere centred at ``center`` that
+        contains the view's geometry, in the same (post-``global_transform``)
+        space as :attr:`bbox`. Uses the ROI box corners when one is set,
+        otherwise the actual mesh vertices — so it is the *true* geometry radius,
+        not the (looser) half-diagonal of the bounding box.
+        """
+        assert self.data_frame is not None
+        g = self.global_transform
+        center = np.asarray(center, dtype=np.float64)
+        if self.data_frame.roi_box is not None:
+            roi = np.asarray(self.data_frame.roi_box, dtype=np.float64)
+            lo, hi = roi[0], roi[1]
+            points = np.array(
+                [[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])],
+                dtype=np.float64,
+            )
+        else:
+            mesh = self.data_frame.mesh
+            if mesh.num_vertices == 0:
+                return 0.0
+            points = np.asarray(mesh.vertices, dtype=np.float64)
+        points = (g[:3, :3] @ points.T).T + g[:3, 3]
+        deltas = points - center
+        return float(np.sqrt(np.max(np.einsum("ij,ij->i", deltas, deltas))))
+
     def validate(self):
         """Validate the currvent view is complete.
         A view is complete if data_frame and mark are both not None

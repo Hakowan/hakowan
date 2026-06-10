@@ -32,20 +32,20 @@ class TestLayer:
         overlay = l1 + l2
         assert overlay._layout is None
 
-        # `|` is a juxtaposition node with default layout parameters.
+        # `|` is a juxtaposition node carrying default layout options.
         row = l1 | l2
-        assert row._layout == "row"
+        assert row._layout is not None
         assert row._children == [l1, l2]
-        assert row._layout_axis == 0
-        assert row._layout_gap == 0.1
-        assert row._layout_normalize is False
+        assert row._layout.axis == 0
+        assert row._layout.gap == 0.05
+        assert row._layout.normalize is False
 
     def test_juxtapose_chain(self):
         l1 = hkw.layer()
         l2 = hkw.layer()
         l3 = hkw.layer()
         row = l1 | l2 | l3
-        assert row._layout == "row"
+        assert row._layout is not None
         # Left-associative: (l1 | l2) | l3.
         assert row._children[1] is l3
         assert row._children[0]._children == [l1, l2]
@@ -55,11 +55,11 @@ class TestLayer:
         l2 = hkw.layer()
         l3 = hkw.layer()
         row = l1.juxtapose(l2, l3, axis="y", gap=0.25, normalize=True)
-        assert row._layout == "row"
+        assert row._layout is not None
         assert row._children == [l1, l2, l3]
-        assert row._layout_axis == 1
-        assert row._layout_gap == 0.25
-        assert row._layout_normalize is True
+        assert row._layout.axis == 1
+        assert row._layout.gap == 0.25
+        assert row._layout.normalize is True
 
     def test_juxtapose_bad_axis(self):
         import pytest

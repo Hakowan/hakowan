@@ -8,10 +8,12 @@ from .channel import preprocess_channels, process_channels
 import copy
 
 
-def condense_layer_tree_to_scene(root: layer.Layer) -> tuple[Scene, dict | None]:
+def condense_layer_tree_to_scene(
+    root: layer.Layer,
+) -> tuple[Scene, layer.LayoutOptions | None]:
     scene = Scene()
-    # Layout parameters captured from the root-most juxtaposition node, if any.
-    layout_opts: dict | None = None
+    # Layout options captured from the root-most juxtaposition node, if any.
+    layout_opts: layer.LayoutOptions | None = None
 
     def generate_view(ancestors: list[layer.Layer]) -> View:
         """Generate a view from a path in the layer tree.
@@ -50,13 +52,10 @@ def condense_layer_tree_to_scene(root: layer.Layer) -> tuple[Scene, dict | None]
         nonlocal layout_opts
         ancestors.append(lyr)
         if lyr._layout is not None and len(lyr._children) > 0:
-            # Juxtaposition node: each child becomes a distinct cell.
+            # Juxtaposition node: each child becomes a distinct cell. Capture the
+            # root-most layout options to drive the side-by-side placement.
             if layout_opts is None:
-                layout_opts = {
-                    "axis": lyr._layout_axis,
-                    "gap": lyr._layout_gap,
-                    "normalize": lyr._layout_normalize,
-                }
+                layout_opts = lyr._layout
             for i, child in enumerate(lyr._children):
                 traverse(child, ancestors, cell_key + ((id(lyr), i),))
         elif len(lyr._children) == 0:
@@ -110,7 +109,7 @@ def compile(root: layer.Layer) -> Scene:
 
     # Step 5.5: lay out juxtaposition cells side by side (no-op without `|`).
     if layout_opts is not None:
-        scene.apply_layout(**layout_opts)
+        scene.apply_layout(layout_opts)
 
     # Step 6: compute the global scene transform
     scene.compute_global_transform()

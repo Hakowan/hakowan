@@ -673,6 +673,14 @@ class TestBackSide:
         world = (g[:3, :3] @ vertices.T).T + g[:3, 3]
         return world.min(axis=0), world.max(axis=0)
 
+    @staticmethod
+    def _world_radius(view, center) -> float:
+        """True geometry radius about ``center`` in final scene space."""
+        vertices = np.asarray(view.data_frame.mesh.vertices)
+        g = view.global_transform
+        world = (g[:3, :3] @ vertices.T).T + g[:3, 3]
+        return float(np.sqrt(((world - center) ** 2).sum(axis=1)).max())
+
     def test_overlay_views_overlap(self):
         import lagrange.primitive as prim
 
@@ -708,18 +716,18 @@ class TestBackSide:
         assert np.linalg.norm(all_max - all_min) == pytest.approx(2.0)
 
     def test_juxtapose_bounding_spheres_disjoint(self):
-        # Cells must be spaced so their bounding spheres (about each cell's
-        # rotation centre) are disjoint, guaranteeing no overlap under arbitrary
-        # per-cell rotation in the interactive viewer. A tall/thin cell would
-        # overlap its neighbour if spaced merely by axis extent.
+        # Cells must be spaced so their geometry bounding spheres (about each
+        # cell's rotation centre) are disjoint, guaranteeing no overlap under
+        # arbitrary per-cell rotation in the interactive viewer. The radius is
+        # the true max-vertex distance, not the looser bbox half-diagonal.
         import lagrange.primitive as prim
 
         a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
         b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
         scene = hkw.compiler.compile(a | b)
         (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
-        c0, r0 = (mn0 + mx0) / 2, np.linalg.norm(mx0 - mn0) / 2
-        c1, r1 = (mn1 + mx1) / 2, np.linalg.norm(mx1 - mn1) / 2
+        c0, c1 = (mn0 + mx0) / 2, (mn1 + mx1) / 2
+        r0, r1 = self._world_radius(scene[0], c0), self._world_radius(scene[1], c1)
         assert np.linalg.norm(c1 - c0) >= r0 + r1
 
     def test_juxtapose_normalize_equalizes_cells(self):
