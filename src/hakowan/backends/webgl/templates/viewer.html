@@ -315,6 +315,122 @@ let loadedRoot = null;
 let sceneBbox = null;
 
 // --------------------------------------------------------------------- //
+// Object rotation                                                         //
+// When enabled, dragging rotates each juxtaposition cell about its own    //
+// centre (camera fixed) instead of orbiting the camera. Cells are grouped //
+// by the `hakowan_cell` node extra written by the WebGL backend.          //
+// --------------------------------------------------------------------- //
+let objectRotateEnabled = false;
+const qObjectRotation = new THREE.Quaternion();
+let cellGroups = [];  // [{ center: Vector3, entries: [{ node, M0: Matrix4 }] }]
+
+function _hasGeometry(obj) {
+  let found = false;
+  obj.traverse((o) => {
+    if (o.isMesh || o.isInstancedMesh || o.isLine || o.isLineSegments || o.isPoints) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+function buildCellGroups(root) {
+  // Group the scene's renderable nodes by their `hakowan_cell` tag. Lights and
+  // cameras carry no geometry and are skipped, so they never rotate.
+  const byCell = new Map();
+  for (const child of root.children) {
+    if (!_hasGeometry(child)) continue;
+    const tag = (child.userData && child.userData.hakowan_cell) || '__default__';
+    if (!byCell.has(tag)) byCell.set(tag, []);
+    byCell.get(tag).push(child);
+  }
+  root.updateWorldMatrix(true, false);
+  const parentInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  cellGroups = [];
+  for (const nodes of byCell.values()) {
+    const box = new THREE.Box3();
+    for (const n of nodes) box.expandByObject(n);
+    // Pivot = cell centre expressed in the nodes' parent (scene-root) space.
+    const center = box.getCenter(new THREE.Vector3()).applyMatrix4(parentInv);
+    const entries = nodes.map((n) => {
+      n.matrixAutoUpdate = false;
+      return { node: n, M0: n.matrix.clone() };
+    });
+    cellGroups.push({ center, entries });
+  }
+}
+
+function applyObjectRotation() {
+  const rot = new THREE.Matrix4().makeRotationFromQuaternion(qObjectRotation);
+  for (const cell of cellGroups) {
+    const c = cell.center;
+    // pivot = T(c) · R · T(-c)
+    const pivot = new THREE.Matrix4()
+      .makeTranslation(c.x, c.y, c.z)
+      .multiply(rot)
+      .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
+    for (const e of cell.entries) {
+      e.node.matrix.copy(pivot).multiply(e.M0);
+      e.node.matrixWorldNeedsUpdate = true;
+    }
+  }
+  // The depth pass normalises against the world bbox, which moves as cells turn.
+  if (loadedRoot !== null) {
+    loadedRoot.updateMatrixWorld(true);
+    sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
+  }
+}
+
+function setObjectRotateEnabled(enabled) {
+  objectRotateEnabled = enabled;
+  // Left-drag rotates objects in this mode; OrbitControls keeps pan/zoom.
+  controls.enableRotate = !enabled;
+  const btn = document.getElementById('btn-objrotate');
+  if (btn) btn.classList.toggle('active', enabled);
+}
+
+(function installObjectRotationHandlers() {
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  const ROT_SPEED = 0.01;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!objectRotateEnabled || e.button !== 0) return;
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    // Trackball about the camera's screen axes so it feels direct.
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+    qObjectRotation
+      .premultiply(new THREE.Quaternion().setFromAxisAngle(up, dx * ROT_SPEED))
+      .premultiply(new THREE.Quaternion().setFromAxisAngle(right, dy * ROT_SPEED));
+    applyObjectRotation();
+  });
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  // Double-click resets the object orientation.
+  canvas.addEventListener('dblclick', () => {
+    if (!objectRotateEnabled) return;
+    qObjectRotation.identity();
+    applyObjectRotation();
+  });
+})();
+
+// --------------------------------------------------------------------- //
 // Wireframe overlay                                                       //
 // --------------------------------------------------------------------- //
 // For each triangle mesh we create a THREE.LineSegments child whose
@@ -759,6 +875,14 @@ function buildPassUI() {
   twoSidedBtn.title = 'Toggle two-sided (double-sided) rendering';
   twoSidedBtn.addEventListener('click', toggleTwoSided);
   container.appendChild(twoSidedBtn);
+  const objRotBtn = document.createElement('button');
+  objRotBtn.id = 'btn-objrotate';
+  objRotBtn.textContent = 'rotate objects';
+  objRotBtn.title =
+    'Drag to rotate each object about its own centre (camera stays put); '
+    + 'double-click to reset';
+  objRotBtn.addEventListener('click', () => setObjectRotateEnabled(!objectRotateEnabled));
+  container.appendChild(objRotBtn);
   const save = document.createElement('button');
   save.textContent = 'save png';
   save.title = 'Download the current pass as PNG';
@@ -792,6 +916,8 @@ const onLoaded = (gltf) => {
   applyCrispCheckerTextures(gltf.scene);
   buildWireframe(gltf.scene);
   loadedRoot = gltf.scene;
+  // Group nodes into rotatable cells (after wireframe so its lines ride along).
+  buildCellGroups(loadedRoot);
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {

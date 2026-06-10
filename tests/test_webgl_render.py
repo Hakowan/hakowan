@@ -453,3 +453,45 @@ class TestEndToEnd:
         ]
         assert len(x_translations) == 2
         assert abs(x_translations[0] - x_translations[1]) > 0.5
+
+    def test_juxtapose_tags_nodes_with_distinct_cells(self, tmp_path):
+        # Each cell's nodes carry a `hakowan_cell` extra so the interactive viewer
+        # can rotate each comparison cell about its own centre.
+        sphere = _make_icosphere()
+        a = hkw.layer(sphere).mark(hkw.mark.Surface)
+        b = hkw.layer(sphere).mark(hkw.mark.Surface)
+        out_path = tmp_path / "cells.html"
+        hkw.render(a | b, filename=str(out_path), backend="webgl")
+        gltf = pygltflib.GLTF2().load_from_bytes(_decode_glb_from_html(out_path.read_text()))
+        cells = [
+            n.extras["hakowan_cell"]
+            for n in gltf.nodes
+            if n.mesh is not None and n.extras and "hakowan_cell" in n.extras
+        ]
+        assert len(cells) == 2
+        assert cells[0] != cells[1]
+
+    def test_overlay_nodes_have_no_cell_tag(self, tmp_path):
+        # Without `|`, nodes are untagged (the viewer treats them as one group).
+        sphere = _make_icosphere()
+        a = hkw.layer(sphere).mark(hkw.mark.Surface)
+        b = hkw.layer(sphere).mark(hkw.mark.Surface)
+        out_path = tmp_path / "overlay.html"
+        hkw.render(a + b, filename=str(out_path), backend="webgl")
+        gltf = pygltflib.GLTF2().load_from_bytes(_decode_glb_from_html(out_path.read_text()))
+        for n in gltf.nodes:
+            if n.mesh is not None:
+                assert not (n.extras and n.extras.get("hakowan_cell"))
+
+    def test_viewer_has_object_rotation(self, tmp_path):
+        # The interactive viewer ships the object-rotation toggle and machinery.
+        out_path = tmp_path / "viewer.html"
+        hkw.render(
+            hkw.layer(_make_icosphere()).mark(hkw.mark.Surface),
+            filename=str(out_path),
+            backend="webgl",
+        )
+        html = out_path.read_text()
+        assert "btn-objrotate" in html
+        assert "buildCellGroups" in html
+        assert "hakowan_cell" in html

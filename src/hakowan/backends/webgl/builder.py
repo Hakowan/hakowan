@@ -44,6 +44,10 @@ class GLTFBuilder:
     _gltf: pygltflib.GLTF2 = field(default_factory=pygltflib.GLTF2)
     _bin: bytearray = field(default_factory=bytearray)
     _scene_node_indices: list[int] = field(default_factory=list)
+    # Juxtaposition cell tag attached to every node created while set. The
+    # interactive viewer groups nodes by this tag so each comparison cell can be
+    # rotated about its own centre. ``None`` means "no cell" (a single group).
+    _current_cell: str | None = None
 
     def __post_init__(self) -> None:
         # Ensure a buffer slot exists; its length is patched at finalize time.
@@ -345,6 +349,8 @@ class GLTFBuilder:
         node_kwargs: dict[str, Any] = {"mesh": mesh_idx}
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        if self._current_cell is not None:
+            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
@@ -472,6 +478,8 @@ class GLTFBuilder:
         }
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        if self._current_cell is not None:
+            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1

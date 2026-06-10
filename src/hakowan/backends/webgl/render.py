@@ -137,6 +137,10 @@ class WebGLBackend(RenderBackend):
         """
         builder = GLTFBuilder()
         for index, view in enumerate(scene):
+            # Tag every node produced for this view with its juxtaposition cell
+            # so the interactive viewer can rotate each comparison cell about its
+            # own centre. ``None`` (no `|` in the layer tree) leaves nodes untagged.
+            builder._current_cell = _cell_tag(view)
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)
             elif view.mark is mark_module.Point:
@@ -160,6 +164,18 @@ class WebGLBackend(RenderBackend):
 # ---------------------------------------------------------------------- #
 # Helpers                                                                  #
 # ---------------------------------------------------------------------- #
+
+
+def _cell_tag(view) -> str | None:
+    """Serialise a view's juxtaposition cell key to a stable per-scene string.
+
+    Returns ``None`` when the view is not part of any juxtaposition (so its
+    nodes are left untagged and the viewer treats them as a single group).
+    """
+    cell = getattr(view, "_layout_cell", ())
+    if not cell:
+        return None
+    return "/".join(f"{node_id}.{branch}" for node_id, branch in cell)
 
 
 def _resolve_output_path(filename: Path | str | None) -> Path:
