@@ -1,4 +1,6 @@
 import pytest
+import hakowan as hkw
+import hakowan.compiler
 from hakowan import transform, scale
 from hakowan.compiler.transform import principal_axes_affine_matrix
 from hakowan.compiler.streamline import _compute_streamlines
@@ -314,3 +316,26 @@ class TestStreamlineCompiler:
         out = _compute_streamlines(mesh, "vec", n=20, cross_field=False, min_length=2)
         assert out.num_vertices > 0
         assert self._max_turn_deg(out) < 150.0
+
+
+class TestExplodeCompiler:
+    def test_explode_accepts_attribute_pieces(self, two_triangles):
+        # ``pieces`` given as an Attribute (not a bare string) must resolve to
+        # its name rather than being passed straight to ``mesh.has_attribute``.
+        mesh = two_triangles
+        l1 = hkw.layer(data=mesh, mark=hkw.mark.Surface).transform(
+            hkw.transform.Explode(pieces=hkw.attribute(name="facet_index"))
+        )
+        scene = hkw.compiler.compile(l1)
+        assert len(scene) == 1
+        # The two facet groups are displaced apart but both survive.
+        assert scene[0].data_frame.mesh.num_facets == 2
+
+    def test_explode_accepts_string_pieces(self, two_triangles):
+        mesh = two_triangles
+        l1 = hkw.layer(data=mesh, mark=hkw.mark.Surface).transform(
+            hkw.transform.Explode(pieces="facet_index")
+        )
+        scene = hkw.compiler.compile(l1)
+        assert len(scene) == 1
+        assert scene[0].data_frame.mesh.num_facets == 2

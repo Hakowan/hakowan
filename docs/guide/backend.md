@@ -87,6 +87,20 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
+**Background:**
+
+The beauty view uses a soft "studio" radial gradient — a bright spot in the centre falling off
+towards the edges. Two presets are available via the `background` option:
+
+```py
+hkw.render(layer, filename="output.html", backend="webgl", background="dark")   # default
+hkw.render(layer, filename="output.html", backend="webgl", background="light")
+```
+
+The `background` option only sets the *initial* look. The interactive viewer includes a small
+**☀ / ☾ button** (top-right) to toggle light/dark at any time. Transparent materials (e.g.
+`ThinDielectric` glass) refract whichever background is active.
+
 ## Render result
 
 Regardless of backend, `hkw.render()` returns a `RenderResult`:

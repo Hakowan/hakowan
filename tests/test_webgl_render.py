@@ -139,7 +139,10 @@ class TestEndToEnd:
         layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
         with pytest.raises(ValueError):
             hkw.render(
-                layer, filename=str(tmp_path / "x.html"), backend="webgl", background="teal"
+                layer,
+                filename=str(tmp_path / "x.html"),
+                backend="webgl",
+                background="teal",
             )
 
     def test_glb_round_trips_with_basic_scene(self, tmp_path):

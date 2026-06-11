@@ -420,11 +420,13 @@ def _apply_explode_transform(view: View, transform: Explode):
     assert df is not None
     assert transform is not None
     mesh = df.mesh
-    assert mesh.has_attribute(transform.pieces)  # type: ignore
     if isinstance(transform.pieces, str):
         attr_name = transform.pieces
     elif isinstance(transform.pieces, Attribute):
         attr_name = transform.pieces.name
+    else:
+        raise RuntimeError("Explode.pieces must be a string or Attribute.")
+    assert mesh.has_attribute(attr_name)
     pieces_attr = mesh.attribute(attr_name)
     assert pieces_attr.element_type == lagrange.AttributeElement.Facet
     piece_index = pieces_attr.data

@@ -14,10 +14,13 @@ class Scale:
         """Combine the current scale with the `other` scale in place. The current scale will be applied
         before the `other` scale.
         """
+        # `other` may be reused across multiple scale chains (and may gain its own
+        # child later), so it must be deep copied to avoid aliasing side effects.
+        # This mirrors `Transform.__imul__`.
         s = self
         while s._child is not None:
             s = s._child
-        s._child = other
+        s._child = copy.deepcopy(other)
         return self
 
     def __mul__(self, other: "Scale") -> "Scale":

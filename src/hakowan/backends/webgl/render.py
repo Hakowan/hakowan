@@ -33,7 +33,9 @@ _DEFAULT_TITLE = "hakowan"
 # Beauty-pass background presets. Each is a soft "studio" radial gradient with a
 # bright spot in the centre falling off towards the edges: ``(center, edge)``
 # colours as (r, g, b) in [0, 1]. Selected via the ``background`` option.
-_BACKGROUND_PRESETS: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]] = {
+_BACKGROUND_PRESETS: dict[
+    str, tuple[tuple[float, float, float], tuple[float, float, float]]
+] = {
     "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
     "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
 }
@@ -44,8 +46,7 @@ def _validate_background(name: str) -> None:
     """Raise ``ValueError`` if ``name`` is not a known background preset."""
     if name not in _BACKGROUND_PRESETS:
         raise ValueError(
-            f"Unknown background {name!r}; choose from "
-            f"{sorted(_BACKGROUND_PRESETS)}."
+            f"Unknown background {name!r}; choose from {sorted(_BACKGROUND_PRESETS)}."
         )
 
 

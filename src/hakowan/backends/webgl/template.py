@@ -14,7 +14,9 @@ def _load_template() -> str:
 def render_html(
     glb_uri: str,
     three_version: str,
-    backgrounds: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]],
+    backgrounds: dict[
+        str, tuple[tuple[float, float, float], tuple[float, float, float]]
+    ],
     background: str,
     initial_view: dict[str, list[float]],
     title: str,

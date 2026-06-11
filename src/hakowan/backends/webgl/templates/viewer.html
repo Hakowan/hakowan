@@ -945,8 +945,9 @@ function buildPassUI() {
   bgBtn.addEventListener('click', () => setBackgroundMode(bgMode === 'light' ? 'dark' : 'light'));
   container.appendChild(bgBtn);
   const save = document.createElement('button');
-  save.textContent = 'save png';
-  save.title = 'Download the current pass as PNG';
+  save.id = 'btn-save';
+  save.textContent = '📷';
+  save.title = 'Save a screenshot of the current pass (PNG)';
   save.addEventListener('click', savePassPng);
   container.appendChild(save);
   container.classList.add('visible');

@@ -254,6 +254,21 @@ class Layer:
             layer._children = [self]
             return layer
 
+    def __compose_affine(self, layer: "Layer", matrix: npt.ArrayLike) -> None:
+        """Pre-compose ``Affine(matrix)`` onto ``layer``'s transform in place.
+
+        The new affine becomes the *head* of the transform chain. Because
+        ``apply_transform`` evaluates the chain tail-first, this makes successive
+        in-place ``translate`` / ``rotate`` / ``scale`` calls apply in call order
+        — matching the non-in-place path, where each call wraps the previous
+        layer and the compiler accumulates transforms root-first.
+        """
+        affine = Affine(matrix)
+        if layer._spec.transform is None:
+            layer._spec.transform = affine
+        else:
+            layer._spec.transform = affine * layer._spec.transform
+
     def data(
         self,
         data: DataFrameLike,
@@ -489,10 +504,7 @@ class Layer:
         H = np.outer(v, v)
         S = np.cross(eye3, v)
         M = eye3 * np.cos(angle) + S * np.sin(angle) + H * (1 - np.cos(angle))
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     def translate(self, offset: npt.ArrayLike, in_place: bool = False) -> "Layer":
@@ -509,11 +521,7 @@ class Layer:
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[:3, 3] = np.array(offset, dtype=np.float64)
-
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     def scale(self, factor: float, in_place: bool = False) -> "Layer":
@@ -530,10 +538,7 @@ class Layer:
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[0, 0] = M[1, 1] = M[2, 2] = factor
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     @property

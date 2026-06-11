@@ -187,8 +187,12 @@ class Scene:
         for view in self.views:
             if view.bbox is None:
                 continue
-            bbox_min = view.bbox[0]
-            bbox_max = view.bbox[1]
+            # Copy: ``bbox`` is a stacked array, so ``bbox[0]`` / ``bbox[1]`` are
+            # row views into the view's stored ``_bbox``. The accumulation below
+            # writes back via ``out=``, which would otherwise clobber this view's
+            # bbox with the whole-scene union.
+            bbox_min = view.bbox[0].copy()
+            bbox_max = view.bbox[1].copy()
             break
 
         if bbox_min is None or bbox_max is None:

@@ -29,6 +29,38 @@ class TestCompile:
         assert len(scene) == 1
         assert scene[0].data_frame.mesh.num_facets == 1
 
+    def test_in_place_transform_matches_non_in_place(self, triangle):
+        # Chained translate-then-scale must produce the same composition whether
+        # the calls are in-place or not. Both read "translate first, then scale":
+        # x -> 2 * (x + [10, 0, 0]).
+        from hakowan.compiler.compile import condense_layer_tree_to_scene
+        from hakowan.compiler.transform import apply_transform
+
+        def global_after_transforms(layer):
+            scene, _ = condense_layer_tree_to_scene(layer)
+            for v in scene:
+                apply_transform(v)
+            return scene[0].global_transform
+
+        non_ip = (
+            hkw.layer(data=triangle, mark=hkw.mark.Surface)
+            .translate([10.0, 0.0, 0.0])
+            .scale(2.0)
+        )
+        in_ip = (
+            hkw.layer(data=triangle, mark=hkw.mark.Surface)
+            .translate([10.0, 0.0, 0.0], in_place=True)
+            .scale(2.0, in_place=True)
+        )
+
+        g_non = global_after_transforms(non_ip)
+        g_in = global_after_transforms(in_ip)
+        assert np.allclose(g_non, g_in)
+
+        expected = np.diag([2.0, 2.0, 2.0, 1.0])
+        expected[:3, 3] = [20.0, 0.0, 0.0]
+        assert np.allclose(g_in, expected)
+
     def test_position_with_scale(self, triangle):
         mesh = triangle
         bbox_min = np.amin(mesh.vertices, axis=0)
