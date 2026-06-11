@@ -15,6 +15,7 @@ def render_html(
     glb_uri: str,
     three_version: str,
     bg_color: tuple[float, float, float],
+    bg_center_color: tuple[float, float, float],
     initial_view: dict[str, list[float]],
     title: str,
     envmap: dict | None = None,
@@ -32,6 +33,7 @@ def render_html(
     """
     template = _load_template()
     r, g, b = bg_color
+    cr, cg, cb = bg_center_color
     replacements = {
         "{{TITLE}}": title,
         "{{THREE_VERSION}}": three_version,
@@ -39,6 +41,9 @@ def render_html(
         "{{BG_R}}": f"{r:.4f}",
         "{{BG_G}}": f"{g:.4f}",
         "{{BG_B}}": f"{b:.4f}",
+        "{{BG_CENTER_R}}": f"{cr:.4f}",
+        "{{BG_CENTER_G}}": f"{cg:.4f}",
+        "{{BG_CENTER_B}}": f"{cb:.4f}",
         "{{BG_R_255}}": str(int(round(r * 255))),
         "{{BG_G_255}}": str(int(round(g * 255))),
         "{{BG_B_255}}": str(int(round(b * 255))),

@@ -82,8 +82,36 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 
+const BG_CENTER = [{{BG_CENTER_R}}, {{BG_CENTER_G}}, {{BG_CENTER_B}}];
+
+// Soft "studio" background: a radial gradient texture, bright at the centre
+// (BG_CENTER) falling off to BG_COLOR at the edges. It is assigned to
+// scene.background so three's pipeline — including the transmission render pass
+// used by glass (ThinDielectric) — samples it, keeping transparent materials
+// looking glass-like instead of dark. Regenerated on resize to match aspect.
+function _rgb(c) {
+  return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
+}
+function makeStudioBackground(w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(2, w);
+  cv.height = Math.max(2, h);
+  const ctx = cv.getContext('2d');
+  const cx = cv.width / 2;
+  const cy = cv.height / 2;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy));
+  grad.addColorStop(0.0, _rgb(BG_CENTER));
+  grad.addColorStop(1.0, _rgb(BG_COLOR));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+let studioBackground = makeStudioBackground(2, 2);
+scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
 
 let camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
@@ -121,6 +149,13 @@ function resize() {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // Regenerate the studio gradient at the new aspect so it stays circular.
+    const old = studioBackground;
+    studioBackground = makeStudioBackground(w, h);
+    if (currentPass === 'beauty' && envBackground === null) {
+      scene.background = studioBackground;
+    }
+    if (old) old.dispose();
   }
 }
 window.addEventListener('resize', resize);
@@ -819,9 +854,7 @@ function setPass(pass) {
   // Background only shown in beauty pass; passes get a flat background to
   // keep the saved PNG free of envmap clutter.
   if (pass === 'beauty') {
-    scene.background = envBackground !== null
-      ? envBackground
-      : new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+    scene.background = envBackground !== null ? envBackground : studioBackground;
   } else if (pass === 'depth') {
     scene.background = new THREE.Color(1, 1, 1);
   } else {

@@ -28,7 +28,11 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-_DEFAULT_BG_COLOR = (0.1, 0.1, 0.1)
+# Beauty-pass background is a soft "studio" radial gradient: a bright centre
+# (``bg_center_color``) falling off to ``bg_color`` at the edges. Pass
+# ``bg_center_color == bg_color`` for a flat background.
+_DEFAULT_BG_CENTER = (0.97, 0.97, 0.98)
+_DEFAULT_BG_COLOR = (0.62, 0.63, 0.66)
 _DEFAULT_TITLE = "hakowan"
 
 
@@ -56,6 +60,7 @@ class WebGLBackend(RenderBackend):
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
         bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
+        bg_center_color: tuple[float, float, float] = _DEFAULT_BG_CENTER,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
         **kwargs: Any,
@@ -73,6 +78,7 @@ class WebGLBackend(RenderBackend):
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
             bg_color=bg_color,
+            bg_center_color=bg_center_color,
             initial_view=initial_view,
             title=title,
             envmap=envmap,
@@ -89,6 +95,7 @@ class WebGLBackend(RenderBackend):
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
         bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
+        bg_center_color: tuple[float, float, float] = _DEFAULT_BG_CENTER,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
     ) -> str:
@@ -98,7 +105,10 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            bg_color: Background colour as an ``(r, g, b)`` float tuple in [0, 1].
+            bg_color: Edge colour of the beauty-pass studio gradient (the falloff
+                target), as an ``(r, g, b)`` float tuple in [0, 1].
+            bg_center_color: Bright centre colour of the studio gradient. Set
+                equal to ``bg_color`` for a flat background.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
 
@@ -112,6 +122,7 @@ class WebGLBackend(RenderBackend):
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
             bg_color=bg_color,
+            bg_center_color=bg_center_color,
             initial_view=initial_view,
             title=title,
             envmap=envmap,
