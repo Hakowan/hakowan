@@ -68,8 +68,13 @@ def render(
         root: Root layer to render.
         config: Rendering configuration. If None, uses default.
         filename: Output filename.
-        backend: Backend name ('mitsuba' or 'blender'). If None, uses default.
-        **kwargs: Backend-specific options.
+        backend: Backend name — ``"webgl"`` (ships with the base install),
+            ``"mitsuba"``, or ``"blender"``. If ``None``, uses the configured
+            default (see :func:`set_default_backend`), falling back to the first
+            available backend.
+        **kwargs: Backend-specific options (e.g. ``background`` for WebGL,
+            ``yaml_file`` for Mitsuba, ``engine`` / ``blend_file`` for Blender).
+            See the backend guide for the full list.
 
     Returns:
         A :class:`RenderResult` bundling the in-memory ``image`` (Mitsuba), the

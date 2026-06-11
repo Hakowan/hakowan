@@ -1,21 +1,27 @@
 # Rendering Backends
 
 Hakowan supports multiple rendering backends, allowing you to choose the renderer that best suits
-your needs. Three backends are available: **Mitsuba** (default), **Blender**, and **WebGL**.
+your needs. Three backends are available: **WebGL** (interactive browser viewer), **Mitsuba**
+(photorealistic), and **Blender** (Cycles/EEVEE). WebGL ships with the base install and is used by
+default; Mitsuba and Blender are optional extras (`pip install hakowan[mitsuba]` /
+`pip install hakowan[blender]`).
 
 ## Available Backends
 
 ### Mitsuba Backend
 
-The Mitsuba backend is the default renderer in Hakowan. It is based on the
+The Mitsuba backend is based on the
 [Mitsuba 3](https://www.mitsuba-renderer.org/) physically-based rendering system, which provides
-high-quality, photorealistic rendering with advanced lighting and material models.
+high-quality, photorealistic rendering with advanced lighting and material models. It is an
+optional extra — install it with `pip install hakowan[mitsuba]`.
 
 **Advantages:**
 - High-quality photorealistic rendering
 - Fast rendering with GPU acceleration
 - Support for advanced materials and lighting
-- Default backend, no additional configuration needed
+
+**Requirements:**
+- Install the `mitsuba` extra (`pip install hakowan[mitsuba]`)
 
 **Usage:**
 
@@ -23,10 +29,6 @@ high-quality, photorealistic rendering with advanced lighting and material model
 import hakowan as hkw
 
 layer = hkw.layer("mesh.obj")
-# Mitsuba is the default backend
-hkw.render(layer, filename="output.exr")
-
-# Or explicitly specify Mitsuba
 hkw.render(layer, filename="output.exr", backend="mitsuba")
 ```
 
@@ -43,7 +45,7 @@ integrate Hakowan into a Blender-based workflow.
 - Supports render passes: albedo, depth, normal, facet ID
 
 **Requirements:**
-- `bpy` must be installed (`pip install bpy`)
+- Install the `blender` extra (`pip install hakowan[blender]`); requires Python 3.13
 
 **Usage:**
 
@@ -67,16 +69,18 @@ hkw.render(
 
 The WebGL backend generates a self-contained, interactive HTML file using
 [three.js](https://threejs.org/) and the glTF 2.0 format. No server is required — open
-the HTML file in any browser to explore the scene interactively.
+the HTML file in any browser to explore the scene interactively. It ships with the base install
+and is the default backend.
 
 **Advantages:**
+- Default backend — ships with the base install, no extra to add
 - Instant interactive 3D viewer in any browser
 - No rendering time — output is generated immediately
 - Self-contained single HTML file (or optional sidecar GLB)
 - Supports render passes: albedo, depth, normal
 
 **Requirements:**
-- `pygltflib` must be installed (`pip install pygltflib`)
+- None — `pygltflib` is a core dependency, so the WebGL backend is always available
 
 **Usage:**
 
@@ -134,9 +138,15 @@ print(f"Available backends: {backends}")
 # Output: Available backends: ['blender', 'mitsuba', 'webgl']
 ```
 
-Note that the Blender backend requires `bpy` and the WebGL backend requires `pygltflib`.
+WebGL is always listed (it is part of the base install); Mitsuba and Blender appear only when their
+extras (`hakowan[mitsuba]` / `hakowan[blender]`) are installed.
 
 ### Set Default Backend
+
+When `backend=` is not given, Hakowan uses the backend set via `set_default_backend()`, falling
+back to the first available backend in the order Mitsuba → Blender → WebGL. On a base install only
+WebGL is available, so it is the default; installing the `mitsuba` or `blender` extra makes that
+backend the auto-selected default unless you override it.
 
 You can change the default backend for all subsequent render calls:
 
@@ -204,7 +214,7 @@ hkw.render(
 
 ## Choosing a Backend
 
-**Use Mitsuba (default) when:**
+**Use Mitsuba when:**
 - You want high-quality photorealistic rendering
 - You need fast rendering with GPU acceleration
 - You're creating publication-quality visualizations
@@ -225,6 +235,8 @@ If a backend is not available, `hkw.list_backends()` will simply omit it. You ca
 which optional dependencies are missing:
 
 ```
-pip install bpy        # enables the Blender backend
-pip install pygltflib  # enables the WebGL backend
+pip install hakowan[mitsuba]  # enables the Mitsuba backend
+pip install hakowan[blender]  # enables the Blender backend (Python 3.13)
 ```
+
+The WebGL backend is part of the base install and is always available.
