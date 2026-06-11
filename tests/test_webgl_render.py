@@ -118,6 +118,30 @@ class TestEndToEnd:
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
 
+    def test_background_presets(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        light = tmp_path / "light.html"
+        dark = tmp_path / "dark.html"
+        hkw.render(layer, filename=str(light), backend="webgl", background="light")
+        hkw.render(layer, filename=str(dark), backend="webgl", background="dark")
+        lt, dk = light.read_text(), dark.read_text()
+        # Both palettes are embedded so the viewer's button can toggle client-side.
+        assert '"light"' in lt and '"dark"' in lt
+        # The initial mode reflects the chosen preset.
+        assert 'let bgMode = "light"' in lt
+        assert 'let bgMode = "dark"' in dk
+        # The light/dark toggle button is present.
+        assert "btn-bg" in lt
+        # No template placeholders left unresolved.
+        assert not re.search(r"{{[A-Z_]+}}", lt)
+
+    def test_background_invalid_raises(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        with pytest.raises(ValueError):
+            hkw.render(
+                layer, filename=str(tmp_path / "x.html"), backend="webgl", background="teal"
+            )
+
     def test_glb_round_trips_with_basic_scene(self, tmp_path):
         layer = (
             hkw.layer(_make_icosphere())

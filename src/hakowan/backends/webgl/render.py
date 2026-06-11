@@ -28,12 +28,25 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-# Beauty-pass background is a soft "studio" radial gradient: a bright centre
-# (``bg_center_color``) falling off to ``bg_color`` at the edges. Pass
-# ``bg_center_color == bg_color`` for a flat background.
-_DEFAULT_BG_CENTER = (0.97, 0.97, 0.98)
-_DEFAULT_BG_COLOR = (0.62, 0.63, 0.66)
 _DEFAULT_TITLE = "hakowan"
+
+# Beauty-pass background presets. Each is a soft "studio" radial gradient with a
+# bright spot in the centre falling off towards the edges: ``(center, edge)``
+# colours as (r, g, b) in [0, 1]. Selected via the ``background`` option.
+_BACKGROUND_PRESETS: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]] = {
+    "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
+    "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
+}
+_DEFAULT_BACKGROUND = "dark"
+
+
+def _validate_background(name: str) -> None:
+    """Raise ``ValueError`` if ``name`` is not a known background preset."""
+    if name not in _BACKGROUND_PRESETS:
+        raise ValueError(
+            f"Unknown background {name!r}; choose from "
+            f"{sorted(_BACKGROUND_PRESETS)}."
+        )
 
 
 class WebGLBackend(RenderBackend):
@@ -59,8 +72,7 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
-        bg_center_color: tuple[float, float, float] = _DEFAULT_BG_CENTER,
+        background: str = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
         **kwargs: Any,
@@ -69,6 +81,7 @@ class WebGLBackend(RenderBackend):
         if kwargs:
             logger.debug(f"WebGL backend ignoring unknown kwargs: {list(kwargs)}")
 
+        _validate_background(background)
         out_path = _resolve_output_path(filename)
         glb_bytes, envmap, initial_view = self._build_scene_artifacts(
             scene, config, envmap_background
@@ -77,8 +90,8 @@ class WebGLBackend(RenderBackend):
         html = render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
-            bg_color=bg_color,
-            bg_center_color=bg_center_color,
+            backgrounds=_BACKGROUND_PRESETS,
+            background=background,
             initial_view=initial_view,
             title=title,
             envmap=envmap,
@@ -94,8 +107,7 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = _DEFAULT_BG_COLOR,
-        bg_center_color: tuple[float, float, float] = _DEFAULT_BG_CENTER,
+        background: str = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
     ) -> str:
@@ -105,24 +117,23 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            bg_color: Edge colour of the beauty-pass studio gradient (the falloff
-                target), as an ``(r, g, b)`` float tuple in [0, 1].
-            bg_center_color: Bright centre colour of the studio gradient. Set
-                equal to ``bg_color`` for a flat background.
+            background: Background preset — ``"light"`` (default) or ``"dark"``.
+                Both are soft studio radial gradients with a bright centre spot.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
 
         Returns:
             Complete HTML page as a string.
         """
+        _validate_background(background)
         glb_bytes, envmap, initial_view = self._build_scene_artifacts(
             scene, config, envmap_background
         )
         return render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
-            bg_color=bg_color,
-            bg_center_color=bg_center_color,
+            backgrounds=_BACKGROUND_PRESETS,
+            background=background,
             initial_view=initial_view,
             title=title,
             envmap=envmap,

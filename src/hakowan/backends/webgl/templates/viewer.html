@@ -69,7 +69,8 @@ const GLB_DATA_URI = "{{GLB_DATA_URI}}";
 const INITIAL_EYE    = {{INITIAL_EYE}};
 const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
-const BG_COLOR = [{{BG_R}}, {{BG_G}}, {{BG_B}}];
+const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
+let bgMode = "{{BG_MODE}}";
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
 
@@ -82,17 +83,16 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 
-const BG_CENTER = [{{BG_CENTER_R}}, {{BG_CENTER_G}}, {{BG_CENTER_B}}];
-
 // Soft "studio" background: a radial gradient texture, bright at the centre
-// (BG_CENTER) falling off to BG_COLOR at the edges. It is assigned to
-// scene.background so three's pipeline — including the transmission render pass
-// used by glass (ThinDielectric) — samples it, keeping transparent materials
-// looking glass-like instead of dark. Regenerated on resize to match aspect.
+// falling off to the edge colour, for the selected light/dark preset. Assigned
+// to scene.background so three's pipeline — including the transmission render
+// pass used by glass (ThinDielectric) — samples it, keeping transparent
+// materials glass-like instead of dark. Regenerated on resize and on toggle.
 function _rgb(c) {
   return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
 }
 function makeStudioBackground(w, h) {
+  const palette = BG_PRESETS[bgMode];
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, w);
   cv.height = Math.max(2, h);
@@ -100,8 +100,8 @@ function makeStudioBackground(w, h) {
   const cx = cv.width / 2;
   const cy = cv.height / 2;
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy));
-  grad.addColorStop(0.0, _rgb(BG_CENTER));
-  grad.addColorStop(1.0, _rgb(BG_COLOR));
+  grad.addColorStop(0.0, _rgb(palette.center));
+  grad.addColorStop(1.0, _rgb(palette.edge));
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, cv.width, cv.height);
   const tex = new THREE.CanvasTexture(cv);
@@ -113,6 +113,20 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+
+function setBackgroundMode(mode) {
+  if (!BG_PRESETS[mode]) return;
+  bgMode = mode;
+  const previous = studioBackground;
+  studioBackground = makeStudioBackground(canvas.width, canvas.height);
+  if (currentPass === 'beauty' && envBackground === null) {
+    scene.background = studioBackground;
+  }
+  if (previous) previous.dispose();
+  document.body.style.background = _rgb(BG_PRESETS[mode].edge);
+  const btn = document.getElementById('btn-bg');
+  if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
+}
 
 let camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
 camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
@@ -924,6 +938,12 @@ function buildPassUI() {
     + 'double-click to reset';
   objRotBtn.addEventListener('click', () => setObjectRotateEnabled(!objectRotateEnabled));
   container.appendChild(objRotBtn);
+  const bgBtn = document.createElement('button');
+  bgBtn.id = 'btn-bg';
+  bgBtn.textContent = bgMode === 'light' ? '☀' : '☾';
+  bgBtn.title = 'Toggle light / dark background';
+  bgBtn.addEventListener('click', () => setBackgroundMode(bgMode === 'light' ? 'dark' : 'light'));
+  container.appendChild(bgBtn);
   const save = document.createElement('button');
   save.textContent = 'save png';
   save.title = 'Download the current pass as PNG';
