@@ -84,7 +84,11 @@ def parse_args():
     parser.add_argument(
         "--normal", help="Normal field", choices=["facet", "vertex"], default=None
     )
-    parser.add_argument("input_mesh", help="Input mesh file.")
+    parser.add_argument(
+        "input_mesh",
+        nargs="+",
+        help="Input mesh file(s). Multiple meshes are rendered side by side.",
+    )
     parser.add_argument("--camera", help="Camera location", nargs=3, type=float)
     parser.add_argument("-o", "--output", help="Output image file.")
     parser.add_argument(
@@ -521,23 +525,20 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def main():
+def build_layer(args, mesh_path: str) -> "hkw.layer.Layer":
+    """Build the styled layer for a single input mesh.
+
+    Holds all per-mesh logic (geometry load, material, overlays, transforms) so
+    that multiple meshes can be built independently and laid out side by side.
+
+    Parameters:
+        args (argparse.Namespace): Parsed command-line arguments.
+        mesh_path (str): Path to the input mesh file.
+
+    Returns:
+        hkw.layer.Layer: The fully styled layer for this mesh.
     """
-    Entry point for the command-line interface for mesh rendering.
-    Parses command-line arguments and orchestrates the mesh rendering process.
-    """
-    args = parse_args()
-
-    # Resolve the effective backend early so string comparisons below are safe.
-    if args.backend is None:
-        from hakowan.backends import resolve_backend_name
-
-        args.backend = resolve_backend_name()
-
-    hkw.logger.setLevel(args.log_level.upper())
-    lagrange.logger.setLevel(args.log_level.upper())
-
-    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
+    mesh = lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
 
     if args.quad_only:
         # Filter to only keep quad facets
@@ -582,7 +583,7 @@ def main():
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
             layer = embed_texture(
-                args.input_mesh, saturation=args.saturation, whiteness=args.whiteness
+                mesh_path, saturation=args.saturation, whiteness=args.whiteness
             )
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
@@ -873,6 +874,30 @@ def main():
                 raise ValueError("Invalid clip axis")
         layer = layer.transform(hkw.transform.Filter(condition=condition))
 
+    return layer
+
+
+def main():
+    """
+    Entry point for the command-line interface for mesh rendering.
+    Parses command-line arguments and orchestrates the mesh rendering process.
+    """
+    args = parse_args()
+
+    # Resolve the effective backend early so string comparisons below are safe.
+    if args.backend is None:
+        from hakowan.backends import resolve_backend_name
+
+        args.backend = resolve_backend_name()
+
+    hkw.logger.setLevel(args.log_level.upper())
+    lagrange.logger.setLevel(args.log_level.upper())
+
+    # Build one styled layer per input mesh; multiple meshes are laid out side
+    # by side via juxtaposition (the n-ary form of the `|` operator).
+    layers = [build_layer(args, mesh_path) for mesh_path in args.input_mesh]
+    layer = layers[0] if len(layers) == 1 else layers[0].juxtapose(*layers[1:])
+
     config = hkw.config()
     [config.film.width, config.film.height] = args.resolution
     if args.z_up:
@@ -893,7 +918,7 @@ def main():
         output_file = Path(args.output)
     else:
         default_suffix = ".html" if args.backend == "webgl" else ".png"
-        output_file = Path(args.input_mesh).with_suffix(default_suffix)
+        output_file = Path(args.input_mesh[0]).with_suffix(default_suffix)
 
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
