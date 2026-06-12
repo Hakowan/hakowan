@@ -218,7 +218,7 @@ def parse_args():
         "--backend",
         choices=hkw.list_backends(),
         default=None,
-        help="Rendering backend to use (default: first available backend)",
+        help="Rendering backend to use (default: webgl)",
     )
     parser.add_argument(
         "--log-level",
@@ -530,9 +530,9 @@ def main():
 
     # Resolve the effective backend early so string comparisons below are safe.
     if args.backend is None:
-        from hakowan.backends import _resolve_default
+        from hakowan.backends import resolve_backend_name
 
-        args.backend = _resolve_default()
+        args.backend = resolve_backend_name()
 
     hkw.logger.setLevel(args.log_level.upper())
     lagrange.logger.setLevel(args.log_level.upper())

@@ -64,13 +64,14 @@ _BackendLoader = Callable[[], type[RenderBackend]]
 _backend_loaders: dict[str, tuple[_BackendLoader, str | None]] = {}
 _backends: dict[str, type[RenderBackend]] = {}  # eager registrations + load cache
 
-# The default backend. ``None`` means "auto": at render time, resolve to the
-# first *available* backend in registration order. Backends register in
-# preference order (see ``hakowan/__init__.py``: Mitsuba, then Blender, then the
-# always-present WebGL), so this keeps the historical Mitsuba-first behavior when
-# Mitsuba is installed and degrades gracefully when it is not — with no hardcoded
-# list to keep in sync as backends are added or removed.
-_default_backend: str | None = None
+# The default backend. WebGL is the default because its dependency (pygltflib)
+# ships with the base install, so it is always available — the heavier Mitsuba
+# and Blender backends must be requested explicitly (per render via the
+# ``backend=`` argument, or process-wide via :func:`set_default_backend`).
+# ``None`` means "auto": resolve at render time to the first *available* backend
+# in registration order. ``_resolve_default`` is only reached if the default is
+# cleared; it degrades gracefully with no hardcoded list to keep in sync.
+_default_backend: str | None = "webgl"
 
 
 def _resolve_default() -> str:

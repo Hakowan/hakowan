@@ -143,25 +143,25 @@ extras (`hakowan[mitsuba]` / `hakowan[blender]`) are installed.
 
 ### Set Default Backend
 
-When `backend=` is not given, Hakowan uses the backend set via `set_default_backend()`, falling
-back to the first available backend in the order Mitsuba → Blender → WebGL. On a base install only
-WebGL is available, so it is the default; installing the `mitsuba` or `blender` extra makes that
-backend the auto-selected default unless you override it.
+When `backend=` is not given, Hakowan defaults to **WebGL** — its dependency ships with the base
+install, so it is always available. The heavier Mitsuba and Blender backends are never auto-selected;
+request them explicitly per render with `backend=`, or change the process-wide default with
+`set_default_backend()`.
 
 You can change the default backend for all subsequent render calls:
 
 ```py
 import hakowan as hkw
 
-# Set WebGL as the default backend
-hkw.set_default_backend("webgl")
+# Make Mitsuba the default backend
+hkw.set_default_backend("mitsuba")
 
-# Now this will use WebGL
+# Now this will use Mitsuba
 layer = hkw.layer("mesh.obj")
-hkw.render(layer, filename="output.html")
+hkw.render(layer, filename="output.png")
 
 # You can still override per render call
-hkw.render(layer, filename="output.exr", backend="mitsuba")
+hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
 ## Backend-Specific Options
