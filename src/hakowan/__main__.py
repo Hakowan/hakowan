@@ -525,7 +525,7 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def build_layer(args, mesh_path: str) -> "hkw.layer.Layer":
+def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Layer":
     """Build the styled layer for a single input mesh.
 
     Holds all per-mesh logic (geometry load, material, overlays, transforms) so
@@ -534,6 +534,9 @@ def build_layer(args, mesh_path: str) -> "hkw.layer.Layer":
     Parameters:
         args (argparse.Namespace): Parsed command-line arguments.
         mesh_path (str): Path to the input mesh file.
+        normalize (bool): Scale the result to unit bounding-sphere radius so
+            meshes from unrelated coordinate systems show at the same on-screen
+            size. Used when laying out multiple meshes in a grid.
 
     Returns:
         hkw.layer.Layer: The fully styled layer for this mesh.
@@ -556,6 +559,10 @@ def build_layer(args, mesh_path: str) -> "hkw.layer.Layer":
     bbox_max = np.amax(mesh.vertices, axis=0)
     bbox_size = bbox_max - bbox_min
     bbox_diag = np.linalg.norm(bbox_size)
+    bbox_center = (bbox_min + bbox_max) / 2
+    bounding_radius = float(
+        np.sqrt(np.max(np.sum((mesh.vertices - bbox_center) ** 2, axis=1)))
+    )
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
@@ -874,6 +881,13 @@ def build_layer(args, mesh_path: str) -> "hkw.layer.Layer":
                 raise ValueError("Invalid clip axis")
         layer = layer.transform(hkw.transform.Filter(condition=condition))
 
+    if normalize and bounding_radius > 0:
+        # Outermost scale (applied after clip/rotate) so the styled result —
+        # mesh and any overlays alike — fits a unit bounding sphere. This is
+        # what makes every cell, including a lone mesh in a ragged grid row,
+        # render at the same on-screen size regardless of source scale.
+        layer = layer.scale(1.0 / bounding_radius)
+
     return layer
 
 
@@ -897,6 +911,11 @@ def grid_layout(layers: list["hkw.layer.Layer"], up_axis: str) -> "hkw.layer.Lay
     if len(layers) == 1:
         return layers[0]
 
+    # ``layers`` are pre-normalized to unit size by ``build_layer`` (see the
+    # ``normalize`` path), so every cell — including a lone mesh in a ragged
+    # row — is already the same size. The juxtaposition just packs them; no
+    # per-cell ``normalize`` is needed (and using it would re-shrink whole rows
+    # unevenly when row counts differ, e.g. a full row of 3 vs a ragged 2).
     cols = min(len(layers), 3)
     rows = [layers[i : i + cols] for i in range(0, len(layers), cols)]
     row_layers = [
@@ -933,8 +952,14 @@ def main():
     lagrange.logger.setLevel(args.log_level.upper())
 
     # Build one styled layer per input mesh; multiple meshes are arranged in a
-    # near-square grid facing the camera (rows stacked along the up-axis).
-    layers = [build_layer(args, mesh_path) for mesh_path in args.input_mesh]
+    # near-square grid facing the camera (rows stacked along the up-axis). With
+    # more than one mesh, normalize each to unit size so they show at the same
+    # on-screen scale despite unrelated source coordinate systems.
+    normalize = len(args.input_mesh) > 1
+    layers = [
+        build_layer(args, mesh_path, normalize=normalize)
+        for mesh_path in args.input_mesh
+    ]
     layer = grid_layout(layers, up_axis="z" if args.z_up else "y")
 
     config = hkw.config()

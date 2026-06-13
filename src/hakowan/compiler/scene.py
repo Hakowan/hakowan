@@ -44,12 +44,13 @@ class Scene:
         bottom-up). Thus ``(a | b) & c`` places ``a``/``b`` in a row and stacks
         that row with ``c``; ``(a | b) & (c | d)`` yields a 2x2 grid.
 
-        Cells are spaced by their **bounding-sphere diameter** (true max-vertex
-        distance from the rotation centre), so neighbours never overlap under any
-        per-cell rotation in the interactive viewer. Transforms are baked into
-        each view's ``global_transform``; this runs *before*
-        :meth:`compute_global_transform`, which fits the whole arrangement into
-        the unit sphere.
+        Cells are spaced by their per-cell **swept spheres** (true max-vertex
+        distance from each cell's own rotation centre) projected onto the layout
+        axis, so neighbours never overlap under any per-cell rotation in the
+        interactive viewer — yet a wide-but-short row stacks by its height, not
+        its width. Transforms are baked into each view's ``global_transform``;
+        this runs *before* :meth:`compute_global_transform`, which fits the
+        whole arrangement into the unit sphere.
 
         Args:
             node_options: Map from layout node id to its layout parameters.
@@ -63,73 +64,96 @@ class Scene:
 
     def _layout_group(
         self, views: list[View], depth: int, node_options: dict[int, LayoutOptions]
-    ) -> float:
+    ) -> list[tuple[npt.NDArray, float]]:
         """Recursively lay out ``views`` (sharing a key prefix of length ``depth``).
 
-        Centres the resulting group at the origin and returns its bounding-sphere
-        radius, so the caller can pack it as one unit.
+        Centres the resulting group at the origin and returns the per-cell
+        ``(centre, radius)`` spheres of every leaf rotation cell it contains, in
+        the group's own centred coordinates.
+
+        The viewer rotates each *leaf* cell about its own centre (never a whole
+        sub-grid as one rigid unit), so spacing only needs the per-cell spheres
+        to stay disjoint — not the group's overall bounding sphere. Packing
+        therefore uses each group's reach *along the layout axis* (the span of
+        its cells' swept spheres projected onto that axis). A wide-but-short row
+        then stacks by its height rather than its width, avoiding a cavernous
+        gap between rows while still guaranteeing no two rotating cells overlap.
         """
         terminal = [v for v in views if len(v._layout_cell) == depth]
         descending = [v for v in views if len(v._layout_cell) > depth]
 
         if not descending:
-            # Leaf cell: all views share one coordinate space (overlaid).
+            # Leaf cell: all views share one coordinate space (overlaid) and
+            # rotate together as a single cell.
             center, radius = self._cell_sphere(terminal)
             self._translate_views(terminal, -center)
-            return radius
+            return [(np.zeros(3), radius)]
 
         # A layout node governs the descending views at this depth.
         options = node_options[descending[0]._layout_cell[depth][0]]
 
-        # Build ordered child groups (each centred at the origin, with a radius).
+        # Build ordered child groups (each centred at the origin), tracking the
+        # views and the per-cell spheres each contains.
         branches: dict[int, list[View]] = {}
         for v in descending:
             branches.setdefault(v._layout_cell[depth][1], []).append(v)
-        child_groups: list[tuple[list[View], float]] = []
+        child_groups: list[tuple[list[View], list[tuple[npt.NDArray, float]]]] = []
         for branch in sorted(branches):
             cv = branches[branch]
             child_groups.append((cv, self._layout_group(cv, depth + 1, node_options)))
         # Loose overlay views terminating at this level (`+` straddling a layout
-        # operator) become one extra cell.
+        # operator) become one extra leaf cell.
         if terminal:
             center, radius = self._cell_sphere(terminal)
             self._translate_views(terminal, -center)
-            child_groups.append((terminal, radius))
+            child_groups.append((terminal, [(np.zeros(3), radius)]))
 
-        # Optionally scale each child group to equal size before packing.
+        # Optionally scale each child group to equal size (its bounding-sphere
+        # radius about the centre) before packing.
         if options.normalize:
             normalized = []
-            for cv, r in child_groups:
+            for cv, cells in child_groups:
+                r = max(
+                    (float(np.linalg.norm(c)) + rad for c, rad in cells), default=0.0
+                )
                 if r > 0:
                     self._scale_views(cv, 1.0 / r)
-                    normalized.append((cv, 1.0))
-                else:
-                    normalized.append((cv, 0.0))
+                    cells = [(c / r, rad / r) for c, rad in cells]
+                normalized.append((cv, cells))
             child_groups = normalized
 
-        # Pack child groups along the node's axis. Consecutive centres are
-        # separated by r_i + r_j + gap, so bounding spheres stay disjoint.
+        # Pack child groups along the node's axis using each group's axis reach
+        # (the span its cells' spheres cover along ``axis``). Consecutive groups
+        # are separated by reach_i + gap + reach_j, so no two rotating cells
+        # overlap, yet the packing is as tight as that guarantee allows.
         axis = options.axis
+        reaches = []  # (lo, hi) extent along ``axis`` for each child group
+        for _, cells in child_groups:
+            lo = min((c[axis] - rad for c, rad in cells), default=0.0)
+            hi = max((c[axis] + rad for c, rad in cells), default=0.0)
+            reaches.append((lo, hi))
         mean_diameter = (
-            float(np.mean([2.0 * r for _, r in child_groups])) if child_groups else 0.0
+            float(np.mean([hi - lo for lo, hi in reaches])) if reaches else 0.0
         )
         gap_distance = options.gap * mean_diameter if mean_diameter > 0 else options.gap
+
         cursor = 0.0
-        for cv, r in child_groups:
+        all_views: list[View] = []
+        all_cells: list[tuple[npt.NDArray, float]] = []
+        for (cv, cells), (lo, hi) in zip(child_groups, reaches):
             offset = np.zeros(3)
-            offset[axis] = cursor + r
+            offset[axis] = cursor - lo
             self._translate_views(cv, offset)
-            cursor += 2.0 * r + gap_distance
+            all_views.extend(cv)
+            all_cells.extend((c + offset, rad) for c, rad in cells)
+            cursor += (hi - lo) + gap_distance
         total = cursor - gap_distance if child_groups else 0.0
 
         # Recentre the packed group at the origin along the layout axis.
         shift = np.zeros(3)
         shift[axis] = -total / 2.0
-        all_views = [v for cv, _ in child_groups for v in cv]
         self._translate_views(all_views, shift)
-
-        _, radius = self._cell_sphere(all_views)
-        return radius
+        return [(c + shift, rad) for c, rad in all_cells]
 
     @staticmethod
     def _cell_sphere(views: list[View]) -> tuple[npt.NDArray, float]:
