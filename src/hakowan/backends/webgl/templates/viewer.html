@@ -835,9 +835,10 @@ function ensurePassMaterials(obj) {
   return cache;
 }
 
+const _depthCorner = new THREE.Vector3();
 function updateDepthRange() {
   if (sceneBbox === null) return;
-  const corner = new THREE.Vector3();
+  const corner = _depthCorner;
   let zmin = Infinity;
   let zmax = -Infinity;
   for (let i = 0; i < 8; i++) {

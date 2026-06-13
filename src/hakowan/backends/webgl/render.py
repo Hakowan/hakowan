@@ -197,7 +197,7 @@ def _cell_tag(view) -> str | None:
     Returns ``None`` when the view is not part of any juxtaposition (so its
     nodes are left untagged and the viewer treats them as a single group).
     """
-    cell = getattr(view, "_layout_cell", ())
+    cell = view._layout_cell
     if not cell:
         return None
     return "/".join(f"{node_id}.{branch}" for node_id, branch in cell)

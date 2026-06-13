@@ -1,6 +1,7 @@
 """Geometry extraction and Blender object creation."""
 
 from ...common import logger
+from ...common.vector_field import filter_zero_length_vectors
 from ...compiler import View
 from ...grammar import mark
 from ...grammar.scale import Attribute
@@ -208,17 +209,11 @@ class _GeometryMixin(_MaterialMixin):
         else:  # "flat": constant radius at both ends
             tip_size = size
 
-        _lengths = np.linalg.norm(tip - base, axis=1)
-        _mask = _lengths > 0
-        if not np.all(_mask):
-            base = base[_mask]
-            tip = tip[_mask]
-            base_size = np.asarray(base_size)[_mask]
-            tip_size = np.asarray(tip_size)[_mask]
-            if ctrl_pts_1 is not None:
-                ctrl_pts_1 = ctrl_pts_1[_mask]
-            if ctrl_pts_2 is not None:
-                ctrl_pts_2 = ctrl_pts_2[_mask]
+        base, tip, base_size, tip_size, ctrl_pts_1, ctrl_pts_2 = (
+            filter_zero_length_vectors(
+                base, tip, base_size, tip_size, ctrl_pts_1, ctrl_pts_2
+            )
+        )
 
         return (
             base,

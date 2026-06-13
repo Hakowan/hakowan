@@ -470,6 +470,24 @@ def _quat_from_y_to(dirs: np.ndarray) -> np.ndarray:
     return (quat / norm).astype(np.float32)
 
 
+def _orient_and_scale(
+    p_from: np.ndarray, p_to: np.ndarray, radius: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-segment (rotation, scale) for the +Y unit glyph along ``p_to - p_from``.
+
+    ``rotation`` is the shortest arc from +Y to the segment direction (the
+    degenerate zero-length case keeps +Y); ``scale = (radius, |segment|, radius)``.
+    """
+    seg = p_to - p_from
+    length = np.linalg.norm(seg, axis=1)
+    safe = length > 1e-9
+    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
+    directions[safe] = seg[safe] / length[safe, None]
+    rotations = _quat_from_y_to(directions)
+    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    return rotations, scales
+
+
 def _segment_instances(
     endpoints: np.ndarray, sizes: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -480,18 +498,40 @@ def _segment_instances(
     """
     p0 = endpoints[0::2]
     p1 = endpoints[1::2]
-    seg = p1 - p0
-    length = np.linalg.norm(seg, axis=1)
     midpoint = (0.5 * (p0 + p1)).astype(np.float32)
-
-    safe = length > 1e-9
-    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
-    directions[safe] = seg[safe] / length[safe, None]
-    rotations = _quat_from_y_to(directions)
-
-    radius = sizes[0::2]
-    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    rotations, scales = _orient_and_scale(p0, p1, sizes[0::2])
     return midpoint, rotations, scales
+
+
+def _emit_instances(
+    builder: GLTFBuilder,
+    view: View,
+    proto: tuple[np.ndarray, np.ndarray, np.ndarray],
+    translations: np.ndarray,
+    rotations: np.ndarray,
+    scales: np.ndarray,
+    instance_colors: np.ndarray | None,
+    pbr: dict,
+    double_sided: bool,
+    label: str,
+) -> int:
+    """Add one instanced-mesh node repeating ``proto`` by the given transforms."""
+    proto_pos, proto_norm, proto_idx = proto
+    logger.debug(
+        f"WebGL backend: curve view → {translations.shape[0]} instanced {label} "
+        f"({_DEFAULT_TUBE_SIDES} sides)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=proto_pos,
+        indices=proto_idx,
+        normals=proto_norm,
+        translations=translations,
+        rotations=rotations,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=builder.add_material(pbr, double_sided=double_sided),
+        transform_4x4=np.asarray(view.global_transform, dtype=np.float64),
+    )
 
 
 def _add_instanced_tubes(
@@ -503,7 +543,6 @@ def _add_instanced_tubes(
     double_sided: bool,
 ) -> int:
     translations, rotations, scales = _segment_instances(data.endpoints, sizes)
-    proto_pos, proto_norm, proto_idx = _unit_cylinder(_DEFAULT_TUBE_SIDES)
 
     instance_colors: np.ndarray | None = None
     endpoint_colors = _segment_colors(view, data.vertex_idx)
@@ -514,22 +553,17 @@ def _add_instanced_tubes(
         ).astype(np.float32)
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
 
-    material_idx = builder.add_material(pbr, double_sided=double_sided)
-    transform = np.asarray(view.global_transform, dtype=np.float64)
-    logger.debug(
-        f"WebGL backend: curve view → {translations.shape[0]} instanced cylinders "
-        f"({_DEFAULT_TUBE_SIDES} sides)."
-    )
-    return builder.add_instanced_mesh_node(
-        positions=proto_pos,
-        indices=proto_idx,
-        normals=proto_norm,
-        translations=translations,
-        rotations=rotations,
-        scales=scales,
-        instance_colors=instance_colors,
-        material_idx=material_idx,
-        transform_4x4=transform,
+    return _emit_instances(
+        builder,
+        view,
+        _unit_cylinder(_DEFAULT_TUBE_SIDES),
+        translations,
+        rotations,
+        scales,
+        instance_colors,
+        pbr,
+        double_sided,
+        "cylinders",
     )
 
 
@@ -587,13 +621,7 @@ def _arrow_instances(
     ``translation`` is the vector base (the prototype starts there, not at its
     midpoint), ``rotation`` aligns +Y with the vector, ``scale = (r, |vec|, r)``.
     """
-    seg = tip - base
-    length = np.linalg.norm(seg, axis=1)
-    safe = length > 1e-9
-    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
-    directions[safe] = seg[safe] / length[safe, None]
-    rotations = _quat_from_y_to(directions)
-    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    rotations, scales = _orient_and_scale(base, tip, radius)
     return base.astype(np.float32), rotations, scales
 
 
@@ -611,7 +639,6 @@ def _add_instanced_arrows(
     tip = data.endpoints[3::4]
     radius = sizes[0::4]
     translations, rotations, scales = _arrow_instances(base, tip, radius)
-    proto_pos, proto_norm, proto_idx = _unit_arrow(_DEFAULT_TUBE_SIDES)
 
     instance_colors: np.ndarray | None = None
     endpoint_colors = _segment_colors(view, data.vertex_idx)
@@ -620,22 +647,17 @@ def _add_instanced_arrows(
         instance_colors = endpoint_colors[0::4, :3].astype(np.float32)
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
 
-    material_idx = builder.add_material(pbr, double_sided=double_sided)
-    transform = np.asarray(view.global_transform, dtype=np.float64)
-    logger.debug(
-        f"WebGL backend: curve view → {translations.shape[0]} instanced arrows "
-        f"({_DEFAULT_TUBE_SIDES} sides)."
-    )
-    return builder.add_instanced_mesh_node(
-        positions=proto_pos,
-        indices=proto_idx,
-        normals=proto_norm,
-        translations=translations,
-        rotations=rotations,
-        scales=scales,
-        instance_colors=instance_colors,
-        material_idx=material_idx,
-        transform_4x4=transform,
+    return _emit_instances(
+        builder,
+        view,
+        _unit_arrow(_DEFAULT_TUBE_SIDES),
+        translations,
+        rotations,
+        scales,
+        instance_colors,
+        pbr,
+        double_sided,
+        "arrows",
     )
 
 
