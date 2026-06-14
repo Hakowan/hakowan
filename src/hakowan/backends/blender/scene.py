@@ -1,5 +1,7 @@
 """Camera, lighting, render-settings, compositor and render-pass setup."""
 
+from typing import Literal
+
 from ...common import logger
 from ...common.output import manage_native_output
 from ...setup import Config
@@ -270,7 +272,7 @@ class _SceneMixin:
         logger.debug(f"Camera set at {location}, target {target}, up {up}")
 
     @staticmethod
-    def _resolve_sensor_fit(fov_axis: str, width: int, height: int) -> str | None:
+    def _resolve_sensor_fit(fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"], width: int, height: int) -> str | None:
         """Map a hakowan ``fov_axis`` to a Blender camera ``sensor_fit``.
 
         Returns ``"HORIZONTAL"`` / ``"VERTICAL"``, or ``None`` for axes Blender

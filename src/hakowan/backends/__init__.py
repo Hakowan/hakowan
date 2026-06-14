@@ -7,7 +7,9 @@ from ..compiler import Scene
 from ..setup import Config
 from ..setup.render_pass import RenderPass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+BackendName = Literal["webgl", "mitsuba", "blender"]
 
 
 class RenderBackend(ABC):
@@ -23,7 +25,7 @@ class RenderBackend(ABC):
     #: image per pass next to the main output; ``"interactive"`` exposes passes
     #: live inside a viewer (no per-pass files). Used to build the output
     #: manifest reported in :class:`~hakowan.render.RenderResult.outputs`.
-    PASS_DELIVERY: str = "file"
+    PASS_DELIVERY: Literal["file", "interactive"] = "file"
 
     @abstractmethod
     def render(
@@ -137,7 +139,7 @@ def _resolve_class(name: str) -> type[RenderBackend]:
     return backend_class
 
 
-def set_default_backend(name: str):
+def set_default_backend(name: BackendName):
     """Set the default rendering backend.
 
     Args:
@@ -152,7 +154,7 @@ def set_default_backend(name: str):
     _default_backend = name
 
 
-def resolve_backend_name(name: str | None = None) -> str:
+def resolve_backend_name(name: BackendName | None = None) -> BackendName:
     """Resolve the effective backend name.
 
     Applies the same resolution as :func:`get_backend` (explicit name, else the
@@ -168,7 +170,7 @@ def resolve_backend_name(name: str | None = None) -> str:
     return name or _default_backend or _resolve_default()
 
 
-def get_backend(name: str | None = None) -> RenderBackend:
+def get_backend(name: BackendName | None = None) -> RenderBackend:
     """Get a rendering backend instance, importing it on first use.
 
     Args:
@@ -204,6 +206,7 @@ def list_backends() -> list[str]:
 
 
 __all__ = [
+    "BackendName",
     "RenderBackend",
     "register_backend",
     "register_backend_loader",

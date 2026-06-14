@@ -6,6 +6,8 @@ import math
 
 import numpy as np
 
+from typing import Literal
+
 from ...common import logger
 from ...setup import Config
 from ...setup.sensor import Orthographic, Perspective, ThinLens
@@ -23,7 +25,7 @@ def _yfov_radians(sensor: Perspective, aspect: float) -> float:
     fov_rad = math.radians(sensor.fov)
     half = fov_rad / 2.0
 
-    axis: str = sensor.fov_axis
+    axis: Literal["x", "y", "diagonal", "smaller", "larger"] = sensor.fov_axis
     if axis == "y":
         return fov_rad
     if axis == "x":

@@ -25,7 +25,7 @@ from __future__ import annotations
 import io
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from PIL import Image as PILImage, ImageEnhance
@@ -558,7 +558,7 @@ def _apply_isocontour(
 
 
 def _bake_scalar_pbr_factor(
-    kind: str,
+    kind: Literal["roughness", "metallic"],
     texture: Any,
     pbr: dict[str, Any],
     extras: dict[str, Any],

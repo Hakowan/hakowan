@@ -1,6 +1,7 @@
 """Rendering module - provides unified render interface."""
 
 from ..backends import (
+    BackendName,
     RenderBackend,
     get_backend,
     resolve_backend_name,
@@ -41,7 +42,7 @@ class RenderResult:
     output file was written.
     """
 
-    backend: str
+    backend: BackendName
     outputs: dict[str, Path | str] = field(default_factory=dict)
     image: Any = field(default=None, repr=False)
     path: Path | None = None
@@ -59,7 +60,7 @@ def render(
     root: layer.Layer,
     config: Config | None = None,
     filename: Path | str | None = None,
-    backend: str | None = None,
+    backend: BackendName | None = None,
     **kwargs: Any,
 ) -> RenderResult:
     """Render a layer using the specified backend.

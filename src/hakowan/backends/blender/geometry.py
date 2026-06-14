@@ -1,5 +1,7 @@
 """Geometry extraction and Blender object creation."""
 
+from typing import Literal
+
 from ...common import logger
 from ...common.vector_field import filter_zero_length_vectors
 from ...compiler import View
@@ -391,7 +393,7 @@ class _GeometryMixin(_MaterialMixin):
                 return
             mesh.normals_split_custom_set(per_corner.tolist())
 
-    def _create_point_base_mesh(self, base_shape: str, index: int):
+    def _create_point_base_mesh(self, base_shape: Literal["sphere", "disk", "cube"], index: int):
         """Create the shared base mesh (instance prototype) for a point shape.
 
         The mesh is built once and instanced onto every point by a geometry-nodes

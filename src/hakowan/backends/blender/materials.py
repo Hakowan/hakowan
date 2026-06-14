@@ -1,5 +1,7 @@
 """Material, shader and texture-node construction for the Blender backend."""
 
+from typing import Literal
+
 from ...common import logger
 from ...compiler import View
 from ...grammar.channel.material import (
@@ -77,7 +79,7 @@ class _MaterialMixin:
         index: int,
         *,
         color_layer_name: str | None = None,
-        color_attribute_type: str = "GEOMETRY",
+        color_attribute_type: Literal["GEOMETRY", "INSTANCER"] = "GEOMETRY",
         override_color: tuple[float, float, float, float] | None = None,
         material_suffix: str | None = None,
         uv_layer_name: str | None = None,

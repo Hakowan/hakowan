@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -42,7 +42,7 @@ _BACKGROUND_PRESETS: dict[
 _DEFAULT_BACKGROUND = "dark"
 
 
-def _validate_background(name: str) -> None:
+def _validate_background(name: Literal["light", "dark"]) -> None:
     """Raise ``ValueError`` if ``name`` is not a known background preset."""
     if name not in _BACKGROUND_PRESETS:
         raise ValueError(
@@ -73,7 +73,7 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: str = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
         **kwargs: Any,
@@ -108,7 +108,7 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: str = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
     ) -> str:
