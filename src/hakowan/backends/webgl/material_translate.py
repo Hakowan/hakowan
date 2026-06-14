@@ -53,6 +53,7 @@ from .builder import (
     GLTFBuilder,
     _FILTER_NEAREST,
 )
+from .mesh_extract import _srgb_to_linear_array
 
 # glTF allows arbitrary underscore-prefixed names, but three.js GLTFLoader maps
 # unknown attributes with ``name.toLowerCase()`` (see ``addPrimitiveAttributes``).
@@ -60,6 +61,8 @@ from .builder import (
 _SCALAR_ATTR = "_scalar_0"
 _ROUGHNESS_ATTR = "_roughness_0"
 _METALLIC_ATTR = "_metallic_0"
+_ISO_COLOR1_ATTR = "_iso_color1_0"
+_ISO_COLOR2_ATTR = "_iso_color2_0"
 
 
 @dataclass
@@ -426,6 +429,88 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     return arr
 
 
+def _read_color_field(view: View, scalar_field: ScalarField) -> np.ndarray | None:
+    """Return (N, 3) float32 *linear* RGB per source-mesh vertex for a
+    ``ScalarField``'s baked colormap, or None if it can't be resolved.
+
+    The compiler evaluates the colormap into a per-vertex Color attribute named
+    ``data._internal_color_field`` (see ``compiler/color.py``). hakowan stores
+    that field in sRGB; the isocontour shader multiplies it into ``diffuseColor``
+    in linear space, so we convert here (matching the COLOR_0 path in
+    ``mesh_extract``). Indexed/Vertex handling mirrors
+    :func:`_read_scalar_attribute` so the result lines up per-vertex with
+    ``_scalar_0`` through the de-indexing path.
+    """
+    import lagrange
+
+    if view.data_frame is None:
+        return None
+    name = getattr(scalar_field.data, "_internal_color_field", None)
+    if not isinstance(name, str):
+        return None
+    mesh = view.data_frame.mesh
+    if not mesh.has_attribute(name):
+        return None
+
+    if mesh.is_attribute_indexed(name):
+        indexed = mesh.indexed_attribute(name)
+        if indexed.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        values = np.asarray(indexed.values.data, dtype=np.float32).reshape(
+            -1, indexed.values.num_channels
+        )
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        corner_vertices = mesh.facets.reshape(-1)
+        if indices.shape[0] != corner_vertices.shape[0]:
+            return None
+        out = np.zeros((mesh.num_vertices, values.shape[1]), dtype=np.float32)
+        out[corner_vertices] = values[indices]
+    else:
+        attr = mesh.attribute(name)
+        if attr.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        out = np.asarray(attr.data, dtype=np.float32).reshape(-1, attr.num_channels)
+        if out.shape[0] != mesh.num_vertices:
+            return None
+
+    rgb = out[:, :3]
+    if rgb.shape[1] < 3:  # grayscale color field — broadcast to RGB
+        rgb = np.repeat(rgb[:, :1], 3, axis=1)
+    return _srgb_to_linear_array(np.ascontiguousarray(rgb))
+
+
+def _resolve_isocontour_band(
+    key: str,
+    texture: Any,
+    attr_name: str,
+    view: View,
+    custom_attrs: dict[str, np.ndarray],
+    iso: dict[str, Any],
+) -> None:
+    """Resolve one isocontour band (``texture1``/``texture2``) into ``iso``.
+
+    A ``ScalarField`` band carries a colormap, so its colour varies per vertex:
+    we bake the baked colour field as a ``vec3`` custom attribute and record
+    ``"<key>_attr"`` so the viewer reads it as a varying. Any other band
+    collapses to a single flat linear-RGB colour stored under ``"<key>"``.
+
+    A flat ``"<key>"`` is always written so the shader has a uniform fallback
+    (the viewer prefers the attribute when ``"<key>_attr"`` is present).
+    """
+    if isinstance(texture, ScalarField):
+        arr = _read_color_field(view, texture)
+        if arr is not None:
+            custom_attrs[attr_name] = arr
+            iso[f"{key}_attr"] = attr_name
+            iso[key] = [1.0, 1.0, 1.0]
+            return
+        logger.warning(
+            f"WebGL backend: Isocontour {key} ScalarField colormap could not be "
+            "baked (non-vertex element or missing color field); using gray."
+        )
+    iso[key] = _resolve_texture_color(texture)[:3]
+
+
 def _apply_isocontour(
     pbr: dict[str, Any],
     extras: dict[str, Any],
@@ -453,14 +538,20 @@ def _apply_isocontour(
         pbr["baseColorFactor"] = list(c1)
         return
     custom_attrs[_SCALAR_ATTR] = arr
-    c1 = _resolve_texture_color(reflectance.texture1)[:3]
-    c2 = _resolve_texture_color(reflectance.texture2)[:3]
-    extras["isocontour"] = {
+    iso: dict[str, Any] = {
         "num_contours": int(reflectance.num_contours),
         "ratio": float(reflectance.ratio),
-        "color1": [float(x) for x in c1],
-        "color2": [float(x) for x in c2],
     }
+    # texture1 / texture2 may each be a flat colour or a ScalarField colormap.
+    # A colormap band bakes per-vertex colours (``<key>_attr``) the viewer reads
+    # as a varying; otherwise the band collapses to a flat uniform colour.
+    _resolve_isocontour_band(
+        "color1", reflectance.texture1, _ISO_COLOR1_ATTR, view, custom_attrs, iso
+    )
+    _resolve_isocontour_band(
+        "color2", reflectance.texture2, _ISO_COLOR2_ATTR, view, custom_attrs, iso
+    )
+    extras["isocontour"] = iso
     # The shader multiplies diffuseColor by the per-pixel isoColor; keep
     # the base white so the multiply produces the chosen colors exactly.
     pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]

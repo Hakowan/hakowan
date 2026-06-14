@@ -265,21 +265,40 @@ function applyHakowanShaderPatches(root, gltf) {
         shader.uniforms.uNumContours = { value: isoParams.num_contours };
         shader.uniforms.uRatio = { value: isoParams.ratio };
         shader.uniforms.uIsoColor1 = {
-          value: new THREE.Color(...isoParams.color1),
+          value: new THREE.Color(...(isoParams.color1 || [1, 1, 1])),
         };
         shader.uniforms.uIsoColor2 = {
-          value: new THREE.Color(...isoParams.color2),
+          value: new THREE.Color(...(isoParams.color2 || [1, 1, 1])),
         };
         injectVertHead += "attribute float _scalar_0;\nvarying float vScalar0;\n";
         injectVertBody += "vScalar0 = _scalar_0;\n";
         injectFragHead +=
           "varying float vScalar0;\nuniform float uNumContours;\n"
           + "uniform float uRatio;\nuniform vec3 uIsoColor1;\nuniform vec3 uIsoColor2;\n";
+
+        // A ScalarField band carries a colormap, so its color varies per
+        // vertex: bind the baked vec3 attribute as a varying and use it in
+        // place of the flat uniform. Falls back to the uniform when absent.
+        let color1Expr = "uIsoColor1";
+        let color2Expr = "uIsoColor2";
+        if (isoParams.color1_attr) {
+          injectVertHead += `attribute vec3 ${isoParams.color1_attr};\nvarying vec3 vIsoColor1;\n`;
+          injectVertBody += `vIsoColor1 = ${isoParams.color1_attr};\n`;
+          injectFragHead += "varying vec3 vIsoColor1;\n";
+          color1Expr = "vIsoColor1";
+        }
+        if (isoParams.color2_attr) {
+          injectVertHead += `attribute vec3 ${isoParams.color2_attr};\nvarying vec3 vIsoColor2;\n`;
+          injectVertBody += `vIsoColor2 = ${isoParams.color2_attr};\n`;
+          injectFragHead += "varying vec3 vIsoColor2;\n";
+          color2Expr = "vIsoColor2";
+        }
+
         injectFragDiffuse +=
           "{ float f = fract(vScalar0 * uNumContours);"
           + "  float halfRatio = uRatio * 0.5;"
           + "  float onContour = step(0.5 - halfRatio, f) * step(f, 0.5 + halfRatio);"
-          + "  vec3 isoColor = mix(uIsoColor2, uIsoColor1, onContour);"
+          + `  vec3 isoColor = mix(${color2Expr}, ${color1Expr}, onContour);`
           + "  diffuseColor.rgb *= isoColor; }\n";
       }
 
