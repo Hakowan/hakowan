@@ -205,7 +205,10 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         ):
             if enabled:
                 pairs.append(
-                    (aov_path(render_filename, render_pass), aov_path(filename, render_pass))
+                    (
+                        aov_path(render_filename, render_pass),
+                        aov_path(filename, render_pass),
+                    )
                 )
 
         for src, dst in pairs:

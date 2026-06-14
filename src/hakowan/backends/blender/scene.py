@@ -272,7 +272,11 @@ class _SceneMixin:
         logger.debug(f"Camera set at {location}, target {target}, up {up}")
 
     @staticmethod
-    def _resolve_sensor_fit(fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"], width: int, height: int) -> str | None:
+    def _resolve_sensor_fit(
+        fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"],
+        width: int,
+        height: int,
+    ) -> str | None:
         """Map a hakowan ``fov_axis`` to a Blender camera ``sensor_fit``.
 
         Returns ``"HORIZONTAL"`` / ``"VERTICAL"``, or ``None`` for axes Blender

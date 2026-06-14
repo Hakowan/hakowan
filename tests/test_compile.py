@@ -644,9 +644,7 @@ class TestTexture:
         # The latter made ``create_attribute`` reject the indices.
         mesh = lagrange.SurfaceMesh()
         mesh.add_vertices(
-            np.array(
-                [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64
-            )
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64)
         )
         mesh.add_triangles(np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32))
         # 3 distinct corner values shared across 6 corners via an index buffer.

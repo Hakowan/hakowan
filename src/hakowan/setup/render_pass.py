@@ -51,7 +51,9 @@ RENDER_PASSES: dict[str, RenderPass] = {
 }
 
 
-def get_render_pass(name: Literal["albedo", "depth", "normal", "facet_id"]) -> RenderPass:
+def get_render_pass(
+    name: Literal["albedo", "depth", "normal", "facet_id"],
+) -> RenderPass:
     """Look up a :class:`RenderPass` by name.
 
     Args:
