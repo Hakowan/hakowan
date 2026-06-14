@@ -119,30 +119,32 @@ def render(
 
     raw = backend_impl.render(scene, config, filename, **kwargs)
 
+    # Normalize the backend's primary return into a RenderResult. Mitsuba
+    # returns an in-memory image; file backends (Blender/WebGL) return the path
+    # they actually wrote, or None. Prefer the backend-reported path — the
+    # WebGL backend rewrites the suffix to ``.html``, so its returned path is
+    # the truthful main output, not the user's *filename*.
+    image = raw if not isinstance(raw, (str, Path)) else None
+    if isinstance(raw, (str, Path)):
+        path: Path | None = Path(raw)
+    elif filename is not None:
+        path = Path(filename)
+    else:
+        path = None
+
     # Surface the produced artifacts so the user does not have to guess which
     # sidecar files appear (or that passes are live in the viewer instead).
-    manifest = _manifest_for(backend_impl, config, filename)
+    manifest = _manifest_for(backend_impl, config, path)
     if manifest:
         logger.info(
             "Render outputs: " + ", ".join(f"{k}={v}" for k, v in manifest.items())
         )
 
-    # Normalize the backend's primary return into a RenderResult. Mitsuba
-    # returns an in-memory image; file backends (Blender/WebGL) return a path
-    # or None. The main output path is the user's filename when one was given,
-    # else any path the backend reported (e.g. WebGL's default output).
-    image = raw if not isinstance(raw, (str, Path)) else None
-    if filename is not None:
-        path: Path | None = Path(filename)
-    elif isinstance(raw, (str, Path)):
-        path = Path(raw)
-    else:
-        path = None
     return RenderResult(backend=backend_name, outputs=manifest, image=image, path=path)
 
 
 def _manifest_for(
-    backend_impl: RenderBackend, config: Config, filename: Path | str | None
+    backend_impl: RenderBackend, config: Config, main_path: Path | str | None
 ) -> dict[str, Path | str]:
     """Build the output manifest for a render given the resolved backend.
 
@@ -150,11 +152,15 @@ def _manifest_for(
     :class:`~pathlib.Path` for file-writing backends, or the string
     ``"interactive"`` for backends whose passes live inside a viewer. Passes
     the backend cannot honor are omitted (the caller is warned separately).
-    Empty when *filename* is ``None`` (nothing is written to disk).
+    Empty when *main_path* is ``None`` (nothing is written to disk).
+
+    *main_path* is the *actual* primary output (the backend's reported path,
+    not necessarily the user's requested filename), so sidecar paths are
+    derived from the format that was really written.
     """
-    if filename is None:
+    if main_path is None:
         return {}
-    main = Path(filename)
+    main = Path(main_path)
     manifest: dict[str, Path | str] = {"main": main}
     supported = {p.name for p in backend_impl.SUPPORTED_PASSES}
     interactive = backend_impl.PASS_DELIVERY == "interactive"

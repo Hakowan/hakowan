@@ -453,7 +453,9 @@ class _SceneMixin:
         elif engine == "BLENDER_EEVEE":
             scene.eevee.taa_render_samples = config.sampler.sample_count
 
-        # File format
+        # File format. PNG is the default LDR intermediate; render() overrides
+        # this to OPEN_EXR when the user requested an .exr output. Non-PNG LDR
+        # formats (.webp/.jpg/...) are produced by re-encoding this PNG.
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
 
@@ -519,8 +521,10 @@ class _SceneMixin:
         stem = filename.stem
         suffix = filename.suffix.lower()
 
-        # Map the user's output suffix to a Blender file-format token.
-        fmt_map = {".exr": "OPEN_EXR", ".png": "PNG", ".jpg": "JPEG"}
+        # ``filename`` here is the native render intermediate, so its suffix is
+        # .png (LDR) or .exr (HDR); other formats are produced by re-encoding
+        # the PNG sidecars afterwards (see BlenderBackend._finalize_outputs).
+        fmt_map = {".exr": "OPEN_EXR", ".png": "PNG"}
         file_format = fmt_map.get(suffix, "PNG")
 
         y = -100

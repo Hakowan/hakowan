@@ -101,9 +101,13 @@ class TestEndToEnd:
             .channel(material=hkw.material.Diffuse(reflectance="red"))
         )
         png_path = tmp_path / "out.png"
-        hkw.render(layer, filename=str(png_path), backend="webgl")
+        result = hkw.render(layer, filename=str(png_path), backend="webgl")
         # Non-html suffix should produce an .html file alongside.
         assert (tmp_path / "out.html").exists()
+        # result.path must point at the actual artifact (the .html), not the
+        # .png the user nominally passed.
+        assert result.path == tmp_path / "out.html"
+        assert result.outputs["main"] == tmp_path / "out.html"
 
     def test_default_output_is_html(self, tmp_path):
         layer = (

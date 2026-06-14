@@ -6,6 +6,7 @@ from .sensor import generate_sensor_config
 from .shape import generate_point_config, generate_curve_config, generate_surface_config
 
 from ...common import logger
+from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
 from ...compiler import Scene, View
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
@@ -91,18 +92,24 @@ def _mi_config_to_serializable(obj: Any) -> Any:
 def save_image(image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True) -> None:
     """Write an image to disk.
 
+    HDR formats (``.exr``) are written by Mitsuba's float encoder; every other
+    format is converted to 8-bit RGBA and encoded by Pillow, so any Pillow-
+    writable format (PNG, JPEG, WebP, BMP, TIFF, ...) is supported.
+
     ``srgb_gamma`` controls whether the 8-bit conversion applies the sRGB
     transfer function. Use ``True`` for radiance/colour output (beauty, albedo)
     and ``False`` for data passes (e.g. packed normals) that must stay linear.
     """
-    if filename.suffix == ".exr":
+    suffix = check_supported_suffix(filename)  # clear error for unknown formats
+    if is_hdr_suffix(suffix):
         mi.util.write_bitmap(str(filename), image)  # type: ignore
     else:
-        mi.Bitmap(image).convert(  # type: ignore
+        bitmap = mi.Bitmap(image).convert(  # type: ignore
             pixel_format=mi.Bitmap.PixelFormat.RGBA,
             component_format=mi.Struct.Type.UInt8,
             srgb_gamma=srgb_gamma,
-        ).write(str(filename), quality=-1)  # type: ignore
+        )
+        save_array(np.array(bitmap), filename)
     logger.info(f"Rendering saved to {filename}")
 
 

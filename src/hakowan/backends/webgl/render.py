@@ -216,7 +216,10 @@ def _resolve_output_path(filename: Path | str | None) -> Path:
             )
         path = new_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    return path.resolve()
+    # Return the path in the form the user supplied it (do not ``resolve()``):
+    # this is surfaced as ``RenderResult.path`` and the only correction is the
+    # ``.html`` suffix the viewer always writes.
+    return path
 
 
 def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
