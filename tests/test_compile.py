@@ -637,6 +637,53 @@ class TestTexture:
         assert attr._internal_name is not None
         assert mesh.has_attribute(attr._internal_name)
 
+    def test_isocontour_indexed_scalar(self):
+        # Regression: when the isocontour `data` is an *indexed* scalar
+        # attribute, the generated UV must be built from the index buffer's
+        # underlying array (``attr.indices.data``), not the IndexBuffer object.
+        # The latter made ``create_attribute`` reject the indices.
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array(
+                [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64
+            )
+        )
+        mesh.add_triangles(np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32))
+        # 3 distinct corner values shared across 6 corners via an index buffer.
+        scalar_values = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        scalar_indices = np.array([0, 1, 2, 0, 2, 1], dtype=np.uint32)
+        mesh.create_attribute(
+            "iso_scalar",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=scalar_values,
+            initial_indices=scalar_indices,
+        )
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+
+        attr = hkw.attribute(name="iso_scalar")
+        num_contours = 4
+        tex = hkw.texture.Isocontour(
+            data=attr,
+            num_contours=num_contours,
+            ratio=0.1,
+            texture1=hkw.texture.Uniform(color=0.2),
+            texture2=hkw.texture.Uniform(color=0.8),
+        )
+        hkw.compiler.texture.apply_texture(df, tex)
+
+        uv_name = "_hakowan_isocontour_uv_generated_from_iso_scalar"
+        assert mesh.has_attribute(uv_name)
+        assert mesh.is_attribute_indexed(uv_name)
+        uv = mesh.indexed_attribute(uv_name)
+        # The generated UV reuses the scalar's index buffer verbatim.
+        np.testing.assert_array_equal(
+            np.asarray(uv.indices.data).reshape(-1), scalar_indices
+        )
+        # The U coordinate is the scalar scaled by the contour count.
+        uv_values = np.asarray(uv.values.data).reshape(-1, 2)
+        np.testing.assert_allclose(uv_values[:, 0], scalar_values * num_contours)
+
 
 class TestBackSide:
     @staticmethod
