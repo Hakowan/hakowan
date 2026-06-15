@@ -149,11 +149,11 @@ class PrincipalAxes(Transform):
 class Normalize(Transform):
     """Recenter and uniformly scale the mesh to fit a unit box centered at the origin.
 
-    Wraps :func:`lagrange.normalize_mesh`: vertex positions are translated so the
-    bounding-box center sits at the origin and uniformly scaled so the bounding-box
-    diagonal is 2 (i.e. the geometry fits inside the unit sphere). Use it to bring
-    meshes from unrelated coordinate systems to a comparable on-screen size — for
-    example when laying several meshes side by side with :meth:`Layer.juxtapose`.
+    Vertex positions are translated so the bounding-box center sits at the origin and
+    uniformly scaled so the bounding-box diagonal is 2 (i.e. the geometry fits inside
+    the unit sphere). Use it to bring meshes from unrelated coordinate systems to a
+    comparable on-screen size — for example when laying several meshes side by side
+    with :meth:`Layer.juxtapose`.
 
     Unlike a layer-level :class:`Affine`, this mutates the data-frame vertices in
     place, so it normalizes the geometry as it currently stands (after any earlier
