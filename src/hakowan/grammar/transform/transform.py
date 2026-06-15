@@ -13,6 +13,7 @@ __all__ = [
     "UVMesh",
     "Affine",
     "PrincipalAxes",
+    "Normalize",
     "Compute",
     "Explode",
     "Norm",
@@ -142,6 +143,31 @@ class PrincipalAxes(Transform):
 
     frame: npt.ArrayLike = field(default_factory=lambda: np.eye(3))
     orthonormalize_frame: bool = True
+
+
+@dataclass(slots=True)
+class Normalize(Transform):
+    """Recenter and uniformly scale the mesh to fit a unit box centered at the origin.
+
+    Wraps :func:`lagrange.normalize_mesh`: vertex positions are translated so the
+    bounding-box center sits at the origin and uniformly scaled so the bounding-box
+    diagonal is 2 (i.e. the geometry fits inside the unit sphere). Use it to bring
+    meshes from unrelated coordinate systems to a comparable on-screen size — for
+    example when laying several meshes side by side with :meth:`Layer.juxtapose`.
+
+    Unlike a layer-level :class:`Affine`, this mutates the data-frame vertices in
+    place, so it normalizes the geometry as it currently stands (after any earlier
+    mesh-mutating transforms) and ignores prior global affine transforms — matching
+    how :class:`PrincipalAxes` reads object-space positions.
+
+    Attributes:
+        normalize_normals: Re-normalize normal attributes to unit length. Default True.
+        normalize_tangents_bitangents: Re-normalize tangent/bitangent attributes to
+            unit length. Default True.
+    """
+
+    normalize_normals: bool = True
+    normalize_tangents_bitangents: bool = True
 
 
 @dataclass(slots=True, kw_only=True)

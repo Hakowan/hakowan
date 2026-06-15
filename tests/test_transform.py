@@ -76,6 +76,20 @@ class TestTransform:
         assert np.allclose(m[:3, :3], np.eye(3))
         assert np.allclose(m[:3, 3], -v[0])
 
+    def test_normalize_defaults(self):
+        t = transform.Normalize()
+        assert t.normalize_normals is True
+        assert t.normalize_tangents_bitangents is True
+        assert t._child is None
+
+    def test_normalize(self):
+        t = transform.Normalize(
+            normalize_normals=False, normalize_tangents_bitangents=False
+        )
+        assert t.normalize_normals is False
+        assert t.normalize_tangents_bitangents is False
+        assert t._child is None
+
     def test_streamline_grammar(self):
         t = transform.Streamline(vec_field="velocity", n=10, cross_field=False)
         assert t.vec_field == "velocity"
@@ -316,6 +330,85 @@ class TestStreamlineCompiler:
         out = _compute_streamlines(mesh, "vec", n=20, cross_field=False, min_length=2)
         assert out.num_vertices > 0
         assert self._max_turn_deg(out) < 150.0
+
+
+class TestNormalizeCompiler:
+    def _make_offset_box(self):
+        # An axis-aligned box from (10,10,10) to (14,12,20): off-center and
+        # non-cubic so both the recentering and the uniform scaling are exercised.
+        mesh = lagrange.SurfaceMesh()
+        verts = np.array(
+            [
+                [10, 10, 10],
+                [14, 10, 10],
+                [14, 12, 10],
+                [10, 12, 10],
+                [10, 10, 20],
+                [14, 10, 20],
+                [14, 12, 20],
+                [10, 12, 20],
+            ],
+            dtype=np.float64,
+        )
+        faces = np.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],
+                [4, 6, 5],
+                [4, 7, 6],
+                [0, 4, 5],
+                [0, 5, 1],
+                [1, 5, 6],
+                [1, 6, 2],
+                [2, 6, 7],
+                [2, 7, 3],
+                [3, 7, 4],
+                [3, 4, 0],
+            ],
+            dtype=np.uint32,
+        )
+        mesh.add_vertices(verts)
+        mesh.add_triangles(faces)
+        return mesh
+
+    def test_normalize_recenters_and_scales(self):
+        mesh = self._make_offset_box()
+        layer = hkw.layer(data=mesh, mark=hkw.mark.Surface).transform(
+            hkw.transform.Normalize()
+        )
+        scene = hkw.compiler.compile(layer)
+        assert len(scene) == 1
+        v = scene[0].data_frame.mesh.vertices
+        bbox_min = v.min(axis=0)
+        bbox_max = v.max(axis=0)
+        # Recentered at the origin ...
+        assert np.allclose((bbox_min + bbox_max) / 2.0, 0.0, atol=1e-9)
+        # ... and scaled so the geometry fits the unit sphere (bbox diagonal == 2).
+        assert np.isclose(np.linalg.norm(bbox_max - bbox_min), 2.0, atol=1e-9)
+
+    def test_normalize_equalizes_size_across_meshes(self):
+        # Two boxes at very different scales should end up the same size.
+        mesh_small = self._make_offset_box()
+        mesh_big = self._make_offset_box()
+        mesh_big.vertices = mesh_big.vertices * 100.0
+
+        def normalized_diag(mesh):
+            layer = hkw.layer(data=mesh, mark=hkw.mark.Surface).transform(
+                hkw.transform.Normalize()
+            )
+            v = hkw.compiler.compile(layer)[0].data_frame.mesh.vertices
+            return np.linalg.norm(v.max(axis=0) - v.min(axis=0))
+
+        assert np.isclose(normalized_diag(mesh_small), normalized_diag(mesh_big))
+
+    def test_normalize_empty_mesh_is_noop(self):
+        mesh = lagrange.SurfaceMesh()
+        layer = hkw.layer(data=mesh, mark=hkw.mark.Surface).transform(
+            hkw.transform.Normalize()
+        )
+        scene = hkw.compiler.compile(layer)
+        assert len(scene) == 1
+        assert scene[0].data_frame.mesh.num_vertices == 0
 
 
 class TestExplodeCompiler:

@@ -559,10 +559,6 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
     bbox_max = np.amax(mesh.vertices, axis=0)
     bbox_size = bbox_max - bbox_min
     bbox_diag = np.linalg.norm(bbox_size)
-    bbox_center = (bbox_min + bbox_max) / 2
-    bounding_radius = float(
-        np.sqrt(np.max(np.sum((mesh.vertices - bbox_center) ** 2, axis=1)))
-    )
 
     layer: hkw.layer.Layer = hkw.layer(mesh)
 
@@ -881,12 +877,12 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
                 raise ValueError("Invalid clip axis")
         layer = layer.transform(hkw.transform.Filter(condition=condition))
 
-    if normalize and bounding_radius > 0:
-        # Outermost scale (applied after clip/rotate) so the styled result —
-        # mesh and any overlays alike — fits a unit bounding sphere. This is
-        # what makes every cell, including a lone mesh in a ragged grid row,
-        # render at the same on-screen size regardless of source scale.
-        layer = layer.scale(1.0 / bounding_radius)
+    if normalize:
+        # Outermost transform (applied after clip/rotate) so the styled result —
+        # mesh and any overlays alike — fits a unit bounding sphere centered at the
+        # origin. This is what makes every cell, including a lone mesh in a ragged
+        # grid row, render at the same on-screen size regardless of source scale.
+        layer = layer.transform(hkw.transform.Normalize())
 
     return layer
 
