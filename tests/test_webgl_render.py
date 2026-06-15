@@ -535,3 +535,9 @@ class TestEndToEnd:
         # Juxtaposition scenes default to per-object rotation (>= 2 cells).
         assert "cellGroups.length >= 2" in html
         assert "setObjectRotateEnabled(true)" in html
+
+
+def test_render_unknown_kwarg_raises(tmp_path):
+    layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+    with pytest.raises(TypeError):
+        hkw.render(layer, filename=str(tmp_path / "out.html"), backedn="webgl")

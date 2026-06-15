@@ -292,13 +292,8 @@ class _SceneMixin:
             return "HORIZONTAL" if width >= height else "VERTICAL"
         return None
 
-    def _setup_lighting(self, config: Config, **kwargs):
-        """Setup Blender lighting from config.
-
-        Args:
-            config: Rendering configuration.
-            **kwargs: Additional options (currently unused).
-        """
+    def _setup_lighting(self, config: Config):
+        """Setup Blender lighting from config."""
         from ...setup.emitter import Envmap, Point
 
         if not config.emitters:
@@ -426,19 +421,18 @@ class _SceneMixin:
 
         logger.debug(f"Point light {index} added at {point_light.position}")
 
-    def _setup_render_settings(self, config: Config, **kwargs):
+    def _setup_render_settings(self, config: Config, engine: str = "CYCLES"):
         """Configure Blender render settings for the *main* render pass.
 
         Sets resolution, render engine, sample count, output format, and
-        background transparency based on *config* and *kwargs*.  These
-        settings apply to the main image render only; the facet-ID pass
-        manages its own settings inside :meth:`_render_facet_id_pass`.
+        background transparency.  These settings apply to the main image render
+        only; the facet-ID pass manages its own settings inside
+        :meth:`_render_facet_id_pass`.
 
         Args:
             config: Rendering configuration (film size, sampler, etc.).
-            **kwargs: Additional backend options:
-                - ``engine`` (str): Blender render engine to use;
-                  ``"CYCLES"`` (default) or ``"BLENDER_EEVEE"``.
+            engine: Blender render engine — ``"CYCLES"`` (default) or
+                ``"BLENDER_EEVEE"``.
         """
         scene = bpy.context.scene
 
@@ -448,7 +442,6 @@ class _SceneMixin:
         scene.render.resolution_percentage = 100
 
         # Render engine
-        engine = kwargs.get("engine", "CYCLES")
         scene.render.engine = engine
 
         # Samples
@@ -467,7 +460,7 @@ class _SceneMixin:
         scene.render.film_transparent = True
 
         logger.debug(
-            f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
+            f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, blender_engine={engine}"
         )
 
     def _setup_compositor_passes(

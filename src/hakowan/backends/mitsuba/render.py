@@ -147,7 +147,6 @@ class MitsubaBackend(RenderBackend):
         config: Config,
         filename: Path | str | None = None,
         yaml_file: Path | str | None = None,
-        **kwargs,
     ):
         """Render scene using Mitsuba.
 
@@ -156,7 +155,6 @@ class MitsubaBackend(RenderBackend):
             config: Rendering configuration.
             filename: Output image filename.
             yaml_file: Optional YAML scene export filename (mi_config).
-            **kwargs: Additional backend-specific options.
 
         Returns:
             Rendered image as Mitsuba tensor.

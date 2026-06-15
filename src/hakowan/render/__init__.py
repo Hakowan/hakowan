@@ -74,9 +74,10 @@ def render(
             default, which is ``"webgl"`` unless changed via
             :func:`set_default_backend`. The heavier Mitsuba and Blender
             backends must be requested explicitly.
-        **kwargs: Backend-specific options (e.g. ``background`` for WebGL,
-            ``yaml_file`` for Mitsuba, ``engine`` / ``blend_file`` for Blender).
-            See the backend guide for the full list.
+        **kwargs: Backend-specific keyword arguments forwarded verbatim to the
+            chosen backend (e.g. ``background`` / ``title`` for WebGL,
+            ``yaml_file`` for Mitsuba, ``blender_engine`` / ``blend_file`` for
+            Blender). Unknown keys raise ``TypeError``.
 
     Returns:
         A :class:`RenderResult` bundling the in-memory ``image`` (Mitsuba), the

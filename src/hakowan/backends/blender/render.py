@@ -41,7 +41,9 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         scene: Scene,
         config: Config,
         filename: Path | str | None = None,
-        **kwargs,
+        *,
+        blender_engine: str = "CYCLES",
+        blend_file: Path | str | None = None,
     ) -> Any:
         """Render scene using Blender.
 
@@ -60,13 +62,10 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                 / film / sampler settings.
             filename: Output image path.  Parent directories are created
                 automatically.  Pass ``None`` to render without saving.
-            **kwargs: Additional backend options:
-                - ``engine`` (str): Render engine for the main pass;
-                  ``"CYCLES"`` (default) or ``"BLENDER_EEVEE"``.
-                - ``blend_file`` (str | Path): If provided, save the Blender
-                  scene to this path before rendering (useful for debugging).
-                - ``yaml_file`` (str | Path): If provided, serialize the
-                  scene configuration to a YAML file at this path.
+            blender_engine: Blender render engine — ``"CYCLES"`` (default) or
+                ``"BLENDER_EEVEE"``.
+            blend_file: If provided, save the Blender scene to this path before
+                rendering (useful for debugging).
 
         Returns:
             ``None`` — Blender writes directly to *filename*.
@@ -84,13 +83,12 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         self._setup_camera(config)
 
         # Setup lighting
-        self._setup_lighting(config, **kwargs)
+        self._setup_lighting(config)
 
         # Setup render settings
-        self._setup_render_settings(config, **kwargs)
+        self._setup_render_settings(config, engine=blender_engine)
 
         # Save .blend file if requested (for debugging)
-        blend_file = kwargs.get("blend_file")
         if blend_file is not None:
             if isinstance(blend_file, str):
                 blend_file = Path(blend_file)

@@ -188,7 +188,7 @@ def test_facet_id_matches_raycast(tmp_path):
 
     layer = hkw.layer().data(mesh).mark(hkw.mark.Surface)
     out = tmp_path / "grid.png"
-    hkw.render(layer, config, filename=out, backend="blender", engine="BLENDER_EEVEE")
+    hkw.render(layer, config, filename=out, backend="blender", blender_engine="BLENDER_EEVEE")
 
     fid_png = tmp_path / "grid_facet_id.png"
     assert fid_png.exists() and fid_png.stat().st_size > 0
