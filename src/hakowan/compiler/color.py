@@ -105,10 +105,14 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
                 "name (e.g. 'fire', 'rainbow', 'CET_L16'), 'identity', or a list "
                 "of colors."
             )
+        if tex.reverse:
+            colormap = colormap.reversed()
         attr_to_color(colormap, tex.categories)
     elif isinstance(tex.colormap, list):
         colors = np.array([to_color(c).data for c in tex.colormap])
         colormap = ColorMap(colors)
+        if tex.reverse:
+            colormap = colormap.reversed()
         attr_to_color(colormap, tex.categories)
 
 

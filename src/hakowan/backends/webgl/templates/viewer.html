@@ -80,7 +80,11 @@ const status = document.getElementById('status');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+// Match the Mitsuba backend, which writes radiance with a plain linear->sRGB
+// transfer function and no filmic curve. ACES would shift brightness and
+// desaturate relative to Mitsuba; NoToneMapping + SRGBColorSpace reproduces
+// Mitsuba's encode exactly.
+renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1.0;
 
 // Soft "studio" background: a radial gradient texture, bright at the centre
@@ -138,9 +142,11 @@ controls.target.set(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
 controls.enableDamping = true;
 controls.update();
 
-// Default 3-point lighting. The envmap (when supplied) provides reflections /
-// PBR irradiance on top of these — keeping them on means we still see the
-// scene even if the envmap fails to load.
+// Fallback 3-point lighting, used only when no envmap is supplied or the envmap
+// fails to load. When the envmap loads successfully, `loadEnvmap` zeroes these
+// so image-based lighting is the sole light source — matching the Mitsuba
+// backend, which lights with the envmap alone. Leaving them on would
+// double-count light on top of the envmap and look brighter than Mitsuba.
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
 keyLight.position.set(2, 3, 4);
 scene.add(keyLight);
@@ -231,6 +237,17 @@ async function loadEnvmap() {
       scene.background = envTexture;
       envBackground = envTexture;
     }
+    // The envmap now lights the scene via image-based lighting, exactly like
+    // the Mitsuba backend (which uses the envmap as its only emitter). The
+    // analytic 3-point rig below is a fallback for when the envmap fails to
+    // load, so switch it off now that IBL is active — otherwise it double-counts
+    // light on top of the envmap and the result looks markedly brighter than
+    // Mitsuba. Reached only after env setup fully succeeds; the catch below
+    // leaves the lights on.
+    keyLight.intensity = 0;
+    fillLight.intensity = 0;
+    rimLight.intensity = 0;
+    ambient.intensity = 0;
     tex.dispose();
     pmrem.dispose();
   } catch (err) {

@@ -121,6 +121,8 @@ class ScalarField(Texture):
         domain (tuple[float, float]): The domain of the attribute to map to the colormap.
         range (tuple[float, float]): The range of the colormap to map the attribute to.
         categories (bool): Whether the attribute represents categorical data (i.e. discrete values).
+        reverse (bool): Whether to reverse the colormap direction (i.e. map the
+            largest attribute value to the colormap's first color).
     """
 
     data: AttributeLike
@@ -128,3 +130,4 @@ class ScalarField(Texture):
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
     categories: bool = False
+    reverse: bool = False
