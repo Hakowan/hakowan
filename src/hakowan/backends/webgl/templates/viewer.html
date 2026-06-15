@@ -294,11 +294,17 @@ function applyHakowanShaderPatches(root, gltf) {
           color2Expr = "vIsoColor2";
         }
 
+        // Replicate the Mitsuba backend exactly: it renders the isocontour with
+        // the `checkerboard` plugin sampled at UV (s*n, s*n + (1-ratio)/2), so a
+        // texel is on a contour line when fract(u) and fract(v) straddle 0.5
+        // (i.e. (fract(u) > 0.5) XOR (fract(v) > 0.5)). That yields two thin
+        // stripes per contour period; a single `step` band would draw half as
+        // many lines (twice as wide) and not line up with Mitsuba.
         injectFragDiffuse +=
-          "{ float f = fract(vScalar0 * uNumContours);"
-          + "  float halfRatio = uRatio * 0.5;"
-          + "  float onContour = step(0.5 - halfRatio, f) * step(f, 0.5 + halfRatio);"
-          + `  vec3 isoColor = mix(${color2Expr}, ${color1Expr}, onContour);`
+          "{ float uIso = vScalar0 * uNumContours;"
+          + "  float vIso = uIso + (1.0 - uRatio) * 0.5;"
+          + "  float onLine = abs(step(0.5, fract(uIso)) - step(0.5, fract(vIso)));"
+          + `  vec3 isoColor = mix(${color1Expr}, ${color2Expr}, onLine);`
           + "  diffuseColor.rgb *= isoColor; }\n";
       }
 
