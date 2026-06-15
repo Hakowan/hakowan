@@ -521,6 +521,69 @@ def _linearize_color_attributes(mesh: lagrange.SurfaceMesh):
             )
 
 
+def _generate_bsdf_with_mesh(view: View, mesh: lagrange.SurfaceMesh, is_primitive: bool) -> dict:
+    """Call generate_bsdf_config with a specific mesh instead of view.data_frame.mesh.
+
+    Temporarily swaps the mesh on the view so that texture config generators
+    see the export-ready mesh (with secondary Color attributes expanded to
+    scalar triplets) rather than the original compiled mesh.
+    """
+    original_mesh = view.data_frame.mesh  # type: ignore[union-attr]
+    view.data_frame.mesh = mesh  # type: ignore[union-attr]
+    try:
+        return generate_bsdf_config(view, is_primitive=is_primitive)
+    finally:
+        view.data_frame.mesh = original_mesh  # type: ignore[union-attr]
+
+
+def _expand_secondary_color_attributes(mesh: lagrange.SurfaceMesh):
+    """Convert Color attributes beyond the first into scalar triplets for Mitsuba.
+
+    Mitsuba's PLY reader only recognises the first Color attribute set
+    (``red``/``green``/``blue`` → ``vertex_color``).  Subsequent Color
+    attributes land in the PLY as ``red_N``/``green_N``/``blue_N``, which
+    Mitsuba cannot access by name.  This function converts every Color
+    attribute after the first into three per-channel Scalar attributes named
+    ``{attr_name}_0``, ``{attr_name}_1``, ``{attr_name}_2``; Mitsuba then
+    exposes the group as ``vertex_{attr_name}`` (or ``face_{attr_name}``).
+
+    Must run after ``_linearize_color_attributes`` so the data is already in
+    linear RGB.
+
+    Args:
+        mesh: The mesh (export copy) to modify in place.
+    """
+    color_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+    for cid in color_ids[1:]:
+        name = mesh.get_attribute_name(cid)
+        if mesh.is_attribute_indexed(name):
+            attr = mesh.indexed_attribute(name)
+            values = np.array(attr.values.data, dtype=np.float64)
+            indices = np.array(attr.indices.data)
+            element = attr.element_type
+            mesh.delete_attribute(name)
+            for ch in range(min(values.shape[1], 3)):
+                mesh.create_attribute(
+                    f"{name}_{ch}",
+                    element=element,
+                    usage=lagrange.AttributeUsage.Scalar,
+                    initial_values=values[:, ch : ch + 1],
+                    initial_indices=indices,
+                )
+        else:
+            attr = mesh.attribute(name)
+            values = np.array(attr.data, dtype=np.float64)
+            element = attr.element_type
+            mesh.delete_attribute(name)
+            for ch in range(min(values.shape[1], 3)):
+                mesh.create_attribute(
+                    f"{name}_{ch}",
+                    element=element,
+                    usage=lagrange.AttributeUsage.Scalar,
+                    initial_values=values[:, ch : ch + 1],
+                )
+
+
 def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     """Generate the mitsuba config for a mesh.
 
@@ -548,6 +611,11 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
 
     # Decode baked sRGB color attributes to linear RGB for Mitsuba.
     _linearize_color_attributes(mesh)
+
+    # PLY only exposes the first Color attribute set as ``vertex_color``.
+    # Convert every additional Color attribute to a scalar triplet so Mitsuba
+    # can access it as ``vertex_{attr_name}``.
+    _expand_secondary_color_attributes(mesh)
 
     # Just a sanity check that all attributes are still present in the original mesh.
     for attr in view._active_attributes:
@@ -583,7 +651,10 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     mi_config = {
         "type": "ply",
         "filename": str(filename.resolve()),
-        "bsdf": generate_bsdf_config(view, is_primitive=False),
+        # Pass the modified mesh so that generate_scalar_field_config sees
+        # the scalar triplets created by _expand_secondary_color_attributes
+        # and derives the correct Mitsuba attribute names.
+        "bsdf": _generate_bsdf_with_mesh(view, mesh, is_primitive=False),
         "face_normals": use_facet_normal,
         "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
     }
