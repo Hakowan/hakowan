@@ -9,6 +9,7 @@ import lagrange
 import numpy as np
 
 from ...common import logger
+from ...common.color import srgb_to_linear_array
 from ...compiler import View
 from ...grammar.channel.material import (
     Diffuse,
@@ -102,7 +103,7 @@ def _read_color_attribute(mesh: lagrange.SurfaceMesh, name: str) -> np.ndarray:
         raw = np.concatenate([raw, alpha], axis=1)
     # hakowan stores colors in sRGB. glTF expects COLOR_0 in linear RGB.
     raw = raw.copy()
-    raw[:, :3] = _srgb_to_linear_array(raw[:, :3])
+    raw[:, :3] = srgb_to_linear_array(raw[:, :3])
     return raw
 
 
@@ -126,14 +127,6 @@ def primitive_arrays(
     normal_name = mesh.get_attribute_name(normal_ids[0])
     normals = np.ascontiguousarray(mesh.attribute(normal_name).data, dtype=np.float32)
     return positions, normals, indices
-
-
-def _srgb_to_linear_array(c: np.ndarray) -> np.ndarray:
-    """sRGB → linear, vectorised over an arbitrary-shape float array."""
-    c = np.clip(c, 0.0, 1.0)
-    low = c / 12.92
-    high = ((c + 0.055) / 1.055) ** 2.4
-    return np.where(c <= 0.04045, low, high).astype(np.float32)
 
 
 def extract_surface_arrays(

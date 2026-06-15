@@ -31,6 +31,7 @@ import numpy as np
 from PIL import Image as PILImage, ImageEnhance
 
 from ...common import logger
+from ...common.color import linear_to_srgb, srgb_to_linear, srgb_to_linear_array
 from ...common.to_color import to_color
 from ...compiler import View
 from ...grammar.channel import BumpMap, NormalMap
@@ -53,7 +54,6 @@ from .builder import (
     GLTFBuilder,
     _FILTER_NEAREST,
 )
-from .mesh_extract import _srgb_to_linear_array
 
 # glTF allows arbitrary underscore-prefixed names, but three.js GLTFLoader maps
 # unknown attributes with ``name.toLowerCase()`` (see ``addPrimitiveAttributes``).
@@ -141,18 +141,12 @@ _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
 }
 
 
-def _srgb_to_linear(c: float) -> float:
-    if c <= 0.04045:
-        return c / 12.92
-    return ((c + 0.055) / 1.055) ** 2.4
-
-
 def _color_to_rgba(color_like: Any) -> list[float]:
     color = to_color(color_like)
     return [
-        _srgb_to_linear(float(color.red)),
-        _srgb_to_linear(float(color.green)),
-        _srgb_to_linear(float(color.blue)),
+        srgb_to_linear(float(color.red)),
+        srgb_to_linear(float(color.green)),
+        srgb_to_linear(float(color.blue)),
         1.0,
     ]
 
@@ -204,7 +198,7 @@ def _back_base_color(mat: Material) -> list[float]:
         logger.warning(
             "WebGL backend: back_side Conductor approximated as a flat metal color."
         )
-        return [_srgb_to_linear(c) for c in albedo]
+        return [srgb_to_linear(c) for c in albedo]
     if isinstance(mat, Dielectric):
         logger.warning(
             "WebGL backend: back_side Dielectric approximated as white "
@@ -259,15 +253,11 @@ def _bake_checkerboard_png(
     blurs under ``LINEAR`` minification in three.js).
     """
 
-    def _linear_to_srgb(c: float) -> int:
-        if c <= 0.0031308:
-            v = 12.92 * c
-        else:
-            v = 1.055 * (c ** (1 / 2.4)) - 0.055
-        return max(0, min(255, int(round(v * 255))))
+    def _linear_to_srgb_byte(c: float) -> int:
+        return max(0, min(255, int(round(linear_to_srgb(c) * 255))))
 
-    c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
-    c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
+    c1 = tuple(_linear_to_srgb_byte(c) for c in tex1_color[:3])
+    c2 = tuple(_linear_to_srgb_byte(c) for c in tex2_color[:3])
     # Round the cell count up to an even number so the (x + y) % 2 pattern tiles
     # seamlessly under REPEAT wrapping (an odd period leaves a seam where two
     # same-colored cells meet).
@@ -476,7 +466,7 @@ def _read_color_field(view: View, scalar_field: ScalarField) -> np.ndarray | Non
     rgb = out[:, :3]
     if rgb.shape[1] < 3:  # grayscale color field — broadcast to RGB
         rgb = np.repeat(rgb[:, :1], 3, axis=1)
-    return _srgb_to_linear_array(np.ascontiguousarray(rgb))
+    return srgb_to_linear_array(np.ascontiguousarray(rgb))
 
 
 def _resolve_isocontour_band(
@@ -665,9 +655,9 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             albedo = (0.7, 0.7, 0.7)
         pbr: dict[str, Any] = {
             "baseColorFactor": [
-                _srgb_to_linear(albedo[0]),
-                _srgb_to_linear(albedo[1]),
-                _srgb_to_linear(albedo[2]),
+                srgb_to_linear(albedo[0]),
+                srgb_to_linear(albedo[1]),
+                srgb_to_linear(albedo[2]),
                 1.0,
             ],
             "metallicFactor": 1.0,

@@ -3,6 +3,7 @@
 from typing import Literal
 
 from ...common import logger
+from ...common.color import srgb_to_linear, srgb_to_linear_array
 from ...common.vector_field import filter_zero_length_vectors
 from ...compiler import View
 from ...grammar import mark
@@ -266,6 +267,13 @@ class _GeometryMixin(_MaterialMixin):
         mesh = bpy.data.meshes.new(name=f"mesh_{index:03d}")
         mesh.from_pydata(vertices.tolist(), [], facets)
         mesh.update()
+        # Sanitize geometry built by from_pydata. Meshes can carry degenerate
+        # facets (e.g. a UV sphere's pole quads with a repeated vertex);
+        # validate() drops them. Without it, downstream ops like
+        # normals_split_custom_set operate on invalid loops and *segfault*
+        # Blender rather than raising.
+        mesh.validate(verbose=False)
+        mesh.update()
 
         # Apply custom shading normals (if the mesh carries a normal attribute)
         # so authored/smoothed normals match the other backends instead of
@@ -384,14 +392,30 @@ class _GeometryMixin(_MaterialMixin):
             mesh.normals_split_custom_set_from_vertices(per_vertex.tolist())
         else:
             assert per_corner is not None
-            if per_corner.shape[0] != len(mesh.loops):
-                logger.warning(
-                    "Blender backend: corner normal count "
-                    f"({per_corner.shape[0]}) != loop count ({len(mesh.loops)}); "
-                    "skipping custom normals."
-                )
+            if per_corner.shape[0] == len(mesh.loops):
+                mesh.normals_split_custom_set(per_corner.tolist())
                 return
-            mesh.normals_split_custom_set(per_corner.tolist())
+            # The per-corner array no longer lines up with the Blender loops —
+            # typically because mesh.validate() dropped degenerate facets (e.g. a
+            # UV sphere's pole quads). Fall back to per-vertex normals, which are
+            # keyed on vertices (validate keeps them) and still shade smoothly.
+            corner_vertices = np.concatenate(
+                [np.asarray(f, dtype=np.int64) for f in facets]
+            )
+            num_vertices = len(mesh.vertices)
+            if (
+                corner_vertices.shape[0] == per_corner.shape[0]
+                and int(corner_vertices.max()) < num_vertices
+            ):
+                per_vertex = np.zeros((num_vertices, 3), dtype=np.float32)
+                per_vertex[corner_vertices] = per_corner
+                mesh.normals_split_custom_set_from_vertices(per_vertex.tolist())
+                return
+            logger.warning(
+                "Blender backend: corner normal count "
+                f"({per_corner.shape[0]}) != loop count ({len(mesh.loops)}) and no "
+                "per-vertex fallback; using Blender's default smooth shading."
+            )
 
     def _create_point_base_mesh(
         self, base_shape: Literal["sphere", "disk", "cube"], index: int
@@ -585,7 +609,8 @@ class _GeometryMixin(_MaterialMixin):
             if element_type == lagrange.AttributeElement.Vertex:
                 data = np.asarray(mesh_data.attribute(attr_name).data)
                 if data.ndim == 2 and data.shape[0] == n_points and data.shape[1] >= 3:
-                    rgb = data[:, :3]
+                    # Baked colors are sRGB; FLOAT_COLOR attributes are linear.
+                    rgb = srgb_to_linear_array(data[:, :3])
                     if data.shape[1] >= 4:
                         alpha = data[:, 3:4]
                     else:
@@ -786,7 +811,10 @@ class _GeometryMixin(_MaterialMixin):
                                 for i in range(n_segments):
                                     for vi in (base_idx[i], tip_idx[i]):
                                         c = data[vi]
-                                        r, g, b = float(c[0]), float(c[1]), float(c[2])
+                                        # sRGB → linear for FLOAT_COLOR.
+                                        r = srgb_to_linear(float(c[0]))
+                                        g = srgb_to_linear(float(c[1]))
+                                        b = srgb_to_linear(float(c[2]))
                                         a = float(c[3]) if c.shape[0] >= 4 else 1.0
                                         if point_idx < len(layer.data):
                                             layer.data[point_idx].color = (r, g, b, a)

@@ -9,6 +9,7 @@ from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
 from ...grammar.channel.material import Dielectric
 from .utils import rotation
+from ...common.color import srgb_to_linear_array
 
 from typing import Any
 import copy
@@ -477,6 +478,49 @@ def _rename_attributes(mesh: lagrange.SurfaceMesh, active_attributes: list[Attri
         # Note that we will keep attr._internal_name the same.
 
 
+def _linearize_color_attributes(mesh: lagrange.SurfaceMesh):
+    """Decode sRGB color attributes to linear RGB in place.
+
+    hakowan bakes colormap / color-field colors in sRGB, but Mitsuba's
+    ``mesh_attribute`` texture interprets vertex/face colors as linear RGB.
+    Replace each color attribute with a decoded copy (same name) so the ply that
+    Mitsuba loads carries linear colors, matching the uniform color path. Meant
+    to run on the shallow export copy; the original mesh is left untouched.
+
+    Args:
+        mesh: The mesh (export copy) whose color attributes to linearize.
+    """
+    color_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Color)
+    for cid in color_ids:
+        name = mesh.get_attribute_name(cid)
+        if mesh.is_attribute_indexed(name):
+            attr = mesh.indexed_attribute(name)
+            element = attr.element_type
+            values = np.array(attr.values.data, dtype=np.float64)  # copy
+            indices = np.array(attr.indices.data)  # copy
+            values[..., :3] = srgb_to_linear_array(values[..., :3])
+            mesh.delete_attribute(name)
+            mesh.create_attribute(
+                name,
+                element=element,
+                usage=lagrange.AttributeUsage.Color,
+                initial_values=values,
+                initial_indices=indices,
+            )
+        else:
+            attr = mesh.attribute(name)
+            element = attr.element_type
+            values = np.array(attr.data, dtype=np.float64)  # copy
+            values[..., :3] = srgb_to_linear_array(values[..., :3])
+            mesh.delete_attribute(name)
+            mesh.create_attribute(
+                name,
+                element=element,
+                usage=lagrange.AttributeUsage.Color,
+                initial_values=values,
+            )
+
+
 def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     """Generate the mitsuba config for a mesh.
 
@@ -501,6 +545,9 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
 
     # Rename attributes in the shallow copy of mesh.
     _rename_attributes(mesh, view._active_attributes)
+
+    # Decode baked sRGB color attributes to linear RGB for Mitsuba.
+    _linearize_color_attributes(mesh)
 
     # Just a sanity check that all attributes are still present in the original mesh.
     for attr in view._active_attributes:

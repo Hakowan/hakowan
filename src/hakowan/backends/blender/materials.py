@@ -3,6 +3,7 @@
 from typing import Literal
 
 from ...common import logger
+from ...common.color import srgb_to_linear, srgb_to_linear_array
 from ...compiler import View
 from ...grammar.channel.material import (
     Conductor,
@@ -532,7 +533,14 @@ class _MaterialMixin:
             case RoughConductor() | Conductor():
                 name = mat_data.material
                 rgb = self._conductor_colors.get(name, (0.8, 0.8, 0.8))
-                return (rgb[0], rgb[1], rgb[2], 1.0)
+                # Presets are sRGB approximations; decode to linear like the
+                # other backends.
+                return (
+                    srgb_to_linear(rgb[0]),
+                    srgb_to_linear(rgb[1]),
+                    srgb_to_linear(rgb[2]),
+                    1.0,
+                )
             case Dielectric() | ThinDielectric() | RoughDielectric():
                 # Glass-like materials: white/clear base
                 return (1.0, 1.0, 1.0, 1.0)
@@ -540,26 +548,39 @@ class _MaterialMixin:
                 return None
 
     def _extract_color(self, color_data) -> tuple[float, float, float, float] | None:
-        """Extract RGBA color from various color representations.
+        """Extract a linear RGBA color from various color representations.
+
+        hakowan colors (names / hex / floats / tuples) are sRGB-encoded; Blender's
+        Principled ``Base Color`` expects linear RGB, so decode here to match the
+        Mitsuba and WebGL backends.
 
         Args:
-            color_data: Color data (str, tuple, or texture).
+            color_data: Color data (str, number, tuple, or texture).
 
         Returns:
-            RGBA tuple or None.
+            Linear RGBA tuple or None.
         """
         from ...common.to_color import to_color
 
+        alpha = 1.0
         if isinstance(color_data, str):
-            rgb = to_color(color_data)
-            return (rgb[0], rgb[1], rgb[2], 1.0)
-        elif isinstance(color_data, (list, tuple)):
-            if len(color_data) == 3:
-                return (color_data[0], color_data[1], color_data[2], 1.0)
-            elif len(color_data) == 4:
-                return tuple(color_data)
-        # Texture types (e.g. ScalarField) are handled via mesh color attributes
-        return None
+            c = to_color(color_data)
+            rgb = (c.red, c.green, c.blue)
+        elif isinstance(color_data, (int, float)):
+            rgb = (color_data, color_data, color_data)
+        elif isinstance(color_data, (list, tuple)) and len(color_data) in (3, 4):
+            rgb = (color_data[0], color_data[1], color_data[2])
+            if len(color_data) == 4:
+                alpha = float(color_data[3])
+        else:
+            # Texture types (e.g. ScalarField) are handled via mesh color attributes
+            return None
+        return (
+            srgb_to_linear(float(rgb[0])),
+            srgb_to_linear(float(rgb[1])),
+            srgb_to_linear(float(rgb[2])),
+            alpha,
+        )
 
     def _get_scalar_field_color_attr(self, view: View):
         """If the view's material uses a ScalarField color, return (attr_name, element_type).
@@ -787,6 +808,11 @@ class _MaterialMixin:
             )
         else:
             return
+
+        # hakowan bakes colors in sRGB; Blender FLOAT_COLOR attributes are
+        # linear, so decode the RGB channels (leave alpha untouched).
+        colors = colors.copy()
+        colors[:, :3] = srgb_to_linear_array(colors[:, :3])
 
         if element_type == lagrange.AttributeElement.Vertex:
             bpy_mesh.color_attributes.new(

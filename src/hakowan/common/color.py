@@ -82,3 +82,37 @@ class Color:
     def data(self) -> npt.NDArray[np.float64]:
         """Raw RGB data as a numpy array."""
         return self.color
+
+
+def srgb_to_linear(c: float) -> float:
+    """Convert a single sRGB-encoded channel value in ``[0, 1]`` to linear RGB.
+
+    Color names, hex strings, and user-specified floats follow the sRGB
+    convention, while renderers shade in linear space (Mitsuba's ``rgb``
+    spectrum and three.js both interpret their inputs as linear). Decode at the
+    backend boundary so colors render consistently and physically correctly.
+    """
+    if c <= 0.04045:
+        return c / 12.92
+    return ((c + 0.055) / 1.055) ** 2.4
+
+
+def linear_to_srgb(c: float) -> float:
+    """Convert a single linear RGB channel value in ``[0, 1]`` to sRGB-encoded.
+
+    Inverse of :func:`srgb_to_linear`.
+    """
+    if c <= 0.0031308:
+        return 12.92 * c
+    return 1.055 * (c ** (1 / 2.4)) - 0.055
+
+
+def srgb_to_linear_array(c: npt.NDArray) -> npt.NDArray:
+    """Vectorised :func:`srgb_to_linear` over an arbitrary-shape float array.
+
+    Values are clipped to ``[0, 1]``; the output preserves the input dtype.
+    """
+    c = np.clip(np.asarray(c), 0.0, 1.0)
+    low = c / 12.92
+    high = ((c + 0.055) / 1.055) ** 2.4
+    return np.where(c <= 0.04045, low, high).astype(c.dtype, copy=False)
