@@ -34,7 +34,7 @@ from ...common import logger
 from ...common.color import linear_to_srgb, srgb_to_linear, srgb_to_linear_array
 from ...common.to_color import to_color
 from ...compiler import View
-from ...grammar.channel import BumpMap, NormalMap
+from ...grammar.channel import NormalMap
 from ...grammar.channel.material import (
     Conductor,
     Dielectric,
@@ -123,6 +123,13 @@ def _resolve_ior(ior_like: Any, default: float) -> float:
             return default
         return v
     return default
+
+
+# Tangent-space normal-map green-channel sign. three.js follows the OpenGL
+# convention (+Y points up in UV space). The bump->normal bake computes the
+# V-gradient in the flipped (as-sampled) image orientation, so +1 matches; flip
+# to -1 for a DirectX-style (green-down) result.
+_NORMAL_GREEN_SIGN = 1.0
 
 
 # Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
@@ -322,19 +329,126 @@ def _apply_image_or_checker(
             extras["checkerboard"] = True
 
 
-def _apply_bump_map(
-    extras: dict[str, Any],
-    builder: GLTFBuilder,
-    bump_map: BumpMap | None,
-) -> None:
-    """Embed a bump map image and store its glTF texture index in extras.
+def _mesh_uv_world_scale(mesh: Any) -> tuple[float, float] | None:
+    """Area-weighted average world distance per unit UV, ``(|dp_du|, |dp_dv|)``.
 
-    glTF has no standard bump-map slot, so we embed the texture as a
-    plain glTF image and record its index in ``extras["hakowan"]["bump"]``.
-    The viewer JS loads it via ``gltf.parser.loadTexture`` and assigns it
-    to ``material.bumpMap`` / ``material.bumpScale`` directly on the
-    three.js material.
+    A height->normal conversion has to bake the *world-space* slope
+    ``scale * (dH/du) / |dp_du|``: three.js builds the tangent frame from the
+    mesh's own position/UV derivatives (the T/B vectors are normalized), so the
+    baked normal map is interpreted as a dimensionless world-space slope. This
+    returns the surface-averaged UV->world scale so the bake is aware of the
+    parameterization. Returns ``None`` if the mesh carries no UVs.
     """
+    import lagrange
+
+    if mesh is None:
+        return None
+    uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+    if not uv_ids:
+        return None
+    V = np.asarray(mesh.vertices, dtype=np.float64)
+    uid = uv_ids[0]
+    if mesh.is_attribute_indexed(uid):
+        attr = mesh.indexed_attribute(uid)
+        uv_values = np.asarray(attr.values.data, dtype=np.float64).reshape(-1, 2)
+        uv_index = np.asarray(attr.indices.data)
+    else:
+        uv_values = np.asarray(mesh.attribute(uid).data, dtype=np.float64).reshape(-1, 2)
+        uv_index = None
+
+    sum_du = sum_dv = sum_w = 0.0
+    for f in range(mesh.num_facets):
+        n = mesh.get_facet_size(f)
+        if n < 3:
+            continue
+        vidx = mesh.get_facet_vertices(f)
+        pf = V[vidx]
+        if uv_index is not None:
+            c0 = mesh.get_facet_corner_begin(f)
+            uvf = uv_values[uv_index[c0 : c0 + n]]
+        else:
+            uvf = uv_values[vidx]
+        # Fan-triangulate the (possibly polygonal) facet and accumulate the
+        # per-triangle UV->world Jacobian, weighted by world area.
+        for k in range(1, n - 1):
+            duv = np.array([uvf[k] - uvf[0], uvf[k + 1] - uvf[0]])
+            det = duv[0, 0] * duv[1, 1] - duv[0, 1] * duv[1, 0]
+            if abs(det) < 1e-12:
+                continue
+            b0 = pf[k] - pf[0]
+            b1 = pf[k + 1] - pf[0]
+            dp_du = (duv[1, 1] * b0 - duv[0, 1] * b1) / det
+            dp_dv = (-duv[1, 0] * b0 + duv[0, 0] * b1) / det
+            area = 0.5 * float(np.linalg.norm(np.cross(b0, b1)))
+            sum_du += float(np.linalg.norm(dp_du)) * area
+            sum_dv += float(np.linalg.norm(dp_dv)) * area
+            sum_w += area
+    if sum_w <= 0.0:
+        return None
+    return sum_du / sum_w, sum_dv / sum_w
+
+
+def _height_to_normal_map_png(
+    height: Image, scale: float, dp_du: float, dp_dv: float
+) -> bytes:
+    """Convert a height (bump) texture into a tangent-space normal map PNG.
+
+    three.js's ``bumpMap`` finite-differences the height in *screen* space,
+    which reads far weaker than Mitsuba's analytic UV-space gradient and loses
+    crater-scale relief. Encoding the height as a tangent-space normal map
+    instead lets three.js sample a precomputed per-texel normal, recovering the
+    detail. The slope baked into each texel mirrors Mitsuba's ``bumpmap``:
+    ``slope = scale * (dH/du) / |dp_du|`` (and likewise in v).
+    """
+    arr = np.asarray(PILImage.open(Path(height.filename)))
+    norm = 65535.0 if arr.dtype == np.uint16 else 255.0
+    H = arr.astype(np.float32)
+    if H.ndim == 3:
+        H = H[..., :3].mean(axis=-1)
+    H /= norm
+    # Match base-color UV handling: textures are flipped vertically (hakowan's
+    # V=0-at-bottom -> glTF's V=0-at-top), so compute gradients in that sampled
+    # orientation and the green channel lines up with three.js's convention.
+    H = np.flipud(H)
+    rows, cols = H.shape
+    # Central differences; longitude (u) wraps, latitude (v) clamps.
+    gx = (np.roll(H, -1, axis=1) - np.roll(H, 1, axis=1)) * 0.5
+    gy = np.empty_like(H)
+    gy[1:-1] = (H[2:] - H[:-2]) * 0.5
+    gy[0] = H[1] - H[0]
+    gy[-1] = H[-1] - H[-2]
+    # Per-UV gradient is per-pixel gradient times the pixel count along that
+    # axis; divide by |dp/duv| to get the dimensionless world-space slope.
+    su = scale * gx * cols / max(dp_du, 1e-8)
+    sv = scale * gy * rows / max(dp_dv, 1e-8)
+    nx = -su
+    ny = -sv * _NORMAL_GREEN_SIGN
+    nz = np.ones_like(H)
+    inv = 1.0 / np.sqrt(nx * nx + ny * ny + nz * nz)
+    rgb = np.stack(
+        [nx * inv * 0.5 + 0.5, ny * inv * 0.5 + 0.5, nz * inv * 0.5 + 0.5], axis=-1
+    )
+    rgb8 = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    buf = io.BytesIO()
+    PILImage.fromarray(rgb8).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _apply_bump_map(
+    pbr: dict[str, Any],
+    builder: GLTFBuilder,
+    view: View,
+) -> None:
+    """Wire the view's bump map into the glTF material as a normal map.
+
+    The height (bump) texture is converted to a tangent-space normal map and
+    attached via the standard glTF normalTexture slot. three.js samples a
+    precomputed per-texel normal, which preserves fine relief far better than
+    its screen-space ``bumpMap``. The bump is skipped (with a warning) when the
+    texture isn't an image, the mesh has no UVs, or a normal map already
+    occupies the normalTexture slot (glTF can't carry both).
+    """
+    bump_map = view.bump_map
     if bump_map is None:
         return
     texture = bump_map.texture
@@ -344,13 +458,30 @@ def _apply_bump_map(
             "not supported; only Image is wired."
         )
         return
+    if view.normal_map is not None or "normalTextureIndex" in pbr:
+        logger.warning(
+            "WebGL backend: a normal map already occupies the normalTexture "
+            "slot; the bump map is ignored (glTF can't carry both)."
+        )
+        return
+    mesh = view.data_frame.mesh if view.data_frame is not None else None
+    uv_scale = _mesh_uv_world_scale(mesh)
+    if uv_scale is None:
+        logger.warning(
+            "WebGL backend: bump map requires mesh UVs to bake a normal map; "
+            "the bump map is ignored."
+        )
+        return
     try:
-        png_bytes = _load_image_as_png_bytes(texture)
-        idx = builder.add_image_texture(png_bytes)
-        extras["bump"] = {"texture_idx": idx, "scale": float(bump_map.scale)}
+        png_bytes = _height_to_normal_map_png(
+            texture, float(bump_map.scale), uv_scale[0], uv_scale[1]
+        )
+        pbr["normalTextureIndex"] = builder.add_image_texture(png_bytes)
+        pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
-            f"WebGL backend: failed to embed bump map '{texture.filename}': {e}"
+            f"WebGL backend: bump->normal conversion failed for "
+            f"'{texture.filename}': {e}; the bump map is ignored."
         )
 
 
@@ -674,7 +805,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 view,
             )
         _apply_normal_map(pbr, builder, view.normal_map)
-        _apply_bump_map(extras, builder, view.bump_map)
+        _apply_bump_map(pbr, builder, view)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -756,7 +887,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
 
         _apply_normal_map(pbr, builder, view.normal_map)
-        _apply_bump_map(extras, builder, view.bump_map)
+        _apply_bump_map(pbr, builder, view)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -842,7 +973,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         pbr["roughnessFactor"] = 1.0
 
     _apply_normal_map(pbr, builder, view.normal_map)
-    _apply_bump_map(extras, builder, view.bump_map)
+    _apply_bump_map(pbr, builder, view)
     return MaterialResult(
         pbr=pbr,
         double_sided=double_sided,
