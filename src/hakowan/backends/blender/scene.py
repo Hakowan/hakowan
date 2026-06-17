@@ -552,7 +552,11 @@ class _SceneMixin:
         # node exposes the right output sockets when added below.
         view_layer = scene.view_layers[0]
         if config.albedo:
+            # Metals (Metallic=1) emit no diffuse color, so the base color shows
+            # up only in the Glossy Color pass. Enable both and sum them below so
+            # albedo is correct for conductors and dielectrics alike.
             view_layer.use_pass_diffuse_color = True
+            view_layer.use_pass_glossy_color = True
         if config.depth:
             view_layer.use_pass_z = True
         if config.normal:
@@ -592,6 +596,17 @@ class _SceneMixin:
         # in render() before calling this method.
 
         if config.albedo:
+            # Albedo = Diffuse Color + Glossy Color. Dielectrics carry their base
+            # color in Diffuse Color; metals carry it in Glossy Color. Summing the
+            # two (one is ~black in each case) yields a correct albedo for both.
+            # Color sockets feed a VectorMath ADD (treated component-wise).
+            add_albedo = nodes.new(type="ShaderNodeVectorMath")
+            add_albedo.operation = "ADD"
+            add_albedo.location = (0, y)
+            # Blender 5.0: "DiffCol" renamed to "Diffuse Color".
+            links.new(rl_node.outputs["Diffuse Color"], add_albedo.inputs[0])
+            links.new(rl_node.outputs["Glossy Color"], add_albedo.inputs[1])
+
             fo = nodes.new(type="CompositorNodeOutputFile")
             # Use '//' so Blender resolves to output_dir (the temp .blend location).
             # Clear file_name to avoid a spurious prefix in the output path.
@@ -603,28 +618,35 @@ class _SceneMixin:
             fo.format.color_mode = "RGB"
             fo.file_output_items.new("RGBA", stem + "_albedo")
             fo.location = (400, y)
-            # Blender 5.0: "DiffCol" renamed to "Diffuse Color"
-            links.new(rl_node.outputs["Diffuse Color"], fo.inputs[0])
+            links.new(add_albedo.outputs["Vector"], fo.inputs[0])
             pass_name = f"{stem}_albedo{suffix}"
             renames.append((pass_name, filename.with_name(pass_name)))
             y -= 200
 
         if config.depth:
-            # Normalize the floating-point depth to [0, 1] before saving.
-            normalize = nodes.new(type="CompositorNodeNormalize")
-            normalize.location = (0, y)
-            links.new(rl_node.outputs["Depth"], normalize.inputs[0])
+            # Write the *raw* camera-space Z together with the foreground alpha as
+            # a float EXR sidecar. Normalizing here (CompositorNodeNormalize) would
+            # span the whole frame, and the far-clip background dominates the range
+            # and crushes the object's depth contrast. Instead the alpha mask lets
+            # _postprocess_depth() normalize over foreground pixels only (and paint
+            # the background a flat color). Always EXR, regardless of ``file_format``,
+            # so the linear depth survives intact for that step.
+            set_alpha = nodes.new(type="CompositorNodeSetAlpha")
+            set_alpha.location = (0, y)
+            links.new(rl_node.outputs["Depth"], set_alpha.inputs["Image"])
+            links.new(rl_node.outputs["Alpha"], set_alpha.inputs["Alpha"])
             fo = nodes.new(type="CompositorNodeOutputFile")
             fo.directory = "//"
             fo.file_name = ""
             fo.format.media_type = "IMAGE"
-            fo.format.file_format = file_format
-            fo.format.color_mode = "BW"
-            fo.file_output_items.new("FLOAT", stem + "_depth")
+            fo.format.file_format = "OPEN_EXR"
+            fo.format.color_mode = "RGBA"
+            fo.format.color_depth = "32"
+            fo.file_output_items.new("RGBA", stem + "_depth_raw")
             fo.location = (400, y)
-            links.new(normalize.outputs[0], fo.inputs[0])
-            pass_name = f"{stem}_depth{suffix}"
-            renames.append((pass_name, filename.with_name(pass_name)))
+            links.new(set_alpha.outputs["Image"], fo.inputs[0])
+            # Not added to ``renames``: the raw EXR is consumed (and removed) by
+            # BlenderBackend._postprocess_depth, which writes the final sidecar.
             y -= 200
 
         if config.normal:

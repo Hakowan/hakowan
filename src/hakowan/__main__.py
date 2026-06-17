@@ -263,7 +263,10 @@ def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Mate
     layers = []
     if len(node.children) > 0:
         layers = [
-            node_to_layer(scene, scene.nodes[child], mats) for child in node.children
+            child_layer
+            for child in node.children
+            if (child_layer := node_to_layer(scene, scene.nodes[child], mats))
+            is not None
         ]
 
     for mesh_instance in node.meshes:
@@ -295,6 +298,14 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
+def _base_color_diffuse(material) -> "hkw.material.Material":
+    """Fallback material using the material's constant base color factor (RGB)."""
+    return hkw.material.Diffuse(
+        hkw.texture.Uniform(list(material.base_color_value[:3])),
+        two_sided=True,
+    )
+
+
 def extract_material(
     scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
 ):
@@ -316,17 +327,32 @@ def extract_material(
             tex = scene.textures[tex_info.index]
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
-                tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data).convert("RGBA")
-                im.save(str(tex_file))
-                mat = hkw.material.Principled(
-                    color=hkw.texture.Image(
-                        Path(tex_file), saturation=saturation, whiteness=whiteness
-                    ),
-                    roughness=0.5,
-                    metallic=0.0,
-                    two_sided=True,
-                )
+                buf = tex_img.image
+                if buf.width == 0 or buf.height == 0:
+                    # Texture is referenced but its image data was not loaded
+                    # (common with FBX assets whose textures live in external
+                    # files Lagrange could not resolve). Fall back to the
+                    # material's constant base color instead of saving an empty
+                    # image (which crashes PIL with "tile cannot extend outside
+                    # image").
+                    print(
+                        f"Warning: Material[{mat_idx}] '{material.name}': base "
+                        f"color texture {tex_info.index} has empty image data; "
+                        f"falling back to constant base color."
+                    )
+                    mat = _base_color_diffuse(material)
+                else:
+                    tex_file = get_tmp_image_name()
+                    im = Image.fromarray(buf.data).convert("RGBA")
+                    im.save(str(tex_file))
+                    mat = hkw.material.Principled(
+                        color=hkw.texture.Image(
+                            Path(tex_file), saturation=saturation, whiteness=whiteness
+                        ),
+                        roughness=0.5,
+                        metallic=0.0,
+                        two_sided=True,
+                    )
             else:
                 raise ValueError(
                     f"Material[{mat_idx}] '{material.name}': texture index "
@@ -357,10 +383,7 @@ def extract_material(
             else:
                 raise ValueError("KHR texture not found")
         else:
-            mat = hkw.material.Diffuse(
-                hkw.texture.Uniform(list(material.base_color_value[:3])),
-                two_sided=True,
-            )
+            mat = _base_color_diffuse(material)
 
         mats.append(mat)
 

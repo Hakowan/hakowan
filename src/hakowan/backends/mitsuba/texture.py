@@ -143,8 +143,15 @@ def generate_scalar_field_config(
             # Secondary color attributes are expanded into scalar triplets
             # {name}_0/1/2 by _expand_secondary_color_attributes; Mitsuba
             # exposes the group as vertex_{name} (or face_{name}).
-            assert mesh.has_attribute(f"{name}_0"), f"Mesh has no color attribute '{name}'"
-            prefix = "face" if mesh.attribute(f"{name}_0").element_type == lagrange.AttributeElement.Facet else "vertex"
+            assert mesh.has_attribute(f"{name}_0"), (
+                f"Mesh has no color attribute '{name}'"
+            )
+            prefix = (
+                "face"
+                if mesh.attribute(f"{name}_0").element_type
+                == lagrange.AttributeElement.Facet
+                else "vertex"
+            )
             name = f"{prefix}_{name}"
     else:
         assert mesh.has_attribute(tex.data._internal_name)

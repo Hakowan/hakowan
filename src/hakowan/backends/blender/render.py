@@ -156,6 +156,12 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                 else:
                     logger.warning(f"Pass file not found: {pass_name}")
 
+        # Depth pass: turn the raw-Z + alpha EXR sidecar into the final depth
+        # image (foreground-only normalization). Produces <stem>_depth<render
+        # suffix>; _finalize_outputs re-encodes it to the user's format if needed.
+        if config.depth and render_filename is not None:
+            self._postprocess_depth(render_filename)
+
         # Facet-ID pass: second render with flat ID-color materials.
         if config.facet_id and render_filename is not None:
             self._render_facet_id_pass(render_filename)
@@ -217,6 +223,82 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             if src != dst:
                 src.unlink()
             logger.info(f"Saved to {dst}")
+
+    def _postprocess_depth(self, render_filename: Path) -> None:
+        """Build the depth sidecar from the raw-Z + alpha EXR.
+
+        The compositor writes ``<stem>_depth_raw.exr`` carrying linear camera
+        depth in RGB and the foreground mask in alpha (see
+        ``_setup_compositor_passes``). Normalizing depth across the whole frame
+        lets the far-clip background dominate the range and flattens the object's
+        relief, so this normalizes over foreground pixels only (nearest → white,
+        farthest → black) and paints the background flat white. The result is
+        written to ``<stem>_depth<render_suffix>``; ``_finalize_outputs`` then
+        re-encodes it to the user's requested format when they differ.
+
+        Args:
+            render_filename: Native render path (``<stem><render_suffix>``).
+        """
+        import numpy as np
+
+        raw = render_filename.with_name(render_filename.stem + "_depth_raw.exr")
+        out = aov_path(render_filename, DEPTH)
+        if not raw.exists():
+            logger.warning(f"Depth pass raw EXR not found: {raw}")
+            return
+
+        img = bpy.data.images.load(str(raw))
+        try:
+            width, height = img.size
+            px = np.array(img.pixels[:], dtype=np.float32).reshape(height, width, 4)
+        finally:
+            bpy.data.images.remove(img)
+
+        z = px[..., 0]
+        # Use only fully-covered pixels to set the range and shade the object.
+        # Anti-aliased silhouette pixels have partial alpha and a Z averaged with
+        # the far-clip background sentinel (~1e9), which would otherwise blow out
+        # the normalization range and flatten all real depth to a single value.
+        mask = px[..., 3] > 0.99
+
+        # Background (and AA edges) default to white; foreground is normalized to
+        # its own depth range so the object's relief uses the full tonal range.
+        vis = np.ones((height, width), dtype=np.float32)
+        if mask.any():
+            fg = z[mask]
+            z_min = float(fg.min())
+            z_max = float(fg.max())
+            if z_max > z_min:
+                norm = np.clip((z - z_min) / (z_max - z_min), 0.0, 1.0)
+            else:
+                norm = np.zeros_like(z)
+            # Nearest (smallest Z) → white, farthest → black.
+            vis[mask] = 1.0 - norm[mask]
+
+        if out.suffix.lower() == ".exr":
+            rgba = np.empty((height, width, 4), dtype=np.float32)
+            rgba[..., 0] = rgba[..., 1] = rgba[..., 2] = vis
+            rgba[..., 3] = 1.0
+            out_img = bpy.data.images.new(
+                "hakowan_depth", width, height, alpha=True, float_buffer=True
+            )
+            try:
+                out_img.colorspace_settings.name = "Non-Color"
+                out_img.pixels = rgba.ravel()
+                out_img.file_format = "OPEN_EXR"
+                out_img.filepath_raw = str(out)
+                out_img.save()
+            finally:
+                bpy.data.images.remove(out_img)
+        else:
+            from PIL import Image as PILImage
+
+            # Blender pixels are bottom-up; PIL expects the top row first.
+            u8 = (np.clip(np.flipud(vis), 0.0, 1.0) * 255.0 + 0.5).astype("uint8")
+            PILImage.fromarray(u8, mode="L").save(str(out))
+
+        logger.info(f"Depth pass saved to {out}")
+        raw.unlink()
 
     def _clear_scene(self):
         """Clear all objects, meshes, materials from Blender scene."""

@@ -80,7 +80,9 @@ class WebGLBackend(RenderBackend):
     ) -> Path:
         """Write an interactive HTML viewer and return the output path."""
         if kwargs:
-            raise TypeError(f"render() got unexpected keyword argument(s): {list(kwargs)}")
+            raise TypeError(
+                f"render() got unexpected keyword argument(s): {list(kwargs)}"
+            )
 
         _validate_background(background)
         out_path = _resolve_output_path(filename)

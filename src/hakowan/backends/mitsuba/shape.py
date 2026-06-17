@@ -521,7 +521,9 @@ def _linearize_color_attributes(mesh: lagrange.SurfaceMesh):
             )
 
 
-def _generate_bsdf_with_mesh(view: View, mesh: lagrange.SurfaceMesh, is_primitive: bool) -> dict:
+def _generate_bsdf_with_mesh(
+    view: View, mesh: lagrange.SurfaceMesh, is_primitive: bool
+) -> dict:
     """Call generate_bsdf_config with a specific mesh instead of view.data_frame.mesh.
 
     Temporarily swaps the mesh on the view so that texture config generators

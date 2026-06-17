@@ -353,7 +353,9 @@ def _mesh_uv_world_scale(mesh: Any) -> tuple[float, float] | None:
         uv_values = np.asarray(attr.values.data, dtype=np.float64).reshape(-1, 2)
         uv_index = np.asarray(attr.indices.data)
     else:
-        uv_values = np.asarray(mesh.attribute(uid).data, dtype=np.float64).reshape(-1, 2)
+        uv_values = np.asarray(mesh.attribute(uid).data, dtype=np.float64).reshape(
+            -1, 2
+        )
         uv_index = None
 
     sum_du = sum_dv = sum_w = 0.0
