@@ -160,7 +160,11 @@ class TestSmoke:
         layer = hkw.layer().data(triangle).mark(hkw.mark.Surface)
         out = tmp_path / "smoke.png"
         hkw.render(
-            layer, config, filename=out, backend="blender", blender_engine="BLENDER_EEVEE"
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
         )
         assert out.exists() and out.stat().st_size > 0
 
@@ -181,7 +185,11 @@ class TestSmoke:
         layer, config = self._smoke_layer(triangle)
         out = tmp_path / f"img{ext}"
         result = hkw.render(
-            layer, config, filename=out, backend="blender", blender_engine="BLENDER_EEVEE"
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
         )
         assert result.path == out
         assert out.exists() and out.stat().st_size > 0
