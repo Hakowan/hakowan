@@ -355,6 +355,7 @@ class Layer:
             shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
                 When a string is given, it sets ``Shape.base_shape`` directly.
             vector_field (VectorField | str, optional): The new vector field channel.
+            covariance (Covariance | str, optional): The new covariance channel.
             material (Material, optional): The new material channel.
             bump_map (BumpMap | TextureLike, optional): The new bump map channel.
             normal_map (NormalMap | TextureLike, optional): The new normal map channel.

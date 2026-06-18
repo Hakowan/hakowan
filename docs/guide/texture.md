@@ -43,10 +43,11 @@ One of the most common use case of texture is to map a scalar field to a color f
 | Field | Type | Meaning |
 |-------|------|---------|
 | data  | AttributeLike | The attribute defining the scalar field |
-| colormap | str | The colormap to use |
+| colormap | str \| list | A built-in or [colorcet](https://colorcet.holoviz.org) colormap name, `"identity"`, or an explicit list of colors |
 | domain | tuple | The domain of the attribute |
 | range | tuple | The range of colormap |
 | categories | bool | Whether the data represents categories (i.e. discrete values) |
+| reverse | bool | Whether to reverse the colormap direction (maps the largest value to the colormap's first color) |
 
 ```py
 t = hkw.texture.ScalarField(data="attr_name")

@@ -338,6 +338,7 @@ def _segment_colors(view: View, vertex_idx: np.ndarray | None) -> np.ndarray | N
 
 
 def add_curve_view(builder: GLTFBuilder, view: View) -> int:
+    """Render the curve mark, as extruded tubes or fallback lines."""
     data = _extract_segments(view)
     if data.endpoints.shape[0] == 0:
         logger.warning("WebGL backend: curve view has no segments; skipping.")

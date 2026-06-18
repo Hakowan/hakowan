@@ -10,7 +10,8 @@ All materials support the following parameters:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `two_sided` | `bool` | Wheter the material is two-sided. (default: false) |
+| `two_sided` | `bool` | Whether the material is two-sided. (default: false) |
+| `back_side` | `Material \| None` | An independent material for the back face of each facet. (default: none) |
 
 A material can be specified via the `Layer.channel()` method.
 ```py
@@ -391,6 +392,20 @@ two-sided normals.
 
 ```py
 m = hkw.material.Diffuse("salmon", two_sided=True)
+```
+
+## Two-color material
+
+To shade the front and back faces of each facet differently, set the `back_side` parameter to an
+independent material. The owning material is used for the front face and `back_side` for the back
+face. This implies two-sided rendering regardless of `two_sided`, and only applies to surface marks.
+A nested `back_side` on the back material itself is ignored.
+
+```py
+m = hkw.material.Diffuse(
+    "salmon",
+    back_side=hkw.material.Diffuse("skyblue"),
+)
 ```
 
 ## Bump mapped material

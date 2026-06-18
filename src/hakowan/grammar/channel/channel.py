@@ -149,7 +149,7 @@ class BumpMap(Channel):
     This class specifies the bump map channel.
 
     Attributes:
-        texture (TextureLike | None): The texture used to encode the bump map.
+        texture (TextureLike): The texture used to encode the bump map.
         scale (float): The scale of the bump map. The default value is 1.0.
     """
 
@@ -164,7 +164,7 @@ class NormalMap(Channel):
     This class specifies the normal map channel.
 
     Attributes:
-        texture (TextureLike | None): The texture used to encode the normal map.
+        texture (TextureLike): The texture used to encode the normal map.
     """
 
     texture: TextureLike

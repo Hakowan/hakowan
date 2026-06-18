@@ -124,7 +124,7 @@ class View:
         return float(np.sqrt(np.max(np.einsum("ij,ij->i", deltas, deltas))))
 
     def validate(self):
-        """Validate the currvent view is complete.
+        """Validate the current view is complete.
         A view is complete if data_frame and mark are both not None
         """
         assert self.data_frame is not None, "Data component is not specified"
