@@ -109,7 +109,7 @@ class Config:
         """
         names = set(value)
         for name in names:
-            get_render_pass(name)  # validate; raises on unknown name
+            get_render_pass(name)  # type: ignore[arg-type]  # validate; raises on unknown name
         self._render_passes = names
         self.__sync_aovs()
 

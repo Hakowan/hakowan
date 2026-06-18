@@ -39,7 +39,7 @@ _BACKGROUND_PRESETS: dict[
     "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
     "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
 }
-_DEFAULT_BACKGROUND = "dark"
+_DEFAULT_BACKGROUND: Literal["light", "dark"] = "dark"
 
 
 def _validate_background(name: Literal["light", "dark"]) -> None:

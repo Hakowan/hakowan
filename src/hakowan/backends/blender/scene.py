@@ -1,6 +1,6 @@
 """Camera, lighting, render-settings, compositor and render-pass setup."""
 
-from typing import Literal
+from typing import Literal, cast as typing_cast
 
 from ...common import logger
 from ...common.output import manage_native_output
@@ -307,7 +307,13 @@ class _SceneMixin:
             camera_data.lens_unit = "FOV"
             fov = getattr(sensor, "fov", 28.8415)
             fov_axis = getattr(sensor, "fov_axis", "smaller")
-            fit = self._resolve_sensor_fit(fov_axis, width, height)
+            fit = self._resolve_sensor_fit(
+                typing_cast(
+                    Literal["x", "y", "diagonal", "smaller", "larger"], fov_axis
+                ),
+                width,
+                height,
+            )
             if fit is None:
                 # Blender has no diagonal fit; AUTO applies the angle to the
                 # larger dimension as an approximation.

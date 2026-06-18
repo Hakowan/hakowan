@@ -167,7 +167,7 @@ def resolve_backend_name(name: BackendName | None = None) -> BackendName:
     Returns:
         The resolved backend name.
     """
-    return name or _default_backend or _resolve_default()
+    return name or _default_backend or _resolve_default()  # type: ignore[return-value]
 
 
 def get_backend(name: BackendName | None = None) -> RenderBackend:

@@ -167,6 +167,7 @@ class Scene:
                 bbox_min = v.bbox[0].astype(np.float64).copy()
                 bbox_max = v.bbox[1].astype(np.float64).copy()
             else:
+                assert bbox_max is not None
                 np.minimum(bbox_min, v.bbox[0], out=bbox_min)
                 np.maximum(bbox_max, v.bbox[1], out=bbox_max)
         if bbox_min is None:

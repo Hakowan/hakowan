@@ -44,6 +44,7 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         *,
         blender_engine: str = "CYCLES",
         blend_file: Path | str | None = None,
+        **kwargs: Any,
     ) -> Any:
         """Render scene using Blender.
 

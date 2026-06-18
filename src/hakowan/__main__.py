@@ -257,7 +257,7 @@ def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Mate
         mats (list[hkw.material.Material]): List of materials used for mesh instances.
 
     Returns:
-        hkw.layer.Layer or None: The composited Layer for this node and its children,
+        hkw.layer or None: The composited Layer for this node and its children,
         or None if no layers are created.
     """
     layers = []
@@ -403,7 +403,7 @@ def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
         whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
-        hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
+        hkw.layer: A composite layer object representing the scene with embedded textures.
     """
     scene = lagrange.io.load_scene(scene_file, stitch_vertices=True)
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
@@ -548,7 +548,7 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Layer":
+def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
     """Build the styled layer for a single input mesh.
 
     Holds all per-mesh logic (geometry load, material, overlays, transforms) so
@@ -562,7 +562,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
             size. Used when laying out multiple meshes in a grid.
 
     Returns:
-        hkw.layer.Layer: The fully styled layer for this mesh.
+        hkw.layer: The fully styled layer for this mesh.
     """
     mesh = lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
 
@@ -583,7 +583,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
     bbox_size = bbox_max - bbox_min
     bbox_diag = np.linalg.norm(bbox_size)
 
-    layer: hkw.layer.Layer = hkw.layer(mesh)
+    layer: hkw.layer = hkw.layer(mesh)
 
     back_side = (
         _back_side_material(args.material, args.back_color)
@@ -820,7 +820,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
             quad_dominant = False
 
         base = hkw.layer(mesh)
-        valence_view = base.mark("Point").channel(size=0.005 * bbox_diag)
+        valence_view = base.mark("Point").channel(size=float(0.005 * bbox_diag))
 
         if triangle_dominant:
             valence_view = valence_view.transform(
@@ -841,8 +841,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
             "Principled",
             hkw.texture.ScalarField(
                 "valence",
-                colormap=colormap,
-                domain=[3, 7],
+                colormap=colormap,  # type: ignore[arg-type]
+                domain=(3, 7),
                 categories=True,
             ),
             roughness=0.0,
@@ -910,7 +910,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer.Lay
     return layer
 
 
-def grid_layout(layers: list["hkw.layer.Layer"], up_axis: str) -> "hkw.layer.Layer":
+def grid_layout(layers: list["hkw.layer"], up_axis: str) -> "hkw.layer":
     """Arrange ``layers`` in a grid (at most 3 columns) facing the camera.
 
     Columns are laid out along X; rows are stacked along ``up_axis`` (the screen
@@ -921,11 +921,11 @@ def grid_layout(layers: list["hkw.layer.Layer"], up_axis: str) -> "hkw.layer.Lay
     juxtaposition layout in the compiler.
 
     Parameters:
-        layers (list[hkw.layer.Layer]): One styled layer per input mesh.
+        layers (list[hkw.layer]): One styled layer per input mesh.
         up_axis (str): Screen-vertical axis to stack rows along ("y" or "z").
 
     Returns:
-        hkw.layer.Layer: The composited grid layer (or the lone layer if N == 1).
+        hkw.layer: The composited grid layer (or the lone layer if N == 1).
     """
     if len(layers) == 1:
         return layers[0]
@@ -946,7 +946,7 @@ def grid_layout(layers: list["hkw.layer.Layer"], up_axis: str) -> "hkw.layer.Lay
     row_layers.reverse()
     if len(row_layers) == 1:
         return row_layers[0]
-    return row_layers[0].juxtapose(*row_layers[1:], axis=up_axis)
+    return row_layers[0].juxtapose(*row_layers[1:], axis=up_axis)  # type: ignore[arg-type]
 
 
 def main():

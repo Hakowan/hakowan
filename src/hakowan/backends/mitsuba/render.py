@@ -187,6 +187,7 @@ class MitsubaBackend(RenderBackend):
         config: Config,
         filename: Path | str | None = None,
         yaml_file: Path | str | None = None,
+        **kwargs: Any,
     ):
         """Render scene using Mitsuba.
 

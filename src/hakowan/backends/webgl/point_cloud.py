@@ -386,6 +386,7 @@ def _add_instanced_points(
     covariances: np.ndarray | None,
 ) -> int:
     n_points = centers.shape[0]
+    rotations: np.ndarray | None = None
     if covariances is not None:
         # ``full`` covariance: M = U·diag(√S) → rotation U + per-axis scale √S,
         # with ``size`` an extra uniform scale on top.
