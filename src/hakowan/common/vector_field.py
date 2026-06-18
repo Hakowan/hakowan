@@ -19,11 +19,15 @@ def filter_zero_length_vectors(
     mask = np.linalg.norm(tip - base, axis=1) > 0
     if np.all(mask):
         return base, tip, base_size, tip_size, ctrl_pts_1, ctrl_pts_2
+    def _filter(size):
+        a = np.asarray(size)
+        return a if a.ndim == 0 else a[mask]
+
     return (
         base[mask],
         tip[mask],
-        np.asarray(base_size)[mask],
-        np.asarray(tip_size)[mask],
+        _filter(base_size),
+        _filter(tip_size),
         None if ctrl_pts_1 is None else ctrl_pts_1[mask],
         None if ctrl_pts_2 is None else ctrl_pts_2[mask],
     )
