@@ -1,6 +1,6 @@
 """Camera, lighting, render-settings, compositor and render-pass setup."""
 
-from typing import Literal, cast as typing_cast
+from typing import Literal, cast
 
 from ...common import logger
 from ...common.output import manage_native_output
@@ -308,9 +308,7 @@ class _SceneMixin:
             fov = getattr(sensor, "fov", 28.8415)
             fov_axis = getattr(sensor, "fov_axis", "smaller")
             fit = self._resolve_sensor_fit(
-                typing_cast(
-                    Literal["x", "y", "diagonal", "smaller", "larger"], fov_axis
-                ),
+                cast(Literal["x", "y", "diagonal", "smaller", "larger"], fov_axis),
                 width,
                 height,
             )

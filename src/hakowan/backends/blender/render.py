@@ -71,6 +71,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         Returns:
             ``None`` — Blender writes directly to *filename*.
         """
+        if kwargs:
+            raise TypeError(f"render() got unexpected keyword argument(s): {list(kwargs)}")
         logger.info("Starting Blender rendering...")
 
         # Clear existing scene

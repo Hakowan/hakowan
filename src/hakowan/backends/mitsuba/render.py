@@ -200,6 +200,8 @@ class MitsubaBackend(RenderBackend):
         Returns:
             Rendered image as Mitsuba tensor.
         """
+        if kwargs:
+            raise TypeError(f"render() got unexpected keyword argument(s): {list(kwargs)}")
         ensure_variant()
         logger.info(f"Using Mitsuba variant '{mi.variant()}'.")
 

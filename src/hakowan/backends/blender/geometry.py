@@ -1,6 +1,6 @@
 """Geometry extraction and Blender object creation."""
 
-from typing import Literal, cast as typing_cast
+from typing import Literal, cast
 
 from ...common import logger
 from ...common.color import srgb_to_linear, srgb_to_linear_array
@@ -575,7 +575,7 @@ class _GeometryMixin(_MaterialMixin):
         if view.shape_channel is not None:
             base_shape = view.shape_channel.base_shape
         base_obj, base_mesh, use_smooth = self._create_point_base_mesh(
-            typing_cast(Literal["sphere", "disk", "cube"], base_shape), index
+            cast(Literal["sphere", "disk", "cube"], base_shape), index
         )
         if use_smooth:
             for poly in base_mesh.polygons:
