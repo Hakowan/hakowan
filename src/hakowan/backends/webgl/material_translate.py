@@ -402,7 +402,8 @@ def _height_to_normal_map_png(
     detail. The slope baked into each texel mirrors Mitsuba's ``bumpmap``:
     ``slope = scale * (dH/du) / |dp_du|`` (and likewise in v).
     """
-    arr = np.asarray(PILImage.open(Path(height.filename)))
+    with PILImage.open(Path(height.filename)) as bump_img:
+        arr = np.asarray(bump_img)
     norm = 65535.0 if arr.dtype == np.uint16 else 255.0
     H = arr.astype(np.float32)
     if H.ndim == 3:

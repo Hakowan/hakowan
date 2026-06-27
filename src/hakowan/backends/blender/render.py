@@ -212,13 +212,16 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             (config.normal, NORMAL),
             (config.facet_id, FACET_ID),
         ):
-            if enabled:
-                pairs.append(
-                    (
-                        aov_path(render_filename, render_pass),
-                        aov_path(filename, render_pass),
-                    )
-                )
+            if not enabled:
+                continue
+            dst = aov_path(filename, render_pass)
+            if render_pass.discrete:
+                # Discrete ID passes (FACET_ID.discrete) must stay lossless: a
+                # lossy user format (.jpg/.webp/...) would corrupt the encoded
+                # IDs and break picking/segmentation. Keep them as PNG, ignoring
+                # the main output's suffix.
+                dst = dst.with_suffix(".png")
+            pairs.append((aov_path(render_filename, render_pass), dst))
 
         for src, dst in pairs:
             if not src.exists():

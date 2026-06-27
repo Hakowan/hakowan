@@ -233,6 +233,28 @@ class TestSmoke:
                 blender_engine="BLENDER_EEVEE",
             )
 
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_facet_id_stays_lossless_for_lossy_output(self, triangle, tmp_path):
+        """A lossy main format (.jpg) must not corrupt the discrete facet-id
+        sidecar: it stays PNG (FACET_ID.discrete lossless contract), not .jpg."""
+        layer, config = self._smoke_layer(triangle)
+        config.facet_id = True
+        out = tmp_path / "img.jpg"
+        hkw.render(
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+        assert out.exists()
+        # Sidecar is kept lossless as PNG; the lossy .jpg sidecar must not exist.
+        assert (tmp_path / "img_facet_id.png").exists()
+        assert not (tmp_path / "img_facet_id.jpg").exists()
+
 
 class TestNormalAndBumpMap:
     def test_normal_map_wired(self):
