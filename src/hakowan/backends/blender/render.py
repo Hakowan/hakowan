@@ -220,6 +220,10 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                 # lossy user format (.jpg/.webp/...) would corrupt the encoded
                 # IDs and break picking/segmentation. Keep them as PNG, ignoring
                 # the main output's suffix.
+                logger.warning(
+                    f"Discrete pass {render_pass.name} must remain lossless; "
+                    f"ignoring user-requested format {filename.suffix} and saving as PNG."
+                )
                 dst = dst.with_suffix(".png")
             pairs.append((aov_path(render_filename, render_pass), dst))
 
