@@ -29,6 +29,38 @@ class TestCompile:
         assert len(scene) == 1
         assert scene[0].data_frame.mesh.num_facets == 1
 
+    def test_in_place_transform_matches_non_in_place(self, triangle):
+        # Chained translate-then-scale must produce the same composition whether
+        # the calls are in-place or not. Both read "translate first, then scale":
+        # x -> 2 * (x + [10, 0, 0]).
+        from hakowan.compiler.compile import condense_layer_tree_to_scene
+        from hakowan.compiler.transform import apply_transform
+
+        def global_after_transforms(layer):
+            scene, _ = condense_layer_tree_to_scene(layer)
+            for v in scene:
+                apply_transform(v)
+            return scene[0].global_transform
+
+        non_ip = (
+            hkw.layer(data=triangle, mark=hkw.mark.Surface)
+            .translate([10.0, 0.0, 0.0])
+            .scale(2.0)
+        )
+        in_ip = (
+            hkw.layer(data=triangle, mark=hkw.mark.Surface)
+            .translate([10.0, 0.0, 0.0], in_place=True)
+            .scale(2.0, in_place=True)
+        )
+
+        g_non = global_after_transforms(non_ip)
+        g_in = global_after_transforms(in_ip)
+        assert np.allclose(g_non, g_in)
+
+        expected = np.diag([2.0, 2.0, 2.0, 1.0])
+        expected[:3, 3] = [20.0, 0.0, 0.0]
+        assert np.allclose(g_in, expected)
+
     def test_position_with_scale(self, triangle):
         mesh = triangle
         bbox_min = np.amin(mesh.vertices, axis=0)
@@ -605,6 +637,51 @@ class TestTexture:
         assert attr._internal_name is not None
         assert mesh.has_attribute(attr._internal_name)
 
+    def test_isocontour_indexed_scalar(self):
+        # Regression: when the isocontour `data` is an *indexed* scalar
+        # attribute, the generated UV must be built from the index buffer's
+        # underlying array (``attr.indices.data``), not the IndexBuffer object.
+        # The latter made ``create_attribute`` reject the indices.
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float64)
+        )
+        mesh.add_triangles(np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32))
+        # 3 distinct corner values shared across 6 corners via an index buffer.
+        scalar_values = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        scalar_indices = np.array([0, 1, 2, 0, 2, 1], dtype=np.uint32)
+        mesh.create_attribute(
+            "iso_scalar",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=scalar_values,
+            initial_indices=scalar_indices,
+        )
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+
+        attr = hkw.attribute(name="iso_scalar")
+        num_contours = 4
+        tex = hkw.texture.Isocontour(
+            data=attr,
+            num_contours=num_contours,
+            ratio=0.1,
+            texture1=hkw.texture.Uniform(color=0.2),
+            texture2=hkw.texture.Uniform(color=0.8),
+        )
+        hkw.compiler.texture.apply_texture(df, tex)
+
+        uv_name = "_hakowan_isocontour_uv_generated_from_iso_scalar"
+        assert mesh.has_attribute(uv_name)
+        assert mesh.is_attribute_indexed(uv_name)
+        uv = mesh.indexed_attribute(uv_name)
+        # The generated UV reuses the scalar's index buffer verbatim.
+        np.testing.assert_array_equal(
+            np.asarray(uv.indices.data).reshape(-1), scalar_indices
+        )
+        # The U coordinate is the scalar scaled by the contour count.
+        uv_values = np.asarray(uv.values.data).reshape(-1, 2)
+        np.testing.assert_allclose(uv_values[:, 0], scalar_values * num_contours)
+
 
 class TestBackSide:
     @staticmethod
@@ -664,3 +741,131 @@ class TestBackSide:
         layer = hkw.layer(mesh).mark(hkw.mark.Point).channel(material=front)
         view = hkw.compiler.compile(layer)[0]
         assert view.material_channel.back_side is None
+
+    @staticmethod
+    def _world_bbox(view) -> tuple[npt.NDArray, npt.NDArray]:
+        """Bounding box of a view in final scene space (global transform applied)."""
+        vertices = np.asarray(view.data_frame.mesh.vertices)
+        g = view.global_transform
+        world = (g[:3, :3] @ vertices.T).T + g[:3, 3]
+        return world.min(axis=0), world.max(axis=0)
+
+    @staticmethod
+    def _world_radius(view, center) -> float:
+        """True geometry radius about ``center`` in final scene space."""
+        vertices = np.asarray(view.data_frame.mesh.vertices)
+        g = view.global_transform
+        world = (g[:3, :3] @ vertices.T).T + g[:3, 3]
+        return float(np.sqrt(((world - center) ** 2).sum(axis=1)).max())
+
+    def test_overlay_views_overlap(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a + b)
+        assert len(scene) == 2
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # `+` overlays in the same coordinate space: bboxes overlap in X.
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_juxtapose_places_cells_side_by_side(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a | b)
+        assert len(scene) == 2
+        # Each view sits in its own juxtaposition cell.
+        assert scene[0]._layout_cell != scene[1]._layout_cell
+
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # Cells are disjoint along the layout axis (X by default).
+        assert mx0[0] <= mn1[0] + 1e-9 or mx1[0] <= mn0[0] + 1e-9
+        # True scale is preserved: the sphere (extent 2) is ~2x the cube (extent 1).
+        sphere_ext = mx0[0] - mn0[0]
+        cube_ext = mx1[0] - mn1[0]
+        assert sphere_ext == pytest.approx(2 * cube_ext, rel=0.05)
+        # The whole arrangement is still centred and fits the unit sphere.
+        all_min = np.minimum(mn0, mn1)
+        all_max = np.maximum(mx0, mx1)
+        assert np.allclose((all_min + all_max) / 2, 0, atol=1e-9)
+        assert np.linalg.norm(all_max - all_min) == pytest.approx(2.0)
+
+    def test_juxtapose_bounding_spheres_disjoint(self):
+        # Cells must be spaced so their geometry bounding spheres (about each
+        # cell's rotation centre) are disjoint, guaranteeing no overlap under
+        # arbitrary per-cell rotation in the interactive viewer. The radius is
+        # the true max-vertex distance, not the looser bbox half-diagonal.
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a | b)
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        c0, c1 = (mn0 + mx0) / 2, (mn1 + mx1) / 2
+        r0, r1 = self._world_radius(scene[0], c0), self._world_radius(scene[1], c1)
+        assert np.linalg.norm(c1 - c0) >= r0 + r1
+
+    def test_juxtapose_normalize_equalizes_cells(self):
+        # `normalize` scales each cell to equal bounding-sphere radius (the same
+        # size metric used for spacing), not equal bbox diagonal.
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a.juxtapose(b, normalize=True))
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        c0, c1 = (mn0 + mx0) / 2, (mn1 + mx1) / 2
+        r0 = self._world_radius(scene[0], c0)
+        r1 = self._world_radius(scene[1], c1)
+        assert r0 == pytest.approx(r1)
+
+    def test_juxtapose_axis_y(self):
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a.juxtapose(b, axis="y"))
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        # Disjoint along Y, overlapping in X.
+        assert mx0[1] <= mn1[1] + 1e-9 or mx1[1] <= mn0[1] + 1e-9
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_and_operator_stacks_vertically(self):
+        # `&` is the vertical analogue of `|`: cells disjoint along Y.
+        import lagrange.primitive as prim
+
+        a = hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+        b = hkw.layer(prim.generate_rounded_cube()).mark(hkw.mark.Surface)
+        scene = hkw.compiler.compile(a & b)
+        (mn0, mx0), (mn1, mx1) = self._world_bbox(scene[0]), self._world_bbox(scene[1])
+        assert mx0[1] <= mn1[1] + 1e-9 or mx1[1] <= mn0[1] + 1e-9
+        assert mn0[0] < mx1[0] and mn1[0] < mx0[0]
+
+    def test_nested_layout_forms_grid(self):
+        # Mixed `|` / `&` nest into a true 2-D grid: each layout node lays out its
+        # direct children along its own axis.
+        import lagrange.primitive as prim
+
+        def sphere():
+            return hkw.layer(prim.generate_sphere()).mark(hkw.mark.Surface)
+
+        def center(view):
+            mn, mx = self._world_bbox(view)
+            return (mn + mx) / 2
+
+        # (a | b) & c : a, b in a row; that row stacked with c.
+        a, b, c = sphere(), sphere(), sphere()
+        ca, cb, cc = (center(v) for v in hkw.compiler.compile((a | b) & c))
+        assert abs(ca[0] - cb[0]) > 0.1  # a, b separated in X
+        assert ca[1] == pytest.approx(cb[1])  # a, b on the same row (Y)
+        assert abs(cc[1] - ca[1]) > 0.1  # c on a different row
+        assert cc[0] == pytest.approx((ca[0] + cb[0]) / 2)  # c centred over the row
+
+        # (a | b) & (c | d) : 2x2 grid -> exactly two distinct X and two distinct Y.
+        a, b, c, d = sphere(), sphere(), sphere(), sphere()
+        pts = [center(v) for v in hkw.compiler.compile((a | b) & (c | d))]
+        xs = {round(float(p[0]), 5) for p in pts}
+        ys = {round(float(p[1]), 5) for p in pts}
+        assert len(xs) == 2 and len(ys) == 2

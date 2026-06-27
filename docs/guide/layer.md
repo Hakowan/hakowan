@@ -76,3 +76,59 @@ Here, `surface_view` is a visualization of the surface geometry, while `point_vi
 are the visualizations of vertices and edges of the geometry. The addition operations combines all
 three views together to form a composite view that visualizes all three elements.
 
+## Layer comparison
+
+While `+` overlays layers in the same coordinate space, the `|` operator places layers _side by
+side_ so they can be compared.
+
+``` py
+comparison = hkw.layer("before.obj") | hkw.layer("after.obj")
+```
+
+This lays out the two layers in a horizontal row, automatically translating them apart so they do
+not overlap. The original relative scale of each layer is preserved.
+
+The `&` operator is the vertical analogue of `|`: it stacks layers in a column instead of a row.
+
+``` py
+comparison = hkw.layer("before.obj") & hkw.layer("after.obj")
+```
+
+!!! note
+    Python binds `&` tighter than `|`, so `a | b & c` parses as `a | (b & c)`. Parenthesise when
+    mixing the two operators.
+
+For more control, use the [`juxtapose`][hakowan.grammar.layer.layer.Layer.juxtapose] method, which
+`|` and `&` call with default settings (`axis="x"` and `axis="y"` respectively):
+
+``` py
+comparison = base.juxtapose(
+    other,
+    axis="y",        # lay out along Y instead of the default X
+    gap=0.2,         # spacing between cells, as a fraction of the mean cell size
+    normalize=True,  # scale each cell to equal size before placing
+)
+```
+
+Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+`, `|`, and
+`&` combine freely:
+
+``` py
+# Compare a bare surface against the same surface with its wireframe overlaid.
+surface = hkw.layer("shape.obj").mark(hkw.mark.Surface)
+edges = hkw.layer("shape.obj").mark(hkw.mark.Curve)
+comparison = surface | (surface + edges)
+```
+
+Nesting `|` and `&` builds a 2-D **grid** — each operator lays out its own operands along its axis,
+so a row of cells can be stacked over another, or several rows tiled into a matrix:
+
+``` py
+top    = a | b           # a row
+grid   = (a | b) & c     # the a–b row stacked above c
+matrix = (a | b) & (c | d)  # a 2x2 grid
+```
+
+Cells are spaced by their bounding spheres, so they never overlap — even as you rotate each cell
+in the interactive viewer.
+

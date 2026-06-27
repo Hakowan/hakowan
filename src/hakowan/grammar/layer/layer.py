@@ -88,6 +88,19 @@ _MaterialTypeStr = Literal[
 _BaseShapeStr = Literal["sphere", "disk", "cube"]
 
 
+@dataclass
+class LayoutOptions:
+    """Parameters for a juxtaposition (``|``) layout.
+
+    This is the single source of truth for the layout defaults; everywhere else
+    just constructs or reads a :class:`LayoutOptions`.
+    """
+
+    axis: int = 0  # layout axis: 0 = x, 1 = y, 2 = z
+    gap: float = 0.05  # spacing between cells, as a fraction of mean cell diameter
+    normalize: bool = False  # scale each cell to equal size before placing
+
+
 @dataclass(kw_only=True, slots=True)
 class Layer:
     """Layer contains the specification of data, mark, channels and transform.
@@ -98,6 +111,10 @@ class Layer:
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
     _children: list["Layer"] = field(default_factory=list)
+
+    # Juxtaposition layout. ``None`` for a plain layer or an overlay node (``+``);
+    # a :class:`LayoutOptions` for a juxtaposition node (``|`` / ``juxtapose``).
+    _layout: LayoutOptions | None = None
 
     def __init__(
         self,
@@ -121,6 +138,7 @@ class Layer:
         """
         self._spec = LayerSpec()
         self._children = []
+        self._layout = None
 
         if data is not None:
             self.data(data, in_place=True)
@@ -144,6 +162,90 @@ class Layer:
         parent._children = [self, other]
         return parent
 
+    def juxtapose(
+        self,
+        *others: "Layer",
+        axis: int | Literal["x", "y", "z"] | None = None,
+        gap: float | None = None,
+        normalize: bool | None = None,
+    ) -> "Layer":
+        """Lay out this layer and ``others`` side by side for comparison.
+
+        Unlike ``+`` (which overlays layers in the same coordinate space), this
+        creates a *juxtaposition* node whose operands are translated apart along
+        ``axis`` at compile time so they sit next to each other.
+
+        Any argument left as ``None`` uses the corresponding default from
+        :class:`LayoutOptions` (horizontal row, small gap, true relative scale).
+
+        Args:
+            *others (Layer): The other layer(s) to place beside this one.
+            axis (int | str, optional): Layout axis, ``"x"`` / ``"y"`` / ``"z"``
+                (or ``0`` / ``1`` / ``2``).
+            gap (float, optional): Spacing between cells, as a fraction of the
+                mean cell diameter.
+            normalize (bool, optional): If ``True``, scale each cell to equal
+                size before placing them; otherwise preserve true relative scale.
+
+        Returns:
+            (Layer): The composite juxtaposition layer.
+        """
+        if len(others) == 0:
+            raise ValueError("juxtapose() requires at least one other layer.")
+
+        options = LayoutOptions()
+        if axis is not None:
+            match axis:
+                case "x" | 0:
+                    options.axis = 0
+                case "y" | 1:
+                    options.axis = 1
+                case "z" | 2:
+                    options.axis = 2
+                case _:
+                    raise ValueError(f"Unsupported layout axis: {axis!r}!")
+        if gap is not None:
+            options.gap = float(gap)
+        if normalize is not None:
+            options.normalize = bool(normalize)
+
+        parent = Layer()
+        parent._children = [self, *others]
+        parent._layout = options
+        return parent
+
+    def __or__(self, other: "Layer") -> "Layer":
+        """Lay out two layers side by side for comparison.
+
+        ``l1 | l2`` is shorthand for ``l1.juxtapose(l2)`` using default layout
+        parameters (horizontal row, true scale).
+
+        Args:
+            other (Layer): The layer to place beside this one.
+
+        Returns:
+            (Layer): The composite juxtaposition layer.
+        """
+        return self.juxtapose(other)
+
+    def __and__(self, other: "Layer") -> "Layer":
+        """Lay out two layers stacked vertically for comparison.
+
+        ``l1 & l2`` is shorthand for ``l1.juxtapose(l2, axis="y")`` — a vertical
+        column, in contrast to the horizontal row produced by ``|``.
+
+        Note:
+            Python binds ``&`` tighter than ``|``, so ``a | b & c`` parses as
+            ``a | (b & c)``. Parenthesise when mixing the two operators.
+
+        Args:
+            other (Layer): The layer to place below this one.
+
+        Returns:
+            (Layer): The composite juxtaposition layer.
+        """
+        return self.juxtapose(other, axis="y")
+
     def __get_working_layer(self, in_place: bool = False) -> "Layer":
         if in_place:
             return self
@@ -151,6 +253,21 @@ class Layer:
             layer = Layer()
             layer._children = [self]
             return layer
+
+    def __compose_affine(self, layer: "Layer", matrix: npt.ArrayLike) -> None:
+        """Pre-compose ``Affine(matrix)`` onto ``layer``'s transform in place.
+
+        The new affine becomes the *head* of the transform chain. Because
+        ``apply_transform`` evaluates the chain tail-first, this makes successive
+        in-place ``translate`` / ``rotate`` / ``scale`` calls apply in call order
+        — matching the non-in-place path, where each call wraps the previous
+        layer and the compiler accumulates transforms root-first.
+        """
+        affine = Affine(matrix)
+        if layer._spec.transform is None:
+            layer._spec.transform = affine
+        else:
+            layer._spec.transform = affine * layer._spec.transform
 
     def data(
         self,
@@ -238,6 +355,7 @@ class Layer:
             shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
                 When a string is given, it sets ``Shape.base_shape`` directly.
             vector_field (VectorField | str, optional): The new vector field channel.
+            covariance (Covariance | str, optional): The new covariance channel.
             material (Material, optional): The new material channel.
             bump_map (BumpMap | TextureLike, optional): The new bump map channel.
             normal_map (NormalMap | TextureLike, optional): The new normal map channel.
@@ -387,10 +505,7 @@ class Layer:
         H = np.outer(v, v)
         S = np.cross(eye3, v)
         M = eye3 * np.cos(angle) + S * np.sin(angle) + H * (1 - np.cos(angle))
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     def translate(self, offset: npt.ArrayLike, in_place: bool = False) -> "Layer":
@@ -407,11 +522,7 @@ class Layer:
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[:3, 3] = np.array(offset, dtype=np.float64)
-
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     def scale(self, factor: float, in_place: bool = False) -> "Layer":
@@ -428,10 +539,7 @@ class Layer:
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)
         M[0, 0] = M[1, 1] = M[2, 2] = factor
-        if layer._spec.transform is None:
-            layer._spec.transform = Affine(M)
-        else:
-            layer._spec.transform *= Affine(M)
+        self.__compose_affine(layer, M)
         return layer
 
     @property

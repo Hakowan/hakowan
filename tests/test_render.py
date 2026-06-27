@@ -49,6 +49,28 @@ class TestRender:
         assert result.path == out
         assert out.exists() and out.stat().st_size > 0
 
+    @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
+    def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):
+        """Non-EXR output is encoded by Pillow, so any Pillow format works."""
+        from PIL import Image
+
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        base = hkw.layer().data(triangle).mark(hkw.mark.Surface)
+        out = tmp_path / f"img{ext}"
+        result = hkw.render(base, config, filename=out, backend="mitsuba")
+        assert result.path == out
+        assert out.exists() and out.stat().st_size > 0
+        with Image.open(out) as im:
+            assert im.size == (16, 16)
+
+    def test_mitsuba_unsupported_format_raises(self, triangle, tmp_path):
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        base = hkw.layer().data(triangle).mark(hkw.mark.Surface)
+        with pytest.raises(ValueError, match="Unsupported output image format"):
+            hkw.render(base, config, filename=tmp_path / "img.xyz", backend="mitsuba")
+
     def test_point_cloud(self, triangle):
         mesh = triangle
         base = hkw.layer().data(mesh).mark(hkw.mark.Point)

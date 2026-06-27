@@ -69,7 +69,8 @@ const GLB_DATA_URI = "{{GLB_DATA_URI}}";
 const INITIAL_EYE    = {{INITIAL_EYE}};
 const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
-const BG_COLOR = [{{BG_R}}, {{BG_G}}, {{BG_B}}];
+const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
+let bgMode = "{{BG_MODE}}";
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
 
@@ -79,12 +80,57 @@ const status = document.getElementById('status');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+// Match the Mitsuba backend, which writes radiance with a plain linear->sRGB
+// transfer function and no filmic curve. ACES would shift brightness and
+// desaturate relative to Mitsuba; NoToneMapping + SRGBColorSpace reproduces
+// Mitsuba's encode exactly.
+renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1.0;
 
+// Soft "studio" background: a radial gradient texture, bright at the centre
+// falling off to the edge colour, for the selected light/dark preset. Assigned
+// to scene.background so three's pipeline — including the transmission render
+// pass used by glass (ThinDielectric) — samples it, keeping transparent
+// materials glass-like instead of dark. Regenerated on resize and on toggle.
+function _rgb(c) {
+  return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
+}
+function makeStudioBackground(w, h) {
+  const palette = BG_PRESETS[bgMode];
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(2, w);
+  cv.height = Math.max(2, h);
+  const ctx = cv.getContext('2d');
+  const cx = cv.width / 2;
+  const cy = cv.height / 2;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy));
+  grad.addColorStop(0.0, _rgb(palette.center));
+  grad.addColorStop(1.0, _rgb(palette.edge));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+let studioBackground = makeStudioBackground(2, 2);
+scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+
+function setBackgroundMode(mode) {
+  if (!BG_PRESETS[mode]) return;
+  bgMode = mode;
+  const previous = studioBackground;
+  studioBackground = makeStudioBackground(canvas.width, canvas.height);
+  if (currentPass === 'beauty' && envBackground === null) {
+    scene.background = studioBackground;
+  }
+  if (previous) previous.dispose();
+  document.body.style.background = _rgb(BG_PRESETS[mode].edge);
+  const btn = document.getElementById('btn-bg');
+  if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
+}
 
 let camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
 camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
@@ -96,9 +142,11 @@ controls.target.set(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
 controls.enableDamping = true;
 controls.update();
 
-// Default 3-point lighting. The envmap (when supplied) provides reflections /
-// PBR irradiance on top of these — keeping them on means we still see the
-// scene even if the envmap fails to load.
+// Fallback 3-point lighting, used only when no envmap is supplied or the envmap
+// fails to load. When the envmap loads successfully, `loadEnvmap` zeroes these
+// so image-based lighting is the sole light source — matching the Mitsuba
+// backend, which lights with the envmap alone. Leaving them on would
+// double-count light on top of the envmap and look brighter than Mitsuba.
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
 keyLight.position.set(2, 3, 4);
 scene.add(keyLight);
@@ -121,6 +169,13 @@ function resize() {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // Regenerate the studio gradient at the new aspect so it stays circular.
+    const old = studioBackground;
+    studioBackground = makeStudioBackground(w, h);
+    if (currentPass === 'beauty' && envBackground === null) {
+      scene.background = studioBackground;
+    }
+    if (old) old.dispose();
   }
 }
 window.addEventListener('resize', resize);
@@ -182,6 +237,17 @@ async function loadEnvmap() {
       scene.background = envTexture;
       envBackground = envTexture;
     }
+    // The envmap now lights the scene via image-based lighting, exactly like
+    // the Mitsuba backend (which uses the envmap as its only emitter). The
+    // analytic 3-point rig below is a fallback for when the envmap fails to
+    // load, so switch it off now that IBL is active — otherwise it double-counts
+    // light on top of the envmap and the result looks markedly brighter than
+    // Mitsuba. Reached only after env setup fully succeeds; the catch below
+    // leaves the lights on.
+    keyLight.intensity = 0;
+    fillLight.intensity = 0;
+    rimLight.intensity = 0;
+    ambient.intensity = 0;
     tex.dispose();
     pmrem.dispose();
   } catch (err) {
@@ -189,7 +255,7 @@ async function loadEnvmap() {
   }
 }
 
-function applyHakowanShaderPatches(root, gltf) {
+function applyHakowanShaderPatches(root) {
   // Walk the loaded glTF tree, find materials with userData.hakowan, and
   // patch their shader compile step. The glTF "extras" object lands on
   // material.userData when read by GLTFLoader.
@@ -202,7 +268,6 @@ function applyHakowanShaderPatches(root, gltf) {
     const isoParams = meta.isocontour;
     const principledAttrs = meta.principled_attrs;
     const backParams = meta.back;
-    const bumpParams = meta.bump;
 
     material.onBeforeCompile = (shader) => {
       let injectVertHead = "";
@@ -216,21 +281,46 @@ function applyHakowanShaderPatches(root, gltf) {
         shader.uniforms.uNumContours = { value: isoParams.num_contours };
         shader.uniforms.uRatio = { value: isoParams.ratio };
         shader.uniforms.uIsoColor1 = {
-          value: new THREE.Color(...isoParams.color1),
+          value: new THREE.Color(...(isoParams.color1 || [1, 1, 1])),
         };
         shader.uniforms.uIsoColor2 = {
-          value: new THREE.Color(...isoParams.color2),
+          value: new THREE.Color(...(isoParams.color2 || [1, 1, 1])),
         };
         injectVertHead += "attribute float _scalar_0;\nvarying float vScalar0;\n";
         injectVertBody += "vScalar0 = _scalar_0;\n";
         injectFragHead +=
           "varying float vScalar0;\nuniform float uNumContours;\n"
           + "uniform float uRatio;\nuniform vec3 uIsoColor1;\nuniform vec3 uIsoColor2;\n";
+
+        // A ScalarField band carries a colormap, so its color varies per
+        // vertex: bind the baked vec3 attribute as a varying and use it in
+        // place of the flat uniform. Falls back to the uniform when absent.
+        let color1Expr = "uIsoColor1";
+        let color2Expr = "uIsoColor2";
+        if (isoParams.color1_attr) {
+          injectVertHead += `attribute vec3 ${isoParams.color1_attr};\nvarying vec3 vIsoColor1;\n`;
+          injectVertBody += `vIsoColor1 = ${isoParams.color1_attr};\n`;
+          injectFragHead += "varying vec3 vIsoColor1;\n";
+          color1Expr = "vIsoColor1";
+        }
+        if (isoParams.color2_attr) {
+          injectVertHead += `attribute vec3 ${isoParams.color2_attr};\nvarying vec3 vIsoColor2;\n`;
+          injectVertBody += `vIsoColor2 = ${isoParams.color2_attr};\n`;
+          injectFragHead += "varying vec3 vIsoColor2;\n";
+          color2Expr = "vIsoColor2";
+        }
+
+        // Replicate the Mitsuba backend exactly: it renders the isocontour with
+        // the `checkerboard` plugin sampled at UV (s*n, s*n + (1-ratio)/2), so a
+        // texel is on a contour line when fract(u) and fract(v) straddle 0.5
+        // (i.e. (fract(u) > 0.5) XOR (fract(v) > 0.5)). That yields two thin
+        // stripes per contour period; a single `step` band would draw half as
+        // many lines (twice as wide) and not line up with Mitsuba.
         injectFragDiffuse +=
-          "{ float f = fract(vScalar0 * uNumContours);"
-          + "  float halfRatio = uRatio * 0.5;"
-          + "  float onContour = step(0.5 - halfRatio, f) * step(f, 0.5 + halfRatio);"
-          + "  vec3 isoColor = mix(uIsoColor2, uIsoColor1, onContour);"
+          "{ float uIso = vScalar0 * uNumContours;"
+          + "  float vIso = uIso + (1.0 - uRatio) * 0.5;"
+          + "  float onLine = abs(step(0.5, fract(uIso)) - step(0.5, fract(vIso)));"
+          + `  vec3 isoColor = mix(${color1Expr}, ${color2Expr}, onLine);`
           + "  diffuseColor.rgb *= isoColor; }\n";
       }
 
@@ -281,19 +371,6 @@ function applyHakowanShaderPatches(root, gltf) {
     };
     // Force a recompile next frame.
     material.needsUpdate = true;
-
-    // Bump map: glTF has no standard bump slot, so we embed the texture and
-    // record its index in extras. Load it here (outside onBeforeCompile) so
-    // the material compiles once with bumpMap already assigned.
-    if (bumpParams && gltf && gltf.parser) {
-      gltf.parser.loadTexture(bumpParams.texture_idx).then((tex) => {
-        material.bumpMap = tex;
-        material.bumpScale = bumpParams.scale ?? 1.0;
-        material.needsUpdate = true;
-      }).catch((e) => {
-        console.warn('hakowan: failed to load bump texture:', e);
-      });
-    }
   });
 }
 
@@ -315,6 +392,130 @@ let loadedRoot = null;
 let sceneBbox = null;
 
 // --------------------------------------------------------------------- //
+// Object rotation                                                         //
+// When enabled, dragging rotates each juxtaposition cell about its own    //
+// centre (camera fixed) instead of orbiting the camera. Cells are grouped //
+// by the `hakowan_cell` node extra written by the WebGL backend.          //
+// --------------------------------------------------------------------- //
+let objectRotateEnabled = false;
+const qObjectRotation = new THREE.Quaternion();
+let cellGroups = [];  // [{ center: Vector3, entries: [{ node, M0: Matrix4 }] }]
+
+function _hasGeometry(obj) {
+  let found = false;
+  obj.traverse((o) => {
+    if (o.isMesh || o.isInstancedMesh || o.isLine || o.isLineSegments || o.isPoints) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+function buildCellGroups(root) {
+  // Group the scene's renderable nodes by their `hakowan_cell` tag. Lights and
+  // cameras carry no geometry and are skipped, so they never rotate.
+  const byCell = new Map();
+  for (const child of root.children) {
+    if (!_hasGeometry(child)) continue;
+    const tag = (child.userData && child.userData.hakowan_cell) || '__default__';
+    if (!byCell.has(tag)) byCell.set(tag, []);
+    byCell.get(tag).push(child);
+  }
+  root.updateWorldMatrix(true, false);
+  const parentInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  cellGroups = [];
+  for (const nodes of byCell.values()) {
+    const box = new THREE.Box3();
+    for (const n of nodes) box.expandByObject(n);
+    // Pivot = cell centre expressed in the nodes' parent (scene-root) space.
+    const center = box.getCenter(new THREE.Vector3()).applyMatrix4(parentInv);
+    const entries = nodes.map((n) => {
+      n.matrixAutoUpdate = false;
+      return { node: n, M0: n.matrix.clone() };
+    });
+    cellGroups.push({ center, entries });
+  }
+}
+
+function applyObjectRotation() {
+  const rot = new THREE.Matrix4().makeRotationFromQuaternion(qObjectRotation);
+  for (const cell of cellGroups) {
+    const c = cell.center;
+    // pivot = T(c) · R · T(-c)
+    const pivot = new THREE.Matrix4()
+      .makeTranslation(c.x, c.y, c.z)
+      .multiply(rot)
+      .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
+    for (const e of cell.entries) {
+      e.node.matrix.copy(pivot).multiply(e.M0);
+      e.node.matrixWorldNeedsUpdate = true;
+    }
+  }
+  // The depth pass normalises against the world bbox, which moves as cells turn.
+  if (loadedRoot !== null) {
+    loadedRoot.updateMatrixWorld(true);
+    sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
+  }
+}
+
+function setObjectRotateEnabled(enabled) {
+  objectRotateEnabled = enabled;
+  // Left-drag rotates objects in this mode; OrbitControls keeps pan/zoom.
+  controls.enableRotate = !enabled;
+  if (enabled) {
+    // Cancel any leftover orbit damping so the camera doesn't keep drifting
+    // after the switch (one update with damping off zeroes the inertia).
+    const damping = controls.enableDamping;
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = damping;
+  }
+  const btn = document.getElementById('btn-objrotate');
+  if (btn) btn.classList.toggle('active', enabled);
+}
+
+(function installObjectRotationHandlers() {
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  const ROT_SPEED = 0.01;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!objectRotateEnabled || e.button !== 0) return;
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    // Trackball about the camera's screen axes so it feels direct.
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+    qObjectRotation
+      .premultiply(new THREE.Quaternion().setFromAxisAngle(up, dx * ROT_SPEED))
+      .premultiply(new THREE.Quaternion().setFromAxisAngle(right, dy * ROT_SPEED));
+    applyObjectRotation();
+  });
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  // Double-click resets the object orientation.
+  canvas.addEventListener('dblclick', () => {
+    if (!objectRotateEnabled) return;
+    qObjectRotation.identity();
+    applyObjectRotation();
+  });
+})();
+
+// --------------------------------------------------------------------- //
 // Wireframe overlay                                                       //
 // --------------------------------------------------------------------- //
 // For each triangle mesh we create a THREE.LineSegments child whose
@@ -334,6 +535,10 @@ const wireframeMat = new THREE.LineBasicMaterial({
 function buildWireframe(root) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
+    // WireframeGeometry would wireframe only the single prototype of an
+    // InstancedMesh (e.g. GPU-instanced curve tubes), not each instance —
+    // skip it rather than draw one stray cylinder.
+    if (obj.isInstancedMesh) return;
     const lines = new THREE.LineSegments(
       new THREE.WireframeGeometry(obj.geometry),
       wireframeMat,
@@ -514,13 +719,18 @@ const depthUniforms = {
   uDepthMin: { value: 0.0 },
   uDepthMax: { value: 1.0 },
 };
+// Built from three.js' own vertex ShaderChunks. <project_vertex> applies the
+// instanceMatrix (GPU-instanced curve tubes) under #ifdef USE_INSTANCING, so
+// instancing — plus skinning/morph/batching — is handled out of the box; it
+// declares mvPosition (view space) and writes gl_Position for us.
 const DEPTH_VS = `
+  #include <common>
   #include <clipping_planes_pars_vertex>
   varying float vDepth;
   void main() {
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    #include <begin_vertex>
+    #include <project_vertex>
     vDepth = -mvPosition.z;
-    gl_Position = projectionMatrix * mvPosition;
     #include <clipping_planes_vertex>
   }
 `;
@@ -552,13 +762,19 @@ function makeDepthMaterial(side) {
 // Custom normal-pass shader. Uses the geometry's interpolated vertex normal
 // in view space; we apply sRGB encoding manually because MeshNormalMaterial
 // skips `<colorspace_fragment>` and would otherwise look crushed-dark.
+// <defaultnormal_vertex> produces transformedNormal in view space with the
+// proper instancing correction (inverse-scaled instanceMatrix 3x3), so the
+// normal pass also gets instancing out of the box.
 const NORMAL_VS = `
+  #include <common>
   #include <clipping_planes_pars_vertex>
   varying vec3 vViewNormal;
   void main() {
-    vViewNormal = normalize(normalMatrix * normal);
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
+    #include <beginnormal_vertex>
+    #include <defaultnormal_vertex>
+    vViewNormal = normalize( transformedNormal );
+    #include <begin_vertex>
+    #include <project_vertex>
     #include <clipping_planes_vertex>
   }
 `;
@@ -647,9 +863,10 @@ function ensurePassMaterials(obj) {
   return cache;
 }
 
+const _depthCorner = new THREE.Vector3();
 function updateDepthRange() {
   if (sceneBbox === null) return;
-  const corner = new THREE.Vector3();
+  const corner = _depthCorner;
   let zmin = Infinity;
   let zmax = -Infinity;
   for (let i = 0; i < 8; i++) {
@@ -680,9 +897,7 @@ function setPass(pass) {
   // Background only shown in beauty pass; passes get a flat background to
   // keep the saved PNG free of envmap clutter.
   if (pass === 'beauty') {
-    scene.background = envBackground !== null
-      ? envBackground
-      : new THREE.Color(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2]);
+    scene.background = envBackground !== null ? envBackground : studioBackground;
   } else if (pass === 'depth') {
     scene.background = new THREE.Color(1, 1, 1);
   } else {
@@ -744,9 +959,24 @@ function buildPassUI() {
   twoSidedBtn.title = 'Toggle two-sided (double-sided) rendering';
   twoSidedBtn.addEventListener('click', toggleTwoSided);
   container.appendChild(twoSidedBtn);
+  const objRotBtn = document.createElement('button');
+  objRotBtn.id = 'btn-objrotate';
+  objRotBtn.textContent = 'rotate objects';
+  objRotBtn.title =
+    'Drag to rotate each object about its own centre (camera stays put); '
+    + 'double-click to reset';
+  objRotBtn.addEventListener('click', () => setObjectRotateEnabled(!objectRotateEnabled));
+  container.appendChild(objRotBtn);
+  const bgBtn = document.createElement('button');
+  bgBtn.id = 'btn-bg';
+  bgBtn.textContent = bgMode === 'light' ? '☀' : '☾';
+  bgBtn.title = 'Toggle light / dark background';
+  bgBtn.addEventListener('click', () => setBackgroundMode(bgMode === 'light' ? 'dark' : 'light'));
+  container.appendChild(bgBtn);
   const save = document.createElement('button');
-  save.textContent = 'save png';
-  save.title = 'Download the current pass as PNG';
+  save.id = 'btn-save';
+  save.textContent = '📷';
+  save.title = 'Save a screenshot of the current pass (PNG)';
   save.addEventListener('click', savePassPng);
   container.appendChild(save);
   container.classList.add('visible');
@@ -773,10 +1003,12 @@ function applyCrispCheckerTextures(root) {
 const loader = new GLTFLoader();
 const onLoaded = (gltf) => {
   scene.add(gltf.scene);
-  applyHakowanShaderPatches(gltf.scene, gltf);
+  applyHakowanShaderPatches(gltf.scene);
   applyCrispCheckerTextures(gltf.scene);
   buildWireframe(gltf.scene);
   loadedRoot = gltf.scene;
+  // Group nodes into rotatable cells (after wireframe so its lines ride along).
+  buildCellGroups(loadedRoot);
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
@@ -796,7 +1028,20 @@ const onLoaded = (gltf) => {
     }
   }
   buildPassUI();
+  // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
+  // to per-object rotation so dragging compares orientations rather than orbiting
+  // the whole arrangement. Single-object/overlay scenes keep camera orbit.
+  if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
+  // Debug/automation handle: read-only access to the live scene graph and the
+  // object-rotation controls. Handy for inspection and end-to-end tests.
+  window.__hakowan = {
+    THREE, scene, camera, controls, loadedRoot,
+    getCellGroups: () => cellGroups,
+    setObjectRotateEnabled,
+    applyObjectRotation,
+    qObjectRotation,
+  };
   window.__hakowan_loaded = true;
 };
 const onError = (err) => {

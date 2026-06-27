@@ -6,6 +6,7 @@ from .sensor import generate_sensor_config
 from .shape import generate_point_config, generate_curve_config, generate_surface_config
 
 from ...common import logger
+from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
 from ...compiler import Scene, View
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
@@ -19,6 +20,46 @@ from typing import Any
 from pathlib import Path
 import numpy as np
 import yaml
+
+
+def _camera_axis_cosine(shape: tuple[int, ...], sensor: Any) -> np.ndarray:
+    """Per-pixel cos(theta) between each camera ray and the optical axis.
+
+    Multiplying Mitsuba's ray-distance ``depth`` AOV by this converts it to
+    planar Z-depth (distance measured along the optical axis), which matches
+    Blender's Z pass: a plane facing the camera then reads a constant depth
+    instead of bowing outward.
+
+    Args:
+        shape: ``(height, width, ...)`` of the depth array.
+        sensor: The configured sensor (uses ``fov``/``fov_axis`` for perspective
+            cameras; orthographic cameras have no field of view).
+
+    Returns:
+        ``(height, width)`` float32 array of cos(theta), all ones for cameras
+        without a field of view.
+    """
+    h, w = int(shape[0]), int(shape[1])
+    fov = getattr(sensor, "fov", None)
+    if fov is None:
+        return np.ones((h, w), dtype=np.float32)
+
+    half_tan = float(np.tan(np.radians(float(fov)) * 0.5))
+    fov_axis = getattr(sensor, "fov_axis", "smaller")
+    ref = {
+        "x": w,
+        "y": h,
+        "larger": max(w, h),
+        "diagonal": float(np.hypot(w, h)),
+    }.get(fov_axis, min(w, h))  # default: "smaller" (Mitsuba's default)
+
+    # Pixel-center tangent offset from the optical axis; the fov axis spans
+    # [-half_tan, half_tan], other axes scale with the same per-pixel step.
+    step = 2.0 * half_tan / ref
+    xs = ((np.arange(w, dtype=np.float64) + 0.5) - w * 0.5) * step
+    ys = ((np.arange(h, dtype=np.float64) + 0.5) - h * 0.5) * step
+    cos = 1.0 / np.sqrt(xs[None, :] ** 2 + ys[:, None] ** 2 + 1.0)
+    return cos.astype(np.float32)
 
 
 def generate_base_config(config: Config) -> dict:
@@ -91,18 +132,24 @@ def _mi_config_to_serializable(obj: Any) -> Any:
 def save_image(image: drjit.ArrayBase, filename: Path, srgb_gamma: bool = True) -> None:
     """Write an image to disk.
 
+    HDR formats (``.exr``) are written by Mitsuba's float encoder; every other
+    format is converted to 8-bit RGBA and encoded by Pillow, so any Pillow-
+    writable format (PNG, JPEG, WebP, BMP, TIFF, ...) is supported.
+
     ``srgb_gamma`` controls whether the 8-bit conversion applies the sRGB
     transfer function. Use ``True`` for radiance/colour output (beauty, albedo)
     and ``False`` for data passes (e.g. packed normals) that must stay linear.
     """
-    if filename.suffix == ".exr":
+    suffix = check_supported_suffix(filename)  # clear error for unknown formats
+    if is_hdr_suffix(suffix):
         mi.util.write_bitmap(str(filename), image)  # type: ignore
     else:
-        mi.Bitmap(image).convert(  # type: ignore
+        bitmap = mi.Bitmap(image).convert(  # type: ignore
             pixel_format=mi.Bitmap.PixelFormat.RGBA,
             component_format=mi.Struct.Type.UInt8,
             srgb_gamma=srgb_gamma,
-        ).write(str(filename), quality=-1)  # type: ignore
+        )
+        save_array(np.array(bitmap), filename)
     logger.info(f"Rendering saved to {filename}")
 
 
@@ -140,7 +187,7 @@ class MitsubaBackend(RenderBackend):
         config: Config,
         filename: Path | str | None = None,
         yaml_file: Path | str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         """Render scene using Mitsuba.
 
@@ -149,11 +196,14 @@ class MitsubaBackend(RenderBackend):
             config: Rendering configuration.
             filename: Output image filename.
             yaml_file: Optional YAML scene export filename (mi_config).
-            **kwargs: Additional backend-specific options.
 
         Returns:
             Rendered image as Mitsuba tensor.
         """
+        if kwargs:
+            raise TypeError(
+                f"render() got unexpected keyword argument(s): {list(kwargs)}"
+            )
         ensure_variant()
         logger.info(f"Using Mitsuba variant '{mi.variant()}'.")
 
@@ -211,7 +261,27 @@ class MitsubaBackend(RenderBackend):
                 )
             else:
                 o = albedo_offset
-                albedo_image = image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2, 3])]  # type: ignore
+                # Mitsuba's ``albedo`` AOV is ``BSDF::eval_diffuse_reflectance``,
+                # which is only meaningful for diffuse-style BSDFs. For conductors
+                # it overshoots [0, 1] (e.g. ~24x the copper tint) and darkens at
+                # grazing angles, so clamp to a valid reflectance range. (A clean
+                # conductor albedo isn't available from this AOV — the Blender
+                # backend reads the Glossy Color pass for that.)
+                albedo = np.array(image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2])])
+                fg = np.array(image_layers[:, :, 3]) > 0.5
+                if fg.any() and float(albedo[fg].max()) > 1.5:
+                    logger.warning(
+                        "Albedo pass: BSDF reflectance exceeds [0, 1] (max "
+                        f"{float(albedo[fg].max()):.1f}); Mitsuba's albedo AOV is "
+                        "unreliable for non-diffuse BSDFs (e.g. conductors) and "
+                        "has been clamped. Use the Blender backend for a faithful "
+                        "albedo of such materials."
+                    )
+                albedo = np.clip(albedo, 0.0, 1.0)
+                alpha = np.array(image_layers[:, :, 3])
+                albedo_image = mi.TensorXf(
+                    np.concatenate([albedo, alpha[:, :, None]], axis=2)
+                )
 
         if config.depth:
             if depth_offset is None:
@@ -221,15 +291,37 @@ class MitsubaBackend(RenderBackend):
             else:
                 alpha = np.array(image_layers[:, :, 3])
                 depth = np.array(image_layers[:, :, depth_offset])
-                min_depth = float(depth.min())
-                max_depth = float(depth.max())
-                depth_range = max_depth - min_depth
-                if depth_range > 1e-9:
-                    depth = (depth - min_depth) / depth_range
-                else:
-                    depth = np.zeros_like(depth)
+                # Mitsuba's ``depth`` AOV is the ray distance (camera → hit),
+                # which carries a radial/perspective falloff: even a flat plane
+                # facing the camera reads farther toward the edges. That swamps an
+                # object's fine relief. Convert to planar Z-depth (distance along
+                # the optical axis) by multiplying by cos(theta) per pixel, so a
+                # plane reads constant and only relief remains — matching the
+                # Blender Z pass.
+                depth = depth * _camera_axis_cosine(depth.shape, config.sensor)
+                # Normalize over the foreground only. The background depth AOV is
+                # 0 (no hit); including it (and anti-aliased silhouette pixels,
+                # whose depth blends the object with the 0 background) collapses
+                # the object's depth range. Use near-opaque pixels for the range.
+                mask = alpha > 0.99
+                vis = np.ones_like(depth)  # background → white
+                if mask.any():
+                    fg = depth[mask]
+                    min_depth = float(fg.min())
+                    max_depth = float(fg.max())
+                    if max_depth > min_depth:
+                        norm = np.clip(
+                            (depth - min_depth) / (max_depth - min_depth), 0.0, 1.0
+                        )
+                    else:
+                        norm = np.zeros_like(depth)
+                    # Nearest (smallest depth) → white, farthest → black, matching
+                    # the Blender backend's depth pass.
+                    vis[mask] = 1.0 - norm[mask]
+                # Opaque (alpha = 1) so the white background renders flat, not
+                # composited-transparent, again matching the Blender backend.
                 depth_image = mi.TensorXf(
-                    np.stack([depth, depth, depth, alpha], axis=2)
+                    np.stack([vis, vis, vis, np.ones_like(vis)], axis=2)
                 )
 
         if config.normal:
@@ -255,6 +347,9 @@ class MitsubaBackend(RenderBackend):
         if filename is not None:
             if isinstance(filename, str):
                 filename = Path(filename)
+            # Create the output directory up front; Mitsuba's file writer does
+            # not, and a missing parent fails silently (deferred I/O error).
+            filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
 
             if config.albedo and albedo_offset is not None:

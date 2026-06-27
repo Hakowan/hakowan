@@ -60,6 +60,30 @@ class TestScale:
         assert s1._child.base == 10
         assert s2._child is None
 
+    def test_imul_deepcopies_operand(self):
+        # ``other`` must be copied into the chain, not aliased, so the original
+        # operand is left untouched and free to be reused elsewhere.
+        shared = scale.Log(base=2)
+        s = scale.Uniform(factor=2.0)
+        s *= shared
+        assert s._child is not shared
+        assert shared._child is None
+
+    def test_mul_does_not_alias_shared_operand(self):
+        # Reusing the same scale object as the tail of two products must yield
+        # two independent chains; extending one must not leak into the other.
+        shared = scale.Log(base=2)
+        a = scale.Uniform(factor=2.0) * shared
+        b = scale.Uniform(factor=3.0) * shared
+
+        assert a._child is not shared
+        assert a._child is not b._child
+        assert shared._child is None
+
+        a._child._child = scale.Uniform(factor=9.0)
+        assert b._child._child is None
+        assert shared._child is None
+
 
 class TestNormShorthand:
     def test_norm_basic(self):

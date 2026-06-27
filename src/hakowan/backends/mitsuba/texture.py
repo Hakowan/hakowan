@@ -1,4 +1,5 @@
 from .color import generate_color_config
+from ...common.color import srgb_to_linear_array
 from ...grammar.scale import Attribute
 from ...grammar.texture import (
     Texture,
@@ -12,6 +13,7 @@ from ...grammar.texture import (
 from typing import Any
 import lagrange
 import mitsuba as mi
+import numpy as np
 import os
 from pathlib import Path
 import tempfile
@@ -120,11 +122,13 @@ def generate_scalar_field_config(
     assert isinstance(tex.data, Attribute)
     assert tex.data._internal_name is not None
     if is_primitive and is_color:
-        # Primitive color field.
+        # Primitive color field. hakowan bakes colors in sRGB; Mitsuba expects
+        # linear RGB, so decode before handing the values over.
         name = tex.data._internal_color_field
         assert name is not None, "ScalarField has no resolved color field name"
         assert mesh.has_attribute(name), f"Mesh has no color attribute '{name}'"
-        colors = mesh.attribute(name).data
+        colors = np.array(mesh.attribute(name).data, dtype=np.float64)  # copy
+        colors[..., :3] = srgb_to_linear_array(colors[..., :3])
         return {"colors": colors.tolist()}
     elif is_primitive:
         # Primitive scalar field.
@@ -135,7 +139,20 @@ def generate_scalar_field_config(
     elif is_color:
         name = tex.data._internal_color_field
         assert name is not None, "ScalarField has no resolved color field name"
-        assert mesh.has_attribute(name), f"Mesh has no color attribute '{name}'"
+        if not mesh.has_attribute(name):
+            # Secondary color attributes are expanded into scalar triplets
+            # {name}_0/1/2 by _expand_secondary_color_attributes; Mitsuba
+            # exposes the group as vertex_{name} (or face_{name}).
+            assert mesh.has_attribute(f"{name}_0"), (
+                f"Mesh has no color attribute '{name}'"
+            )
+            prefix = (
+                "face"
+                if mesh.attribute(f"{name}_0").element_type
+                == lagrange.AttributeElement.Facet
+                else "vertex"
+            )
+            name = f"{prefix}_{name}"
     else:
         assert mesh.has_attribute(tex.data._internal_name)
         attr = mesh.attribute(tex.data._internal_name)

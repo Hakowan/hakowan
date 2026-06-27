@@ -9,6 +9,7 @@ from ..grammar.transform import (
     Explode,
     Filter,
     Norm,
+    Normalize,
     PrincipalAxes,
     Streamline,
     Transform,
@@ -374,6 +375,22 @@ def _apply_principal_axes_transform(view: View, transform: PrincipalAxes):
     view.initialize_bbox()
 
 
+def _apply_normalize_transform(view: View, transform: Normalize):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+    mesh = df.mesh
+    if mesh.num_vertices == 0:
+        return
+    lagrange.normalize_mesh(
+        mesh,
+        normalize_normals=transform.normalize_normals,
+        normalize_tangents_bitangents=transform.normalize_tangents_bitangents,
+    )
+    logger.debug("Updating view bbox due to normalize transform.")
+    view.initialize_bbox()
+
+
 def _apply_compute_transform(view: View, transform: Compute):
     df = view.data_frame
     assert df is not None
@@ -420,11 +437,13 @@ def _apply_explode_transform(view: View, transform: Explode):
     assert df is not None
     assert transform is not None
     mesh = df.mesh
-    assert mesh.has_attribute(transform.pieces)  # type: ignore
     if isinstance(transform.pieces, str):
         attr_name = transform.pieces
     elif isinstance(transform.pieces, Attribute):
         attr_name = transform.pieces.name
+    else:
+        raise RuntimeError("Explode.pieces must be a string or Attribute.")
+    assert mesh.has_attribute(attr_name)
     pieces_attr = mesh.attribute(attr_name)
     assert pieces_attr.element_type == lagrange.AttributeElement.Facet
     piece_index = pieces_attr.data
@@ -566,6 +585,9 @@ def apply_transform(view: View):
             case PrincipalAxes():
                 assert view.data_frame is not None
                 _apply_principal_axes_transform(view, t)
+            case Normalize():
+                assert view.data_frame is not None
+                _apply_normalize_transform(view, t)
             case Compute():
                 assert view.data_frame is not None
                 _apply_compute_transform(view, t)

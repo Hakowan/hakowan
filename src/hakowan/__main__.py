@@ -14,6 +14,32 @@ import webbrowser
 from tqdm import tqdm
 
 
+_CLIP_AXES = {"x", "-x", "y", "-y", "z", "-z"}
+
+
+def _clip_arg(value: str) -> tuple[str, float]:
+    """Parse AXIS or AXIS:VALUE (e.g. 'x', '-y:0.3')."""
+    if ":" in value:
+        axis, val = value.rsplit(":", 1)
+        try:
+            fval = float(val)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"clip value must be a number, got {val!r}"
+            )
+        if not (0.0 <= fval <= 1.0):
+            raise argparse.ArgumentTypeError(
+                f"clip value must be in [0, 1], got {fval}"
+            )
+    else:
+        axis, fval = value, 0.5
+    if axis not in _CLIP_AXES:
+        raise argparse.ArgumentTypeError(
+            f"clip axis must be one of {sorted(_CLIP_AXES)}, got {axis!r}"
+        )
+    return axis, fval
+
+
 def _saturation_arg(value: str) -> float:
     try:
         v = float(value)
@@ -58,7 +84,11 @@ def parse_args():
     parser.add_argument(
         "--normal", help="Normal field", choices=["facet", "vertex"], default=None
     )
-    parser.add_argument("input_mesh", help="Input mesh file.")
+    parser.add_argument(
+        "input_mesh",
+        nargs="+",
+        help="Input mesh file(s), up to 6, arranged in a grid (3 columns max).",
+    )
     parser.add_argument("--camera", help="Camera location", nargs=3, type=float)
     parser.add_argument("-o", "--output", help="Output image file.")
     parser.add_argument(
@@ -123,46 +153,47 @@ def parse_args():
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
-        help="Clip the mesh along a coordinate axis",
-        type=str,
+        help="Clip the mesh: AXIS or AXIS:VALUE where AXIS is x/y/z/-x/-y/-z and VALUE is a fraction of the bbox size in [0,1] (default 0.5). E.g. '--clip x' or '--clip -y:0.3'.",
+        type=_clip_arg,
         default=None,
-        choices=["x", "y", "z", "-x", "-y", "-z"],
-    )
-    parser.add_argument(
-        "--clip-value",
-        help="Clip value as percentage of bbox size",
-        type=float,
-        default=0.5,
+        metavar="AXIS[:VALUE]",
     )
     parser.add_argument("--singularity", help="Show singularity", action="store_true")
     streamline_group = parser.add_mutually_exclusive_group()
     streamline_group.add_argument(
         "--vector-field",
         metavar="ATTR",
-        help="Overlay streamlines traced from a plain vector field attribute.",
+        help="Overlay a plain vector field attribute (streamlines or arrows, see --field-style).",
         default=None,
     )
     streamline_group.add_argument(
         "--cross-field",
         metavar="ATTR",
-        help="Overlay streamlines traced from a 4-RoSy cross-field attribute.",
+        help="Overlay a 4-RoSy cross-field attribute (streamlines or arrows, see --field-style).",
         default=None,
     )
     parser.add_argument(
-        "--streamline-seeds",
-        help="Number of seed faces for streamline tracing (default 50).",
+        "--field-style",
+        choices=["streamline", "arrow"],
+        default="streamline",
+        help="How to visualize --vector-field / --cross-field: 'streamline' (default) or 'arrow'.",
+    )
+
+    parser.add_argument(
+        "--num-streamlines",
+        help="Number of streamlines to render (default: 500).",
         type=int,
-        default=50,
+        default=500,
     )
     parser.add_argument(
         "--streamline-length",
-        help="Max streamline half-length as a fraction of bbox diagonal (default: no limit).",
+        help="Max streamline half-length as a fraction of bbox diagonal (default: 0.5).",
         type=float,
-        default=None,
+        default=0.5,
     )
     parser.add_argument(
         "--streamline-color",
-        help="Streamline curve color (default black).",
+        help="Streamline/arrow color (default black).",
         type=str,
         default="black",
     )
@@ -191,7 +222,7 @@ def parse_args():
         "--backend",
         choices=hkw.list_backends(),
         default=None,
-        help="Rendering backend to use (default: first available backend)",
+        help="Rendering backend to use (default: webgl)",
     )
     parser.add_argument(
         "--log-level",
@@ -226,13 +257,16 @@ def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Mate
         mats (list[hkw.material.Material]): List of materials used for mesh instances.
 
     Returns:
-        hkw.layer.Layer or None: The composited Layer for this node and its children,
+        hkw.layer or None: The composited Layer for this node and its children,
         or None if no layers are created.
     """
     layers = []
     if len(node.children) > 0:
         layers = [
-            node_to_layer(scene, scene.nodes[child], mats) for child in node.children
+            child_layer
+            for child in node.children
+            if (child_layer := node_to_layer(scene, scene.nodes[child], mats))
+            is not None
         ]
 
     for mesh_instance in node.meshes:
@@ -264,6 +298,14 @@ def get_tmp_image_name():
     return tmp_dir / f"{uuid.uuid4()}.png"
 
 
+def _base_color_diffuse(material) -> "hkw.material.Material":
+    """Fallback material using the material's constant base color factor (RGB)."""
+    return hkw.material.Diffuse(
+        hkw.texture.Uniform(list(material.base_color_value[:3])),
+        two_sided=True,
+    )
+
+
 def extract_material(
     scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
 ):
@@ -285,17 +327,32 @@ def extract_material(
             tex = scene.textures[tex_info.index]
             if tex.image is not None:
                 tex_img = scene.images[tex.image]
-                tex_file = get_tmp_image_name()
-                im = Image.fromarray(tex_img.image.data).convert("RGBA")
-                im.save(str(tex_file))
-                mat = hkw.material.Principled(
-                    color=hkw.texture.Image(
-                        Path(tex_file), saturation=saturation, whiteness=whiteness
-                    ),
-                    roughness=0.5,
-                    metallic=0.0,
-                    two_sided=True,
-                )
+                buf = tex_img.image
+                if buf.width == 0 or buf.height == 0:
+                    # Texture is referenced but its image data was not loaded
+                    # (common with FBX assets whose textures live in external
+                    # files Lagrange could not resolve). Fall back to the
+                    # material's constant base color instead of saving an empty
+                    # image (which crashes PIL with "tile cannot extend outside
+                    # image").
+                    print(
+                        f"Warning: Material[{mat_idx}] '{material.name}': base "
+                        f"color texture {tex_info.index} has empty image data; "
+                        f"falling back to constant base color."
+                    )
+                    mat = _base_color_diffuse(material)
+                else:
+                    tex_file = get_tmp_image_name()
+                    im = Image.fromarray(buf.data).convert("RGBA")
+                    im.save(str(tex_file))
+                    mat = hkw.material.Principled(
+                        color=hkw.texture.Image(
+                            Path(tex_file), saturation=saturation, whiteness=whiteness
+                        ),
+                        roughness=0.5,
+                        metallic=0.0,
+                        two_sided=True,
+                    )
             else:
                 raise ValueError(
                     f"Material[{mat_idx}] '{material.name}': texture index "
@@ -326,10 +383,7 @@ def extract_material(
             else:
                 raise ValueError("KHR texture not found")
         else:
-            mat = hkw.material.Diffuse(
-                hkw.texture.Uniform(list(material.base_color_value[:3])),
-                two_sided=True,
-            )
+            mat = _base_color_diffuse(material)
 
         mats.append(mat)
 
@@ -349,7 +403,7 @@ def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
         whiteness (float): Blend toward white applied to all image textures.
 
     Returns:
-        hkw.layer.Layer: A composite layer object representing the scene with embedded textures.
+        hkw.layer: A composite layer object representing the scene with embedded textures.
     """
     scene = lagrange.io.load_scene(scene_file, stitch_vertices=True)
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
@@ -494,23 +548,23 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def main():
+def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
+    """Build the styled layer for a single input mesh.
+
+    Holds all per-mesh logic (geometry load, material, overlays, transforms) so
+    that multiple meshes can be built independently and laid out side by side.
+
+    Parameters:
+        args (argparse.Namespace): Parsed command-line arguments.
+        mesh_path (str): Path to the input mesh file.
+        normalize (bool): Scale the result to unit bounding-sphere radius so
+            meshes from unrelated coordinate systems show at the same on-screen
+            size. Used when laying out multiple meshes in a grid.
+
+    Returns:
+        hkw.layer: The fully styled layer for this mesh.
     """
-    Entry point for the command-line interface for mesh rendering.
-    Parses command-line arguments and orchestrates the mesh rendering process.
-    """
-    args = parse_args()
-
-    # Resolve the effective backend early so string comparisons below are safe.
-    if args.backend is None:
-        from hakowan.backends import _resolve_default
-
-        args.backend = _resolve_default()
-
-    hkw.logger.setLevel(args.log_level.upper())
-    lagrange.logger.setLevel(args.log_level.upper())
-
-    mesh = lagrange.io.load_mesh(args.input_mesh, quiet=True, stitch_vertices=True)
+    mesh = lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
 
     if args.quad_only:
         # Filter to only keep quad facets
@@ -529,7 +583,7 @@ def main():
     bbox_size = bbox_max - bbox_min
     bbox_diag = np.linalg.norm(bbox_size)
 
-    layer: hkw.layer.Layer = hkw.layer(mesh)
+    layer: hkw.layer = hkw.layer(mesh)
 
     back_side = (
         _back_side_material(args.material, args.back_color)
@@ -555,7 +609,7 @@ def main():
             layer = layer.material("ThinDielectric", specular_reflectance=0.5)
         case "texture":
             layer = embed_texture(
-                args.input_mesh, saturation=args.saturation, whiteness=args.whiteness
+                mesh_path, saturation=args.saturation, whiteness=args.whiteness
             )
         case "vertex_color":
             color_attr_ids = mesh.get_matching_attribute_ids(
@@ -708,25 +762,40 @@ def main():
     vec_field_attr = args.vector_field or args.cross_field
     if vec_field_attr is not None:
         is_cross = args.cross_field is not None
-        sl_mesh = copy.deepcopy(mesh)
-        lagrange.triangulate_polygonal_facets(sl_mesh)
-        sl_layer = (
-            hkw.layer(sl_mesh)
-            .transform(
-                hkw.transform.Streamline(
-                    vec_field=vec_field_attr,
-                    cross_field=is_cross,
-                    n=args.streamline_seeds,
-                    length=args.streamline_length * bbox_diag
-                    if args.streamline_length is not None
-                    else None,
+        vf_mesh = copy.deepcopy(mesh)
+        lagrange.triangulate_polygonal_facets(vf_mesh)
+        if args.field_style == "arrow":
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .mark("Curve")
+                .material("Diffuse", args.streamline_color)
+                .channel(
+                    vector_field=hkw.channel.VectorField(
+                        data=vec_field_attr,
+                        end_type="arrow",
+                        normalize=True,
+                    ),
+                    size=args.wire_thickness * bbox_diag,
                 )
             )
-            .mark("Curve")
-            .material("Diffuse", args.streamline_color)
-            .channel(size=args.wire_thickness * bbox_diag)
-        )
-        layer = layer + sl_layer
+        else:
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .transform(
+                    hkw.transform.Streamline(
+                        vec_field=vec_field_attr,
+                        cross_field=is_cross,
+                        n=args.num_streamlines,
+                        length=args.streamline_length * bbox_diag
+                        if args.streamline_length is not None
+                        else None,
+                    )
+                )
+                .mark("Curve")
+                .material("Diffuse", args.streamline_color)
+                .channel(size=args.wire_thickness * bbox_diag)
+            )
+        layer = layer + vf_layer
 
     if args.singularity:
         lagrange.compute_vertex_valence(mesh, output_attribute_name="valence")
@@ -751,7 +820,7 @@ def main():
             quad_dominant = False
 
         base = hkw.layer(mesh)
-        valence_view = base.mark("Point").channel(size=0.005 * bbox_diag)
+        valence_view = base.mark("Point").channel(size=float(0.005 * bbox_diag))
 
         if triangle_dominant:
             valence_view = valence_view.transform(
@@ -772,8 +841,8 @@ def main():
             "Principled",
             hkw.texture.ScalarField(
                 "valence",
-                colormap=colormap,
-                domain=[3, 7],
+                colormap=colormap,  # type: ignore[arg-type]
+                domain=(3, 7),
                 categories=True,
             ),
             roughness=0.0,
@@ -795,8 +864,8 @@ def main():
         layer = layer.rotate(axis=axis, angle=args.rotate * math.pi / 180)
 
     if args.clip is not None:
-        clip_value = args.clip_value
-        match args.clip:
+        clip_axis, clip_value = args.clip
+        match clip_axis:
             case "x":
 
                 def condition(x):
@@ -831,6 +900,87 @@ def main():
                 raise ValueError("Invalid clip axis")
         layer = layer.transform(hkw.transform.Filter(condition=condition))
 
+    if normalize:
+        # Outermost transform (applied after clip/rotate) so the styled result —
+        # mesh and any overlays alike — fits a unit bounding sphere centered at the
+        # origin. This is what makes every cell, including a lone mesh in a ragged
+        # grid row, render at the same on-screen size regardless of source scale.
+        layer = layer.transform(hkw.transform.Normalize())
+
+    return layer
+
+
+def grid_layout(layers: list["hkw.layer"], up_axis: str) -> "hkw.layer":
+    """Arrange ``layers`` in a grid (at most 3 columns) facing the camera.
+
+    Columns are laid out along X; rows are stacked along ``up_axis`` (the screen
+    vertical, so the grid faces the camera). Column count is ``min(N, 3)``, so up
+    to 3 meshes share a single row and 4-6 meshes fill a 2-row grid (6 meshes give
+    a 2x3 grid). Rows are emitted top-to-bottom (the first mesh sits top-left). A
+    ragged last row centers itself for free, courtesy of the recursive
+    juxtaposition layout in the compiler.
+
+    Parameters:
+        layers (list[hkw.layer]): One styled layer per input mesh.
+        up_axis (str): Screen-vertical axis to stack rows along ("y" or "z").
+
+    Returns:
+        hkw.layer: The composited grid layer (or the lone layer if N == 1).
+    """
+    if len(layers) == 1:
+        return layers[0]
+
+    # ``layers`` are pre-normalized to unit size by ``build_layer`` (see the
+    # ``normalize`` path), so every cell — including a lone mesh in a ragged
+    # row — is already the same size. The juxtaposition just packs them; no
+    # per-cell ``normalize`` is needed (and using it would re-shrink whole rows
+    # unevenly when row counts differ, e.g. a full row of 3 vs a ragged 2).
+    cols = min(len(layers), 3)
+    rows = [layers[i : i + cols] for i in range(0, len(layers), cols)]
+    row_layers = [
+        row[0] if len(row) == 1 else row[0].juxtapose(*row[1:], axis="x")
+        for row in rows
+    ]
+    # Stack rows top-to-bottom: juxtapose packs in increasing-axis order, so
+    # reverse the rows to place the first one at the top.
+    row_layers.reverse()
+    if len(row_layers) == 1:
+        return row_layers[0]
+    return row_layers[0].juxtapose(*row_layers[1:], axis=up_axis)  # type: ignore[arg-type]
+
+
+def main():
+    """
+    Entry point for the command-line interface for mesh rendering.
+    Parses command-line arguments and orchestrates the mesh rendering process.
+    """
+    args = parse_args()
+
+    if len(args.input_mesh) > 6:
+        raise SystemExit(
+            f"At most 6 input meshes are supported, got {len(args.input_mesh)}."
+        )
+
+    # Resolve the effective backend early so string comparisons below are safe.
+    if args.backend is None:
+        from hakowan.backends import resolve_backend_name
+
+        args.backend = resolve_backend_name()
+
+    hkw.logger.setLevel(args.log_level.upper())
+    lagrange.logger.setLevel(args.log_level.upper())
+
+    # Build one styled layer per input mesh; multiple meshes are arranged in a
+    # near-square grid facing the camera (rows stacked along the up-axis). With
+    # more than one mesh, normalize each to unit size so they show at the same
+    # on-screen scale despite unrelated source coordinate systems.
+    normalize = len(args.input_mesh) > 1
+    layers = [
+        build_layer(args, mesh_path, normalize=normalize)
+        for mesh_path in args.input_mesh
+    ]
+    layer = grid_layout(layers, up_axis="z" if args.z_up else "y")
+
     config = hkw.config()
     [config.film.width, config.film.height] = args.resolution
     if args.z_up:
@@ -851,7 +1001,7 @@ def main():
         output_file = Path(args.output)
     else:
         default_suffix = ".html" if args.backend == "webgl" else ".png"
-        output_file = Path(args.input_mesh).with_suffix(default_suffix)
+        output_file = Path(args.input_mesh[0]).with_suffix(default_suffix)
 
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)

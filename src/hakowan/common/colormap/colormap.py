@@ -46,3 +46,11 @@ class ColorMap:
             (int): Number of colors in the color map.
         """
         return len(self.samples)
+
+    def reversed(self):
+        """Return a new color map with the sample order reversed.
+
+        Returns:
+            (ColorMap): A color map mapping 0->last color and 1->first color.
+        """
+        return ColorMap(self.samples[::-1])

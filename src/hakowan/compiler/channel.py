@@ -44,8 +44,13 @@ def preprocess_channels(view: View):
     """Preprocess channels in a view.
 
     Determine the active position, normal, size, uv and material channels. Among these, position,
-    normal and uv channels can be automatically generate from data frame if not specified. Size and
-    material will be set to default if not specified.
+    normal and uv channels can be automatically generated from the data frame if not specified, and
+    the material channel is set to a default if not specified.
+
+    The size channel is intentionally NOT defaulted here: an unset ``size_channel`` is a meaningful
+    signal that backends interpret (e.g. the WebGL backend draws curves as flat lines rather than
+    3D tubes when no size is given). Each backend supplies its own fallback size value
+    (``DEFAULT_MARK_SIZE`` / ``DEFAULT_COVARIANCE_SIZE``) where a number is actually needed.
 
     Args:
         view (View): The view to be pre-processed. Update will be made in place.
@@ -106,6 +111,10 @@ def _preprocess_channels(view: View):
     # Generate default material channel if not specified.
     if view.material_channel is None:
         view.material_channel = Plastic(diffuse_reflectance=Uniform(color="ivory"))
+
+    # NOTE: do not default `size_channel` here. A `None` size is meaningful
+    # (e.g. WebGL renders curves as flat lines vs tubes based on it); backends
+    # apply their own fallback size where a numeric value is required.
 
 
 def _process_channels(view: View):

@@ -11,8 +11,9 @@ Two output modes:
 Vector-field features:
   * ``refinement_level`` — barycentric subdivision of base/tip positions on
     each triangle, ported from ``backends/mitsuba/shape.py:extract_vector_field``.
-  * ``end_type='arrow'`` — split each vector into a constant-width shaft +
-    a cone (radius 2*size → 0) at the tip.
+  * ``end_type='arrow'`` — each vector becomes a constant-width shaft + a cone
+    (radius 2*size → 0) at the tip. The whole arrow is a fixed prototype glyph
+    GPU-instanced per vector (``EXT_mesh_gpu_instancing``) rather than baked.
 
 Per-endpoint colour comes from the view's ``ScalarField`` reflectance via
 ``COLOR_0``.
@@ -27,15 +28,20 @@ import numpy as np
 
 from ...common import logger
 from ...compiler import View
+from ...grammar.channel import DEFAULT_MARK_SIZE
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder, MODE_LINES, MODE_TRIANGLES
-from .mesh_extract import _find_color_field_name, _read_color_attribute
+from .mesh_extract import (
+    _find_color_field_name,
+    _read_color_attribute,
+    primitive_arrays,
+)
 from .material_translate import translate_material
 
 
 _DEFAULT_TUBE_SIDES = 8
-_DEFAULT_SIZE = 0.01
+_DEFAULT_SIZE = DEFAULT_MARK_SIZE
 
 
 @dataclass
@@ -146,6 +152,13 @@ def _extract_vector_field(view: View) -> _SegmentData:
         return _SegmentData(np.zeros((0, 3), dtype=np.float32), None, None)
 
     tip = base + vectors
+
+    _norms = np.linalg.norm(vectors, axis=1)
+    _mask = _norms > 0
+    if not np.all(_mask):
+        base = base[_mask]
+        tip = tip[_mask]
+        per_vertex_size = per_vertex_size[_mask]
 
     if vf.end_type == "arrow":
         # Each vector becomes: shaft (base → stem) at full size,
@@ -325,6 +338,7 @@ def _segment_colors(view: View, vertex_idx: np.ndarray | None) -> np.ndarray | N
 
 
 def add_curve_view(builder: GLTFBuilder, view: View) -> int:
+    """Render the curve mark, as extruded tubes or fallback lines."""
     data = _extract_segments(view)
     if data.endpoints.shape[0] == 0:
         logger.warning("WebGL backend: curve view has no segments; skipping.")
@@ -349,6 +363,25 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         else:
             # Mesh-edge view with size_channel.
             sizes = _resolve_endpoint_sizes_from_edges(view, data)
+
+        # Vector-field arrows instance a single arrow glyph (shaft + cone) per
+        # vector. The cone tapers (r0 != r1) so it isn't a uniform cylinder, but
+        # the whole arrow is a fixed prototype scaled (r, length, r) per vector,
+        # which still GPU-instances.
+        vf = view.vector_field_channel
+        if vf is not None and vf.end_type == "arrow":
+            return _add_instanced_arrows(builder, view, data, sizes, pbr, double_sided)
+
+        # Constant-radius segments (r0 == r1) become GPU-instanced unit
+        # cylinders — one prototype mesh + a per-segment transform — which
+        # shrinks the GLB ~10x versus baking every tube into triangles. Any
+        # other taper (e.g. a mesh-edge size attribute that differs per
+        # endpoint) keeps the explicit extrusion path below.
+        r0 = sizes[0::2]
+        r1 = sizes[1::2]
+        if r0.shape[0] > 0 and np.allclose(r0, r1):
+            return _add_instanced_tubes(builder, view, data, sizes, pbr, double_sided)
+
         positions, normals, indices, ring_to_endpoint = _extrude_tubes(
             data.endpoints, sizes, sides=_DEFAULT_TUBE_SIDES
         )
@@ -393,6 +426,239 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         material_idx=material_idx,
         mode=MODE_LINES,
         transform_4x4=transform,
+    )
+
+
+# ---------------------------------------------------------------------- #
+# Instanced-cylinder path                                                #
+# ---------------------------------------------------------------------- #
+
+
+def _unit_cylinder(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Prototype cylinder: axis +Y, unit radius, unit height, centred on origin.
+
+    ``lagrange.primitive`` emits the canonical capped tube directly; per-instance
+    TRANSLATION/ROTATION/SCALE then maps it onto each segment.
+    """
+    mesh = lagrange.primitive.generate_rounded_cone(
+        radius_top=1.0,
+        radius_bottom=1.0,
+        height=1.0,
+        radial_sections=sides,
+        triangulate=True,
+    )
+    return primitive_arrays(mesh)
+
+
+def _quat_from_y_to(dirs: np.ndarray) -> np.ndarray:
+    """Quaternions (xyzw, N×4) rotating +Y onto each unit direction in ``dirs``.
+
+    Shortest-arc construction; the antiparallel case (dir ≈ −Y) falls back to a
+    180° turn about +X.
+    """
+    n = dirs.shape[0]
+    dy = dirs[:, 1]
+    # cross(+Y, d) = (dz, 0, -dx)
+    quat = np.empty((n, 4), dtype=np.float64)
+    quat[:, 0] = dirs[:, 2]
+    quat[:, 1] = 0.0
+    quat[:, 2] = -dirs[:, 0]
+    quat[:, 3] = 1.0 + dy
+    anti = quat[:, 3] < 1e-6
+    quat[anti] = np.array([1.0, 0.0, 0.0, 0.0])  # 180° about +X
+    norm = np.linalg.norm(quat, axis=1, keepdims=True)
+    norm[norm < 1e-12] = 1.0
+    return (quat / norm).astype(np.float32)
+
+
+def _orient_and_scale(
+    p_from: np.ndarray, p_to: np.ndarray, radius: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-segment (rotation, scale) for the +Y unit glyph along ``p_to - p_from``.
+
+    ``rotation`` is the shortest arc from +Y to the segment direction (the
+    degenerate zero-length case keeps +Y); ``scale = (radius, |segment|, radius)``.
+    """
+    seg = p_to - p_from
+    length = np.linalg.norm(seg, axis=1)
+    safe = length > 1e-9
+    directions = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (seg.shape[0], 1))
+    directions[safe] = seg[safe] / length[safe, None]
+    rotations = _quat_from_y_to(directions)
+    scales = np.stack([radius, length, radius], axis=1).astype(np.float32)
+    return rotations, scales
+
+
+def _segment_instances(
+    endpoints: np.ndarray, sizes: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-segment (translation, rotation, scale) for the unit cylinder.
+
+    ``scale = (radius, length, radius)``, ``rotation`` aligns +Y with the
+    segment direction, ``translation`` is the segment midpoint.
+    """
+    p0 = endpoints[0::2]
+    p1 = endpoints[1::2]
+    midpoint = (0.5 * (p0 + p1)).astype(np.float32)
+    rotations, scales = _orient_and_scale(p0, p1, sizes[0::2])
+    return midpoint, rotations, scales
+
+
+def _emit_instances(
+    builder: GLTFBuilder,
+    view: View,
+    proto: tuple[np.ndarray, np.ndarray, np.ndarray],
+    translations: np.ndarray,
+    rotations: np.ndarray,
+    scales: np.ndarray,
+    instance_colors: np.ndarray | None,
+    pbr: dict,
+    double_sided: bool,
+    label: str,
+) -> int:
+    """Add one instanced-mesh node repeating ``proto`` by the given transforms."""
+    proto_pos, proto_norm, proto_idx = proto
+    logger.debug(
+        f"WebGL backend: curve view → {translations.shape[0]} instanced {label} "
+        f"({_DEFAULT_TUBE_SIDES} sides)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=proto_pos,
+        indices=proto_idx,
+        normals=proto_norm,
+        translations=translations,
+        rotations=rotations,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=builder.add_material(pbr, double_sided=double_sided),
+        transform_4x4=np.asarray(view.global_transform, dtype=np.float64),
+    )
+
+
+def _add_instanced_tubes(
+    builder: GLTFBuilder,
+    view: View,
+    data: _SegmentData,
+    sizes: np.ndarray,
+    pbr: dict,
+    double_sided: bool,
+) -> int:
+    translations, rotations, scales = _segment_instances(data.endpoints, sizes)
+
+    instance_colors: np.ndarray | None = None
+    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    if endpoint_colors is not None:
+        # One flat colour per cylinder: average the two endpoint colours (RGB).
+        instance_colors = (
+            0.5 * (endpoint_colors[0::2, :3] + endpoint_colors[1::2, :3])
+        ).astype(np.float32)
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+
+    return _emit_instances(
+        builder,
+        view,
+        _unit_cylinder(_DEFAULT_TUBE_SIDES),
+        translations,
+        rotations,
+        scales,
+        instance_colors,
+        pbr,
+        double_sided,
+        "cylinders",
+    )
+
+
+def _unit_arrow(sides: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Prototype arrow glyph: axis +Y, base at origin, tip at y=1.
+
+    A shaft cylinder (radius 1, y∈[0, 0.75]) plus a cone head (radius 2 → 0,
+    y∈[0.75, 1]), both from ``lagrange.primitive``. The generator caps the shaft
+    base and the cone base, so the glyph is a closed solid (no see-through hollow
+    cone); the shaft top cap is dropped since the head covers it. A per-instance
+    ``SCALE = (r, length, r)`` reproduces any arrow: radial extents scale by
+    ``r``, axial extents by ``length``.
+    """
+    shaft = lagrange.primitive.generate_rounded_cone(
+        radius_top=1.0,
+        radius_bottom=1.0,
+        height=0.75,
+        radial_sections=sides,
+        with_top_cap=False,  # covered by the cone head's base
+        triangulate=True,
+        center=[0.0, 0.375, 0.0],
+    )
+    head = lagrange.primitive.generate_rounded_cone(
+        radius_top=0.0,
+        radius_bottom=2.0,
+        height=0.25,
+        radial_sections=sides,
+        triangulate=True,
+        center=[0.0, 0.875, 0.0],
+    )
+
+    parts = [primitive_arrays(shaft), primitive_arrays(head)]
+    parts_pos: list[np.ndarray] = []
+    parts_norm: list[np.ndarray] = []
+    parts_idx: list[np.ndarray] = []
+    offset = 0
+    for pos, norm, idx in parts:
+        parts_pos.append(pos)
+        parts_norm.append(norm)
+        parts_idx.append(idx + offset)
+        offset += pos.shape[0]
+
+    return (
+        np.vstack(parts_pos),
+        np.vstack(parts_norm),
+        np.concatenate(parts_idx),
+    )
+
+
+def _arrow_instances(
+    base: np.ndarray, tip: np.ndarray, radius: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-vector (translation, rotation, scale) for the unit arrow.
+
+    ``translation`` is the vector base (the prototype starts there, not at its
+    midpoint), ``rotation`` aligns +Y with the vector, ``scale = (r, |vec|, r)``.
+    """
+    rotations, scales = _orient_and_scale(base, tip, radius)
+    return base.astype(np.float32), rotations, scales
+
+
+def _add_instanced_arrows(
+    builder: GLTFBuilder,
+    view: View,
+    data: _SegmentData,
+    sizes: np.ndarray,
+    pbr: dict,
+    double_sided: bool,
+) -> int:
+    # Arrow vector fields lay out 4 endpoints (2 segments) per vector — shaft
+    # base, stem, stem, tip — so stride-4 recovers one instance per vector.
+    base = data.endpoints[0::4]
+    tip = data.endpoints[3::4]
+    radius = sizes[0::4]
+    translations, rotations, scales = _arrow_instances(base, tip, radius)
+
+    instance_colors: np.ndarray | None = None
+    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    if endpoint_colors is not None:
+        # All four endpoints share the base vertex's colour; take one per arrow.
+        instance_colors = endpoint_colors[0::4, :3].astype(np.float32)
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+
+    return _emit_instances(
+        builder,
+        view,
+        _unit_arrow(_DEFAULT_TUBE_SIDES),
+        translations,
+        rotations,
+        scales,
+        instance_colors,
+        pbr,
+        double_sided,
+        "arrows",
     )
 
 

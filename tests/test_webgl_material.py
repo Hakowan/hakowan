@@ -13,9 +13,9 @@ import hakowan as hkw
 from hakowan.backends.webgl.builder import GLTFBuilder
 from hakowan.backends.webgl.material_translate import (
     MaterialResult,
-    _srgb_to_linear,
     translate_material,
 )
+from hakowan.common.color import srgb_to_linear
 from hakowan.compiler import compile as hkw_compile
 
 
@@ -31,20 +31,20 @@ def _write_temp_png(path, size=(8, 8), color=(255, 0, 255)):
 
 class TestSrgbToLinear:
     def test_zero(self):
-        assert _srgb_to_linear(0.0) == 0.0
+        assert srgb_to_linear(0.0) == 0.0
 
     def test_one(self):
-        assert _srgb_to_linear(1.0) == pytest.approx(1.0, abs=1e-6)
+        assert srgb_to_linear(1.0) == pytest.approx(1.0, abs=1e-6)
 
     def test_low_branch(self):
         # Below 0.04045 it's linear (divide by 12.92).
-        assert _srgb_to_linear(0.04) == pytest.approx(0.04 / 12.92, rel=1e-6)
+        assert srgb_to_linear(0.04) == pytest.approx(0.04 / 12.92, rel=1e-6)
 
     def test_curve_branch(self):
         # Above 0.04045 uses the power-2.4 form.
         x = 0.5
         expected = ((x + 0.055) / 1.055) ** 2.4
-        assert _srgb_to_linear(x) == pytest.approx(expected, rel=1e-6)
+        assert srgb_to_linear(x) == pytest.approx(expected, rel=1e-6)
 
 
 def _triangle_view(material):
@@ -104,8 +104,8 @@ class TestConductor:
         # Linear gold: gold sRGB ~(1.0, 0.766, 0.336)
         bc = result.pbr["baseColorFactor"]
         assert bc[0] == pytest.approx(1.0, abs=1e-3)
-        assert bc[1] == pytest.approx(_srgb_to_linear(0.766), abs=1e-3)
-        assert bc[2] == pytest.approx(_srgb_to_linear(0.336), abs=1e-3)
+        assert bc[1] == pytest.approx(srgb_to_linear(0.766), abs=1e-3)
+        assert bc[2] == pytest.approx(srgb_to_linear(0.336), abs=1e-3)
 
     def test_unknown_preset_falls_back_to_gray_with_warning(self, caplog):
         view = _triangle_view(hkw.material.Conductor(material="Unobtainium"))
@@ -324,6 +324,38 @@ class TestIsocontour:
         assert iso["ratio"] == pytest.approx(0.2)
         assert iso["color1"] == [0.0, 0.0, 0.0]
         assert iso["color2"] == [1.0, 1.0, 1.0]
+
+    def test_isocontour_scalarfield_band_bakes_per_vertex_colormap(self):
+        # texture1 is a ScalarField colormap (cf. the Heat gallery example):
+        # its color varies per vertex, so it must be baked as a vec3 attribute
+        # the viewer reads as a varying — not flattened to a single gray.
+        view = _triangle_view(
+            hkw.material.Principled(
+                color=hkw.texture.Isocontour(
+                    data=hkw.attribute(name="scalar"),
+                    num_contours=4,
+                    ratio=0.95,
+                    texture1=hkw.texture.ScalarField(
+                        data=hkw.attribute(name="scalar"), colormap="viridis"
+                    ),
+                    texture2=hkw.texture.Uniform(color="lightgray"),
+                )
+            )
+        )
+        result = translate_material(view, GLTFBuilder())
+        iso = result.extras["hakowan"]["isocontour"]
+        # The colormap band points at a per-vertex vec3 attribute.
+        assert iso["color1_attr"] == "_iso_color1_0"
+        assert "_iso_color1_0" in result.custom_attrs
+        colors = result.custom_attrs["_iso_color1_0"]
+        assert colors.shape == (3, 3)
+        # Per-vertex colors must actually differ across the scalar range
+        # (0.0 / 0.5 / 1.0) — i.e. the colormap is applied, not flat gray.
+        assert not np.allclose(colors[0], colors[2])
+        # The non-contour band stays a flat uniform color (no attribute).
+        assert "color2_attr" not in iso
+        assert "_iso_color2_0" not in result.custom_attrs
+        assert result.pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 1.0]
 
 
 class TestNoMaterial:

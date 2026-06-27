@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -28,6 +28,26 @@ from .utils import glb_to_data_uri
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
+_DEFAULT_TITLE = "hakowan"
+
+# Beauty-pass background presets. Each is a soft "studio" radial gradient with a
+# bright spot in the centre falling off towards the edges: ``(center, edge)``
+# colours as (r, g, b) in [0, 1]. Selected via the ``background`` option.
+_BACKGROUND_PRESETS: dict[
+    str, tuple[tuple[float, float, float], tuple[float, float, float]]
+] = {
+    "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
+    "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
+}
+_DEFAULT_BACKGROUND: Literal["light", "dark"] = "dark"
+
+
+def _validate_background(name: Literal["light", "dark"]) -> None:
+    """Raise ``ValueError`` if ``name`` is not a known background preset."""
+    if name not in _BACKGROUND_PRESETS:
+        raise ValueError(
+            f"Unknown background {name!r}; choose from {sorted(_BACKGROUND_PRESETS)}."
+        )
 
 
 class WebGLBackend(RenderBackend):
@@ -53,15 +73,18 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
-        title: str = "hakowan",
+        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
         **kwargs: Any,
     ) -> Path:
         """Write an interactive HTML viewer and return the output path."""
         if kwargs:
-            logger.debug(f"WebGL backend ignoring unknown kwargs: {list(kwargs)}")
+            raise TypeError(
+                f"render() got unexpected keyword argument(s): {list(kwargs)}"
+            )
 
+        _validate_background(background)
         out_path = _resolve_output_path(filename)
         glb_bytes, envmap, initial_view = self._build_scene_artifacts(
             scene, config, envmap_background
@@ -70,7 +93,8 @@ class WebGLBackend(RenderBackend):
         html = render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
-            bg_color=bg_color,
+            backgrounds=_BACKGROUND_PRESETS,
+            background=background,
             initial_view=initial_view,
             title=title,
             envmap=envmap,
@@ -86,8 +110,8 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        bg_color: tuple[float, float, float] = (0.1, 0.1, 0.1),
-        title: str = "hakowan",
+        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
     ) -> str:
         """Build and return the viewer HTML as a string without writing any files.
@@ -96,20 +120,23 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            bg_color: Background colour as an ``(r, g, b)`` float tuple in [0, 1].
+            background: Background preset — ``"light"`` (default) or ``"dark"``.
+                Both are soft studio radial gradients with a bright centre spot.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
 
         Returns:
             Complete HTML page as a string.
         """
+        _validate_background(background)
         glb_bytes, envmap, initial_view = self._build_scene_artifacts(
             scene, config, envmap_background
         )
         return render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
-            bg_color=bg_color,
+            backgrounds=_BACKGROUND_PRESETS,
+            background=background,
             initial_view=initial_view,
             title=title,
             envmap=envmap,
@@ -137,6 +164,10 @@ class WebGLBackend(RenderBackend):
         """
         builder = GLTFBuilder()
         for index, view in enumerate(scene):
+            # Tag every node produced for this view with its juxtaposition cell
+            # so the interactive viewer can rotate each comparison cell about its
+            # own centre. ``None`` (no `|` in the layer tree) leaves nodes untagged.
+            builder._current_cell = _cell_tag(view)
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)
             elif view.mark is mark_module.Point:
@@ -162,6 +193,18 @@ class WebGLBackend(RenderBackend):
 # ---------------------------------------------------------------------- #
 
 
+def _cell_tag(view) -> str | None:
+    """Serialise a view's juxtaposition cell key to a stable per-scene string.
+
+    Returns ``None`` when the view is not part of any juxtaposition (so its
+    nodes are left untagged and the viewer treats them as a single group).
+    """
+    cell = view._layout_cell
+    if not cell:
+        return None
+    return "/".join(f"{node_id}.{branch}" for node_id, branch in cell)
+
+
 def _resolve_output_path(filename: Path | str | None) -> Path:
     if filename is None:
         return Path("out.html").resolve()
@@ -175,7 +218,10 @@ def _resolve_output_path(filename: Path | str | None) -> Path:
             )
         path = new_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    return path.resolve()
+    # Return the path in the form the user supplied it (do not ``resolve()``):
+    # this is surfaced as ``RenderResult.path`` and the only correction is the
+    # ``.html`` suffix the viewer always writes.
+    return path
 
 
 def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
@@ -212,14 +258,7 @@ def _add_surface_view(builder: GLTFBuilder, view) -> None:
     pbr = result.pbr
     if arrays["colors"] is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
-    needs_uvs = (
-        "baseColorTextureIndex" in pbr
-        or "normalTextureIndex" in pbr
-        or (
-            result.extras is not None
-            and result.extras.get("hakowan", {}).get("bump") is not None
-        )
-    )
+    needs_uvs = "baseColorTextureIndex" in pbr or "normalTextureIndex" in pbr
     uvs = arrays["uvs"] if needs_uvs else None
     if result.extras is not None:
         pbr["extras"] = result.extras

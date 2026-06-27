@@ -7,7 +7,9 @@ from ..compiler import Scene
 from ..setup import Config
 from ..setup.render_pass import RenderPass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+BackendName = Literal["webgl", "mitsuba", "blender"]
 
 
 class RenderBackend(ABC):
@@ -23,7 +25,7 @@ class RenderBackend(ABC):
     #: image per pass next to the main output; ``"interactive"`` exposes passes
     #: live inside a viewer (no per-pass files). Used to build the output
     #: manifest reported in :class:`~hakowan.render.RenderResult.outputs`.
-    PASS_DELIVERY: str = "file"
+    PASS_DELIVERY: Literal["file", "interactive"] = "file"
 
     @abstractmethod
     def render(
@@ -64,13 +66,14 @@ _BackendLoader = Callable[[], type[RenderBackend]]
 _backend_loaders: dict[str, tuple[_BackendLoader, str | None]] = {}
 _backends: dict[str, type[RenderBackend]] = {}  # eager registrations + load cache
 
-# The default backend. ``None`` means "auto": at render time, resolve to the
-# first *available* backend in registration order. Backends register in
-# preference order (see ``hakowan/__init__.py``: Mitsuba, then Blender, then the
-# always-present WebGL), so this keeps the historical Mitsuba-first behavior when
-# Mitsuba is installed and degrades gracefully when it is not — with no hardcoded
-# list to keep in sync as backends are added or removed.
-_default_backend: str | None = None
+# The default backend. WebGL is the default because its dependency (pygltflib)
+# ships with the base install, so it is always available — the heavier Mitsuba
+# and Blender backends must be requested explicitly (per render via the
+# ``backend=`` argument, or process-wide via :func:`set_default_backend`).
+# ``None`` means "auto": resolve at render time to the first *available* backend
+# in registration order. ``_resolve_default`` is only reached if the default is
+# cleared; it degrades gracefully with no hardcoded list to keep in sync.
+_default_backend: str | None = "webgl"
 
 
 def _resolve_default() -> str:
@@ -136,7 +139,7 @@ def _resolve_class(name: str) -> type[RenderBackend]:
     return backend_class
 
 
-def set_default_backend(name: str):
+def set_default_backend(name: BackendName):
     """Set the default rendering backend.
 
     Args:
@@ -151,7 +154,7 @@ def set_default_backend(name: str):
     _default_backend = name
 
 
-def resolve_backend_name(name: str | None = None) -> str:
+def resolve_backend_name(name: BackendName | None = None) -> BackendName:
     """Resolve the effective backend name.
 
     Applies the same resolution as :func:`get_backend` (explicit name, else the
@@ -164,10 +167,10 @@ def resolve_backend_name(name: str | None = None) -> str:
     Returns:
         The resolved backend name.
     """
-    return name or _default_backend or _resolve_default()
+    return name or _default_backend or _resolve_default()  # type: ignore[return-value]
 
 
-def get_backend(name: str | None = None) -> RenderBackend:
+def get_backend(name: BackendName | None = None) -> RenderBackend:
     """Get a rendering backend instance, importing it on first use.
 
     Args:
@@ -203,6 +206,7 @@ def list_backends() -> list[str]:
 
 
 __all__ = [
+    "BackendName",
     "RenderBackend",
     "register_backend",
     "register_backend_loader",

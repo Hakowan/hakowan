@@ -9,6 +9,7 @@ import lagrange
 import numpy as np
 
 from ...common import logger
+from ...common.color import srgb_to_linear_array
 from ...compiler import View
 from ...grammar.channel.material import (
     Diffuse,
@@ -102,16 +103,30 @@ def _read_color_attribute(mesh: lagrange.SurfaceMesh, name: str) -> np.ndarray:
         raw = np.concatenate([raw, alpha], axis=1)
     # hakowan stores colors in sRGB. glTF expects COLOR_0 in linear RGB.
     raw = raw.copy()
-    raw[:, :3] = _srgb_to_linear_array(raw[:, :3])
+    raw[:, :3] = srgb_to_linear_array(raw[:, :3])
     return raw
 
 
-def _srgb_to_linear_array(c: np.ndarray) -> np.ndarray:
-    """sRGB → linear, vectorised over an arbitrary-shape float array."""
-    c = np.clip(c, 0.0, 1.0)
-    low = c / 12.92
-    high = ((c + 0.055) / 1.055) ** 2.4
-    return np.where(c <= 0.04045, low, high).astype(np.float32)
+def primitive_arrays(
+    mesh: lagrange.SurfaceMesh,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Flatten a generated primitive into glTF-ready (positions, normals, indices).
+
+    ``unify_index_buffer`` collapses the indexed ``@normal`` to per-vertex,
+    splitting a vertex only where its normal differs (e.g. a cone-cap rim or a
+    cube edge), so the POSITION/NORMAL accessors line up one-to-one as the
+    builder requires. Indices are returned flat (M*3,). Shared by the instanced
+    curve prototypes (cylinder/arrow) and point prototypes (disk/cube).
+    """
+    if not mesh.is_triangle_mesh:
+        lagrange.triangulate_polygonal_facets(mesh)
+    mesh = lagrange.unify_index_buffer(mesh)
+    positions = np.ascontiguousarray(mesh.vertices, dtype=np.float32)
+    indices = np.ascontiguousarray(mesh.facets, dtype=np.uint32).reshape(-1)
+    normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    normal_name = mesh.get_attribute_name(normal_ids[0])
+    normals = np.ascontiguousarray(mesh.attribute(normal_name).data, dtype=np.float32)
+    return positions, normals, indices
 
 
 def extract_surface_arrays(

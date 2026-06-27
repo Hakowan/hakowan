@@ -101,9 +101,13 @@ class TestEndToEnd:
             .channel(material=hkw.material.Diffuse(reflectance="red"))
         )
         png_path = tmp_path / "out.png"
-        hkw.render(layer, filename=str(png_path), backend="webgl")
+        result = hkw.render(layer, filename=str(png_path), backend="webgl")
         # Non-html suffix should produce an .html file alongside.
         assert (tmp_path / "out.html").exists()
+        # result.path must point at the actual artifact (the .html), not the
+        # .png the user nominally passed.
+        assert result.path == tmp_path / "out.html"
+        assert result.outputs["main"] == tmp_path / "out.html"
 
     def test_default_output_is_html(self, tmp_path):
         layer = (
@@ -117,6 +121,33 @@ class TestEndToEnd:
         assert text.lstrip().startswith("<!DOCTYPE html>")
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
+
+    def test_background_presets(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        light = tmp_path / "light.html"
+        dark = tmp_path / "dark.html"
+        hkw.render(layer, filename=str(light), backend="webgl", background="light")
+        hkw.render(layer, filename=str(dark), backend="webgl", background="dark")
+        lt, dk = light.read_text(), dark.read_text()
+        # Both palettes are embedded so the viewer's button can toggle client-side.
+        assert '"light"' in lt and '"dark"' in lt
+        # The initial mode reflects the chosen preset.
+        assert 'let bgMode = "light"' in lt
+        assert 'let bgMode = "dark"' in dk
+        # The light/dark toggle button is present.
+        assert "btn-bg" in lt
+        # No template placeholders left unresolved.
+        assert not re.search(r"{{[A-Z_]+}}", lt)
+
+    def test_background_invalid_raises(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        with pytest.raises(ValueError):
+            hkw.render(
+                layer,
+                filename=str(tmp_path / "x.html"),
+                backend="webgl",
+                background="teal",
+            )
 
     def test_glb_round_trips_with_basic_scene(self, tmp_path):
         layer = (
@@ -133,7 +164,9 @@ class TestEndToEnd:
         assert len(gltf.materials) == 1
         assert len(gltf.cameras) == 1
 
-    def test_point_view_emits_mesh(self, tmp_path):
+    def test_point_view_is_instanced(self, tmp_path):
+        # A uniform-size point cloud is translation·scale per point, so it
+        # GPU-instances one prototype sphere instead of baking 3 copies.
         mesh = lagrange.SurfaceMesh()
         mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64))
         layer = (
@@ -148,10 +181,22 @@ class TestEndToEnd:
         hkw.render(layer, filename=str(out_path), backend="webgl")
         glb = _decode_glb_from_html(out_path.read_text())
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
-        # 3 points × 12 icosphere verts = 36 verts; the position accessor's
-        # count should reflect this.
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # One prototype icosphere (12 verts), not 3 × 12 baked.
+        assert len(gltf.meshes) == 1
         positions_acc = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
-        assert positions_acc.count == 36
+        assert positions_acc.count == 12
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 3 points → 3 instances, each with translation/rotation/scale.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 3
+        assert gltf.accessors[attrs["ROTATION"]].count == 3
+        assert gltf.accessors[attrs["SCALE"]].count == 3
 
     def test_curve_view_emits_lines_when_no_size(self, tmp_path):
         layer = (
@@ -181,6 +226,94 @@ class TestEndToEnd:
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
         # TRIANGLES mode = 4
         assert gltf.meshes[0].primitives[0].mode == 4
+
+    def _vector_field_mesh(self):
+        mesh = _make_icosphere()
+        v = np.asarray(mesh.vertices, dtype=np.float64)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=(v * 0.3),
+        )
+        mesh.create_attribute(
+            "speed",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.linalg.norm(v, axis=1),
+        )
+        return mesh
+
+    def test_constant_radius_curve_is_instanced(self, tmp_path):
+        # A constant-size vector-field curve must collapse to one prototype
+        # cylinder + per-segment instance transforms, not a baked tube soup.
+        mesh = self._vector_field_mesh()
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                vector_field=hkw.channel.VectorField(data="vec"),
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.ScalarField(data="speed")
+                ),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "stream.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # Exactly one prototype mesh; its vertex count is the cylinder, not the
+        # 12 segments × 16 verts a baked tube would carry.
+        assert len(gltf.meshes) == 1
+        pos = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
+        # One capped 8-sided unit cylinder prototype (lagrange.primitive), far
+        # smaller than the 12 segments a baked tube would carry.
+        assert pos.count < 100
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 12 vertices → 12 instances, and a per-instance colour from the field.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 12
+        assert "_COLOR_0" in attrs
+
+    def test_arrow_curve_is_instanced(self, tmp_path):
+        # The arrow glyph (shaft + tapered cone) is a fixed prototype scaled
+        # (r, length, r) per vector, so the whole field GPU-instances one mesh.
+        mesh = self._vector_field_mesh()
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                vector_field=hkw.channel.VectorField(data="vec", end_type="arrow"),
+                material=hkw.material.Diffuse(reflectance="white"),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "arrows.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert "EXT_mesh_gpu_instancing" in (gltf.extensionsUsed or [])
+        # One prototype arrow mesh: a capped shaft cylinder + cone head built
+        # from lagrange.primitive — a fixed small glyph, not baked per vector.
+        assert len(gltf.meshes) == 1
+        pos = gltf.accessors[gltf.meshes[0].primitives[0].attributes.POSITION]
+        assert pos.count < 150
+        inst_nodes = [
+            n
+            for n in gltf.nodes
+            if n.extensions and "EXT_mesh_gpu_instancing" in n.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        # 12 vectors → 12 instances.
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 12
 
     def test_point_light_registered(self, tmp_path):
         layer = (
@@ -324,3 +457,87 @@ class TestEndToEnd:
         gltf = pygltflib.GLTF2().load_from_bytes(glb)
         assert len(gltf.meshes) == 2
         assert len(gltf.materials) == 2
+
+    def test_juxtapose_renders_side_by_side(self, tmp_path):
+        sphere = _make_icosphere()
+        # No manual `.translate`: `|` lays the two layers out side by side.
+        a = (
+            hkw.layer(sphere)
+            .mark(hkw.mark.Surface)
+            .channel(material=hkw.material.Diffuse(reflectance="red"))
+        )
+        b = (
+            hkw.layer(sphere)
+            .mark(hkw.mark.Surface)
+            .channel(material=hkw.material.Diffuse(reflectance="blue"))
+        )
+        out_path = tmp_path / "juxtapose.html"
+        hkw.render(a | b, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        assert len(gltf.meshes) == 2
+        assert len(gltf.materials) == 2
+        # The layout transform rides on each mesh node's column-major matrix; the
+        # X translation (index 12) must differ between the two side-by-side cells.
+        x_translations = [
+            node.matrix[12]
+            for node in gltf.nodes
+            if node.mesh is not None and node.matrix
+        ]
+        assert len(x_translations) == 2
+        assert abs(x_translations[0] - x_translations[1]) > 0.5
+
+    def test_juxtapose_tags_nodes_with_distinct_cells(self, tmp_path):
+        # Each cell's nodes carry a `hakowan_cell` extra so the interactive viewer
+        # can rotate each comparison cell about its own centre.
+        sphere = _make_icosphere()
+        a = hkw.layer(sphere).mark(hkw.mark.Surface)
+        b = hkw.layer(sphere).mark(hkw.mark.Surface)
+        out_path = tmp_path / "cells.html"
+        hkw.render(a | b, filename=str(out_path), backend="webgl")
+        gltf = pygltflib.GLTF2().load_from_bytes(
+            _decode_glb_from_html(out_path.read_text())
+        )
+        cells = [
+            n.extras["hakowan_cell"]
+            for n in gltf.nodes
+            if n.mesh is not None and n.extras and "hakowan_cell" in n.extras
+        ]
+        assert len(cells) == 2
+        assert cells[0] != cells[1]
+
+    def test_overlay_nodes_have_no_cell_tag(self, tmp_path):
+        # Without `|`, nodes are untagged (the viewer treats them as one group).
+        sphere = _make_icosphere()
+        a = hkw.layer(sphere).mark(hkw.mark.Surface)
+        b = hkw.layer(sphere).mark(hkw.mark.Surface)
+        out_path = tmp_path / "overlay.html"
+        hkw.render(a + b, filename=str(out_path), backend="webgl")
+        gltf = pygltflib.GLTF2().load_from_bytes(
+            _decode_glb_from_html(out_path.read_text())
+        )
+        for n in gltf.nodes:
+            if n.mesh is not None:
+                assert not (n.extras and n.extras.get("hakowan_cell"))
+
+    def test_viewer_has_object_rotation(self, tmp_path):
+        # The interactive viewer ships the object-rotation toggle and machinery.
+        out_path = tmp_path / "viewer.html"
+        hkw.render(
+            hkw.layer(_make_icosphere()).mark(hkw.mark.Surface),
+            filename=str(out_path),
+            backend="webgl",
+        )
+        html = out_path.read_text()
+        assert "btn-objrotate" in html
+        assert "buildCellGroups" in html
+        assert "hakowan_cell" in html
+        # Juxtaposition scenes default to per-object rotation (>= 2 cells).
+        assert "cellGroups.length >= 2" in html
+        assert "setObjectRotateEnabled(true)" in html
+
+
+def test_render_unknown_kwarg_raises(tmp_path):
+    layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+    with pytest.raises(TypeError):
+        hkw.render(layer, filename=str(tmp_path / "out.html"), backedn="webgl")

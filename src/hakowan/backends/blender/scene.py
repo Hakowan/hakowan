@@ -1,6 +1,9 @@
 """Camera, lighting, render-settings, compositor and render-pass setup."""
 
+from typing import Literal, cast
+
 from ...common import logger
+from ...common.output import manage_native_output
 from ...setup import Config
 from ...setup.render_pass import FACET_ID, aov_path
 
@@ -11,6 +14,70 @@ import numpy as np
 import bpy
 import mathutils
 from ._common import _ensure_nodes
+
+
+def _align_y_to(up: np.ndarray) -> np.ndarray:
+    """Rotation matrix mapping +Y onto the (unit) ``up`` vector (Rodrigues).
+
+    Mirrors ``backends/mitsuba/utils.rotation([0,1,0], up)`` and
+    ``backends/webgl/envmap._align_y_to`` so the three backends share one
+    envmap up-alignment convention.
+    """
+    y = np.array([0.0, 1.0, 0.0])
+    n = float(np.linalg.norm(up))
+    if n < 1e-12:
+        return np.eye(3)
+    u = up / n
+    cos_a = float(np.dot(y, u))
+    if cos_a > 1.0 - 1e-9:
+        return np.eye(3)
+    if cos_a < -1.0 + 1e-9:
+        return np.diag([1.0, -1.0, -1.0])
+    axis = np.cross(y, u)
+    sin_a = float(np.linalg.norm(axis))
+    axis = axis / sin_a
+    K = np.array(
+        [
+            [0.0, -axis[2], axis[1]],
+            [axis[2], 0.0, -axis[0]],
+            [-axis[1], axis[0], 0.0],
+        ]
+    )
+    return np.eye(3) + sin_a * K + (1.0 - cos_a) * (K @ K)
+
+
+def _rotate_y(angle_rad: float) -> np.ndarray:
+    c, s = np.cos(angle_rad), np.sin(angle_rad)
+    return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+
+
+# Change of convention from Mitsuba's envmap frame (pole = +Y, u = atan2(x, -z))
+# to Blender's equirectangular Environment Texture frame (pole = +Z). Maps
+# Mitsuba-local +Y -> +Z (fixes the elevation/up axis); the X/Z columns align the
+# azimuth seam so the same .exr texel is sampled for a given world direction.
+# Verified by rendering a mirror + diffuse sphere against the Mitsuba reference.
+_MITSUBA_TO_BLENDER_ENV = np.array(
+    [
+        [0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+    ]
+)
+
+
+def _envmap_rotation_euler(rotation_deg: float, up):
+    """Euler (XYZ) for the world-shader Mapping node so Blender's envmap matches
+    Mitsuba's ``to_world = align_y_to(up) @ rotate_y(rotation)``.
+
+    The Mapping node rotates the world lookup direction ``d``; we want Blender to
+    sample the texel Mitsuba samples, i.e. ``blender_conv(M·d) = mitsuba_conv(R^T·d)``
+    with ``R = align_y_to(up) @ rotate_y(rotation)``, giving ``M = C · R^T`` where
+    ``C`` is :data:`_MITSUBA_TO_BLENDER_ENV`.
+    """
+    up_arr = np.asarray(up, dtype=float)
+    r = _align_y_to(up_arr) @ _rotate_y(np.radians(float(rotation_deg)))
+    m = _MITSUBA_TO_BLENDER_ENV @ r.T
+    return mathutils.Matrix(m.tolist()).to_euler("XYZ")
 
 
 class _SceneMixin:
@@ -166,7 +233,7 @@ class _SceneMixin:
             logger.info("Rendering facet-ID pass...")
             # Lossless render iff the pass is discrete (always true for facet_id).
             ctx = self._lossless_render_state() if FACET_ID.discrete else nullcontext()
-            with ctx:
+            with ctx, manage_native_output(logger, prefix="blender"):
                 bpy.ops.render.render(write_still=True)
             logger.info(f"Facet-ID pass saved to {facet_id_path}")
         finally:
@@ -240,7 +307,11 @@ class _SceneMixin:
             camera_data.lens_unit = "FOV"
             fov = getattr(sensor, "fov", 28.8415)
             fov_axis = getattr(sensor, "fov_axis", "smaller")
-            fit = self._resolve_sensor_fit(fov_axis, width, height)
+            fit = self._resolve_sensor_fit(
+                cast(Literal["x", "y", "diagonal", "smaller", "larger"], fov_axis),
+                width,
+                height,
+            )
             if fit is None:
                 # Blender has no diagonal fit; AUTO applies the angle to the
                 # larger dimension as an approximation.
@@ -269,7 +340,11 @@ class _SceneMixin:
         logger.debug(f"Camera set at {location}, target {target}, up {up}")
 
     @staticmethod
-    def _resolve_sensor_fit(fov_axis: str, width: int, height: int) -> str | None:
+    def _resolve_sensor_fit(
+        fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"],
+        width: int,
+        height: int,
+    ) -> str | None:
         """Map a hakowan ``fov_axis`` to a Blender camera ``sensor_fit``.
 
         Returns ``"HORIZONTAL"`` / ``"VERTICAL"``, or ``None`` for axes Blender
@@ -285,13 +360,8 @@ class _SceneMixin:
             return "HORIZONTAL" if width >= height else "VERTICAL"
         return None
 
-    def _setup_lighting(self, config: Config, **kwargs):
-        """Setup Blender lighting from config.
-
-        Args:
-            config: Rendering configuration.
-            **kwargs: Additional options (currently unused).
-        """
+    def _setup_lighting(self, config: Config):
+        """Setup Blender lighting from config."""
         from ...setup.emitter import Envmap, Point
 
         if not config.emitters:
@@ -352,26 +422,14 @@ class _SceneMixin:
         mapping = nodes.new(type="ShaderNodeMapping")
         mapping.location = (-600, 300)
 
-        # Apply rotation around up vector
-        # Convert rotation from degrees to radians
-        rotation_rad = np.radians(envmap.rotation + 180)
-
-        # Determine rotation axis based on up vector
-        up = np.array(envmap.up)
-        if np.allclose(up, [0, 1, 0]):
-            # Y-up: rotate around Y axis
-            mapping.inputs["Rotation"].default_value = (0, rotation_rad, 0)
-        elif np.allclose(up, [0, 0, 1]):
-            # Z-up: rotate around Z axis
-            mapping.inputs["Rotation"].default_value = (0, 0, rotation_rad)
-        elif np.allclose(up, [1, 0, 0]):
-            # X-up: rotate around X axis
-            mapping.inputs["Rotation"].default_value = (rotation_rad, 0, 0)
-        else:
-            logger.warning(
-                f"Non-standard up vector {up}, defaulting to Y-axis rotation"
-            )
-            mapping.inputs["Rotation"].default_value = (0, rotation_rad, 0)
+        # Match Mitsuba's envmap orientation. Mitsuba samples the equirect map in
+        # a local frame (Y-up pole, u = atan2(x, -z)) rotated to world by
+        # ``align_y_to(up) @ rotate_y(rotation)``. We rotate the world lookup
+        # direction by the same transform, pre-composed with the fixed change of
+        # convention into Blender's equirect frame (see _envmap_rotation_euler).
+        # This also supports arbitrary ``up`` vectors (not just axis-aligned).
+        euler = _envmap_rotation_euler(envmap.rotation, envmap.up)
+        mapping.inputs["Rotation"].default_value = (euler.x, euler.y, euler.z)
 
         # Create Texture Coordinate node
         tex_coord = nodes.new(type="ShaderNodeTexCoord")
@@ -419,19 +477,18 @@ class _SceneMixin:
 
         logger.debug(f"Point light {index} added at {point_light.position}")
 
-    def _setup_render_settings(self, config: Config, **kwargs):
+    def _setup_render_settings(self, config: Config, engine: str = "CYCLES"):
         """Configure Blender render settings for the *main* render pass.
 
         Sets resolution, render engine, sample count, output format, and
-        background transparency based on *config* and *kwargs*.  These
-        settings apply to the main image render only; the facet-ID pass
-        manages its own settings inside :meth:`_render_facet_id_pass`.
+        background transparency.  These settings apply to the main image render
+        only; the facet-ID pass manages its own settings inside
+        :meth:`_render_facet_id_pass`.
 
         Args:
             config: Rendering configuration (film size, sampler, etc.).
-            **kwargs: Additional backend options:
-                - ``engine`` (str): Blender render engine to use;
-                  ``"CYCLES"`` (default) or ``"BLENDER_EEVEE"``.
+            engine: Blender render engine — ``"CYCLES"`` (default) or
+                ``"BLENDER_EEVEE"``.
         """
         scene = bpy.context.scene
 
@@ -441,7 +498,6 @@ class _SceneMixin:
         scene.render.resolution_percentage = 100
 
         # Render engine
-        engine = kwargs.get("engine", "CYCLES")
         scene.render.engine = engine
 
         # Samples
@@ -450,7 +506,19 @@ class _SceneMixin:
         elif engine == "BLENDER_EEVEE":
             scene.eevee.taa_render_samples = config.sampler.sample_count
 
-        # File format
+        # Color management: use the "Standard" view transform (plain sRGB display
+        # encode, no tone curve). Blender 4+/5 defaults to AgX, whose filmic
+        # tone-mapping shifts every color so rendered albedo no longer matches
+        # the user-specified color. "Standard" reproduces the input colors and
+        # matches the Mitsuba backend (which does not tone-map).
+        scene.view_settings.view_transform = "Standard"
+        scene.view_settings.look = "None"
+        scene.view_settings.exposure = 0.0
+        scene.view_settings.gamma = 1.0
+
+        # File format. PNG is the default LDR intermediate; render() overrides
+        # this to OPEN_EXR when the user requested an .exr output. Non-PNG LDR
+        # formats (.webp/.jpg/...) are produced by re-encoding this PNG.
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
 
@@ -458,7 +526,7 @@ class _SceneMixin:
         scene.render.film_transparent = True
 
         logger.debug(
-            f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, engine={engine}"
+            f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, blender_engine={engine}"
         )
 
     def _setup_compositor_passes(
@@ -488,7 +556,11 @@ class _SceneMixin:
         # node exposes the right output sockets when added below.
         view_layer = scene.view_layers[0]
         if config.albedo:
+            # Metals (Metallic=1) emit no diffuse color, so the base color shows
+            # up only in the Glossy Color pass. Enable both and sum them below so
+            # albedo is correct for conductors and dielectrics alike.
             view_layer.use_pass_diffuse_color = True
+            view_layer.use_pass_glossy_color = True
         if config.depth:
             view_layer.use_pass_z = True
         if config.normal:
@@ -516,8 +588,10 @@ class _SceneMixin:
         stem = filename.stem
         suffix = filename.suffix.lower()
 
-        # Map the user's output suffix to a Blender file-format token.
-        fmt_map = {".exr": "OPEN_EXR", ".png": "PNG", ".jpg": "JPEG"}
+        # ``filename`` here is the native render intermediate, so its suffix is
+        # .png (LDR) or .exr (HDR); other formats are produced by re-encoding
+        # the PNG sidecars afterwards (see BlenderBackend._finalize_outputs).
+        fmt_map = {".exr": "OPEN_EXR", ".png": "PNG"}
         file_format = fmt_map.get(suffix, "PNG")
 
         y = -100
@@ -526,6 +600,17 @@ class _SceneMixin:
         # in render() before calling this method.
 
         if config.albedo:
+            # Albedo = Diffuse Color + Glossy Color. Dielectrics carry their base
+            # color in Diffuse Color; metals carry it in Glossy Color. Summing the
+            # two (one is ~black in each case) yields a correct albedo for both.
+            # Color sockets feed a VectorMath ADD (treated component-wise).
+            add_albedo = nodes.new(type="ShaderNodeVectorMath")
+            add_albedo.operation = "ADD"
+            add_albedo.location = (0, y)
+            # Blender 5.0: "DiffCol" renamed to "Diffuse Color".
+            links.new(rl_node.outputs["Diffuse Color"], add_albedo.inputs[0])
+            links.new(rl_node.outputs["Glossy Color"], add_albedo.inputs[1])
+
             fo = nodes.new(type="CompositorNodeOutputFile")
             # Use '//' so Blender resolves to output_dir (the temp .blend location).
             # Clear file_name to avoid a spurious prefix in the output path.
@@ -537,28 +622,35 @@ class _SceneMixin:
             fo.format.color_mode = "RGB"
             fo.file_output_items.new("RGBA", stem + "_albedo")
             fo.location = (400, y)
-            # Blender 5.0: "DiffCol" renamed to "Diffuse Color"
-            links.new(rl_node.outputs["Diffuse Color"], fo.inputs[0])
+            links.new(add_albedo.outputs["Vector"], fo.inputs[0])
             pass_name = f"{stem}_albedo{suffix}"
             renames.append((pass_name, filename.with_name(pass_name)))
             y -= 200
 
         if config.depth:
-            # Normalize the floating-point depth to [0, 1] before saving.
-            normalize = nodes.new(type="CompositorNodeNormalize")
-            normalize.location = (0, y)
-            links.new(rl_node.outputs["Depth"], normalize.inputs[0])
+            # Write the *raw* camera-space Z together with the foreground alpha as
+            # a float EXR sidecar. Normalizing here (CompositorNodeNormalize) would
+            # span the whole frame, and the far-clip background dominates the range
+            # and crushes the object's depth contrast. Instead the alpha mask lets
+            # _postprocess_depth() normalize over foreground pixels only (and paint
+            # the background a flat color). Always EXR, regardless of ``file_format``,
+            # so the linear depth survives intact for that step.
+            set_alpha = nodes.new(type="CompositorNodeSetAlpha")
+            set_alpha.location = (0, y)
+            links.new(rl_node.outputs["Depth"], set_alpha.inputs["Image"])
+            links.new(rl_node.outputs["Alpha"], set_alpha.inputs["Alpha"])
             fo = nodes.new(type="CompositorNodeOutputFile")
             fo.directory = "//"
             fo.file_name = ""
             fo.format.media_type = "IMAGE"
-            fo.format.file_format = file_format
-            fo.format.color_mode = "BW"
-            fo.file_output_items.new("FLOAT", stem + "_depth")
+            fo.format.file_format = "OPEN_EXR"
+            fo.format.color_mode = "RGBA"
+            fo.format.color_depth = "32"
+            fo.file_output_items.new("RGBA", stem + "_depth_raw")
             fo.location = (400, y)
-            links.new(normalize.outputs[0], fo.inputs[0])
-            pass_name = f"{stem}_depth{suffix}"
-            renames.append((pass_name, filename.with_name(pass_name)))
+            links.new(set_alpha.outputs["Image"], fo.inputs[0])
+            # Not added to ``renames``: the raw EXR is consumed (and removed) by
+            # BlenderBackend._postprocess_depth, which writes the final sidecar.
             y -= 200
 
         if config.normal:

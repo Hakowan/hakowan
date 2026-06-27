@@ -130,6 +130,26 @@ frame = np.array([[0, 1, 0],
 tr = hkw.transform.PrincipalAxes(frame=frame)
 ```
 
+## Normalize transform
+
+Normalize transform recenters and uniformly scales the mesh so it fits a unit box centered at the
+origin (the bounding-box center is moved to the origin and the bounding-box diagonal is scaled to 2,
+i.e. the geometry fits inside the unit sphere). It is handy for bringing meshes from unrelated
+coordinate systems to a comparable on-screen size — for example when laying several meshes side by
+side with [`Layer.juxtapose()`](layer.md).
+
+```py
+tr = hkw.transform.Normalize()
+```
+
+By default, normal and tangent/bitangent attributes are re-normalized to unit length; set
+`normalize_normals=False` or `normalize_tangents_bitangents=False` to leave them untouched.
+
+Unlike a layer-level [Affine transform](#affine-transform) (and the `scale` / `translate` shortcuts),
+Normalize mutates the data-frame vertices in place. It therefore normalizes the geometry as it
+currently stands — after any earlier mesh-mutating transforms — and ignores prior global affine
+transforms, matching the behavior of the [PrincipalAxes transform](#principalaxes-transform).
+
 ## Streamline transform
 
 Streamline transform replaces the mesh with surface streamlines traced from a per-facet vector

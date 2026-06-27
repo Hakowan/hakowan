@@ -7,6 +7,13 @@ from ..scale import AttributeLike
 from ..texture import TextureLike
 
 
+# Fallback sizes (in geometry units) used by every rendering backend when a
+# :class:`Size` channel is not specified. Shared so all backends agree on the
+# default glyph size for point/curve marks.
+DEFAULT_MARK_SIZE = 0.01
+DEFAULT_COVARIANCE_SIZE = 1.0
+
+
 @dataclass(kw_only=True, slots=True)
 class Channel:
     """Channel base class."""
@@ -142,7 +149,7 @@ class BumpMap(Channel):
     This class specifies the bump map channel.
 
     Attributes:
-        texture (TextureLike | None): The texture used to encode the bump map.
+        texture (TextureLike): The texture used to encode the bump map.
         scale (float): The scale of the bump map. The default value is 1.0.
     """
 
@@ -157,7 +164,7 @@ class NormalMap(Channel):
     This class specifies the normal map channel.
 
     Attributes:
-        texture (TextureLike | None): The texture used to encode the normal map.
+        texture (TextureLike): The texture used to encode the normal map.
     """
 
     texture: TextureLike

@@ -129,3 +129,15 @@ Let `l0` and `l1` be two layers, we can use addition to combine them together.
 ```py
 combined_layer = l0 + l1
 ```
+
+### Layer comparison
+
+To compare two layers, use `|` to lay them out side by side (a horizontal row), or `&` to stack
+them vertically (a column), instead of overlaying them.
+
+```py
+row    = l0 | l1   # horizontal
+column = l0 & l1   # vertical
+```
+
+See the [layer guide](layer.md) for the configurable `juxtapose` method.

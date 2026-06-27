@@ -1,4 +1,4 @@
-"""Accent color map.
+"""ColorBrewer color map.
 
 This file contains colormaps proposed by ColorBrewer (v1.0) project.
 

@@ -1,3 +1,3 @@
-from .layer import Layer
+from .layer import Layer, LayoutOptions
 
-__all__ = ["Layer"]
+__all__ = ["Layer", "LayoutOptions"]

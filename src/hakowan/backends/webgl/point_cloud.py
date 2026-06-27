@@ -1,173 +1,90 @@
 """Point mark renderer.
 
-For each vertex of the input mesh we bake the chosen base shape (sphere, disk,
-or cube) into a single combined triangle mesh. This avoids glTF mesh
-instancing complexity while staying correct for moderate point counts
-(~10k–50k spheres at refinement 0). Phase 4 may swap in
-``EXT_mesh_gpu_instancing`` for larger point clouds.
+Each vertex of the input mesh draws the chosen base shape (sphere, disk, or
+cube). When the per-point placement is a translation · rotation · axis-aligned
+scale — i.e. uniform size, an orientation rotation, or a ``full`` covariance
+ellipsoid — we emit a single prototype shape GPU-instanced via
+``EXT_mesh_gpu_instancing`` (one mesh + per-point TRANSLATION/ROTATION/SCALE),
+which keeps the GLB tiny for large clouds.
+
+The baked fallback (every shape copy expanded into one combined triangle mesh)
+handles the cases instancing can't express: raw (non-``full``) covariance, which
+may encode an arbitrary 3x3 stretch/shear, and per-point custom material
+attributes (e.g. a per-point roughness field), which have no instance slot
+beyond ``_COLOR_0``.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
 
+import lagrange
 import numpy as np
 
 from ...common import logger
 from ...compiler import View
+from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.scale import Attribute
 
 from .builder import GLTFBuilder
-from .mesh_extract import _find_color_field_name, _read_color_attribute
+from .mesh_extract import (
+    _find_color_field_name,
+    _read_color_attribute,
+    primitive_arrays,
+)
 from .material_translate import translate_material
 
 
 # ---------------------------------------------------------------------- #
-# Base shapes                                                              #
+# Base shapes (lagrange.primitive)                                         #
 # ---------------------------------------------------------------------- #
 
 
 @lru_cache(maxsize=4)
 def _icosphere(refinement: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return ``(positions, normals, triangles)`` for a unit icosphere."""
-    phi = (1.0 + 5**0.5) / 2.0
-    verts = np.array(
-        [
-            (-1, phi, 0),
-            (1, phi, 0),
-            (-1, -phi, 0),
-            (1, -phi, 0),
-            (0, -1, phi),
-            (0, 1, phi),
-            (0, -1, -phi),
-            (0, 1, -phi),
-            (phi, 0, -1),
-            (phi, 0, 1),
-            (-phi, 0, -1),
-            (-phi, 0, 1),
-        ],
-        dtype=np.float64,
+    """Return ``(positions, normals, triangles)`` for a unit icosphere.
+
+    A subdivided icosahedron projected onto the unit sphere. ``lagrange`` bakes
+    flat per-face normals, but a centred unit sphere's smooth normal at a vertex
+    is just its position, so we use the shared vertices (12 at level 0) with
+    radial normals for smooth shading.
+    """
+    mesh = lagrange.primitive.generate_subdivided_sphere(
+        base_shape=lagrange.primitive.generate_icosahedron(),
+        radius=1.0,
+        subdiv_level=refinement,
     )
-    verts = verts / np.linalg.norm(verts, axis=1, keepdims=True)
-    tris = np.array(
-        [
-            [0, 11, 5],
-            [0, 5, 1],
-            [0, 1, 7],
-            [0, 7, 10],
-            [0, 10, 11],
-            [2, 11, 10],
-            [4, 5, 11],
-            [9, 1, 5],
-            [8, 7, 1],
-            [6, 10, 7],
-            [4, 9, 5],
-            [9, 8, 1],
-            [8, 6, 7],
-            [6, 2, 10],
-            [2, 4, 11],
-            [3, 9, 4],
-            [3, 4, 2],
-            [3, 2, 6],
-            [3, 6, 8],
-            [3, 8, 9],
-        ],
-        dtype=np.uint32,
-    )
-    for _ in range(refinement):
-        verts, tris = _subdivide_on_sphere(verts, tris)
-    positions = verts.astype(np.float32)
+    positions = np.ascontiguousarray(mesh.vertices, dtype=np.float32)
+    tris = np.ascontiguousarray(mesh.facets, dtype=np.uint32)
     normals = positions.copy()  # unit-sphere normals coincide with positions.
     return positions, normals, tris
 
 
-def _subdivide_on_sphere(
-    verts: np.ndarray, tris: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
-    edge_midpoints: dict[tuple[int, int], int] = {}
-    new_verts: list[np.ndarray] = list(verts)
-    new_tris: list[list[int]] = []
-
-    def get_mid(a: int, b: int) -> int:
-        key = (a, b) if a < b else (b, a)
-        if key in edge_midpoints:
-            return edge_midpoints[key]
-        m = (verts[a] + verts[b]) / 2.0
-        m = m / np.linalg.norm(m)
-        new_verts.append(m)
-        idx = len(new_verts) - 1
-        edge_midpoints[key] = idx
-        return idx
-
-    for v1, v2, v3 in tris.tolist():
-        m12 = get_mid(v1, v2)
-        m23 = get_mid(v2, v3)
-        m31 = get_mid(v3, v1)
-        new_tris.extend(
-            [
-                [v1, m12, m31],
-                [v2, m23, m12],
-                [v3, m31, m23],
-                [m12, m23, m31],
-            ]
-        )
-    return np.array(new_verts, dtype=np.float64), np.array(new_tris, dtype=np.uint32)
-
-
 @lru_cache(maxsize=2)
 def _disk(segments: int = 16) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Unit disk in the XY plane facing +Z. One central vertex + ring."""
-    angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False)
-    ring = np.stack([np.cos(angles), np.sin(angles), np.zeros_like(angles)], axis=1)
-    positions = np.vstack([np.zeros((1, 3)), ring]).astype(np.float32)
-    normals = np.zeros_like(positions)
-    normals[:, 2] = 1.0
-    tris = np.zeros((segments, 3), dtype=np.uint32)
-    tris[:, 1] = np.arange(1, segments + 1)
-    tris[:, 2] = np.roll(np.arange(1, segments + 1), -1)
-    return positions, normals, tris
+    """Unit disk in the XY plane facing +Z (central vertex + ring)."""
+    mesh = lagrange.primitive.generate_disc(
+        radius=1.0,
+        normal=[0.0, 0.0, 1.0],
+        radial_sections=segments,
+        triangulate=True,
+    )
+    positions, normals, indices = primitive_arrays(mesh)
+    return positions, normals, indices.reshape(-1, 3)
 
 
 @lru_cache(maxsize=1)
 def _cube() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Unit cube centred at the origin (extent ±1) with flat per-face normals."""
-    # Six faces × four corners → 24 vertices so each face can carry its own
-    # normal without sharing across edges.
-    face_normals = np.array(
-        [
-            [1, 0, 0],
-            [-1, 0, 0],
-            [0, 1, 0],
-            [0, -1, 0],
-            [0, 0, 1],
-            [0, 0, -1],
-        ],
-        dtype=np.float32,
+    """Cube centred at the origin (extent ±1) with flat per-face normals."""
+    mesh = lagrange.primitive.generate_rounded_cube(
+        width=2.0,
+        height=2.0,
+        depth=2.0,
+        bevel_radius=0.0,
+        triangulate=True,
     )
-    face_quads = [
-        # (vertex order CCW when viewed from outside)
-        [(1, -1, -1), (1, 1, -1), (1, 1, 1), (1, -1, 1)],
-        [(-1, -1, 1), (-1, 1, 1), (-1, 1, -1), (-1, -1, -1)],
-        [(-1, 1, -1), (-1, 1, 1), (1, 1, 1), (1, 1, -1)],
-        [(-1, -1, 1), (-1, -1, -1), (1, -1, -1), (1, -1, 1)],
-        [(-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)],
-        [(1, -1, -1), (-1, -1, -1), (-1, 1, -1), (1, 1, -1)],
-    ]
-    positions: list[list[float]] = []
-    normals: list[list[float]] = []
-    tris: list[list[int]] = []
-    for face_idx, quad in enumerate(face_quads):
-        base = len(positions)
-        for v in quad:
-            positions.append(list(v))
-            normals.append(face_normals[face_idx].tolist())
-        tris.append([base + 0, base + 1, base + 2])
-        tris.append([base + 0, base + 2, base + 3])
-    return (
-        np.array(positions, dtype=np.float32),
-        np.array(normals, dtype=np.float32),
-        np.array(tris, dtype=np.uint32),
-    )
+    positions, normals, indices = primitive_arrays(mesh)
+    return positions, normals, indices.reshape(-1, 3)
 
 
 _BASE_SHAPE_BUILDERS = {
@@ -270,12 +187,91 @@ def _orientation_matrices(view: View, n: int) -> np.ndarray | None:
     return out
 
 
+def _decompose_linear(
+    matrices: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Split per-point ``M = R·diag(s)`` into rotation ``R`` and axis scale ``s``.
+
+    Used for ``full`` covariance, where ``M = U·diag(√S)`` has orthogonal
+    columns: the per-axis scale is each column's length and ``R`` is ``M`` with
+    its columns normalised. A reflection (``det < 0``) is folded into a flipped
+    column — harmless since the base shape is symmetric, so the ellipsoid is
+    unchanged while ``R`` stays a proper rotation a quaternion can encode.
+    """
+    scales = np.linalg.norm(matrices, axis=1)  # (N, 3) per-column norms
+    safe = np.maximum(scales, 1e-12)
+    rotations = matrices / safe[:, None, :]
+    flip = np.linalg.det(rotations) < 0.0
+    rotations[flip, :, 2] *= -1.0
+    return rotations.astype(np.float32), scales.astype(np.float32)
+
+
+def _identity_quaternions(n: int) -> np.ndarray:
+    """``n`` identity quaternions in xyzw order."""
+    quats = np.zeros((n, 4), dtype=np.float32)
+    quats[:, 3] = 1.0
+    return quats
+
+
+def _matrices_to_quaternions(matrices: np.ndarray) -> np.ndarray:
+    """Vectorised (N,3,3) proper-rotation → (N,4) quaternion (xyzw).
+
+    Shepperd's method: pick, per matrix, the branch with the largest
+    denominator (trace or a diagonal term) for numerical stability, then
+    normalise.
+    """
+    m = matrices
+    m00, m01, m02 = m[:, 0, 0], m[:, 0, 1], m[:, 0, 2]
+    m10, m11, m12 = m[:, 1, 0], m[:, 1, 1], m[:, 1, 2]
+    m20, m21, m22 = m[:, 2, 0], m[:, 2, 1], m[:, 2, 2]
+    trace = m00 + m11 + m22
+
+    case0 = trace > 0.0
+    case1 = (~case0) & (m00 >= m11) & (m00 >= m22)
+    case2 = (~case0) & (~case1) & (m11 >= m22)
+    case3 = ~(case0 | case1 | case2)
+
+    n = m.shape[0]
+    x = np.empty(n)
+    y = np.empty(n)
+    z = np.empty(n)
+    w = np.empty(n)
+
+    s = np.sqrt(np.maximum(trace + 1.0, 1e-12)) * 2.0  # s = 4w
+    w[case0] = (0.25 * s)[case0]
+    x[case0] = ((m21 - m12) / s)[case0]
+    y[case0] = ((m02 - m20) / s)[case0]
+    z[case0] = ((m10 - m01) / s)[case0]
+
+    s = np.sqrt(np.maximum(1.0 + m00 - m11 - m22, 1e-12)) * 2.0  # s = 4x
+    w[case1] = ((m21 - m12) / s)[case1]
+    x[case1] = (0.25 * s)[case1]
+    y[case1] = ((m01 + m10) / s)[case1]
+    z[case1] = ((m02 + m20) / s)[case1]
+
+    s = np.sqrt(np.maximum(1.0 + m11 - m00 - m22, 1e-12)) * 2.0  # s = 4y
+    w[case2] = ((m02 - m20) / s)[case2]
+    x[case2] = ((m01 + m10) / s)[case2]
+    y[case2] = (0.25 * s)[case2]
+    z[case2] = ((m12 + m21) / s)[case2]
+
+    s = np.sqrt(np.maximum(1.0 + m22 - m00 - m11, 1e-12)) * 2.0  # s = 4z
+    w[case3] = ((m10 - m01) / s)[case3]
+    x[case3] = ((m02 + m20) / s)[case3]
+    y[case3] = ((m12 + m21) / s)[case3]
+    z[case3] = (0.25 * s)[case3]
+
+    quats = np.stack([x, y, z, w], axis=1)
+    quats /= np.maximum(np.linalg.norm(quats, axis=1, keepdims=True), 1e-12)
+    return quats.astype(np.float32)
+
+
 # ---------------------------------------------------------------------- #
 # Size resolution                                                          #
 # ---------------------------------------------------------------------- #
 
 
-def _extract_sizes(view: View, n: int, default_size: float = 0.01) -> np.ndarray:
+def _extract_sizes(view: View, n: int, default_size: float) -> np.ndarray:
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
     if view.size_channel is None:
@@ -310,11 +306,7 @@ def _extract_sizes(view: View, n: int, default_size: float = 0.01) -> np.ndarray
 # ---------------------------------------------------------------------- #
 
 
-def add_point_view(builder: GLTFBuilder, view: View) -> int:
-    """Bake the configured base shape per vertex and emit a single mesh node."""
-    assert view.data_frame is not None
-    mesh = view.data_frame.mesh
-
+def _resolve_base_shape(view: View) -> str:
     base_shape = (
         view.shape_channel.base_shape if view.shape_channel is not None else "sphere"
     )
@@ -324,7 +316,15 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
             "falling back to sphere."
         )
         base_shape = "sphere"
+    return base_shape
 
+
+def add_point_view(builder: GLTFBuilder, view: View) -> int:
+    """Render the point mark, GPU-instanced when the placement allows it."""
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+
+    base_shape = _resolve_base_shape(view)
     centers = np.asarray(mesh.vertices, dtype=np.float32)
     n_points = centers.shape[0]
     if n_points == 0:
@@ -335,9 +335,113 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
     # supersedes the orientation channel (matching the Mitsuba backend) and the
     # size acts as an extra uniform scale (default 1.0 instead of 0.01).
     covariances = _covariance_matrices(view, n_points)
-    sizes = _extract_sizes(
-        view, n_points, default_size=1.0 if covariances is not None else 0.01
+    cov_full = (
+        view.covariance_channel.full if view.covariance_channel is not None else False
     )
+    sizes = _extract_sizes(
+        view,
+        n_points,
+        default_size=DEFAULT_COVARIANCE_SIZE
+        if covariances is not None
+        else DEFAULT_MARK_SIZE,
+    )
+    result = translate_material(view, builder)
+
+    # Instancing carries only TRANSLATION/ROTATION/SCALE + _COLOR_0. Raw
+    # (non-``full``) covariance may encode an arbitrary 3x3 (shear), and per-point
+    # custom material attributes have no instance slot — both keep the baked path.
+    raw_covariance = covariances is not None and not cov_full
+    if result.custom_attrs or raw_covariance:
+        return _add_baked_points(
+            builder, view, mesh, result, base_shape, centers, sizes, covariances
+        )
+    return _add_instanced_points(
+        builder, view, mesh, result, base_shape, centers, sizes, covariances
+    )
+
+
+def _point_instance_colors(view: View, mesh, n_points: int) -> np.ndarray | None:
+    """Per-point linear RGB from a ScalarField reflectance, or ``None``."""
+    color_name = _find_color_field_name(view)
+    if color_name is None:
+        return None
+    per_point = _read_color_attribute(mesh, color_name)
+    if per_point.shape[0] != n_points:
+        logger.warning(
+            f"WebGL backend: color attribute length {per_point.shape[0]} "
+            f"!= vertex count {n_points}; dropping color."
+        )
+        return None
+    return np.ascontiguousarray(per_point[:, :3], dtype=np.float32)
+
+
+def _add_instanced_points(
+    builder: GLTFBuilder,
+    view: View,
+    mesh,
+    result,
+    base_shape: str,
+    centers: np.ndarray,
+    sizes: np.ndarray,
+    covariances: np.ndarray | None,
+) -> int:
+    n_points = centers.shape[0]
+    rotations: np.ndarray | None = None
+    if covariances is not None:
+        # ``full`` covariance: M = U·diag(√S) → rotation U + per-axis scale √S,
+        # with ``size`` an extra uniform scale on top.
+        rotations, axis_scales = _decompose_linear(covariances)
+        quaternions = _matrices_to_quaternions(rotations)
+        scales = (axis_scales * sizes[:, None]).astype(np.float32)
+    else:
+        rotations = _orientation_matrices(view, n_points)
+        quaternions = (
+            _matrices_to_quaternions(rotations)
+            if rotations is not None
+            else _identity_quaternions(n_points)
+        )
+        scales = np.repeat(sizes[:, None], 3, axis=1).astype(np.float32)
+
+    base_positions, base_normals, base_tris = _BASE_SHAPE_BUILDERS[base_shape]()
+    proto_idx = base_tris.reshape(-1).astype(np.uint32)
+
+    instance_colors = _point_instance_colors(view, mesh, n_points)
+    pbr = result.pbr
+    if instance_colors is not None:
+        pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
+    if result.extras is not None:
+        pbr["extras"] = result.extras
+    material_idx = builder.add_material(pbr, double_sided=result.double_sided)
+
+    transform = np.asarray(view.global_transform, dtype=np.float64)
+    logger.debug(
+        f"WebGL backend: point view → {n_points} instanced '{base_shape}' marks "
+        f"({base_positions.shape[0]}-vert prototype)."
+    )
+    return builder.add_instanced_mesh_node(
+        positions=base_positions,
+        indices=proto_idx,
+        normals=base_normals,
+        translations=np.ascontiguousarray(centers, dtype=np.float32),
+        rotations=quaternions,
+        scales=scales,
+        instance_colors=instance_colors,
+        material_idx=material_idx,
+        transform_4x4=transform,
+    )
+
+
+def _add_baked_points(
+    builder: GLTFBuilder,
+    view: View,
+    mesh,
+    result,
+    base_shape: str,
+    centers: np.ndarray,
+    sizes: np.ndarray,
+    covariances: np.ndarray | None,
+) -> int:
+    n_points = centers.shape[0]
     if covariances is not None:
         linear = covariances * sizes[:, None, None]  # (N, 3, 3)
     else:
@@ -393,7 +497,6 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
         else:
             colors = np.repeat(per_point, n_base_verts, axis=0).astype(np.float32)
 
-    result = translate_material(view, builder)
     pbr = result.pbr
     if colors is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
@@ -418,7 +521,7 @@ def add_point_view(builder: GLTFBuilder, view: View) -> int:
 
     transform = np.asarray(view.global_transform, dtype=np.float64)
     logger.debug(
-        f"WebGL backend: point view → {n_points} '{base_shape}' marks, "
+        f"WebGL backend: point view → {n_points} baked '{base_shape}' marks, "
         f"{n_points * n_base_verts} verts, {n_points * n_base_tris} tris."
     )
     return builder.add_mesh_node(

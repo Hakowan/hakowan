@@ -25,15 +25,16 @@ from __future__ import annotations
 import io
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from PIL import Image as PILImage, ImageEnhance
 
 from ...common import logger
+from ...common.color import linear_to_srgb, srgb_to_linear, srgb_to_linear_array
 from ...common.to_color import to_color
 from ...compiler import View
-from ...grammar.channel import BumpMap, NormalMap
+from ...grammar.channel import NormalMap
 from ...grammar.channel.material import (
     Conductor,
     Dielectric,
@@ -60,6 +61,8 @@ from .builder import (
 _SCALAR_ATTR = "_scalar_0"
 _ROUGHNESS_ATTR = "_roughness_0"
 _METALLIC_ATTR = "_metallic_0"
+_ISO_COLOR1_ATTR = "_iso_color1_0"
+_ISO_COLOR2_ATTR = "_iso_color2_0"
 
 
 @dataclass
@@ -122,6 +125,13 @@ def _resolve_ior(ior_like: Any, default: float) -> float:
     return default
 
 
+# Tangent-space normal-map green-channel sign. three.js follows the OpenGL
+# convention (+Y points up in UV space). The bump->normal bake computes the
+# V-gradient in the flipped (as-sampled) image orientation, so +1 matches; flip
+# to -1 for a DirectX-style (green-down) result.
+_NORMAL_GREEN_SIGN = 1.0
+
+
 # Approximate sRGB F0 albedo for common metals (Mitsuba conductor presets).
 # Sources: Naty Hoffman's PBR Diffuse Lighting course notes; Filament docs.
 _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
@@ -138,18 +148,12 @@ _CONDUCTOR_PRESETS: dict[str, tuple[float, float, float]] = {
 }
 
 
-def _srgb_to_linear(c: float) -> float:
-    if c <= 0.04045:
-        return c / 12.92
-    return ((c + 0.055) / 1.055) ** 2.4
-
-
 def _color_to_rgba(color_like: Any) -> list[float]:
     color = to_color(color_like)
     return [
-        _srgb_to_linear(float(color.red)),
-        _srgb_to_linear(float(color.green)),
-        _srgb_to_linear(float(color.blue)),
+        srgb_to_linear(float(color.red)),
+        srgb_to_linear(float(color.green)),
+        srgb_to_linear(float(color.blue)),
         1.0,
     ]
 
@@ -201,7 +205,7 @@ def _back_base_color(mat: Material) -> list[float]:
         logger.warning(
             "WebGL backend: back_side Conductor approximated as a flat metal color."
         )
-        return [_srgb_to_linear(c) for c in albedo]
+        return [srgb_to_linear(c) for c in albedo]
     if isinstance(mat, Dielectric):
         logger.warning(
             "WebGL backend: back_side Dielectric approximated as white "
@@ -256,15 +260,11 @@ def _bake_checkerboard_png(
     blurs under ``LINEAR`` minification in three.js).
     """
 
-    def _linear_to_srgb(c: float) -> int:
-        if c <= 0.0031308:
-            v = 12.92 * c
-        else:
-            v = 1.055 * (c ** (1 / 2.4)) - 0.055
-        return max(0, min(255, int(round(v * 255))))
+    def _linear_to_srgb_byte(c: float) -> int:
+        return max(0, min(255, int(round(linear_to_srgb(c) * 255))))
 
-    c1 = tuple(_linear_to_srgb(c) for c in tex1_color[:3])
-    c2 = tuple(_linear_to_srgb(c) for c in tex2_color[:3])
+    c1 = tuple(_linear_to_srgb_byte(c) for c in tex1_color[:3])
+    c2 = tuple(_linear_to_srgb_byte(c) for c in tex2_color[:3])
     # Round the cell count up to an even number so the (x + y) % 2 pattern tiles
     # seamlessly under REPEAT wrapping (an odd period leaves a seam where two
     # same-colored cells meet).
@@ -329,19 +329,129 @@ def _apply_image_or_checker(
             extras["checkerboard"] = True
 
 
-def _apply_bump_map(
-    extras: dict[str, Any],
-    builder: GLTFBuilder,
-    bump_map: BumpMap | None,
-) -> None:
-    """Embed a bump map image and store its glTF texture index in extras.
+def _mesh_uv_world_scale(mesh: Any) -> tuple[float, float] | None:
+    """Area-weighted average world distance per unit UV, ``(|dp_du|, |dp_dv|)``.
 
-    glTF has no standard bump-map slot, so we embed the texture as a
-    plain glTF image and record its index in ``extras["hakowan"]["bump"]``.
-    The viewer JS loads it via ``gltf.parser.loadTexture`` and assigns it
-    to ``material.bumpMap`` / ``material.bumpScale`` directly on the
-    three.js material.
+    A height->normal conversion has to bake the *world-space* slope
+    ``scale * (dH/du) / |dp_du|``: three.js builds the tangent frame from the
+    mesh's own position/UV derivatives (the T/B vectors are normalized), so the
+    baked normal map is interpreted as a dimensionless world-space slope. This
+    returns the surface-averaged UV->world scale so the bake is aware of the
+    parameterization. Returns ``None`` if the mesh carries no UVs.
     """
+    import lagrange
+
+    if mesh is None:
+        return None
+    uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
+    if not uv_ids:
+        return None
+    V = np.asarray(mesh.vertices, dtype=np.float64)
+    uid = uv_ids[0]
+    if mesh.is_attribute_indexed(uid):
+        attr = mesh.indexed_attribute(uid)
+        uv_values = np.asarray(attr.values.data, dtype=np.float64).reshape(-1, 2)
+        uv_index = np.asarray(attr.indices.data)
+    else:
+        uv_values = np.asarray(mesh.attribute(uid).data, dtype=np.float64).reshape(
+            -1, 2
+        )
+        uv_index = None
+
+    sum_du = sum_dv = sum_w = 0.0
+    for f in range(mesh.num_facets):
+        n = mesh.get_facet_size(f)
+        if n < 3:
+            continue
+        vidx = mesh.get_facet_vertices(f)
+        pf = V[vidx]
+        if uv_index is not None:
+            c0 = mesh.get_facet_corner_begin(f)
+            uvf = uv_values[uv_index[c0 : c0 + n]]
+        else:
+            uvf = uv_values[vidx]
+        # Fan-triangulate the (possibly polygonal) facet and accumulate the
+        # per-triangle UV->world Jacobian, weighted by world area.
+        for k in range(1, n - 1):
+            duv = np.array([uvf[k] - uvf[0], uvf[k + 1] - uvf[0]])
+            det = duv[0, 0] * duv[1, 1] - duv[0, 1] * duv[1, 0]
+            if abs(det) < 1e-12:
+                continue
+            b0 = pf[k] - pf[0]
+            b1 = pf[k + 1] - pf[0]
+            dp_du = (duv[1, 1] * b0 - duv[0, 1] * b1) / det
+            dp_dv = (-duv[1, 0] * b0 + duv[0, 0] * b1) / det
+            area = 0.5 * float(np.linalg.norm(np.cross(b0, b1)))
+            sum_du += float(np.linalg.norm(dp_du)) * area
+            sum_dv += float(np.linalg.norm(dp_dv)) * area
+            sum_w += area
+    if sum_w <= 0.0:
+        return None
+    return sum_du / sum_w, sum_dv / sum_w
+
+
+def _height_to_normal_map_png(
+    height: Image, scale: float, dp_du: float, dp_dv: float
+) -> bytes:
+    """Convert a height (bump) texture into a tangent-space normal map PNG.
+
+    three.js's ``bumpMap`` finite-differences the height in *screen* space,
+    which reads far weaker than Mitsuba's analytic UV-space gradient and loses
+    crater-scale relief. Encoding the height as a tangent-space normal map
+    instead lets three.js sample a precomputed per-texel normal, recovering the
+    detail. The slope baked into each texel mirrors Mitsuba's ``bumpmap``:
+    ``slope = scale * (dH/du) / |dp_du|`` (and likewise in v).
+    """
+    with PILImage.open(Path(height.filename)) as bump_img:
+        arr = np.asarray(bump_img)
+    norm = 65535.0 if arr.dtype == np.uint16 else 255.0
+    H = arr.astype(np.float32)
+    if H.ndim == 3:
+        H = H[..., :3].mean(axis=-1)
+    H /= norm
+    # Match base-color UV handling: textures are flipped vertically (hakowan's
+    # V=0-at-bottom -> glTF's V=0-at-top), so compute gradients in that sampled
+    # orientation and the green channel lines up with three.js's convention.
+    H = np.flipud(H)
+    rows, cols = H.shape
+    # Central differences; longitude (u) wraps, latitude (v) clamps.
+    gx = (np.roll(H, -1, axis=1) - np.roll(H, 1, axis=1)) * 0.5
+    gy = np.empty_like(H)
+    gy[1:-1] = (H[2:] - H[:-2]) * 0.5
+    gy[0] = H[1] - H[0]
+    gy[-1] = H[-1] - H[-2]
+    # Per-UV gradient is per-pixel gradient times the pixel count along that
+    # axis; divide by |dp/duv| to get the dimensionless world-space slope.
+    su = scale * gx * cols / max(dp_du, 1e-8)
+    sv = scale * gy * rows / max(dp_dv, 1e-8)
+    nx = -su
+    ny = -sv * _NORMAL_GREEN_SIGN
+    nz = np.ones_like(H)
+    inv = 1.0 / np.sqrt(nx * nx + ny * ny + nz * nz)
+    rgb = np.stack(
+        [nx * inv * 0.5 + 0.5, ny * inv * 0.5 + 0.5, nz * inv * 0.5 + 0.5], axis=-1
+    )
+    rgb8 = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    buf = io.BytesIO()
+    PILImage.fromarray(rgb8).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _apply_bump_map(
+    pbr: dict[str, Any],
+    builder: GLTFBuilder,
+    view: View,
+) -> None:
+    """Wire the view's bump map into the glTF material as a normal map.
+
+    The height (bump) texture is converted to a tangent-space normal map and
+    attached via the standard glTF normalTexture slot. three.js samples a
+    precomputed per-texel normal, which preserves fine relief far better than
+    its screen-space ``bumpMap``. The bump is skipped (with a warning) when the
+    texture isn't an image, the mesh has no UVs, or a normal map already
+    occupies the normalTexture slot (glTF can't carry both).
+    """
+    bump_map = view.bump_map
     if bump_map is None:
         return
     texture = bump_map.texture
@@ -351,13 +461,30 @@ def _apply_bump_map(
             "not supported; only Image is wired."
         )
         return
+    if view.normal_map is not None or "normalTextureIndex" in pbr:
+        logger.warning(
+            "WebGL backend: a normal map already occupies the normalTexture "
+            "slot; the bump map is ignored (glTF can't carry both)."
+        )
+        return
+    mesh = view.data_frame.mesh if view.data_frame is not None else None
+    uv_scale = _mesh_uv_world_scale(mesh)
+    if uv_scale is None:
+        logger.warning(
+            "WebGL backend: bump map requires mesh UVs to bake a normal map; "
+            "the bump map is ignored."
+        )
+        return
     try:
-        png_bytes = _load_image_as_png_bytes(texture)
-        idx = builder.add_image_texture(png_bytes)
-        extras["bump"] = {"texture_idx": idx, "scale": float(bump_map.scale)}
+        png_bytes = _height_to_normal_map_png(
+            texture, float(bump_map.scale), uv_scale[0], uv_scale[1]
+        )
+        pbr["normalTextureIndex"] = builder.add_image_texture(png_bytes)
+        pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
-            f"WebGL backend: failed to embed bump map '{texture.filename}': {e}"
+            f"WebGL backend: bump->normal conversion failed for "
+            f"'{texture.filename}': {e}; the bump map is ignored."
         )
 
 
@@ -426,6 +553,88 @@ def _read_scalar_attribute(view: View, attr_like: Any) -> np.ndarray | None:
     return arr
 
 
+def _read_color_field(view: View, scalar_field: ScalarField) -> np.ndarray | None:
+    """Return (N, 3) float32 *linear* RGB per source-mesh vertex for a
+    ``ScalarField``'s baked colormap, or None if it can't be resolved.
+
+    The compiler evaluates the colormap into a per-vertex Color attribute named
+    ``data._internal_color_field`` (see ``compiler/color.py``). hakowan stores
+    that field in sRGB; the isocontour shader multiplies it into ``diffuseColor``
+    in linear space, so we convert here (matching the COLOR_0 path in
+    ``mesh_extract``). Indexed/Vertex handling mirrors
+    :func:`_read_scalar_attribute` so the result lines up per-vertex with
+    ``_scalar_0`` through the de-indexing path.
+    """
+    import lagrange
+
+    if view.data_frame is None:
+        return None
+    name = getattr(scalar_field.data, "_internal_color_field", None)
+    if not isinstance(name, str):
+        return None
+    mesh = view.data_frame.mesh
+    if not mesh.has_attribute(name):
+        return None
+
+    if mesh.is_attribute_indexed(name):
+        indexed = mesh.indexed_attribute(name)
+        if indexed.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        values = np.asarray(indexed.values.data, dtype=np.float32).reshape(
+            -1, indexed.values.num_channels
+        )
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        corner_vertices = mesh.facets.reshape(-1)
+        if indices.shape[0] != corner_vertices.shape[0]:
+            return None
+        out = np.zeros((mesh.num_vertices, values.shape[1]), dtype=np.float32)
+        out[corner_vertices] = values[indices]
+    else:
+        attr = mesh.attribute(name)
+        if attr.element_type != lagrange.AttributeElement.Vertex:
+            return None
+        out = np.asarray(attr.data, dtype=np.float32).reshape(-1, attr.num_channels)
+        if out.shape[0] != mesh.num_vertices:
+            return None
+
+    rgb = out[:, :3]
+    if rgb.shape[1] < 3:  # grayscale color field — broadcast to RGB
+        rgb = np.repeat(rgb[:, :1], 3, axis=1)
+    return srgb_to_linear_array(np.ascontiguousarray(rgb))
+
+
+def _resolve_isocontour_band(
+    key: str,
+    texture: Any,
+    attr_name: str,
+    view: View,
+    custom_attrs: dict[str, np.ndarray],
+    iso: dict[str, Any],
+) -> None:
+    """Resolve one isocontour band (``texture1``/``texture2``) into ``iso``.
+
+    A ``ScalarField`` band carries a colormap, so its colour varies per vertex:
+    we bake the baked colour field as a ``vec3`` custom attribute and record
+    ``"<key>_attr"`` so the viewer reads it as a varying. Any other band
+    collapses to a single flat linear-RGB colour stored under ``"<key>"``.
+
+    A flat ``"<key>"`` is always written so the shader has a uniform fallback
+    (the viewer prefers the attribute when ``"<key>_attr"`` is present).
+    """
+    if isinstance(texture, ScalarField):
+        arr = _read_color_field(view, texture)
+        if arr is not None:
+            custom_attrs[attr_name] = arr
+            iso[f"{key}_attr"] = attr_name
+            iso[key] = [1.0, 1.0, 1.0]
+            return
+        logger.warning(
+            f"WebGL backend: Isocontour {key} ScalarField colormap could not be "
+            "baked (non-vertex element or missing color field); using gray."
+        )
+    iso[key] = _resolve_texture_color(texture)[:3]
+
+
 def _apply_isocontour(
     pbr: dict[str, Any],
     extras: dict[str, Any],
@@ -453,21 +662,27 @@ def _apply_isocontour(
         pbr["baseColorFactor"] = list(c1)
         return
     custom_attrs[_SCALAR_ATTR] = arr
-    c1 = _resolve_texture_color(reflectance.texture1)[:3]
-    c2 = _resolve_texture_color(reflectance.texture2)[:3]
-    extras["isocontour"] = {
+    iso: dict[str, Any] = {
         "num_contours": int(reflectance.num_contours),
         "ratio": float(reflectance.ratio),
-        "color1": [float(x) for x in c1],
-        "color2": [float(x) for x in c2],
     }
+    # texture1 / texture2 may each be a flat colour or a ScalarField colormap.
+    # A colormap band bakes per-vertex colours (``<key>_attr``) the viewer reads
+    # as a varying; otherwise the band collapses to a flat uniform colour.
+    _resolve_isocontour_band(
+        "color1", reflectance.texture1, _ISO_COLOR1_ATTR, view, custom_attrs, iso
+    )
+    _resolve_isocontour_band(
+        "color2", reflectance.texture2, _ISO_COLOR2_ATTR, view, custom_attrs, iso
+    )
+    extras["isocontour"] = iso
     # The shader multiplies diffuseColor by the per-pixel isoColor; keep
     # the base white so the multiply produces the chosen colors exactly.
     pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
 
 
 def _bake_scalar_pbr_factor(
-    kind: str,
+    kind: Literal["roughness", "metallic"],
     texture: Any,
     pbr: dict[str, Any],
     extras: dict[str, Any],
@@ -574,9 +789,9 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             albedo = (0.7, 0.7, 0.7)
         pbr: dict[str, Any] = {
             "baseColorFactor": [
-                _srgb_to_linear(albedo[0]),
-                _srgb_to_linear(albedo[1]),
-                _srgb_to_linear(albedo[2]),
+                srgb_to_linear(albedo[0]),
+                srgb_to_linear(albedo[1]),
+                srgb_to_linear(albedo[2]),
                 1.0,
             ],
             "metallicFactor": 1.0,
@@ -593,7 +808,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
                 view,
             )
         _apply_normal_map(pbr, builder, view.normal_map)
-        _apply_bump_map(extras, builder, view.bump_map)
+        _apply_bump_map(pbr, builder, view)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -675,7 +890,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
             )
 
         _apply_normal_map(pbr, builder, view.normal_map)
-        _apply_bump_map(extras, builder, view.bump_map)
+        _apply_bump_map(pbr, builder, view)
         return MaterialResult(
             pbr=pbr,
             double_sided=double_sided,
@@ -761,7 +976,7 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         pbr["roughnessFactor"] = 1.0
 
     _apply_normal_map(pbr, builder, view.normal_map)
-    _apply_bump_map(extras, builder, view.bump_map)
+    _apply_bump_map(pbr, builder, view)
     return MaterialResult(
         pbr=pbr,
         double_sided=double_sided,

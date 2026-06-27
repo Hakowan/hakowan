@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,9 @@ RENDER_PASSES: dict[str, RenderPass] = {
 }
 
 
-def get_render_pass(name: str) -> RenderPass:
+def get_render_pass(
+    name: Literal["albedo", "depth", "normal", "facet_id"],
+) -> RenderPass:
     """Look up a :class:`RenderPass` by name.
 
     Args:

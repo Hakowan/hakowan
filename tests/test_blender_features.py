@@ -160,9 +160,100 @@ class TestSmoke:
         layer = hkw.layer().data(triangle).mark(hkw.mark.Surface)
         out = tmp_path / "smoke.png"
         hkw.render(
-            layer, config, filename=out, backend="blender", engine="BLENDER_EEVEE"
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
         )
         assert out.exists() and out.stat().st_size > 0
+
+    def _smoke_layer(self, triangle):
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        config.sampler.sample_count = 1
+        return hkw.layer().data(triangle).mark(hkw.mark.Surface), config
+
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif"])
+    def test_blender_writes_pillow_formats(self, triangle, tmp_path, ext):
+        """Non-EXR LDR output is re-encoded from PNG via Pillow, so any
+        Pillow-writable format is produced and no PNG intermediate is left."""
+        layer, config = self._smoke_layer(triangle)
+        out = tmp_path / f"img{ext}"
+        result = hkw.render(
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+        assert result.path == out
+        assert out.exists() and out.stat().st_size > 0
+        with PILImage.open(out) as im:
+            assert im.size == (16, 16)
+        # The PNG intermediate must not leak into the output directory.
+        if ext != ".png":
+            assert not (tmp_path / "img.png").exists()
+
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_webp_does_not_clobber_existing_png(self, triangle, tmp_path):
+        """Rendering ``scene.webp`` must not touch a pre-existing ``scene.png``."""
+        sentinel = tmp_path / "scene.png"
+        sentinel.write_bytes(b"SENTINEL")
+        layer, config = self._smoke_layer(triangle)
+        hkw.render(
+            layer,
+            config,
+            filename=tmp_path / "scene.webp",
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+        assert (tmp_path / "scene.webp").exists()
+        assert sentinel.read_bytes() == b"SENTINEL"
+
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_unsupported_format_raises(self, triangle, tmp_path):
+        layer, config = self._smoke_layer(triangle)
+        with pytest.raises(ValueError, match="Unsupported output image format"):
+            hkw.render(
+                layer,
+                config,
+                filename=tmp_path / "img.xyz",
+                backend="blender",
+                blender_engine="BLENDER_EEVEE",
+            )
+
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_facet_id_stays_lossless_for_lossy_output(self, triangle, tmp_path):
+        """A lossy main format (.jpg) must not corrupt the discrete facet-id
+        sidecar: it stays PNG (FACET_ID.discrete lossless contract), not .jpg."""
+        layer, config = self._smoke_layer(triangle)
+        config.facet_id = True
+        out = tmp_path / "img.jpg"
+        hkw.render(
+            layer,
+            config,
+            filename=out,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+        assert out.exists()
+        # Sidecar is kept lossless as PNG; the lossy .jpg sidecar must not exist.
+        assert (tmp_path / "img_facet_id.png").exists()
+        assert not (tmp_path / "img_facet_id.jpg").exists()
 
 
 class TestNormalAndBumpMap:
