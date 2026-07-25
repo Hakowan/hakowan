@@ -52,6 +52,18 @@ def _saturation_arg(value: str) -> float:
     return v
 
 
+def _explode_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"explode magnitude must be a number, got {value!r}"
+        )
+    if not math.isfinite(v):
+        raise argparse.ArgumentTypeError(f"explode magnitude must be finite, got {v}")
+    return v
+
+
 def _whiteness_arg(value: str) -> float:
     try:
         v = float(value)
@@ -81,6 +93,17 @@ def parse_args():
         "--z-up", help="Use Z-up coordinate system.", action="store_true"
     )
     parser.add_argument("--comp", help="Visualize components", action="store_true")
+    parser.add_argument(
+        "--explode",
+        help=(
+            "Explode the mesh: displace each connected component outward from the "
+            "mesh center by VAL times its offset (0 = no move, 1 = strong). "
+            "Negative values implode."
+        ),
+        type=_explode_arg,
+        default=None,
+        metavar="VAL",
+    )
     parser.add_argument(
         "--normal", help="Normal field", choices=["facet", "vertex"], default=None
     )
@@ -728,6 +751,20 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         layer = layer.material(
             "Principled",
             hkw.texture.ScalarField("comp", colormap="set1", categories=True),
+        )
+
+    if args.explode is not None:
+        # Displace each connected component outward from the mesh center by
+        # `args.explode` times its offset. Explode groups facets by a facet
+        # attribute, so reuse the "comp" component attribute when --comp already
+        # computed it; otherwise compute a private one first. The extra Compute
+        # is deeper in the transform chain, so it runs before Explode.
+        pieces_attr = "comp"
+        if not args.comp:
+            pieces_attr = "_explode_comp"
+            layer = layer.transform(hkw.transform.Compute(component=pieces_attr))
+        layer = layer.transform(
+            hkw.transform.Explode(pieces=pieces_attr, magnitude=args.explode)
         )
 
     if args.normal == "vertex":

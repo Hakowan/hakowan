@@ -536,6 +536,35 @@ class TestEndToEnd:
         assert "cellGroups.length >= 2" in html
         assert "setObjectRotateEnabled(true)" in html
 
+    def test_viewer_has_projection_toggle(self, tmp_path):
+        # The viewer ships an orthographic/perspective toggle and both cameras.
+        out_path = tmp_path / "viewer.html"
+        hkw.render(
+            hkw.layer(_make_icosphere()).mark(hkw.mark.Surface),
+            filename=str(out_path),
+            backend="webgl",
+        )
+        html = out_path.read_text()
+        assert "btn-projection" in html
+        assert "setCameraMode" in html
+        assert "OrthographicCamera" in html
+
+    def test_orthographic_sensor_starts_in_ortho(self, tmp_path):
+        # An Orthographic sensor makes the viewer boot in orthographic mode.
+        out_path = tmp_path / "ortho.html"
+        cfg = hkw.setup.Config()
+        cfg.sensor = hkw.setup.sensor.Orthographic()
+        hkw.render(
+            hkw.layer(_make_icosphere()).mark(hkw.mark.Surface),
+            config=cfg,
+            filename=str(out_path),
+            backend="webgl",
+        )
+        html = out_path.read_text()
+        # The glTF camera is orthographic, so the viewer honours it on load.
+        assert "isOrthographicCamera" in html
+        assert "startOrtho" in html
+
 
 def test_render_unknown_kwarg_raises(tmp_path):
     layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
