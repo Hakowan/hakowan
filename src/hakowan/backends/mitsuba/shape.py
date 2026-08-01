@@ -4,6 +4,7 @@ from .medium import generate_medium_config
 from ...common import logger
 from ...common.vector_field import filter_zero_length_vectors
 from ...compiler import View
+from ...compiler.fur import STRAND_RADIUS_ATTR
 from ...grammar.scale import Attribute
 from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
@@ -47,6 +48,10 @@ def extract_size(view: View, default_size=DEFAULT_MARK_SIZE):
                 raise NotImplementedError(
                     f"Unsupported size channel type: {type(view.size_channel.data)}"
                 )
+    elif mesh.has_attribute(STRAND_RADIUS_ATTR):
+        # Fur strands bake a per-vertex root-to-tip taper radius; use it as the
+        # tube size so the strands taper when no explicit size channel is set.
+        return mesh.attribute(STRAND_RADIUS_ATTR).data.tolist()
     else:
         return default_size
 

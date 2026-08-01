@@ -8,6 +8,7 @@ from ..grammar.transform import (
     Compute,
     Explode,
     Filter,
+    Fur,
     Norm,
     Normalize,
     PrincipalAxes,
@@ -16,6 +17,7 @@ from ..grammar.transform import (
     UVMesh,
 )
 from .streamline import _compute_streamlines
+from .fur import _compute_fur
 from ..common import logger
 
 import copy
@@ -559,6 +561,44 @@ def _apply_streamline_transform(view: View, transform: Streamline):
     view.initialize_bbox()
 
 
+def _apply_fur_transform(view: View, transform: Fur):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+
+    if isinstance(transform.vec_field, str):
+        vec_field_attr = transform.vec_field
+    elif isinstance(transform.vec_field, Attribute):
+        if transform.vec_field.scale is not None:
+            logger.warning("Attribute scale is ignored when applying transform.")
+        vec_field_attr = transform.vec_field.name
+    else:
+        raise RuntimeError("Fur.vec_field must be a string or Attribute.")
+
+    fur_mesh = _compute_fur(
+        df.mesh,
+        vec_field_attr,
+        n=transform.n,
+        length=transform.length,
+        lift=transform.lift,
+        curl=transform.curl,
+        segments=transform.segments,
+        root_radius=transform.root_radius,
+        tip_radius=transform.tip_radius,
+        randomness=transform.randomness,
+        follow_surface=transform.follow_surface,
+        children=transform.children,
+        clump=transform.clump,
+        spread=transform.spread,
+        seed=transform.seed,
+    )
+
+    df.mesh = fur_mesh
+
+    logger.debug("Updating view bbox due to fur transform.")
+    view.initialize_bbox()
+
+
 def apply_transform(view: View):
     """Apply a chain of transforms specified by view.transform to view.data_frame.
     Transforms are applied in the order specified by the chain.
@@ -603,6 +643,9 @@ def apply_transform(view: View):
             case Streamline():
                 assert view.data_frame is not None
                 _apply_streamline_transform(view, t)
+            case Fur():
+                assert view.data_frame is not None
+                _apply_fur_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

@@ -191,6 +191,70 @@ l = (
 )
 ```
 
+## Fur transform
+
+Fur transform replaces the mesh with fur/hair strands that flow along a per-facet vector field.
+Each strand is a short, tapered curve that grows from the surface, leans in the direction of the
+field, and curls back toward the surface flow — so a dense collection reads as realistic fur
+combed along the field. The output is a vertex-only mesh whose 2-vertex polylines encode strand
+segments, suitable for the `Curve` mark.
+
+```py
+# Grow 12000 fur strands along a per-facet vector field attribute "flow".
+tr = hkw.transform.Fur(vec_field="flow", n=12000, length=0.18, lift=35)
+
+# Visualize as curves. Pair with a Hair material for realistic fur in the
+# Blender backend (Principled Hair BSDF).
+l = hkw.layer(mesh).transform(tr).mark("Curve").material("Hair")
+```
+
+Vertex- or corner-domain vector attributes are automatically averaged to per-facet before growing.
+Strands are seeded area-uniformly across the surface and grow along the mesh face normals, so a
+correctly oriented (outward-wound) mesh produces fur standing off the surface.
+
+Key parameters:
+
+* `n` — number of strands (default 2000). Increase for denser, more realistic fur.
+* `length` — strand length in object space; `None` (default) picks 5% of the bounding-box diagonal.
+* `lift` — root lift-off angle in degrees, `0` flat along the field, `90` straight up (default 30).
+* `curl` — how strongly the strand curls back toward the surface flow as it grows (default 0.35).
+* `segments` — segments per strand; higher gives smoother curls (default 6).
+* `root_radius` / `tip_radius` — root and tip radii; `root_radius=None` (default) picks 6% of
+  `length`, `tip_radius=0` gives a pointed hair tip.
+* `randomness` — amount of natural per-strand variation in `[0, 1]` (default 0.3).
+* `follow_surface` — when `True`, trace each strand as a short streamline *on* the surface (so it
+  follows the field and the surface curvature) with only a gentle lift/curl, so the fur hugs the
+  surface instead of standing off it. Default `False` (analytic strands that lean off the surface).
+* `children` — number of child hairs grown around each guide strand for dense, clumped fur
+  (default 0 = guides only). Only the Blender backend expands children, via a Geometry Nodes
+  modifier that duplicates each guide, scatters the child roots, and pulls the child tips back
+  toward the guide. This keeps the guide count (and the geometry the transform produces) low while
+  render-time fur stays dense.
+* `clump` — how strongly child-hair tips converge onto their guide, in `[0, 1]` (default 0.6).
+* `spread` — child-root scatter radius; `None` (default) picks 15% of `length`.
+* `seed` — RNG seed for seeding and per-strand variation.
+
+For dense fur, prefer a modest guide count with children (e.g. `n=5000, children=15`) over a huge
+`n`: the guides stay cheap and Geometry Nodes multiplies them into clumped fur only at render time.
+
+Fur color comes from the `Hair` material: the `eumelanin` / `pheomelanin` pigments give a natural
+palette (black → brown → red → blonde), or set a constant `color` (RGB / named) for any hue, e.g.
+`.material("Hair", color=[0.15, 0.35, 0.95])` for blue fur.
+
+For richer coats, mix colors procedurally: `root_color` / `tip_color` give a root-to-tip gradient
+(dark undercoat → lighter tips) and `color_variation` adds per-strand brightness jitter, e.g.
+`.material("Hair", root_color=[0.05, 0.02, 0.01], tip_color=[0.9, 0.65, 0.32], color_variation=0.4)`.
+These are evaluated in the Blender hair shader (child hairs inherit them); the Mitsuba and WebGL
+backends collapse a gradient to its average color.
+
+The strand radius taper is baked onto the output mesh, so it drives the curve thickness
+automatically. Paired with a `Hair` material, the Blender backend renders the strands as native
+Cycles hair *primitives* (thin 3D hair with proper self-shadowing and translucency under the
+Principled Hair BSDF) — the realistic path — while the Mitsuba and WebGL backends render the same
+strands as tapered tubes. An explicit `size` channel overrides the baked taper. For dense,
+realistic fur, use many thin strands (e.g. `n=40000` with a small `root_radius`); native hair
+primitives keep high strand counts cheap.
+
 ## Boundary transform
 
 Boundary transform extracts the boundary of a mesh. The boundary consists of edges that are only

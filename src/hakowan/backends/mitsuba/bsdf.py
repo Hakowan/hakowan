@@ -241,14 +241,74 @@ def generate_rough_dielectric_bsdf_config(
 
 
 def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair) -> dict[str, Any]:
+    azimuthal_roughness = 0.3
     mi_config: dict[str, Any] = {
         "type": "hair",
-        "eumelanin": mat.eumelanin,
-        "pheomelanin": mat.pheomelanin,
         "longitudinal_roughness": 0.05,
-        "azimuthal_roughness": 0.3,
+        "azimuthal_roughness": azimuthal_roughness,
     }
+    gradient_colors = [c for c in (mat.root_color, mat.tip_color) if c is not None]
+    constant_color = mat.color if not isinstance(mat.color, Texture) else None
+
+    if gradient_colors:
+        # The hair BSDF is a single color per shape; a root/tip gradient
+        # collapses to the average of its endpoints.
+        logger.warning(
+            "Mitsuba backend: root/tip hair gradient collapses to a single "
+            "averaged color (no per-strand gradient)."
+        )
+        mi_config["sigma_a"] = generate_color_config(
+            _hair_sigma_a_from_colors(gradient_colors, azimuthal_roughness)
+        )
+    elif constant_color is not None:
+        # A constant color overrides melanin: invert the desired reflectance to
+        # a hair absorption coefficient (Chiang et al. 2016 "SigmaAFromReflectance").
+        mi_config["sigma_a"] = generate_color_config(
+            _hair_sigma_a_from_colors([constant_color], azimuthal_roughness)
+        )
+    else:
+        if isinstance(mat.color, Texture):
+            logger.warning(
+                "Mitsuba backend: data-driven Hair color is not supported; "
+                "using the melanin color instead."
+            )
+        mi_config["eumelanin"] = mat.eumelanin
+        mi_config["pheomelanin"] = mat.pheomelanin
+
+    if mat.color_variation:
+        logger.debug(
+            "Mitsuba backend: Hair.color_variation (per-strand) is not supported; "
+            "ignoring."
+        )
     return mi_config
+
+
+def _hair_sigma_a_from_colors(
+    colors: list[ColorLike], azimuthal_roughness: float
+) -> list[float]:
+    """Map desired (sRGB) reflectance color(s) to a hair absorption coefficient.
+
+    Uses the Chiang et al. inversion so a hair strand of this absorption renders
+    approximately the requested color.  Colors are decoded to linear and
+    averaged (a gradient collapses to its mean) before inversion.
+    """
+    import math
+
+    from ...common.color import srgb_to_linear
+    from ...common.to_color import to_color
+
+    linear = [0.0, 0.0, 0.0]
+    for color in colors:
+        c = to_color(color)
+        linear[0] += srgb_to_linear(c.red)
+        linear[1] += srgb_to_linear(c.green)
+        linear[2] += srgb_to_linear(c.blue)
+    linear = [v / len(colors) for v in linear]
+    b = azimuthal_roughness
+    denom = (
+        5.969 - 0.215 * b + 2.532 * b**2 - 10.73 * b**3 + 5.574 * b**4 + 0.245 * b**5
+    )
+    return [(math.log(max(v, 1e-4)) / denom) ** 2 for v in linear]
 
 
 def make_material_two_sided(mi_config: dict[str, Any]) -> dict[str, Any]:

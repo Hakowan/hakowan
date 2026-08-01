@@ -4,6 +4,7 @@ from typing import Literal
 from .medium import Medium
 from ..channel import Channel
 from ...texture import ScalarTextureLike, TextureLike
+from ....common.color import ColorLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -171,10 +172,40 @@ class RoughDielectric(Dielectric):
 class Hair(Material):
     """Hair material.
 
+    Color is controlled either physically, via the two melanin pigment
+    concentrations (natural hair palette: black → brown → red → blonde), or
+    directly via ``color`` with an RGB / named color for uniform fur of any
+    hue.  ``color`` overrides the melanin parametrization when set.
+
+    For richer fur, colors can be mixed procedurally along and across strands:
+    ``root_color`` / ``tip_color`` give a root-to-tip gradient (dark undercoat →
+    lighter tips), and ``color_variation`` adds per-strand random brightness
+    jitter.  These are evaluated in the hair shader (Blender), so they compose
+    with the guide/child hairs for free.
+
+    Note: a *data-driven* color (e.g. ``ScalarField``) is not supported by the
+    hair renderers and falls back to melanin with a warning — the hair BSDF
+    darkens/tints colors, which is poor for reading data anyway.  To color fur
+    by an attribute, use a non-Hair material (e.g. ``Diffuse``) on the fur
+    strands.
+
     Attributes:
         eumelanin: Eumelanin (dark/brown pigment) concentration (default: 1.3).
-        pheomelanin: Pheomelanin (reddish-yellow pigment) concentration (default: 0.2).
+            Ignored when ``color`` or a root/tip gradient is set.
+        pheomelanin: Pheomelanin (reddish-yellow pigment) concentration
+            (default: 0.2).  Ignored when ``color`` or a gradient is set.
+        color: Direct RGB / named hair color (overrides melanin).  ``None``
+            (default) uses the melanin parametrization.
+        root_color: Strand-root color of a root-to-tip gradient.  Setting
+            ``root_color`` and/or ``tip_color`` overrides ``color`` and melanin.
+        tip_color: Strand-tip color of the root-to-tip gradient.
+        color_variation: Per-strand random brightness jitter in ``[0, 1]``
+            (0 = uniform).  Applied on top of the melanin / color / gradient.
     """
 
     eumelanin: float = 1.3
     pheomelanin: float = 0.2
+    color: TextureLike | None = None
+    root_color: ColorLike | None = None
+    tip_color: ColorLike | None = None
+    color_variation: float = 0.0

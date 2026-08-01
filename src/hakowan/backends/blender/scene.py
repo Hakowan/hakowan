@@ -503,6 +503,11 @@ class _SceneMixin:
         # Samples
         if engine == "CYCLES":
             scene.cycles.samples = config.sampler.sample_count
+            # Render hair Curves as rounded 3D strand primitives (not flat
+            # camera-facing ribbons) and add a couple of subdivisions so curly
+            # fur strands read as smooth curves rather than faceted polylines.
+            scene.render.hair_type = "STRAND"
+            scene.render.hair_subdiv = 2
         elif engine == "BLENDER_EEVEE":
             scene.eevee.taa_render_samples = config.sampler.sample_count
 

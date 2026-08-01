@@ -241,9 +241,16 @@ def _process_material(view: View, df: DataFrame, mat: Material):
                 view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                 view.uv_attribute = tex._uv
                 apply_colormap(df, tex)  # TODO: is this needed?
-        case Conductor() | Dielectric() | ThinDielectric() | Hair():
+        case Conductor() | Dielectric() | ThinDielectric():
             # Nothing to do.
             pass
+        case Hair():
+            # ``color`` (when set) overrides melanin and may be data-driven.
+            if isinstance(mat.color, Texture):
+                tex = mat.color
+                view._active_attributes += apply_texture(df, tex, view.uv_attribute)
+                view.uv_attribute = tex._uv
+                apply_colormap(df, tex)
         case RoughPlastic() | Plastic():
             if isinstance(mat.diffuse_reflectance, Texture):
                 tex = mat.diffuse_reflectance

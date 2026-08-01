@@ -19,6 +19,7 @@ __all__ = [
     "Norm",
     "Boundary",
     "Streamline",
+    "Fur",
 ]
 
 
@@ -266,3 +267,82 @@ class Streamline(Transform):
     seed: int = 0
     min_length: int = 3
     id_attr_name: str = "_hakowan_streamline_id"
+
+
+@dataclass(slots=True, kw_only=True)
+class Fur(Transform):
+    """Replace the mesh with fur/hair strands flowing along a per-facet vector
+    field.
+
+    Each strand is a short, tapered curve that grows from the surface, leans in
+    the direction of the vector field, and curls toward the surface flow — so a
+    dense collection of them reads as realistic fur combed along the field.  The
+    output is a vertex-only mesh whose 2-vertex polygonal faces encode the line
+    segments of every strand, suitable for the ``curve`` mark paired with a
+    ``Hair`` material.
+
+    Two internal per-vertex attributes are written on the output mesh:
+    ``_hakowan_strand_id`` (``int32``) identifies which strand each point
+    belongs to, and ``_hakowan_strand_radius`` (``float64``) carries the
+    root-to-tip taper radius.  The Blender backend groups points by strand id
+    into continuous tapered hair curves (rendered with the Principled Hair BSDF
+    when a ``Hair`` material is used); the Mitsuba and WebGL backends render the
+    same strands as tapered tubes, using the strand radius as the curve size
+    when no ``size`` channel is set.
+
+    All lengths below are measured in object space on the data-frame mesh
+    (before any layer-level affine transforms).
+
+    Attributes:
+        vec_field: The per-facet vector field attribute name.  Vertex- or
+            corner-domain attributes are averaged to per-facet first.
+        n: Number of fur strands to grow.  Seed points are drawn area-uniformly
+            over the surface.  Default 2000.
+        length: Strand length.  ``None`` (default) picks 5% of the mesh
+            bounding-box diagonal.
+        lift: Angle in degrees by which each strand rises off the surface at its
+            root (0 = lies flat along the field, 90 = stands straight up).
+            Default 30.
+        curl: How strongly the strand curls back toward the surface flow
+            direction as it grows (0 = straight, larger = more droop).  Default
+            0.35.
+        segments: Number of segments per strand (points per strand is
+            ``segments + 1``).  Higher gives smoother curls.  Default 6.
+        root_radius: Strand radius at the root.  ``None`` (default) picks 6% of
+            ``length``.
+        tip_radius: Strand radius at the tip.  Default 0 (pointed hair tip).
+        randomness: Amount of natural per-strand variation in length, lift,
+            direction and curl, in ``[0, 1]``.  Default 0.3.
+        follow_surface: When True, trace each strand as a short streamline on the
+            surface (following the field and the surface curvature) and give it
+            only a gentle lift/curl, so it hugs the surface instead of standing
+            off it.  When False (default), strands are analytic and lean off the
+            surface by ``lift``.
+        children: Number of child hairs grown around each guide strand for dense,
+            clumped fur.  ``0`` (default) keeps guide strands only.  Only the
+            Blender backend expands children (via a Geometry Nodes modifier); the
+            Mitsuba and WebGL backends render the guide strands alone.
+        clump: How strongly child-hair tips converge onto their guide strand, in
+            ``[0, 1]`` (0 = parallel children, 1 = tips meet at the guide tip).
+            Only used when ``children > 0``.  Default 0.6.
+        spread: Radius over which child-hair roots scatter around each guide
+            root.  ``None`` (default) picks 15% of ``length``.  Only used when
+            ``children > 0``.
+        seed: RNG seed for seed-point sampling and per-strand variation.
+            Default 0.
+    """
+
+    vec_field: AttributeLike
+    n: int = 2000
+    length: float | None = None
+    lift: float = 30.0
+    curl: float = 0.35
+    segments: int = 6
+    root_radius: float | None = None
+    tip_radius: float = 0.0
+    randomness: float = 0.3
+    follow_surface: bool = False
+    children: int = 0
+    clump: float = 0.6
+    spread: float | None = None
+    seed: int = 0

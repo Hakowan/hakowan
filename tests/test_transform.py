@@ -4,6 +4,7 @@ import hakowan.compiler
 from hakowan import transform, scale
 from hakowan.compiler.transform import principal_axes_affine_matrix
 from hakowan.compiler.streamline import _compute_streamlines
+from hakowan.compiler.fur import _compute_fur, STRAND_ID_ATTR, STRAND_RADIUS_ATTR
 import copy
 import lagrange
 import numpy as np
@@ -409,6 +410,186 @@ class TestNormalizeCompiler:
         scene = hkw.compiler.compile(layer)
         assert len(scene) == 1
         assert scene[0].data_frame.mesh.num_vertices == 0
+
+
+class TestFurGrammar:
+    def test_fur_grammar_defaults(self):
+        t = transform.Fur(vec_field="flow")
+        assert t.vec_field == "flow"
+        assert t.n == 2000
+        assert t.length is None
+        assert t.lift == 30.0
+        assert t.curl == 0.35
+        assert t.segments == 6
+        assert t.root_radius is None
+        assert t.tip_radius == 0.0
+        assert t.seed == 0
+        assert t._child is None
+
+    def test_fur_compile_produces_strand_view(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 1.0, 0.0])
+        mesh.add_vertex([0.0, 1.0, 0.0])
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(
+                [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+            ),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Fur(vec_field="vec", n=8, seed=1))
+            .mark("curve")
+        )
+        scene = hkw.compiler.compile(layer)
+        assert len(scene) == 1
+        out = scene[0].data_frame.mesh
+        assert out.has_attribute(STRAND_ID_ATTR)
+        assert out.has_attribute(STRAND_RADIUS_ATTR)
+
+
+class TestFurCompiler:
+    def _make_grid_mesh(self, attr_name="vec", with_attr=True):
+        # Two-triangle grid in the z=0 plane (outward normal +z), field +x.
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 1.0, 0.0])
+        mesh.add_vertex([0.0, 1.0, 0.0])
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        if with_attr:
+            mesh.create_attribute(
+                attr_name,
+                element=lagrange.AttributeElement.Facet,
+                usage=lagrange.AttributeUsage.Vector,
+                initial_values=np.array(
+                    [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+                ),
+            )
+        return mesh
+
+    def test_missing_attribute_raises(self):
+        mesh = self._make_grid_mesh(with_attr=False)
+        with pytest.raises(ValueError, match="no attribute"):
+            _compute_fur(mesh, "missing_attr")
+
+    def test_non_triangle_mesh_raises(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 1.0, 0.0])
+        mesh.add_vertex([0.0, 1.0, 0.0])
+        mesh.add_polygon(np.array([0, 1, 2, 3], dtype=np.uint32))
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array([[1.0, 0.0, 0.0]], dtype=np.float64),
+        )
+        with pytest.raises(ValueError, match="triangle mesh"):
+            _compute_fur(mesh, "vec")
+
+    def test_zero_strands_returns_empty_mesh(self):
+        mesh = self._make_grid_mesh()
+        out = _compute_fur(mesh, "vec", n=0)
+        assert out.num_vertices == 0
+        assert out.num_facets == 0
+
+    def test_produces_expected_geometry(self):
+        mesh = self._make_grid_mesh()
+        n, segments = 20, 6
+        out = _compute_fur(mesh, "vec", n=n, segments=segments, seed=1)
+        # n strands, each with (segments + 1) points and ``segments`` line segs.
+        assert out.num_vertices == n * (segments + 1)
+        assert out.num_facets == n * segments
+        assert out.has_attribute(STRAND_ID_ATTR)
+        assert out.has_attribute(STRAND_RADIUS_ATTR)
+        ids = np.asarray(out.attribute(STRAND_ID_ATTR).data).reshape(-1)
+        assert len(np.unique(ids)) == n
+
+    def test_radius_tapers_from_root_to_tip(self):
+        mesh = self._make_grid_mesh()
+        out = _compute_fur(
+            mesh, "vec", n=10, segments=6, root_radius=0.05, tip_radius=0.0, seed=2
+        )
+        ids = np.asarray(out.attribute(STRAND_ID_ATTR).data).reshape(-1)
+        radii = np.asarray(out.attribute(STRAND_RADIUS_ATTR).data).reshape(-1)
+        for s in np.unique(ids):
+            r = radii[ids == s]
+            assert r[0] == pytest.approx(0.05)
+            assert r[-1] == pytest.approx(0.0)
+            assert np.all(np.diff(r) <= 1e-12)  # monotonically non-increasing
+
+    def test_strands_lift_off_surface_and_flow_along_field(self):
+        # Flat grid (normal +z), field +x, no randomness => deterministic shape.
+        mesh = self._make_grid_mesh()
+        out = _compute_fur(
+            mesh, "vec", n=30, segments=6, lift=30.0, randomness=0.0, seed=3
+        )
+        ids = np.asarray(out.attribute(STRAND_ID_ATTR).data).reshape(-1)
+        verts = np.asarray(out.vertices)
+        for s in np.unique(ids):
+            pts = verts[ids == s]
+            root, tip = pts[0], pts[-1]
+            # Rises off the z=0 surface (lift > 0).
+            assert tip[2] > root[2] + 1e-9
+            # Flows along the +x field direction.
+            assert tip[0] > root[0] + 1e-9
+
+    def test_follow_surface_hugs_surface_and_flows(self):
+        # Flat grid (normal +z, field +x). Surface-following strands trace along
+        # the plane (roots exactly on it) and lift only gently at the tip.
+        mesh = self._make_grid_mesh()
+        length, lift, curl = 0.05, 15.0, 0.1
+        out = _compute_fur(
+            mesh,
+            "vec",
+            n=20,
+            segments=6,
+            length=length,
+            lift=lift,
+            curl=curl,
+            follow_surface=True,
+            randomness=0.0,
+            seed=3,
+        )
+        assert out.has_attribute(STRAND_ID_ATTR)
+        ids = np.asarray(out.attribute(STRAND_ID_ATTR).data).reshape(-1)
+        verts = np.asarray(out.vertices)
+        # Tip lift is bounded by length * (sin(lift) + curl) — it hugs the plane.
+        max_rise = length * (np.sin(np.radians(lift)) + curl) + 1e-6
+        for s in np.unique(ids):
+            pts = verts[ids == s]
+            root, tip = pts[0], pts[-1]
+            assert abs(root[2]) < 1e-9  # root lies on the z=0 surface
+            assert 0.0 <= tip[2] <= max_rise  # gentle, bounded lift
+            assert tip[0] > root[0] + 1e-9  # flows along +x
+
+    def test_follow_surface_lift_zero_stays_on_surface_with_randomness(self):
+        # With lift=0/curl=0, randomness must not push strands off the surface:
+        # lift/curl vary multiplicatively, so on a flat grid every point stays
+        # exactly on the z=0 plane regardless of ``randomness``.
+        mesh = self._make_grid_mesh()
+        out = _compute_fur(
+            mesh,
+            "vec",
+            n=40,
+            segments=6,
+            lift=0.0,
+            curl=0.0,
+            follow_surface=True,
+            randomness=0.6,
+            seed=5,
+        )
+        verts = np.asarray(out.vertices)
+        assert np.max(np.abs(verts[:, 2])) < 1e-9
 
 
 class TestExplodeCompiler:

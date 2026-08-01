@@ -48,7 +48,14 @@ from ...grammar.channel.material import (
     RoughPlastic,
     ThinDielectric,
 )
-from ...grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Uniform
+from ...grammar.texture import (
+    Checkerboard,
+    Image,
+    Isocontour,
+    ScalarField,
+    Texture,
+    Uniform,
+)
 
 from .builder import (
     GLTFBuilder,
@@ -899,12 +906,30 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
         )
 
     if isinstance(mat, Hair):
-        logger.warning(
-            "WebGL backend: Hair material not supported; using brown diffuse."
-        )
+        # WebGL has no hair BSDF; approximate as a diffuse strand. Honor a
+        # constant color or the average of a root/tip gradient; melanin and
+        # data-driven color fall back to brown.
+        gradient = [c for c in (mat.root_color, mat.tip_color) if c is not None]
+        if gradient:
+            cols = [_color_to_rgba(c) for c in gradient]
+            base_color = [sum(ch) / len(cols) for ch in zip(*cols)]
+        elif mat.color is not None and not isinstance(mat.color, Texture):
+            base_color = _color_to_rgba(mat.color)
+        else:
+            if isinstance(mat.color, Texture):
+                logger.warning(
+                    "WebGL backend: data-driven Hair color is not supported; "
+                    "using brown."
+                )
+            else:
+                logger.warning(
+                    "WebGL backend: Hair melanin shading is not supported; "
+                    "using brown diffuse. Set a constant `color` for other hues."
+                )
+            base_color = _color_to_rgba("saddlebrown")
         return MaterialResult(
             pbr={
-                "baseColorFactor": _color_to_rgba("saddlebrown"),
+                "baseColorFactor": base_color,
                 "metallicFactor": 0.0,
                 "roughnessFactor": 0.8,
             },

@@ -148,3 +148,37 @@ class TestBackSide:
         view = hkw.compiler.compile(layer)[0]
         config = generate_bsdf_config(view, is_primitive=True)
         assert config["type"] == "diffuse"
+
+    def test_hair_melanin_config(self):
+        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(lagrange.SurfaceMesh(), Hair())
+        assert cfg["type"] == "hair"
+        assert "eumelanin" in cfg and "pheomelanin" in cfg
+        assert "sigma_a" not in cfg
+
+    def test_hair_constant_color_config(self):
+        # A constant RGB color inverts to a hair absorption coefficient; a blue
+        # target absorbs red most (largest sigma_a) and blue least.
+        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(
+            lagrange.SurfaceMesh(), Hair(color=[0.15, 0.35, 0.95])
+        )
+        assert "sigma_a" in cfg and "eumelanin" not in cfg
+        sigma = list(cfg["sigma_a"]["value"])
+        assert sigma[0] > sigma[2]  # red absorbed more than blue
+
+    def test_hair_gradient_collapses_to_average_color(self):
+        # A root/tip gradient can't be per-strand in Mitsuba: it collapses to a
+        # single averaged absorption (still overriding melanin).
+        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(
+            lagrange.SurfaceMesh(),
+            Hair(root_color=[0.02, 0.01, 0.005], tip_color=[0.9, 0.65, 0.3]),
+        )
+        assert "sigma_a" in cfg and "eumelanin" not in cfg

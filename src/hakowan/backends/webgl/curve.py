@@ -28,6 +28,7 @@ import numpy as np
 
 from ...common import logger
 from ...compiler import View
+from ...compiler.fur import STRAND_RADIUS_ATTR
 from ...grammar.channel import DEFAULT_MARK_SIZE
 from ...grammar.scale import Attribute
 
@@ -345,8 +346,13 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         return -1
 
     # Decide tube-vs-lines: vector fields with arrow heads or any sizes
-    # force tubes; mesh edges without size channel fall back to lines.
-    use_tubes = data.sizes is not None or view.size_channel is not None
+    # force tubes; mesh edges without size channel fall back to lines. Fur
+    # strands carry a baked per-vertex radius, so they render as tapered tubes.
+    use_tubes = (
+        data.sizes is not None
+        or view.size_channel is not None
+        or _has_strand_radius(view)
+    )
     result = translate_material(view, builder)
     pbr = result.pbr
     double_sided = result.double_sided
@@ -662,10 +668,26 @@ def _add_instanced_arrows(
     )
 
 
+def _has_strand_radius(view: View) -> bool:
+    """True when the view's mesh carries the baked fur/strand radius attribute."""
+    return (
+        view.data_frame is not None
+        and view.data_frame.mesh.has_attribute(STRAND_RADIUS_ATTR)
+    )
+
+
 def _resolve_endpoint_sizes_from_edges(view: View, data: _SegmentData) -> np.ndarray:
     """Resolve per-endpoint sizes for the mesh-edge path."""
     n = data.endpoints.shape[0]
     if view.size_channel is None:
+        if _has_strand_radius(view) and data.vertex_idx is not None:
+            # Fur strands: use the baked per-vertex taper radius as tube size.
+            assert view.data_frame is not None
+            per_vertex = np.asarray(
+                view.data_frame.mesh.attribute(STRAND_RADIUS_ATTR).data,
+                dtype=np.float32,
+            ).reshape(-1)
+            return per_vertex[data.vertex_idx].astype(np.float32)
         return np.full(n, _DEFAULT_SIZE, dtype=np.float32)
     sd = view.size_channel.data
     if isinstance(sd, float):

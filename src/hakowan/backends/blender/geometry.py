@@ -6,6 +6,14 @@ from ...common import logger
 from ...common.color import srgb_to_linear, srgb_to_linear_array
 from ...common.vector_field import filter_zero_length_vectors
 from ...compiler import View
+from ...compiler.fur import (
+    FUR_CHILDREN_ATTR,
+    FUR_CLUMP_ATTR,
+    FUR_SPREAD_ATTR,
+    STRAND_ID_ATTR,
+    STRAND_NORMAL_ATTR,
+    STRAND_RADIUS_ATTR,
+)
 from ...grammar import mark
 from ...grammar.scale import Attribute
 from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
@@ -741,6 +749,13 @@ class _GeometryMixin(_MaterialMixin):
 
         mesh_data = view.data_frame.mesh
 
+        # Fur/strand meshes carry a per-vertex strand id: render each strand as a
+        # single continuous, tapered curve so the Principled Hair BSDF sees a
+        # proper hair strand (root -> tip) rather than disconnected segments.
+        if mesh_data.has_attribute(STRAND_ID_ATTR):
+            self._create_strand_object(view, index)
+            return
+
         if view.vector_field_channel is not None:
             base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = (
                 self._extract_vector_field(view)
@@ -835,5 +850,217 @@ class _GeometryMixin(_MaterialMixin):
                 obj.data.materials.append(mat)
 
         logger.debug(f"Created curve object {index} with {n_segments} segments")
+
+    def _create_strand_object(self, view: View, index: int):
+        """Create a native Blender hair-Curves object for fur/hair strands.
+
+        Each strand (a run of vertices sharing the same ``_hakowan_strand_id``)
+        becomes one hair curve in a :class:`bpy.types.Curves` datablock, which
+        Cycles renders as a true thin hair *primitive* (not a beveled mesh tube).
+        This gives realistic thin-strand shading, self-shadowing and
+        translucency under the Principled Hair BSDF.  Per-point radius is taken
+        from the ``_hakowan_strand_radius`` attribute (root-to-tip taper); an
+        explicit ``size`` channel, when set, overrides it.
+
+        Args:
+            view: Curve view whose data frame holds a strand mesh.
+            index: Object index.
+        """
+        assert view.data_frame is not None
+        mesh_data = view.data_frame.mesh
+
+        vertices = np.asarray(mesh_data.vertices, dtype=np.float64)
+        ids = np.asarray(mesh_data.attribute(STRAND_ID_ATTR).data).reshape(-1)
+
+        # Radius: an explicit size channel wins, otherwise the baked taper.
+        if view.size_channel is not None:
+            size = self._extract_size(view)
+            radius = (
+                np.full(len(vertices), float(size))
+                if np.isscalar(size)
+                else np.asarray(size, dtype=np.float64)
+            )
+        elif mesh_data.has_attribute(STRAND_RADIUS_ATTR):
+            radius = np.asarray(
+                mesh_data.attribute(STRAND_RADIUS_ATTR).data, dtype=np.float64
+            ).reshape(-1)
+        else:
+            radius = np.full(len(vertices), DEFAULT_MARK_SIZE)
+
+        # Strand vertices are stored consecutively (root first), so contiguous
+        # runs of equal id delimit strands. Keep only strands with >= 2 points.
+        if len(ids) > 0:
+            boundaries = np.flatnonzero(np.diff(ids) != 0) + 1
+            runs = [r for r in np.split(np.arange(len(ids)), boundaries) if len(r) >= 2]
+        else:
+            runs = []
+
+        if not runs:
+            logger.debug(f"Fur object {index} has no strands; skipping.")
+            return
+
+        # ``order`` concatenates the per-strand point index runs; the Curves
+        # datablock stores points strand-by-strand in exactly this order.
+        order = np.concatenate(runs)
+        sizes = [len(r) for r in runs]
+
+        curves_data = bpy.data.hair_curves.new(f"fur_{index:03d}")
+        curves_data.add_curves(sizes)
+        curves_data.points.foreach_set(
+            "position", vertices[order].astype(np.float32).ravel()
+        )
+        radius_attr = curves_data.attributes.get("radius")
+        if radius_attr is None:
+            radius_attr = curves_data.attributes.new("radius", "FLOAT", "POINT")
+        radius_attr.data.foreach_set("value", radius[order].astype(np.float32))
+
+        # Carry the per-strand seed normal onto the hair points so the child-hair
+        # Geometry Nodes modifier can scatter roots tangentially (along the
+        # surface) rather than in an arbitrary 3D direction.
+        if mesh_data.has_attribute(STRAND_NORMAL_ATTR):
+            ndata = np.asarray(
+                mesh_data.attribute(STRAND_NORMAL_ATTR).data, dtype=np.float32
+            )
+            normal_attr = curves_data.attributes.new(
+                STRAND_NORMAL_ATTR, "FLOAT_VECTOR", "POINT"
+            )
+            normal_attr.data.foreach_set("vector", ndata[order].ravel())
+
+        obj = bpy.data.objects.new(f"fur_{index:03d}", curves_data)
+        bpy.context.collection.objects.link(obj)
+
+        if hasattr(view, "global_transform") and view.global_transform is not None:
+            obj.matrix_world = mathutils.Matrix(view.global_transform.tolist())
+
+        if view.material_channel is not None:
+            mat = self._create_material(view, index)
+            if mat:
+                obj.data.materials.append(mat)
+
+        # Optional child/clump hairs via a Geometry Nodes modifier: the transform
+        # bakes the settings (constant across vertices) when children are asked
+        # for, keeping the guide count low while GN multiplies them at render.
+        if mesh_data.has_attribute(FUR_CHILDREN_ATTR):
+            children = int(np.asarray(mesh_data.attribute(FUR_CHILDREN_ATTR).data)[0])
+            clump = float(np.asarray(mesh_data.attribute(FUR_CLUMP_ATTR).data)[0])
+            spread = float(np.asarray(mesh_data.attribute(FUR_SPREAD_ATTR).data)[0])
+            if children > 1:
+                self._apply_fur_child_modifier(obj, index, children, clump, spread)
+
+        logger.debug(f"Created fur object {index} with {len(runs)} hair strands")
+
+    def _apply_fur_child_modifier(
+        self, obj, index: int, children: int, clump: float, spread: float
+    ):
+        """Attach a Geometry Nodes modifier that grows child hairs per guide.
+
+        The node tree duplicates every guide strand ``children`` times, scatters
+        each child's root within a ``spread`` radius, and pulls the child tips
+        back toward their guide (``clump``) — so a small set of guide strands
+        expands into dense, clumped fur only at render time.
+
+        Args:
+            obj: The hair-Curves object to modify.
+            index: Object index (used for unique naming).
+            children: Number of child hairs per guide strand.
+            clump: Tip convergence strength in ``[0, 1]``.
+            spread: Child-root scatter radius in object space.
+        """
+        ng = bpy.data.node_groups.new(f"fur_children_{index:03d}", "GeometryNodeTree")
+        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+        nodes = ng.nodes
+        links = ng.links
+
+        group_in = nodes.new("NodeGroupInput")
+        group_in.location = (-800, 0)
+        group_out = nodes.new("NodeGroupOutput")
+        group_out.location = (960, 0)
+
+        # Duplicate each guide spline into ``children`` copies.
+        dup = nodes.new("GeometryNodeDuplicateElements")
+        dup.domain = "SPLINE"
+        dup.location = (-560, 0)
+        dup.inputs["Amount"].default_value = children
+        links.new(group_in.outputs[0], dup.inputs["Geometry"])
+
+        # Capture a per-child spline index (constant along each child's points)
+        # so the random root offset below is coherent per strand.
+        capture = nodes.new("GeometryNodeCaptureAttribute")
+        capture.domain = "CURVE"
+        capture.location = (-360, 0)
+        capture.capture_items.new("INT", "cid")
+        spline_index = nodes.new("GeometryNodeInputIndex")
+        spline_index.location = (-560, -200)
+        links.new(dup.outputs["Geometry"], capture.inputs["Geometry"])
+        links.new(spline_index.outputs["Index"], capture.inputs["cid"])
+
+        # Per-child random root offset direction.
+        rand = nodes.new("FunctionNodeRandomValue")
+        rand.data_type = "FLOAT_VECTOR"
+        rand.location = (-140, -220)
+        rand.inputs["Min"].default_value = (-1.0, -1.0, -1.0)
+        rand.inputs["Max"].default_value = (1.0, 1.0, 1.0)
+        links.new(capture.outputs["cid"], rand.inputs["ID"])
+
+        # Clump falloff: offset scale = spread * (1 - clump * factor), so roots
+        # (factor 0) spread fully and tips (factor 1) converge toward the guide.
+        spline_param = nodes.new("GeometryNodeSplineParameter")
+        spline_param.location = (-360, 240)
+        mul = nodes.new("ShaderNodeMath")
+        mul.operation = "MULTIPLY"
+        mul.location = (-160, 240)
+        mul.inputs[1].default_value = clump
+        links.new(spline_param.outputs["Factor"], mul.inputs[0])
+        sub = nodes.new("ShaderNodeMath")
+        sub.operation = "SUBTRACT"
+        sub.location = (20, 240)
+        sub.inputs[0].default_value = 1.0
+        links.new(mul.outputs["Value"], sub.inputs[1])
+        scale = nodes.new("ShaderNodeMath")
+        scale.operation = "MULTIPLY"
+        scale.location = (200, 240)
+        scale.inputs[1].default_value = spread
+        links.new(sub.outputs["Value"], scale.inputs[0])
+
+        # offset = random_direction * scale
+        offset = nodes.new("ShaderNodeVectorMath")
+        offset.operation = "SCALE"
+        offset.location = (200, 0)
+        links.new(rand.outputs["Value"], offset.inputs[0])
+        links.new(scale.outputs["Value"], offset.inputs["Scale"])
+
+        # Project the offset onto the surface tangent plane (remove the component
+        # along the seed normal) so child roots scatter *along* the surface and
+        # the fur keeps hugging it: offset_t = offset - (offset . n) n.
+        normal_attr = nodes.new("GeometryNodeInputNamedAttribute")
+        normal_attr.data_type = "FLOAT_VECTOR"
+        normal_attr.location = (0, -420)
+        normal_attr.inputs["Name"].default_value = STRAND_NORMAL_ATTR
+        dot = nodes.new("ShaderNodeVectorMath")
+        dot.operation = "DOT_PRODUCT"
+        dot.location = (220, -300)
+        links.new(offset.outputs["Vector"], dot.inputs[0])
+        links.new(normal_attr.outputs["Attribute"], dot.inputs[1])
+        normal_comp = nodes.new("ShaderNodeVectorMath")
+        normal_comp.operation = "SCALE"
+        normal_comp.location = (380, -300)
+        links.new(normal_attr.outputs["Attribute"], normal_comp.inputs[0])
+        links.new(dot.outputs["Value"], normal_comp.inputs["Scale"])
+        tangential = nodes.new("ShaderNodeVectorMath")
+        tangential.operation = "SUBTRACT"
+        tangential.location = (540, 0)
+        links.new(offset.outputs["Vector"], tangential.inputs[0])
+        links.new(normal_comp.outputs["Vector"], tangential.inputs[1])
+
+        set_pos = nodes.new("GeometryNodeSetPosition")
+        set_pos.location = (720, 0)
+        links.new(capture.outputs["Geometry"], set_pos.inputs["Geometry"])
+        links.new(tangential.outputs["Vector"], set_pos.inputs["Offset"])
+        links.new(set_pos.outputs["Geometry"], group_out.inputs[0])
+
+        modifier = obj.modifiers.new(f"fur_children_{index:03d}", "NODES")
+        modifier.node_group = ng
+        logger.debug(f"Fur object {index}: added {children} child hairs per guide")
 
     # Approximate base colors for common Mitsuba conductor presets.

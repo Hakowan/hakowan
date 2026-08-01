@@ -321,6 +321,13 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         # Clear orphaned data
         for mesh in bpy.data.meshes:
             bpy.data.meshes.remove(mesh)
+        # Curve datablocks (streamline/vector-field beveled curves) and hair
+        # Curves (fur strands) are not tied to meshes, so purge them explicitly
+        # or they leak and their names collide across renders.
+        for curve in bpy.data.curves:
+            bpy.data.curves.remove(curve)
+        for hair in bpy.data.hair_curves:
+            bpy.data.hair_curves.remove(hair)
         for material in bpy.data.materials:
             bpy.data.materials.remove(material)
         for light in bpy.data.lights:
