@@ -548,6 +548,7 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         length=transform.length,
         seed=transform.seed,
         min_length=transform.min_length,
+        max_steps=transform.max_steps,
     )
 
     if transform.id_attr_name != "_hakowan_streamline_id" and sl_mesh.has_attribute(

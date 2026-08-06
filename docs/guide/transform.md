@@ -175,6 +175,8 @@ Key parameters:
 * `length` — maximum world-space length per half-trace; `None` means trace until the mesh boundary.
 * `seed` — RNG seed for the blue-noise sampler.
 * `min_length` — discard streamlines with fewer than this many sample points (default 3).
+* `max_steps` — hard cap on edge-crossing steps per half-trace, bounding work on periodic
+  fields independently of `length`; `None` (default) uses half the number of facets.
 * `id_attr_name` — name of the per-vertex streamline-id attribute on the output mesh.
 
 Each output vertex carries an integer streamline id under `id_attr_name`, useful for coloring

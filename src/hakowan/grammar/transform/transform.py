@@ -256,6 +256,9 @@ class Streamline(Transform):
         seed: RNG seed passed to blue-noise sampling.  Default 0.
         min_length: Discard streamlines shorter than this many sample points.
             Default 3.
+        max_steps: Maximum number of edge-crossing steps per half-trace (a hard
+            cap that bounds work on periodic fields, independent of ``length``).
+            ``None`` (default) uses half the number of facets.
         id_attr_name: Name of the per-vertex streamline-id attribute on the
             output mesh.  Default ``_hakowan_streamline_id``.
     """
@@ -266,6 +269,7 @@ class Streamline(Transform):
     length: float | None = None
     seed: int = 0
     min_length: int = 3
+    max_steps: int | None = None
     id_attr_name: str = "_hakowan_streamline_id"
 
 
