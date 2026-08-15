@@ -197,9 +197,14 @@ def parse_args():
     )
     parser.add_argument(
         "--field-style",
-        choices=["streamline", "arrow"],
+        choices=["streamline", "arrow", "fur"],
         default="streamline",
-        help="How to visualize --vector-field / --cross-field: 'streamline' (default) or 'arrow'.",
+        help=(
+            "How to visualize --vector-field / --cross-field: 'streamline' "
+            "(default), 'arrow', or 'fur' (hair strands combed along the field; "
+            "--vector-field only). For fur, --num-streamlines sets the strand "
+            "count and --streamline-color sets the coat color."
+        ),
     )
 
     parser.add_argument(
@@ -801,7 +806,25 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         is_cross = args.cross_field is not None
         vf_mesh = copy.deepcopy(mesh)
         lagrange.triangulate_polygonal_facets(vf_mesh)
-        if args.field_style == "arrow":
+        if args.field_style == "fur":
+            if is_cross:
+                raise SystemExit(
+                    "--field-style fur supports --vector-field only, not "
+                    "--cross-field."
+                )
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .transform(
+                    hkw.transform.Fur(
+                        vec_field=vec_field_attr,
+                        n=args.num_streamlines,
+                        follow_surface=True,
+                    )
+                )
+                .mark("Curve")
+                .material("Hair", color=args.streamline_color)
+            )
+        elif args.field_style == "arrow":
             vf_layer = (
                 hkw.layer(vf_mesh)
                 .mark("Curve")
