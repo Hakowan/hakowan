@@ -45,6 +45,23 @@
   #clip-controls button:hover { background: rgba(255,255,255,0.18); }
   #clip-controls button.active { background: rgba(255,255,255,0.28); }
   #clip-controls input[type=range] { width: 150px; accent-color: #ccc; }
+  #layers {
+    position: absolute; bottom: 8px; left: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #eee;
+    background: rgba(0,0,0,0.45); padding: 6px 8px; border-radius: 4px;
+    display: none; flex-direction: column; gap: 3px;
+    max-height: 40vh; overflow-y: auto;
+  }
+  #layers.visible { display: flex; }
+  #layers .title {
+    font-size: 11px; color: #aaa; margin-bottom: 2px; user-select: none;
+  }
+  #layers label {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    white-space: nowrap;
+  }
+  #layers input[type=checkbox] { accent-color: #ccc; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -52,6 +69,7 @@
 <div id="status">loading…</div>
 <div id="passes"></div>
 <div id="clip-controls"></div>
+<div id="layers"></div>
 <script type="importmap">
 {
   "imports": {
@@ -73,6 +91,11 @@ const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {cente
 let bgMode = "{{BG_MODE}}";
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
+// One { index, label } entry per rendered layer (view), in view order. Drives
+// the per-layer visibility checkboxes; empty for single-layer scenes.
+const LAYERS = {{LAYERS_JSON}};
+// index -> array of top-level scene nodes tagged with that layer (populated on load).
+let layerNodeMap = new Map();
 
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
@@ -117,6 +140,14 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+// Environment lighting is locked to the camera's full orientation: the light is
+// stationary in view space (a mirror reflects the same image from every angle),
+// with env-up kept on the camera up. Refreshed every frame.
+let envRotationSupported = false; // three.js >= r163 exposes scene.environmentRotation
+const envAzimuth = (ENVMAP && typeof ENVMAP.azimuth === 'number') ? ENVMAP.azimuth : 0;
+const _envMat = new THREE.Matrix4();
+const _envOffset = new THREE.Matrix4();
+const _envEuler = new THREE.Euler();
 
 function setBackgroundMode(mode) {
   if (!BG_PRESETS[mode]) return;
@@ -245,6 +276,36 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+function updateEnvRotation() {
+  // Lock the env to the camera's full orientation so the lighting is stationary
+  // in view space (a mirror reflects the same image from every angle). World env
+  // orientation is
+  //   E = R_camera · Ry(envAzimuth)
+  // where R_camera glues the whole frame to the camera, and Ry(envAzimuth) is a
+  // rotation about env-local +Y — which maps to the camera up — so env-up stays
+  // on the camera up (regardless of the scene's up axis) and the emitter's chosen
+  // feature sits at a fixed view-relative azimuth (also absorbing three.js's
+  // equirect seam offset).
+  //
+  // three.js samples the env at `envMapRotation * worldDir`, where the uniform is
+  // `makeRotationFromEuler(-scene.environmentRotation)` (each Euler component is
+  // negated to accommodate its left-handed frame). Sampling needs Eᵀ * worldDir,
+  // so we feed Eᵀ into the Euler and pre-negate to cancel three.js's flip.
+  if (!envRotationSupported) return;
+  _envMat.makeRotationFromQuaternion(camera.quaternion);  // R_camera (camera -> world)
+  if (envAzimuth) {
+    _envOffset.makeRotationY(envAzimuth);                 // about env-local Y (= camera up)
+    _envMat.multiply(_envOffset);
+  }
+  _envMat.transpose();                                     // Eᵀ
+  _envEuler.setFromRotationMatrix(_envMat);
+  _envEuler.x *= -1; _envEuler.y *= -1; _envEuler.z *= -1;
+  scene.environmentRotation.copy(_envEuler);
+  if (envBackground !== null && 'backgroundRotation' in scene) {
+    scene.backgroundRotation.copy(_envEuler);
+  }
+}
+
 async function loadEnvmap() {
   if (!ENVMAP) return;
   try {
@@ -270,34 +331,15 @@ async function loadEnvmap() {
     if ('environmentIntensity' in scene) {
       scene.environmentIntensity = ENVMAP.scale;
     }
-    // Apply Mitsuba's `to_world = align_y_to(up) @ rotate_y(rotation_deg)`
-    // matrix to the environment. Requires three.js >= r163.
-    //
-    // three.js samples the env at `envMapRotation * worldDir`, where the uniform
-    // is `makeRotationFromEuler(-scene.environmentRotation)` (each Euler
-    // component is negated to "accommodate left-handed frame"). For env rotated
-    // by M in world, sampling needs M^T * worldDir; so we feed M^T into the
-    // Euler and pre-negate to cancel three.js's flip.
+    // Per-frame `updateEnvRotation()` orients the env from the camera up +
+    // azimuth (see there) using `ENVMAP.azimuth`. Requires three.js >= r163.
     if ('environmentRotation' in scene) {
-      const M = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
-      const m4 = new THREE.Matrix4();
-      m4.set(
-        M[0], M[1], M[2], 0,
-        M[3], M[4], M[5], 0,
-        M[6], M[7], M[8], 0,
-        0,    0,    0,    1,
-      );
-      m4.transpose();
-      const euler = new THREE.Euler().setFromRotationMatrix(m4);
-      euler.x *= -1; euler.y *= -1; euler.z *= -1;
-      scene.environmentRotation = euler;
+      envRotationSupported = true;
       if (ENVMAP.background) {
         scene.background = envTexture;
         envBackground = envTexture;
-        if ('backgroundRotation' in scene) {
-          scene.backgroundRotation = euler;
-        }
       }
+      updateEnvRotation();  // set the initial orientation from the current camera
     } else if (ENVMAP.background) {
       scene.background = envTexture;
       envBackground = envTexture;
@@ -1057,6 +1099,48 @@ function buildPassUI() {
   container.querySelector('button[data-pass="beauty"]').classList.add('active');
 }
 
+function buildLayerGroups(root) {
+  // Map each top-level node to its layer index. The WebGL backend writes the
+  // view index to glTF `extras.hakowan_layer`, which GLTFLoader surfaces as
+  // `userData.hakowan_layer`. Untagged nodes (lights/cameras) are skipped.
+  layerNodeMap = new Map();
+  for (const child of root.children) {
+    const idx = child.userData && child.userData.hakowan_layer;
+    if (idx === undefined || idx === null) continue;
+    if (!layerNodeMap.has(idx)) layerNodeMap.set(idx, []);
+    layerNodeMap.get(idx).push(child);
+  }
+}
+
+function setLayerVisible(index, visible) {
+  // Hiding a top-level node hides its whole subtree, including the wireframe
+  // overlay attached as a child of each mesh — so passes/screenshots follow.
+  const nodes = layerNodeMap.get(index);
+  if (!nodes) return;
+  for (const n of nodes) n.visible = visible;
+}
+
+function buildLayerUI() {
+  // A lone layer needs no toggle; only surface the panel for multi-layer scenes.
+  if (!Array.isArray(LAYERS) || LAYERS.length < 2) return;
+  const container = document.getElementById('layers');
+  const title = document.createElement('div');
+  title.className = 'title';
+  title.textContent = 'layers';
+  container.appendChild(title);
+  for (const entry of LAYERS) {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => setLayerVisible(entry.index, cb.checked));
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(entry.label));
+    container.appendChild(label);
+  }
+  container.classList.add('visible');
+}
+
 function applyCrispCheckerTextures(root) {
   // three.js may still build mipmaps for small PNGs; force point sampling so
   // baked checker cells stay sharp (see material extras from the WebGL backend).
@@ -1082,6 +1166,8 @@ const onLoaded = (gltf) => {
   loadedRoot = gltf.scene;
   // Group nodes into rotatable cells (after wireframe so its lines ride along).
   buildCellGroups(loadedRoot);
+  // Map top-level nodes to their layer index for the visibility checkboxes.
+  buildLayerGroups(loadedRoot);
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
@@ -1112,6 +1198,7 @@ const onLoaded = (gltf) => {
     controls.update();
   }
   buildPassUI();
+  buildLayerUI();
   // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
   // to per-object rotation so dragging compares orientations rather than orbiting
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
@@ -1129,6 +1216,9 @@ const onLoaded = (gltf) => {
     setObjectRotateEnabled,
     applyObjectRotation,
     qObjectRotation,
+    getLayerNodes: () => layerNodeMap,
+    setLayerVisible,
+    updateEnvRotation,
   };
   window.__hakowan_loaded = true;
 };
@@ -1163,6 +1253,7 @@ const onError = (err) => {
 function animate() {
   resize();
   controls.update();
+  updateEnvRotation();  // keep the env light stationary relative to the camera
   if (currentPass === 'depth') updateDepthRange();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);

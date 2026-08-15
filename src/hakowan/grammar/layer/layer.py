@@ -123,6 +123,7 @@ class Layer:
         mark: Mark | None = None,
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
+        name: str | None = None,
     ):
         """Constructor of Layer.
 
@@ -132,6 +133,8 @@ class Layer:
             mark (Mark|None, optional): The mark component of the layer.
             channels (list[Channel], optional): The channels of the layer.
             transform (Transform, optional): The transform component of the layer.
+            name (str, optional): A human-readable label for the layer. Surfaced
+                as the layer's checkbox label in the interactive WebGL viewer.
 
         Returns:
             (Layer): The constructed layer object.
@@ -148,6 +151,8 @@ class Layer:
             self.transform(transform, in_place=True)
         if channels is not None:
             self._spec.channels = channels
+        if name is not None:
+            self._spec.name = name
 
     def __add__(self, other: "Layer") -> "Layer":
         """Combine two layers into a composite layer.
@@ -328,6 +333,24 @@ class Layer:
                 layer._spec.mark = Mark.Surface
             case _:
                 raise ValueError(f"Unsupported mark type: {mark}!")
+        return layer
+
+    def name(self, name: str, *, in_place: bool = False) -> "Layer":
+        """Set a human-readable label for this layer.
+
+        The name is surfaced as the layer's checkbox label in the interactive
+        WebGL viewer (falling back to ``"Layer N"`` when unset).
+
+        Args:
+            name (str): The layer label.
+            in_place (bool, optional): Whether to modify the current layer in place or create new
+                layer. Defaults to False (i.e. create a new layer).
+
+        Returns:
+            result (Layer): The layer object with its name set.
+        """
+        layer = self.__get_working_layer(in_place)
+        layer._spec.name = name
         return layer
 
     def channel(

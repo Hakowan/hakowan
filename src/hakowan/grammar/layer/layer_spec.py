@@ -13,3 +13,4 @@ class LayerSpec:
     mark: Optional[Mark] = None
     channels: list[Channel] = field(default_factory=list)
     transform: Optional[Transform] = None
+    name: Optional[str] = None

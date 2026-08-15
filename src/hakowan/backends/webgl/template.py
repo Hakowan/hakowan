@@ -21,6 +21,7 @@ def render_html(
     initial_view: dict[str, list[float]],
     title: str,
     envmap: dict | None = None,
+    layers: list[dict] | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
@@ -54,6 +55,7 @@ def render_html(
         "{{INITIAL_TARGET}}": json.dumps(initial_view["target"]),
         "{{INITIAL_UP}}": json.dumps(initial_view["up"]),
         "{{ENVMAP_JSON}}": json.dumps(envmap) if envmap is not None else "null",
+        "{{LAYERS_JSON}}": json.dumps(layers if layers is not None else []),
     }
     for key, value in replacements.items():
         template = template.replace(key, value)

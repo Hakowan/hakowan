@@ -28,6 +28,7 @@ class View:
     mark: Mark | None = None
     channels: list[Channel] = field(default_factory=list)
     transform: Transform | None = None
+    name: str | None = None
     global_transform: npt.NDArray = field(default_factory=lambda: np.eye(4))
 
     _position_channel: Position | None = None

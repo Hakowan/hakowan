@@ -48,6 +48,10 @@ class GLTFBuilder:
     # interactive viewer groups nodes by this tag so each comparison cell can be
     # rotated about its own centre. ``None`` means "no cell" (a single group).
     _current_cell: str | None = None
+    # View index attached to every node created while set. The interactive viewer
+    # groups nodes by this tag to drive per-layer visibility checkboxes. ``None``
+    # means the node carries no layer tag.
+    _current_layer: int | None = None
 
     def __post_init__(self) -> None:
         # Ensure a buffer slot exists; its length is patched at finalize time.
@@ -349,8 +353,13 @@ class GLTFBuilder:
         node_kwargs: dict[str, Any] = {"mesh": mesh_idx}
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        extras: dict[str, Any] = {}
         if self._current_cell is not None:
-            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
+            extras["hakowan_cell"] = self._current_cell
+        if self._current_layer is not None:
+            extras["hakowan_layer"] = self._current_layer
+        if extras:
+            node_kwargs["extras"] = extras
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
@@ -478,8 +487,13 @@ class GLTFBuilder:
         }
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        extras: dict[str, Any] = {}
         if self._current_cell is not None:
-            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
+            extras["hakowan_cell"] = self._current_cell
+        if self._current_layer is not None:
+            extras["hakowan_layer"] = self._current_layer
+        if extras:
+            node_kwargs["extras"] = extras
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1

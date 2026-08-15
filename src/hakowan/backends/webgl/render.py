@@ -86,7 +86,7 @@ class WebGLBackend(RenderBackend):
 
         _validate_background(background)
         out_path = _resolve_output_path(filename)
-        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+        glb_bytes, envmap, initial_view, layers = self._build_scene_artifacts(
             scene, config, envmap_background
         )
 
@@ -98,6 +98,7 @@ class WebGLBackend(RenderBackend):
             initial_view=initial_view,
             title=title,
             envmap=envmap,
+            layers=layers,
         )
 
         out_path.write_bytes(html.encode("utf-8"))
@@ -129,7 +130,7 @@ class WebGLBackend(RenderBackend):
             Complete HTML page as a string.
         """
         _validate_background(background)
-        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+        glb_bytes, envmap, initial_view, layers = self._build_scene_artifacts(
             scene, config, envmap_background
         )
         return render_html(
@@ -140,6 +141,7 @@ class WebGLBackend(RenderBackend):
             initial_view=initial_view,
             title=title,
             envmap=envmap,
+            layers=layers,
         )
 
     # ------------------------------------------------------------------ #
@@ -151,7 +153,7 @@ class WebGLBackend(RenderBackend):
         scene: Scene,
         config: Config,
         envmap_background: bool = False,
-    ) -> tuple[bytes, dict | None, dict]:
+    ) -> tuple[bytes, dict | None, dict, list[dict]]:
         """Compile *scene* into GLB bytes, an envmap descriptor, and camera view.
 
         Args:
@@ -160,14 +162,19 @@ class WebGLBackend(RenderBackend):
             envmap_background: Whether the envmap is visible as the background.
 
         Returns:
-            ``(glb_bytes, envmap, initial_view)`` where *envmap* may be ``None``.
+            ``(glb_bytes, envmap, initial_view, layers)`` where *envmap* may be
+            ``None`` and *layers* is one ``{"index", "label"}`` entry per rendered
+            view, in view order, for the viewer's per-layer visibility checkboxes.
         """
         builder = GLTFBuilder()
+        layers: list[dict] = []
         for index, view in enumerate(scene):
             # Tag every node produced for this view with its juxtaposition cell
-            # so the interactive viewer can rotate each comparison cell about its
-            # own centre. ``None`` (no `|` in the layer tree) leaves nodes untagged.
+            # (so the viewer can rotate each comparison cell about its own centre;
+            # ``None`` leaves nodes untagged) and its layer index (so the viewer
+            # can toggle per-layer visibility).
             builder._current_cell = _cell_tag(view)
+            builder._current_layer = index
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)
             elif view.mark is mark_module.Point:
@@ -179,13 +186,17 @@ class WebGLBackend(RenderBackend):
                     f"WebGL backend: view {index} has unsupported mark "
                     f"{view.mark!r} — skipping."
                 )
+                continue
+            layers.append(
+                {"index": index, "label": view.name or f"Layer {index + 1}"}
+            )
         _, initial_view = add_camera(builder, config)
         _add_point_lights(builder, config)
         glb_bytes = builder.finalize()
         envmap = envmap_descriptor(config)
         if envmap is not None:
             envmap["background"] = bool(envmap_background)
-        return glb_bytes, envmap, initial_view
+        return glb_bytes, envmap, initial_view, layers
 
 
 # ---------------------------------------------------------------------- #

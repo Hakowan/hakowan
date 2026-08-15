@@ -30,6 +30,8 @@ def condense_layer_tree_to_scene(
                 view.data_frame = copy.deepcopy(lyr._spec.data)
             if view.mark is None:
                 view.mark = lyr._spec.mark
+            if view.name is None:
+                view.name = lyr._spec.name
             if view.transform is None:
                 view.transform = copy.deepcopy(lyr._spec.transform)
             elif lyr._spec.transform is not None:
