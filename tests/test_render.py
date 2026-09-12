@@ -182,3 +182,85 @@ class TestBackSide:
             Hair(root_color=[0.02, 0.01, 0.005], tip_color=[0.9, 0.65, 0.3]),
         )
         assert "sigma_a" in cfg and "eumelanin" not in cfg
+
+
+class TestPointOrientation:
+    """Point-cloud discs oriented by a normal field.
+
+    Regression: PCD-imported normals are frequently *not* unit length (observed
+    magnitudes up to ~1400). ``rotation`` used to assume unit inputs, so a
+    non-unit normal became a huge scale/shear instead of a rotation, producing
+    giant degenerate disc triangles that made Mitsuba's BVH pathologically slow
+    (an effective hang). The orientation transform must stay a bounded rotation.
+    """
+
+    @staticmethod
+    def _matrix(transform) -> np.ndarray:
+        return np.array(transform.matrix).reshape(4, 4)
+
+    def test_rotation_normalizes_non_unit_inputs(self):
+        from hakowan.backends.mitsuba.utils import rotation
+
+        z = np.array([0.0, 0.0, 1.0])
+        rng = np.random.default_rng(0)
+        for _ in range(64):
+            direction = rng.standard_normal(3)
+            direction /= np.linalg.norm(direction)
+            scaled = direction * rng.uniform(0.01, 1400.0)
+            R = rotation(z, scaled)[:3, :3]
+            # A genuine rotation: orthonormal, det 1, and maps +Z onto the
+            # *normalized* target direction regardless of the input magnitude.
+            np.testing.assert_allclose(R.T @ R, np.eye(3), atol=1e-6)
+            assert abs(np.linalg.det(R) - 1.0) < 1e-6
+            np.testing.assert_allclose(R @ z, direction, atol=1e-6)
+
+    def test_rotation_flips_antiparallel(self):
+        from hakowan.backends.mitsuba.utils import rotation
+
+        z = np.array([0.0, 0.0, 1.0])
+        R = rotation(z, np.array([0.0, 0.0, -7.0]))[:3, :3]
+        np.testing.assert_allclose(R @ z, [0.0, 0.0, -1.0], atol=1e-6)
+        assert abs(np.linalg.det(R) - 1.0) < 1e-6
+
+    def test_disc_transform_bounded_for_non_unit_normals(self):
+        # Build a point cloud whose normals have wildly varying magnitude and
+        # confirm every generated disc carries a bounded (radius-scaled) linear
+        # transform — never the ~magnitude-scaled blowup that caused the hang.
+        radius = 0.5
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64)
+        )
+        normals = np.array(
+            [[0.0, 0.0, 1000.0], [300.0, 400.0, 0.0], [0.0, 0.0, -1400.0]],
+            dtype=np.float64,
+        )
+        mesh.create_attribute(
+            "normal",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Normal,
+            initial_values=normals,
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Point)
+            .channel(
+                size=radius,
+                shape=hkw.channel.Shape(base_shape="disk", orientation="normal"),
+            )
+        )
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+        discs = [s for s in scene_config.values() if s.get("type") == "ply"]
+        assert len(discs) == mesh.num_vertices
+        for shape in discs:
+            linear = self._matrix(shape["to_world"])[:3, :3]
+            column_scales = np.linalg.norm(linear, axis=0)
+            # A correct disc transform is rotation × uniform scale: all three
+            # column norms are equal and, once divided out, the remainder is
+            # orthonormal. The pre-fix bug fed the un-normalized normal straight
+            # into the Rodrigues terms, yielding an anisotropic ~magnitude-scaled
+            # shear (hundreds of times larger) that fails both checks.
+            scale = column_scales.mean()
+            np.testing.assert_allclose(column_scales, scale, rtol=1e-4)
+            R = linear / scale
+            np.testing.assert_allclose(R.T @ R, np.eye(3), atol=1e-4)
