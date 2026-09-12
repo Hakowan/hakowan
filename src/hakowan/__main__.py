@@ -105,7 +105,14 @@ def parse_args():
         metavar="VAL",
     )
     parser.add_argument(
-        "--normal", help="Normal field", choices=["facet", "vertex"], default=None
+        "--normal",
+        help=(
+            "Normal field for shading. 'facet' or 'vertex' computes normals "
+            "from geometry; any other value is treated as the name of a "
+            "pre-existing normal attribute on the mesh."
+        ),
+        default=None,
+        metavar="FIELD",
     )
     parser.add_argument(
         "input_mesh",
@@ -778,6 +785,11 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
     elif args.normal == "facet":
         layer = layer.transform(hkw.transform.Compute(facet_normal="face_normal"))
         layer = layer.channel(normal="face_normal")
+    elif args.normal is not None:
+        assert mesh.has_attribute(args.normal), (
+            f"Normal attribute '{args.normal}' not found in mesh"
+        )
+        layer = layer.channel(normal=args.normal)
 
     if args.uv:
         layer = layer.transform(hkw.transform.UVMesh())
