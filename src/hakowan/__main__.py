@@ -654,7 +654,29 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 "No color attributes found in mesh for vertex_color material"
             )
             color_attr_id = color_attr_ids[0]
+            if mesh.is_attribute_indexed(color_attr_id):
+                color_attr_id = lagrange.map_attribute(
+                    mesh,
+                    color_attr_id,
+                    "_vertex_color",
+                    lagrange.AttributeElement.Vertex,
+                )
+            color_attr = mesh.attribute(color_attr_id)
+            color_data = np.asarray(color_attr.data)
             color_attr_name = mesh.get_attribute_name(color_attr_id)
+            # Integer color attributes (e.g. uint8 [0,255] from PCD/PLY) must be
+            # normalized to the [0,1] float range the renderer expects; the
+            # identity colormap passes values through unchanged, so 0-255 would
+            # otherwise blow past 1.0 and clamp every point to white.
+            if np.issubdtype(color_data.dtype, np.integer):
+                color_attr_name = "_vertex_color_normalized"
+                mesh.create_attribute(
+                    color_attr_name,
+                    element=color_attr.element_type,
+                    usage=lagrange.AttributeUsage.Color,
+                    initial_values=color_data.astype(np.float64)
+                    / np.iinfo(color_data.dtype).max,
+                )
             layer = layer.material(
                 "Principled",
                 hkw.texture.ScalarField(color_attr_name, colormap="identity"),
