@@ -779,17 +779,27 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             hkw.transform.Explode(pieces=pieces_attr, magnitude=args.explode)
         )
 
+    normal_attr = None
     if args.normal == "vertex":
         layer = layer.transform(hkw.transform.Compute(vertex_normal="vertex_normal"))
-        layer = layer.channel(normal="vertex_normal")
+        normal_attr = "vertex_normal"
     elif args.normal == "facet":
         layer = layer.transform(hkw.transform.Compute(facet_normal="face_normal"))
-        layer = layer.channel(normal="face_normal")
+        normal_attr = "face_normal"
     elif args.normal is not None:
         assert mesh.has_attribute(args.normal), (
             f"Normal attribute '{args.normal}' not found in mesh"
         )
-        layer = layer.channel(normal=args.normal)
+        normal_attr = args.normal
+
+    if normal_attr is not None:
+        if args.point_cloud:
+            # Render each point as a disc oriented by the normal field.
+            layer = layer.channel(
+                shape=hkw.channel.Shape(base_shape="disk", orientation=normal_attr)
+            )
+        else:
+            layer = layer.channel(normal=normal_attr)
 
     if args.uv:
         layer = layer.transform(hkw.transform.UVMesh())
