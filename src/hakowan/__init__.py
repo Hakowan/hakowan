@@ -10,6 +10,8 @@ from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
 from .compiler import compile
+from .inspection import AttributeSummary, DataSummary, inspect
+from .validation import Diagnostic, ValidationError, ValidationReport, validate
 from .render import (
     render,
     RenderResult,
@@ -21,7 +23,15 @@ from .render import (
 # bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
 # probed without importing, so a backend whose dependency is missing simply
 # doesn't appear in ``list_backends()``.
-from .backends import register_backend_loader
+from .backends import (
+    BLENDER_CAPABILITIES,
+    MITSUBA_CAPABILITIES,
+    WEBGL_CAPABILITIES,
+    BackendCapabilities,
+    get_backend_capabilities as backend_capabilities,
+    list_backend_capabilities,
+    register_backend_loader,
+)
 
 
 def _load_mitsuba_backend():
@@ -51,9 +61,24 @@ def _load_webgl_backend():
     return WebGLBackend
 
 
-register_backend_loader("mitsuba", _load_mitsuba_backend, requires="mitsuba")
-register_backend_loader("blender", _load_blender_backend, requires="bpy")
-register_backend_loader("webgl", _load_webgl_backend, requires="pygltflib")
+register_backend_loader(
+    "mitsuba",
+    _load_mitsuba_backend,
+    requires="mitsuba",
+    capabilities=MITSUBA_CAPABILITIES,
+)
+register_backend_loader(
+    "blender",
+    _load_blender_backend,
+    requires="bpy",
+    capabilities=BLENDER_CAPABILITIES,
+)
+register_backend_loader(
+    "webgl",
+    _load_webgl_backend,
+    requires="pygltflib",
+    capabilities=WEBGL_CAPABILITIES,
+)
 
 __all__ = [
     "logger",
@@ -73,4 +98,14 @@ __all__ = [
     "RenderResult",
     "set_default_backend",
     "list_backends",
+    "AttributeSummary",
+    "DataSummary",
+    "inspect",
+    "Diagnostic",
+    "ValidationError",
+    "ValidationReport",
+    "validate",
+    "BackendCapabilities",
+    "backend_capabilities",
+    "list_backend_capabilities",
 ]

@@ -141,6 +141,27 @@ print(f"Available backends: {backends}")
 WebGL is always listed (it is part of the base install); Mitsuba and Blender appear only when their
 extras (`hakowan[mitsuba]` / `hakowan[blender]`) are installed.
 
+### Inspect Backend Capabilities
+
+Capability declarations can be queried without importing heavyweight backend
+modules:
+
+```py
+caps = hkw.backend_capabilities("webgl")
+print(caps.marks)
+print(caps.render_passes)
+print(caps.features)
+print(caps.limitations)
+
+# JSON-safe form; includes declarations for unavailable optional backends too.
+payload = caps.to_dict()
+all_capabilities = hkw.list_backend_capabilities()
+```
+
+`hkw.validate(layer, backend=..., strict=True)` uses these declarations to
+reject requested behavior that the selected backend would approximate or
+ignore.
+
 ### Set Default Backend
 
 When `backend=` is not given, Hakowan defaults to **WebGL** — its dependency ships with the base

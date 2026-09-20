@@ -47,6 +47,28 @@ l3 = hkw.layer().data(mesh)
 See the [Mesh Deformation](../examples/deformation.md) example for a use case of reusing the same
 layer specification with different data fields.
 
+## Inspecting data
+
+Use `hkw.inspect()` before building a layer to obtain a JSON-safe summary of the
+geometry and its attributes. This is useful for scripts and agents that must
+choose fields without guessing their names or shapes.
+
+```py
+summary = hkw.inspect("shape.ply")
+
+print(summary.vertex_count, summary.facet_count)
+for attr in summary.attributes:
+    print(attr.name, attr.element, attr.channels, attr.minimum, attr.maximum)
+
+# Suitable for JSON serialization or model/tool input.
+payload = summary.to_dict()
+```
+
+For indexed attributes, `value_count` is the number of unique stored values and
+`element_count` is the number of indices. Numeric summaries include finite and
+non-finite row counts, per-channel bounds, and quartiles.
+
+
 <!--
 In 2D data visualization, data is often represented as a table or data frame (e.g. Excel sheet or
 CSV file) with each row representing a single data point or observational unit and each column

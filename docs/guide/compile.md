@@ -68,20 +68,31 @@ for view in scene:
     # ...
 ```
 
-### Testing and Validation
+### Validation
 
-When writing tests or validating layer specifications:
+Use `hkw.validate()` to check a layer before compiling or rendering it. The
+result is structured and JSON-safe, so callers can display errors or feed them
+back to an automated authoring system.
 
 ```py
-import hakowan as hkw
+layer = hkw.layer("shape.obj").mark("Point").channel(size="radius")
+report = hkw.validate(layer, backend="webgl", strict=True)
 
-def test_layer_compilation():
-    layer = hkw.layer("mesh.obj").mark(hkw.mark.Surface)
-    scene = hkw.compile(layer)
-    
-    assert len(scene.views) == 1
-    assert scene.views[0].mark == hkw.mark.Surface
+if not report.valid:
+    for error in report.errors:
+        print(error.code, error.path, error.message, error.hint)
+
+# Raise one exception containing the complete report when desired.
+report.raise_for_errors()
 ```
+
+Intrinsic errors such as missing attributes are always errors. In strict mode,
+backend fallbacks and mark/channel combinations that would be ignored are also
+errors. With `strict=False`, those degradations are warnings. By default,
+validation finishes with a real compile dry-run over deep-copied data, without
+rendering or mutating the layer. Pass `compile_check=False` for static-only,
+low-cost validation of expensive procedural transforms.
+
 
 ## Compilation Process
 
