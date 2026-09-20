@@ -234,12 +234,12 @@ class Scene:
         translation = np.eye(4)
         translation[0:3, 3] = -bbox_center
 
-        # max_side = np.amax(bbox_max - bbox_min)
         diag = norm(bbox_max - bbox_min)
-
-        # factor = max_side / diag
+        # A single point (or coincident point cloud) has zero diagonal. Center
+        # it without scaling rather than emitting NaNs into every backend.
+        factor = 2.0 / diag if diag > 1e-12 else 1.0
         scale = np.eye(4)
-        scale[0:3, 0:3] *= 2 / diag
+        scale[0:3, 0:3] *= factor
 
         global_transform = scale @ translation
 

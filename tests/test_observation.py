@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+import importlib
 import json
+import sys
+import urllib.error
+import threading
 from pathlib import Path
 
 import lagrange
 import numpy as np
 import pytest
+from PIL import Image
+
+import hakowan.observation as observation_module
+from hakowan.backends.webgl import assets as asset_module
+from hakowan.validation import Diagnostic
 
 import hakowan as hkw
 
@@ -66,6 +76,7 @@ def test_observe_captures_raw_passes_and_pick(playwright_browser, tmp_path):
     assert observation.snapshot("front", "depth").data.shape == (48, 48)
     assert observation.snapshot("front", "normal").data.shape == (48, 48, 3)
     assert observation.snapshot("front", "element_id").data.dtype == np.uint32
+    assert observation.snapshot("front", "albedo").data.dtype == np.uint8
     assert observation.snapshot("front", "layer_id").data.dtype == np.uint32
     assert observation.contact_sheet is not None
     assert (output / "contact_sheet.png").is_file()
@@ -210,3 +221,372 @@ def test_viewer_exposes_capture_automation(tmp_path):
     assert "capturePng" in html
     assert "sampleGeometry" in html
     assert "captureIdPng" in html
+
+
+def test_result_dataclasses_are_json_safe():
+    diagnostic = Diagnostic(
+        code="example",
+        severity="warning",
+        path="layer",
+        message="example warning",
+    )
+    camera = hkw.CameraState(
+        eye=(1.0, 2.0, 3.0), target=(0.0, 0.0, 0.0), up=(0.0, 1.0, 0.0)
+    )
+    snapshot = hkw.Snapshot(
+        image=Image.new("RGBA", (2, 2)),
+        data=np.zeros((2, 2), dtype=np.float32),
+        camera=camera,
+        diagnostics=(diagnostic,),
+    )
+    summary = hkw.SceneSummary(
+        bounds=((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)),
+        center=(0.0, 0.0, 0.0),
+        radius=1.0,
+        up_axis="y",
+        layers=(observation_module.LayerSummary(0, "mesh", "surface", 3, 1),),
+    )
+
+    assert camera.to_dict()["eye"] == (1.0, 2.0, 3.0)
+    assert summary.to_dict()["layers"][0]["name"] == "mesh"
+    json.dumps(snapshot.to_manifest())
+
+
+@pytest.mark.parametrize(
+    ("up_axis", "view", "axis", "sign"),
+    [
+        ("y", "front", 2, 1),
+        ("y", "back", 2, -1),
+        ("y", "left", 0, -1),
+        ("y", "right", 0, 1),
+        ("y", "top", 1, 1),
+        ("y", "bottom", 1, -1),
+        ("z", "front", 1, -1),
+        ("z", "back", 1, 1),
+        ("z", "top", 2, 1),
+        ("z", "bottom", 2, -1),
+    ],
+)
+def test_camera_presets_follow_documented_axes(up_axis, view, axis, sign):
+    summary = hkw.SceneSummary(
+        bounds=((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)),
+        center=(0.0, 0.0, 0.0),
+        radius=1.0,
+        up_axis=up_axis,
+        layers=(),
+    )
+    camera = observation_module._camera_for_view(view, summary, (320, 240))
+
+    assert np.sign(camera.eye[axis]) == sign
+    assert camera.near > 0
+    assert camera.far > camera.near
+
+
+def test_isometric_camera_and_portrait_framing():
+    summary = hkw.SceneSummary(
+        bounds=((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)),
+        center=(0.0, 0.0, 0.0),
+        radius=1.0,
+        up_axis="y",
+        layers=(),
+    )
+    landscape = observation_module._camera_for_view("isometric", summary, (640, 320))
+    portrait = observation_module._camera_for_view("isometric", summary, (320, 640))
+
+    assert all(value > 0 for value in landscape.eye)
+    assert np.linalg.norm(portrait.eye) > np.linalg.norm(landscape.eye)
+
+
+def test_explicit_orthographic_camera_is_applied(playwright_browser):
+    camera = hkw.CameraState(
+        eye=(0.0, 0.0, 4.0),
+        target=(0.0, 0.0, 0.0),
+        up=(0.0, 1.0, 0.0),
+        mode="orthographic",
+    )
+    result = hkw.snapshot(hkw.layer(_triangle()), camera=camera, resolution=(40, 40))
+
+    assert result.camera == camera
+    assert result.projection[3, 3] == pytest.approx(1.0)
+    np.testing.assert_allclose(
+        result.world_to_camera @ np.array([*camera.eye, 1.0]),
+        [0.0, 0.0, 0.0, 1.0],
+        atol=1e-6,
+    )
+
+
+def test_snapshot_writes_raw_sidecar(playwright_browser, tmp_path):
+    output = tmp_path / "depth.png"
+    result = hkw.snapshot(
+        hkw.layer(_triangle()),
+        view="front",
+        pass_name="depth",
+        resolution=(32, 32),
+        filename=output,
+    )
+
+    assert result.data_path == tmp_path / "depth.npy"
+    np.testing.assert_array_equal(
+        np.load(result.data_path, allow_pickle=False), result.data
+    )
+
+
+def test_observe_camera_overrides_and_light_background(playwright_browser):
+    custom = hkw.CameraState(
+        eye=(0.0, 0.0, 4.0),
+        target=(0.0, 0.0, 0.0),
+        up=(0.0, 1.0, 0.0),
+        fov=25.0,
+    )
+    observation = hkw.observe(
+        hkw.layer(_triangle()),
+        views=["front", "right"],
+        passes=["beauty"],
+        cameras={"right": custom},
+        background="light",
+        resolution=(32, 32),
+    )
+
+    assert observation.snapshot("right", "beauty").camera == custom
+    assert observation.snapshot("front", "beauty").camera != custom
+    corner = np.asarray(observation.snapshot("front", "beauty").image)[0, 0, :3]
+    assert float(np.mean(corner)) > 100.0
+
+
+def test_observation_save_after_capture_updates_manifest(playwright_browser, tmp_path):
+    observation = hkw.observe(
+        hkw.layer(_triangle()),
+        views=["front"],
+        passes=["depth"],
+        resolution=(32, 32),
+    )
+    observation.save(tmp_path)
+
+    assert observation.snapshot("front", "depth").path == tmp_path / "front_depth.png"
+    assert (
+        observation.snapshot("front", "depth").data_path == tmp_path / "front_depth.npy"
+    )
+    assert observation.manifest["contact_sheet"] == str(tmp_path / "contact_sheet.png")
+
+
+def test_pick_background_and_bounds(playwright_browser):
+    observation = hkw.observe(
+        hkw.layer(_triangle()),
+        views=["front"],
+        passes=["depth", "element_id", "layer_id"],
+        resolution=(40, 40),
+    )
+
+    assert observation.pick("front", (0, 0)) is None
+    with pytest.raises(IndexError, match="outside"):
+        observation.pick("front", (40, 0))
+
+
+def test_single_point_scene_transform_is_finite():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertex([2.0, 3.0, 4.0])
+
+    scene = hkw.compile(hkw.layer(mesh).mark("Point"))
+
+    assert np.all(np.isfinite(scene[0].global_transform))
+    transformed = scene[0].global_transform @ np.array([2.0, 3.0, 4.0, 1.0])
+    np.testing.assert_allclose(transformed[:3], [0.0, 0.0, 0.0])
+
+
+def test_point_pick_returns_vertex_attributes(playwright_browser):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertex([0.0, 0.0, 0.0])
+    mesh.create_attribute(
+        "value",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([12.0]),
+    )
+    layer = hkw.layer(mesh).mark("Point").channel(size=0.2)
+    observation = hkw.observe(
+        layer,
+        views=["front"],
+        passes=["depth", "element_id", "layer_id"],
+        resolution=(48, 48),
+    )
+    ids = observation.snapshot("front", "element_id").data
+    y, x = np.argwhere(ids != int(observation_module.BACKGROUND_ID))[0]
+    hit = observation.pick("front", (int(x), int(y)))
+
+    assert hit is not None
+    assert hit.element_id == 0
+    assert hit.attributes["value"] == pytest.approx(12.0)
+
+
+def test_layer_id_pass_distinguishes_composed_views(playwright_browser):
+    mesh = _triangle()
+    left = hkw.layer(mesh, name="left").material("Diffuse", "red")
+    right = hkw.layer(mesh, name="right").material("Diffuse", "blue")
+    observation = hkw.observe(
+        left | right,
+        views=["front"],
+        passes=["layer_id"],
+        resolution=(96, 48),
+    )
+    values = set(np.unique(observation.snapshot("front", "layer_id").data).tolist())
+    values.discard(int(observation_module.BACKGROUND_ID))
+
+    assert values == {0, 1}
+    assert [layer.name for layer in observation.scene_summary.layers] == [
+        "left",
+        "right",
+    ]
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"views": []}, "At least one view"),
+        ({"passes": []}, "At least one pass"),
+        ({"resolution": (0, 32)}, "Resolution must be positive"),
+    ],
+)
+def test_observe_rejects_invalid_capture_requests(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        hkw.observe(hkw.layer(_triangle()), **kwargs)
+
+
+def test_snapshot_rejects_unsupported_backend():
+    with pytest.raises(NotImplementedError, match="webgl"):
+        hkw.snapshot(hkw.layer(_triangle()), backend="mitsuba")
+
+
+def test_backend_capabilities_advertise_observation():
+    features = hkw.backend_capabilities("webgl").features
+    assert {
+        "headless_snapshot",
+        "multi_view_observation",
+        "element_id_observation",
+        "layer_id_observation",
+    } <= features
+
+
+def test_missing_playwright_has_actionable_error(monkeypatch):
+    original_import = __import__
+
+    def blocked_import(name, *args, **kwargs):
+        if name.startswith("playwright"):
+            raise ImportError("blocked")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", blocked_import)
+    with pytest.raises(hkw.ObservationError, match=r"hakowan\[observe\]"):
+        observation_module._require_playwright()
+
+
+def test_asset_cache_download_reuse_and_safe_copy(monkeypatch, tmp_path):
+    monkeypatch.setenv("HAKOWAN_CACHE_DIR", str(tmp_path / "cache"))
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"// module"
+
+    calls = []
+
+    def urlopen(url, timeout):
+        calls.append((url, timeout))
+        return Response()
+
+    monkeypatch.setattr(asset_module.urllib.request, "urlopen", urlopen)
+    cache = asset_module.ensure_three_assets("test")
+    assert len(calls) == 4
+    assert all((cache / relative).is_file() for relative in asset_module._ASSETS)
+
+    calls.clear()
+    assert asset_module.ensure_three_assets("test") == cache
+    assert calls == []
+
+    destination = tmp_path / "bundle"
+    destination.mkdir()
+    marker = destination / "keep.txt"
+    marker.write_text("keep", encoding="utf-8")
+    asset_module.copy_three_assets("test", destination)
+    assert marker.read_text(encoding="utf-8") == "keep"
+
+
+def test_asset_download_failure_is_actionable(monkeypatch, tmp_path):
+    monkeypatch.setenv("HAKOWAN_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(
+        asset_module.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            urllib.error.URLError("offline")
+        ),
+    )
+    with pytest.raises(asset_module.WebGLAssetError, match="network access"):
+        asset_module.ensure_three_assets("missing")
+
+
+def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, _triangle())
+    output = tmp_path / "turntable.png"
+    calls = []
+
+    def fake_snapshot(_layer, *, filename, resolution, **_kwargs):
+        calls.append((Path(filename), resolution))
+        Image.new("RGB", resolution, "white").save(filename)
+
+    main_module = importlib.import_module("hakowan.__main__")
+    monkeypatch.setattr(hkw, "snapshot", fake_snapshot)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hakowan",
+            str(mesh_path),
+            "--backend",
+            "webgl",
+            "--turn-table",
+            "2",
+            "--resolution",
+            "24",
+            "16",
+            "--output",
+            str(output),
+            "--no-open",
+        ],
+    )
+
+    main_module.main()
+
+    assert len(calls) == 2
+    assert all(resolution == (24, 16) for _, resolution in calls)
+    assert output.with_suffix(".gif").is_file()
+
+
+def test_snapshot_propagates_diagnostics_without_mutating_config(playwright_browser):
+    config = hkw.config()
+    original_size = (config.film.width, config.film.height)
+    layer = hkw.layer(_triangle()).mark("Surface").channel(size=0.1)
+
+    result = hkw.snapshot(layer, resolution=(32, 24), config=config)
+
+    assert any(item.code == "channel.mark_incompatible" for item in result.diagnostics)
+    assert (config.film.width, config.film.height) == original_size
+
+
+def test_active_event_loop_uses_worker_thread(monkeypatch):
+    main_thread = threading.get_ident()
+
+    def fake_capture(*_args, **_kwargs):
+        return threading.get_ident()
+
+    monkeypatch.setattr(observation_module, "_capture_sync", fake_capture)
+
+    async def invoke():
+        return observation_module._capture()
+
+    worker_thread = asyncio.run(invoke())
+    assert worker_thread != main_thread
