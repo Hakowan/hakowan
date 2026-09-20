@@ -23,7 +23,14 @@ class SpecModel(BaseModel):
 
 Number: TypeAlias = int | float
 Vector: TypeAlias = list[Number]
+Vec3: TypeAlias = Annotated[list[Number], Field(min_length=3, max_length=3)]
 Matrix: TypeAlias = list[list[Number]]
+Matrix3: TypeAlias = Annotated[list[Vec3], Field(min_length=3, max_length=3)]
+Matrix4: TypeAlias = Annotated[
+    list[Annotated[list[Number], Field(min_length=4, max_length=4)]],
+    Field(min_length=4, max_length=4),
+]
+RoiBox: TypeAlias = Annotated[list[Vec3], Field(min_length=2, max_length=2)]
 ColorValue: TypeAlias = Number | str | list[Number]
 
 
@@ -55,7 +62,7 @@ class UniformScaleSpec(SpecModel):
 
 class LogScaleSpec(SpecModel):
     kind: Literal["log"] = "log"
-    base: float = 10.0
+    base: float = Field(default=10.0, gt=1.0)
 
 
 class ClipScaleSpec(SpecModel):
@@ -119,8 +126,8 @@ class ImageTextureSpec(SpecModel):
     path: str = Field(min_length=1)
     uv: AttributeSpec | None = None
     raw: bool = False
-    saturation: float = 1.0
-    whiteness: float = 0.0
+    saturation: float = Field(default=1.0, ge=0.0)
+    whiteness: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class CheckerboardTextureSpec(SpecModel):
@@ -128,16 +135,16 @@ class CheckerboardTextureSpec(SpecModel):
     uv: AttributeSpec | None = None
     texture1: "TextureValue" = 0.8
     texture2: "TextureValue" = 0.2
-    size: int = 8
+    size: int = Field(default=8, ge=1)
 
 
 class IsocontourTextureSpec(SpecModel):
     kind: Literal["isocontour"] = "isocontour"
     data: AttributeSpec
-    ratio: float = 0.1
+    ratio: float = Field(default=0.1, ge=0.0, le=1.0)
     texture1: "TextureValue" = 0.4
     texture2: "TextureValue" = 0.2
-    num_contours: int = 8
+    num_contours: int = Field(default=8, ge=1)
 
 
 class ScalarFieldTextureSpec(SpecModel):
@@ -200,20 +207,20 @@ class RoughPlasticMaterialSpec(MaterialBaseSpec):
     diffuse_reflectance: TextureValue = 0.5
     specular_reflectance: ScalarTextureValue = 1.0
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
-    alpha: float = 0.1
+    alpha: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
 class PrincipledMaterialBaseSpec(MaterialBaseSpec):
     color: TextureValue = 0.5
     roughness: ScalarTextureValue = 0.5
     metallic: ScalarTextureValue = 0.0
-    anisotropic: float = 0.0
-    spec_trans: float = 0.0
-    eta: float = 1.5
-    spec_tint: float = 0.0
-    sheen: float = 0.0
-    sheen_tint: float = 0.0
-    flatness: float = 0.0
+    anisotropic: float = Field(default=0.0, ge=0.0, le=1.0)
+    spec_trans: float = Field(default=0.0, ge=0.0, le=1.0)
+    eta: float = Field(default=1.5, gt=0.0)
+    spec_tint: float = Field(default=0.0, ge=0.0, le=1.0)
+    sheen: float = Field(default=0.0, ge=0.0, le=1.0)
+    sheen_tint: float = Field(default=0.0, ge=0.0, le=1.0)
+    flatness: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class PrincipledMaterialSpec(PrincipledMaterialBaseSpec):
@@ -222,7 +229,7 @@ class PrincipledMaterialSpec(PrincipledMaterialBaseSpec):
 
 class ThinPrincipledMaterialSpec(PrincipledMaterialBaseSpec):
     kind: Literal["thin_principled"] = "thin_principled"
-    diff_trans: float = 0.0
+    diff_trans: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class DielectricMaterialBaseSpec(MaterialBaseSpec):
@@ -249,12 +256,12 @@ class RoughDielectricMaterialSpec(DielectricMaterialBaseSpec):
 
 class HairMaterialSpec(MaterialBaseSpec):
     kind: Literal["hair"] = "hair"
-    eumelanin: float = 1.3
-    pheomelanin: float = 0.2
+    eumelanin: float = Field(default=1.3, ge=0.0)
+    pheomelanin: float = Field(default=0.2, ge=0.0)
     color: TextureValue | None = None
     root_color: ColorValue | None = None
     tip_color: ColorValue | None = None
-    color_variation: float = 0.0
+    color_variation: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 MaterialSpec = Annotated[
@@ -303,7 +310,7 @@ class ShapeChannelSpec(SpecModel):
 class VectorFieldChannelSpec(SpecModel):
     kind: Literal["vector_field"] = "vector_field"
     data: AttributeSpec
-    refinement_level: int = 0
+    refinement_level: int = Field(default=0, ge=0)
     style: BendStyleSpec | None = None
     end_type: Literal["point", "arrow", "flat"] = "point"
     normalize: bool = False
@@ -346,8 +353,8 @@ class FilterTransformSpec(SpecModel):
 
 class ClipTransformSpec(SpecModel):
     kind: Literal["clip"] = "clip"
-    point: Vector = Field(default_factory=lambda: [0.0, 0.0, 0.0])
-    normal: Vector = Field(default_factory=lambda: [1.0, 0.0, 0.0])
+    point: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    normal: Vec3 = Field(default_factory=lambda: [1.0, 0.0, 0.0])
 
 
 class UVMeshTransformSpec(SpecModel):
@@ -357,12 +364,12 @@ class UVMeshTransformSpec(SpecModel):
 
 class AffineTransformSpec(SpecModel):
     kind: Literal["affine"] = "affine"
-    matrix: Matrix
+    matrix: Matrix3 | Matrix4
 
 
 class PrincipalAxesTransformSpec(SpecModel):
     kind: Literal["principal_axes"] = "principal_axes"
-    frame: Matrix = Field(
+    frame: Matrix3 = Field(
         default_factory=lambda: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
     orthonormalize_frame: bool = True
@@ -406,30 +413,30 @@ class BoundaryTransformSpec(SpecModel):
 class StreamlineTransformSpec(SpecModel):
     kind: Literal["streamline"] = "streamline"
     vec_field: AttributeSpec
-    n: int = 50
+    n: int = Field(default=50, ge=1)
     cross_field: bool = True
-    length: float | None = None
+    length: float | None = Field(default=None, gt=0.0)
     seed: int = 0
-    min_length: int = 3
-    max_steps: int | None = None
-    id_attr_name: str = "_hakowan_streamline_id"
+    min_length: int = Field(default=3, ge=1)
+    max_steps: int | None = Field(default=None, ge=1)
+    id_attr_name: str = Field(default="_hakowan_streamline_id", min_length=1)
 
 
 class FurTransformSpec(SpecModel):
     kind: Literal["fur"] = "fur"
     vec_field: AttributeSpec
-    n: int = 2000
-    length: float | None = None
-    lift: float = 30.0
-    curl: float = 0.35
-    segments: int = 6
-    root_radius: float | None = None
-    tip_radius: float = 0.0
-    randomness: float = 0.3
+    n: int = Field(default=2000, ge=1)
+    length: float | None = Field(default=None, gt=0.0)
+    lift: float = Field(default=30.0, ge=0.0, le=90.0)
+    curl: float = Field(default=0.35, ge=0.0)
+    segments: int = Field(default=6, ge=1)
+    root_radius: float | None = Field(default=None, ge=0.0)
+    tip_radius: float = Field(default=0.0, ge=0.0)
+    randomness: float = Field(default=0.3, ge=0.0, le=1.0)
     follow_surface: bool = False
-    children: int = 0
-    clump: float = 0.6
-    spread: float | None = None
+    children: int = Field(default=0, ge=0)
+    clump: float = Field(default=0.6, ge=0.0, le=1.0)
+    spread: float | None = Field(default=None, ge=0.0)
     seed: int = 0
 
 
@@ -453,13 +460,13 @@ TransformSpec = Annotated[
 class MeshFileDataSpec(SpecModel):
     kind: Literal["mesh_file"] = "mesh_file"
     path: str = Field(min_length=1)
-    roi_box: Matrix | None = None
+    roi_box: RoiBox | None = None
 
 
 class ExternalDataSpec(SpecModel):
     kind: Literal["external"] = "external"
     id: str = Field(min_length=1)
-    roi_box: Matrix | None = None
+    roi_box: RoiBox | None = None
 
 
 DataSpec = Annotated[MeshFileDataSpec | ExternalDataSpec, Field(discriminator="kind")]
@@ -494,7 +501,7 @@ class LayoutNodeSpec(SpecModel):
     kind: Literal["layout"] = "layout"
     spec: LayerPropertiesSpec = Field(default_factory=LayerPropertiesSpec)
     axis: Literal["x", "y", "z"] = "x"
-    gap: float = 0.05
+    gap: float = Field(default=0.05, ge=0.0)
     normalize: bool = False
     children: tuple["NodeSpec", ...] = Field(min_length=2)
 
@@ -541,10 +548,12 @@ class FigureSpec(SpecModel):
 
 
 def json_schema() -> dict[str, Any]:
-    """Return the canonical Hakowan JSON Schema."""
+    """Return the documented canonical Hakowan JSON Schema."""
+    from .schema_docs import enrich_schema
+
     result = FigureSpec.model_json_schema(by_alias=True)
     result["$id"] = SCHEMA_URL
-    return result
+    return enrich_schema(result)
 
 
 FigureSpec.model_rebuild()

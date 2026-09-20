@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import hakowan as hkw
 import lagrange
@@ -35,6 +36,21 @@ def test_schema_is_versioned_json_schema():
     assert schema["additionalProperties"] is False
     assert len(schema["$defs"]) > 40
     json.dumps(schema)
+    assert schema["description"]
+    assert schema["examples"]
+    for property_schema in schema["properties"].values():
+        assert property_schema["description"]
+    for definition in schema["$defs"].values():
+        assert definition["description"]
+        assert not definition["description"].startswith("Supporting schema")
+        for property_schema in definition.get("properties", {}).values():
+            assert property_schema["description"]
+    FigureSpec.model_validate(schema["examples"][0])
+
+
+def test_published_schema_is_synchronized():
+    published = Path(__file__).parents[1] / "docs" / "schema" / "v1.json"
+    assert json.loads(published.read_text(encoding="utf-8")) == hkw.schema()
 
 
 def test_layer_round_trip_preserves_canonical_composition_and_behavior():
@@ -79,6 +95,28 @@ def test_layer_round_trip_preserves_canonical_composition_and_behavior():
     assert spec.to_json(canonical=True) == rebuilt_spec.to_json(canonical=True)
     assert hkw.validate(rebuilt, backend="webgl").valid
     assert len(hkw.compile(rebuilt)) == 3
+
+
+def test_transform_arrays_follow_application_order():
+    mesh = _mesh_with_fields()
+    translate = np.eye(4)
+    translate[:3, 3] = [1.0, 0.0, 0.0]
+    scale = np.eye(4)
+    scale[:3, :3] *= 2.0
+    runtime_chain = hkw.transform.Affine(translate) * hkw.transform.Affine(scale)
+
+    spec = hkw.to_spec(
+        hkw.layer(mesh).transform(runtime_chain), data_ids={id(mesh): "mesh"}
+    )
+    matrices = [item.matrix for item in spec.root.spec.transforms]
+    rebuilt = hkw.from_spec(spec, data_resolver={"mesh": mesh})
+
+    assert matrices == [scale.tolist(), translate.tolist()]
+    original_vertices = hkw.compile(hkw.layer(mesh).transform(runtime_chain))[
+        0
+    ].data_frame.mesh.vertices
+    rebuilt_vertices = hkw.compile(rebuilt)[0].data_frame.mesh.vertices
+    np.testing.assert_allclose(rebuilt_vertices, original_vertices)
 
 
 def test_mesh_file_reference_round_trip(tmp_path):

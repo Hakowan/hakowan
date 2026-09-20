@@ -69,6 +69,7 @@ nav:
 - Home: index.md
 - User guide:
   - Grammar: guide/grammar.md
+  - Canonical schema: guide/schema.md
   - Data: guide/data.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
@@ -85,6 +86,7 @@ nav:
 - Reference:
   - Render: api/render.md
   - Compile: api/compile.md
+  - Canonical schema: api/spec.md
   - Data: api/data.md
   - Mark: api/mark.md
   - Channel: api/channel.md

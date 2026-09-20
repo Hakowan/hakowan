@@ -1032,14 +1032,17 @@ def _transform_from_spec(
 def _transforms_to_spec(
     transform: Transform | None, function_ids: FunctionIds | None, path: str
 ) -> tuple[sm.TransformSpec, ...]:
-    result: list[sm.TransformSpec] = []
+    nodes: list[Transform] = []
     current = transform
     while current is not None:
-        result.append(
-            _transform_to_spec(current, function_ids, f"{path}[{len(result)}]")
-        )
+        nodes.append(current)
         current = current._child
-    return tuple(result)
+    # Runtime chains execute tail-first. Canonical arrays are deliberately
+    # application-ordered, so reverse the internal linked representation.
+    return tuple(
+        _transform_to_spec(item, function_ids, f"{path}[{index}]")
+        for index, item in enumerate(reversed(nodes))
+    )
 
 
 def _transforms_from_spec(
@@ -1053,6 +1056,9 @@ def _transforms_from_spec(
     ]
     if not runtime:
         return None
+    # Runtime applies linked transforms tail-first, so reverse the canonical
+    # application order when rebuilding the chain.
+    runtime.reverse()
     for current, child in zip(runtime, runtime[1:]):
         current._child = child
     return runtime[0]
