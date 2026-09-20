@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import PathLike
 from typing import TypeAlias
 
@@ -69,6 +69,7 @@ class Image(Texture):
     raw: bool = False
     saturation: float = 1.0
     whiteness: float = 0.0
+    _source: PathLike | None = field(default=None, repr=False)
 
 
 @dataclass(slots=True)

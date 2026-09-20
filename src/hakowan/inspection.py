@@ -96,7 +96,7 @@ def _load_data(data: DataFrameLike) -> tuple[lagrange.SurfaceMesh, str | None]:
         case lagrange.SurfaceMesh():
             return data, None
         case DataFrame():
-            return data.mesh, None
+            return data.mesh, str(data.source) if data.source is not None else None
         case _:
             raise TypeError(f"Unsupported data type: {type(data)!r}")
 

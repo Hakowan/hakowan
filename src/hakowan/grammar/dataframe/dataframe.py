@@ -17,10 +17,14 @@ class DataFrame:
     Attributes:
         mesh: A SurfaceMesh object that defines the 3D geometry where data are stored.
         roi_box: A box defining the region of interest. If None, the entire mesh is considered.
+        source: Original mesh path when loaded from a file. Used by canonical
+            specification serialization; None for in-memory meshes.
+
     """
 
     mesh: lagrange.SurfaceMesh
     roi_box: npt.ArrayLike | None = None
+    source: Path | None = None
 
 
 DataFrameLike: TypeAlias = str | Path | lagrange.SurfaceMesh | DataFrame

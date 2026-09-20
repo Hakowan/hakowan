@@ -295,8 +295,9 @@ class Layer:
         layer = self.__get_working_layer(in_place)
         match data:
             case str() | Path():
-                mesh = lagrange.io.load_mesh(data, quiet=True, stitch_vertices=True)  # type: ignore
-                layer._spec.data = DataFrame(mesh=mesh, roi_box=roi_box)
+                source = Path(data)
+                mesh = lagrange.io.load_mesh(source, quiet=True, stitch_vertices=True)  # type: ignore
+                layer._spec.data = DataFrame(mesh=mesh, roi_box=roi_box, source=source)
             case lagrange.SurfaceMesh():
                 layer._spec.data = DataFrame(mesh=data, roi_box=roi_box)
             case DataFrame():
@@ -564,6 +565,25 @@ class Layer:
         M[0, 0] = M[1, 1] = M[2, 2] = factor
         self.__compose_affine(layer, M)
         return layer
+
+    def to_spec(self, *, data_ids=None, function_ids=None):
+        """Convert this layer tree to a canonical, validated specification."""
+        from ...spec import to_spec
+
+        return to_spec(self, data_ids=data_ids, function_ids=function_ids)
+
+    def to_json(
+        self,
+        *,
+        data_ids=None,
+        function_ids=None,
+        indent: int | None = 2,
+        canonical: bool = False,
+    ) -> str:
+        """Serialize this layer tree as canonical Hakowan JSON."""
+        return self.to_spec(data_ids=data_ids, function_ids=function_ids).to_json(
+            indent=indent, canonical=canonical
+        )
 
     @property
     def children(self) -> list["Layer"]:

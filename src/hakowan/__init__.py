@@ -12,6 +12,16 @@ from .grammar.channel import material
 from .compiler import compile
 from .inspection import AttributeSummary, DataSummary, inspect
 from .validation import Diagnostic, ValidationError, ValidationReport, validate
+from .spec import (
+    FigureSpec,
+    SpecConversionError,
+    from_json,
+    from_spec,
+    json_schema as schema,
+    load_layer,
+    load_spec,
+    to_spec,
+)
 from .render import (
     render,
     RenderResult,
@@ -108,4 +118,12 @@ __all__ = [
     "BackendCapabilities",
     "backend_capabilities",
     "list_backend_capabilities",
+    "FigureSpec",
+    "SpecConversionError",
+    "schema",
+    "to_spec",
+    "from_spec",
+    "from_json",
+    "load_layer",
+    "load_spec",
 ]

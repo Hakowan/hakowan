@@ -20,6 +20,7 @@ dependencies=[
     "tqdm>=4.66",
     "colorcet>=3.2.1,<4",
     "pygltflib>=1.16.5,<2",
+    "pydantic>=2.10,<3",
 ]
 requires-python = ">=3.11"
 
