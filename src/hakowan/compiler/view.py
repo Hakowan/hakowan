@@ -131,11 +131,14 @@ class View:
         assert self.data_frame is not None, "Data component is not specified"
         assert self.mark is not None, "Mark component is not specified"
 
-    def finalize(self):
+    def finalize(self, *, preserve_attributes: bool = False):
         """Finalize the view by updating the data frame.
 
-        This function will ensure all attributes are either vertex or facet attribute.
+        Args:
+            preserve_attributes: Keep inactive source attributes for inspection
+                and pixel picking. Rendering compilation drops them by default.
         """
+        assert self.data_frame is not None
         mesh = self.data_frame.mesh
         active_attribute_names = [
             attr._internal_name for attr in self._active_attributes
@@ -161,13 +164,15 @@ class View:
             logger.debug(f"Adding input normal attribute '{normal_attr_names[0]}'")
             active_attribute_names.append(normal_attr_names[0])
 
-        # Drop all non-active attributes
-        for attr_id in mesh.get_matching_attribute_ids():
-            attr_name = mesh.get_attribute_name(attr_id)
-            if attr_name not in active_attribute_names and not attr_name.startswith(
-                "_hakowan"
-            ):
-                mesh.delete_attribute(attr_name)
+        # Rendering only needs active attributes. Observation compilation keeps
+        # source fields so a picked element can report its data values.
+        if not preserve_attributes:
+            for attr_id in mesh.get_matching_attribute_ids():
+                attr_name = mesh.get_attribute_name(attr_id)
+                if attr_name not in active_attribute_names and not attr_name.startswith(
+                    "_hakowan"
+                ):
+                    mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
         for attr_name in active_attribute_names:
@@ -196,6 +201,7 @@ class View:
         # Update mesh vertices to the scaled version if needed.
         if (
             self._position_channel is not None
+            and isinstance(self._position_channel.data, Attribute)
             and self._position_channel.data._internal_name is not None
         ):
             position_attr_name = self._position_channel.data._internal_name

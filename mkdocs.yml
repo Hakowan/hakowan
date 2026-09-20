@@ -80,6 +80,7 @@ nav:
   - Layer: guide/layer.md
   - Compile: guide/compile.md
   - Backend: guide/backend.md
+  - Snapshot and observation: guide/observation.md
   - Configuration: guide/config.md
 - Specification:
   - Overview: guide/schema.md
@@ -88,6 +89,7 @@ nav:
 - Gallery: gallery.md
 - Reference:
   - Render: api/render.md
+  - Snapshot and observation: api/observation.md
   - Compile: api/compile.md
   - Data: api/data.md
   - Mark: api/mark.md

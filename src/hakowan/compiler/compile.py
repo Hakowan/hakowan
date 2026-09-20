@@ -74,7 +74,7 @@ def condense_layer_tree_to_scene(
     return scene, node_options
 
 
-def compile(root: layer.Layer) -> Scene:
+def compile(root: layer.Layer, *, preserve_attributes: bool = False) -> Scene:
     """Compile a layer tree into a renderable :class:`Scene`.
 
     Traverses the layer tree, resolves channels, applies transforms and scales,
@@ -82,11 +82,13 @@ def compile(root: layer.Layer) -> Scene:
     to a rendering backend.
 
     Args:
-        root: The root :class:`~hakowan.grammar.layer.Layer` of the visualization.
+        root: Root visualization layer.
+        preserve_attributes: Keep inactive source attributes in compiled meshes
+            for observation and pixel picking. Defaults to False for lean render
+            payloads.
 
     Returns:
-        A compiled :class:`Scene` containing one :class:`View` per leaf path in
-        the layer tree.
+        A compiled scene containing one view per leaf path.
     """
     # Step 1: condense each path from root to leaf in the layer tree into a view.
     scene, node_options = condense_layer_tree_to_scene(root)
@@ -106,7 +108,7 @@ def compile(root: layer.Layer) -> Scene:
 
     # Step 5: finalize the data frame.
     for view in scene:
-        view.finalize()
+        view.finalize(preserve_attributes=preserve_attributes)
 
     # Step 5.5: lay out juxtaposition cells (no-op without `|` / `&`).
     if node_options:

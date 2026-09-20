@@ -73,8 +73,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@{{THREE_VERSION}}/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@{{THREE_VERSION}}/examples/jsm/"
+    "three": "{{THREE_MODULE_URL}}",
+    "three/addons/": "{{THREE_ADDONS_URL}}"
   }
 }
 </script>
@@ -1033,6 +1033,186 @@ function savePassPng() {
   }, 'image/png');
 }
 
+function setCameraState(state) {
+  setCameraMode(state.mode || 'perspective');
+  const active = camera;
+  active.position.fromArray(state.eye);
+  active.up.fromArray(state.up);
+  controls.target.fromArray(state.target);
+  active.lookAt(controls.target);
+  if (active.isPerspectiveCamera && state.fov !== undefined) active.fov = state.fov;
+  if (state.near !== undefined) active.near = state.near;
+  if (state.far !== undefined) active.far = state.far;
+  active.updateProjectionMatrix();
+  active.updateMatrixWorld(true);
+  controls.object = active;
+  controls.enableDamping = false;
+  controls.update();
+  _geometrySampleCache = null;
+}
+
+function prepareCapture(width, height) {
+  for (const id of ['status', 'passes', 'clip-controls', 'layers']) {
+    const node = document.getElementById(id);
+    if (node) node.style.display = 'none';
+  }
+  document.documentElement.style.width = `${width}px`;
+  document.documentElement.style.height = `${height}px`;
+  document.body.style.width = `${width}px`;
+  document.body.style.height = `${height}px`;
+  document.body.style.overflow = 'hidden';
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  renderer.setPixelRatio(1);
+  renderer.setSize(width, height, false);
+  updateCameraProjection();
+}
+
+function capturePng(pass = 'beauty') {
+  setPass(pass);
+  camera.updateMatrixWorld(true);
+  if (pass === 'depth') updateDepthRange();
+  renderer.render(scene, camera);
+  return canvas.toDataURL('image/png');
+}
+
+function _typedArrayBase64(array) {
+  const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+function _layerIndex(object) {
+  let current = object;
+  while (current) {
+    const value = current.userData && current.userData.hakowan_layer;
+    if (value !== undefined && value !== null) return value >>> 0;
+    current = current.parent;
+  }
+  return 0xffffffff;
+}
+
+let _geometrySampleCache = null;
+function sampleGeometry(width, height) {
+  camera.updateMatrixWorld(true);
+  loadedRoot.updateMatrixWorld(true);
+  const key = [
+    width, height,
+    ...camera.matrixWorld.elements,
+    ...camera.projectionMatrix.elements,
+  ].join(',');
+  if (_geometrySampleCache && _geometrySampleCache.key === key) {
+    return _geometrySampleCache.value;
+  }
+
+  const count = width * height;
+  const depth = new Float32Array(count);
+  const element = new Uint32Array(count);
+  const layer = new Uint32Array(count);
+  const normal = new Float32Array(count * 3);
+  depth.fill(Number.NaN);
+  element.fill(0xffffffff);
+  layer.fill(0xffffffff);
+  normal.fill(Number.NaN);
+
+  const raycaster = new THREE.Raycaster();
+  const sceneSize = sceneBbox ? sceneBbox.getSize(new THREE.Vector3()).length() : 2.0;
+  const threshold = Math.max(sceneSize / Math.max(width, height) * 1.5, 1e-5);
+  raycaster.params.Line.threshold = threshold;
+  raycaster.params.Points.threshold = threshold;
+  const ndc = new THREE.Vector2();
+  const cameraPoint = new THREE.Vector3();
+  const worldNormal = new THREE.Vector3();
+
+  for (let y = 0; y < height; y++) {
+    ndc.y = 1.0 - 2.0 * (y + 0.5) / height;
+    for (let x = 0; x < width; x++) {
+      ndc.x = 2.0 * (x + 0.5) / width - 1.0;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObject(loadedRoot, true);
+      let hit = null;
+      for (const candidate of hits) {
+        if (!candidate.object.visible) continue;
+        if (candidate.object.userData && candidate.object.userData.isWireframe) continue;
+        hit = candidate;
+        break;
+      }
+      if (hit === null) continue;
+      const index = y * width + x;
+      cameraPoint.copy(hit.point).applyMatrix4(camera.matrixWorldInverse);
+      depth[index] = -cameraPoint.z;
+      layer[index] = _layerIndex(hit.object);
+      const rawElement = hit.instanceId ?? hit.faceIndex ?? hit.index;
+      element[index] = rawElement === undefined || rawElement === null
+        ? 0
+        : rawElement >>> 0;
+      if (hit.normal) {
+        worldNormal.copy(hit.normal);
+      } else if (hit.face) {
+        worldNormal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+      } else {
+        worldNormal.set(0, 0, 0);
+      }
+      normal[index * 3] = worldNormal.x;
+      normal[index * 3 + 1] = worldNormal.y;
+      normal[index * 3 + 2] = worldNormal.z;
+    }
+  }
+
+  const value = {
+    width,
+    height,
+    depth: _typedArrayBase64(depth),
+    element: _typedArrayBase64(element),
+    layer: _typedArrayBase64(layer),
+    normal: _typedArrayBase64(normal),
+  };
+  _geometrySampleCache = { key, value };
+  return value;
+}
+
+function captureIdPng(kind, width, height) {
+  const samples = sampleGeometry(width, height);
+  const encoded = atob(kind === 'layer_id' ? samples.layer : samples.element);
+  const bytes = Uint8Array.from(encoded, c => c.charCodeAt(0));
+  const ids = new Uint32Array(bytes.buffer);
+  const output = document.createElement('canvas');
+  output.width = width;
+  output.height = height;
+  const context = output.getContext('2d');
+  const image = context.createImageData(width, height);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const offset = i * 4;
+    if (id === 0xffffffff) {
+      image.data[offset + 3] = 0;
+      continue;
+    }
+    const value = (id + 1) >>> 0;
+    image.data[offset] = (value * 73) & 255;
+    image.data[offset + 1] = (value * 151) & 255;
+    image.data[offset + 2] = (value * 199) & 255;
+    image.data[offset + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  return output.toDataURL('image/png');
+}
+
+function captureState() {
+  camera.updateMatrixWorld(true);
+  return {
+    worldToCamera: camera.matrixWorldInverse.toArray(),
+    projection: camera.projectionMatrix.toArray(),
+    bounds: sceneBbox ? [sceneBbox.min.toArray(), sceneBbox.max.toArray()] : null,
+    depthRange: [depthUniforms.uDepthMin.value, depthUniforms.uDepthMax.value],
+    mode: cameraMode,
+  };
+}
+
 function buildPassUI() {
   if (!Array.isArray(RENDER_PASSES) || RENDER_PASSES.length === 0) return;
   const passes = ['beauty', ...RENDER_PASSES];
@@ -1204,14 +1384,20 @@ const onLoaded = (gltf) => {
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
   if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
-  // Debug/automation handle: read-only access to the live scene graph and the
-  // object-rotation controls. Handy for inspection and end-to-end tests.
+  // Stable automation handle used by snapshot()/observe() and end-to-end tests.
   window.__hakowan = {
-    THREE, scene, camera, controls, loadedRoot,
+    THREE, scene, renderer, canvas, camera, controls, loadedRoot,
     perspCamera, orthoCamera,
     getCamera: () => camera,
     getCameraMode: () => cameraMode,
     setCameraMode,
+    setCameraState,
+    prepareCapture,
+    setPass,
+    capturePng,
+    captureIdPng,
+    captureState,
+    sampleGeometry,
     getCellGroups: () => cellGroups,
     setObjectRotateEnabled,
     applyObjectRotation,

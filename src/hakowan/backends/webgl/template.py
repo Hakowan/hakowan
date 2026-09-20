@@ -22,6 +22,8 @@ def render_html(
     title: str,
     envmap: dict | None = None,
     layers: list[dict] | None = None,
+    three_module_url: str | None = None,
+    three_addons_url: str | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
@@ -42,10 +44,17 @@ def render_html(
         for name, (center, edge) in backgrounds.items()
     }
     r, g, b = backgrounds[background][1]  # selected preset's edge colour
+    if three_module_url is None:
+        three_module_url = (
+            f"https://unpkg.com/three@{three_version}/build/three.module.js"
+        )
+    if three_addons_url is None:
+        three_addons_url = f"https://unpkg.com/three@{three_version}/examples/jsm/"
     replacements = {
         "{{TITLE}}": title,
-        "{{THREE_VERSION}}": three_version,
         "{{GLB_DATA_URI}}": glb_uri,
+        "{{THREE_MODULE_URL}}": three_module_url,
+        "{{THREE_ADDONS_URL}}": three_addons_url,
         "{{BG_PRESETS_JSON}}": json.dumps(presets_js),
         "{{BG_MODE}}": background,
         "{{BG_R_255}}": str(int(round(r * 255))),

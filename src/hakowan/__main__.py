@@ -161,7 +161,13 @@ def parse_args():
         "--rotate", help="Rotate the mesh (degrees)", type=float, default=None
     )
     parser.add_argument(
-        "--turn-table", help="Turn table animation (num samples)", type=int, default=0
+        "--turn-table",
+        help=(
+            "Turn table animation (num samples). WebGL capture requires "
+            "hakowan[observe] and Playwright Chromium."
+        ),
+        type=int,
+        default=0,
     )
     parser.add_argument(
         "--two-sided", help="Render both sides of the mesh", action="store_true"
@@ -853,8 +859,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         if args.field_style == "fur":
             if is_cross:
                 raise SystemExit(
-                    "--field-style fur supports --vector-field only, not "
-                    "--cross-field."
+                    "--field-style fur supports --vector-field only, not --cross-field."
                 )
             vf_layer = (
                 hkw.layer(vf_mesh)
@@ -1183,9 +1188,25 @@ def main():
 
                 frame_file = get_tmp_image_name()
                 temp_files.append(frame_file)
-                hkw.render(
-                    layer, frame_config, filename=frame_file, backend=args.backend
-                )
+                if args.backend == "webgl":
+                    hkw.snapshot(
+                        layer,
+                        camera=hkw.CameraState(
+                            eye=tuple(float(value) for value in rotated_camera),
+                            target=(0.0, 0.0, 0.0),
+                            up=tuple(float(value) for value in frame_config.sensor.up),
+                            fov=float(getattr(frame_config.sensor, "fov", 28.8415)),
+                            near=float(frame_config.sensor.near_clip),
+                            far=float(frame_config.sensor.far_clip),
+                        ),
+                        resolution=(frame_config.film.width, frame_config.film.height),
+                        config=frame_config,
+                        filename=frame_file,
+                    )
+                else:
+                    hkw.render(
+                        layer, frame_config, filename=frame_file, backend=args.backend
+                    )
                 # Load frame and ensure solid white background
                 with Image.open(frame_file) as img:
                     if img.mode == "RGBA":

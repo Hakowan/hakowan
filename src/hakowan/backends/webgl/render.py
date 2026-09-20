@@ -25,6 +25,7 @@ from .mesh_extract import extract_surface_arrays
 from .point_cloud import add_point_view
 from .template import render_html
 from .utils import glb_to_data_uri
+from .assets import copy_three_assets
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
@@ -51,7 +52,7 @@ def _validate_background(name: Literal["light", "dark"]) -> None:
 
 
 class WebGLBackend(RenderBackend):
-    """Render a hakowan ``Scene`` as a self-contained three.js HTML viewer."""
+    """Render a Hakowan scene as an embedded-data Three.js HTML viewer."""
 
     # The interactive viewer always exposes albedo/depth/normal as live,
     # client-side toggle passes (rendered by three.js, not written to files),
@@ -76,9 +77,10 @@ class WebGLBackend(RenderBackend):
         background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
+        offline: bool = False,
         **kwargs: Any,
     ) -> Path:
-        """Write an interactive HTML viewer and return the output path."""
+        """Write an interactive HTML viewer and optional offline asset bundle."""
         if kwargs:
             raise TypeError(
                 f"render() got unexpected keyword argument(s): {list(kwargs)}"
@@ -90,6 +92,13 @@ class WebGLBackend(RenderBackend):
             scene, config, envmap_background
         )
 
+        three_module_url = None
+        three_addons_url = None
+        if offline:
+            assets = out_path.with_name(f"{out_path.stem}_assets")
+            copy_three_assets(three_version, assets)
+            three_module_url = f"./{assets.name}/build/three.module.js"
+            three_addons_url = f"./{assets.name}/examples/jsm/"
         html = render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
@@ -99,6 +108,8 @@ class WebGLBackend(RenderBackend):
             title=title,
             envmap=envmap,
             layers=layers,
+            three_module_url=three_module_url,
+            three_addons_url=three_addons_url,
         )
 
         out_path.write_bytes(html.encode("utf-8"))
@@ -114,6 +125,8 @@ class WebGLBackend(RenderBackend):
         background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool = False,
+        three_module_url: str | None = None,
+        three_addons_url: str | None = None,
     ) -> str:
         """Build and return the viewer HTML as a string without writing any files.
 
@@ -142,6 +155,8 @@ class WebGLBackend(RenderBackend):
             title=title,
             envmap=envmap,
             layers=layers,
+            three_module_url=three_module_url,
+            three_addons_url=three_addons_url,
         )
 
     # ------------------------------------------------------------------ #
@@ -187,9 +202,7 @@ class WebGLBackend(RenderBackend):
                     f"{view.mark!r} — skipping."
                 )
                 continue
-            layers.append(
-                {"index": index, "label": view.name or f"Layer {index + 1}"}
-            )
+            layers.append({"index": index, "label": view.name or f"Layer {index + 1}"})
         _, initial_view = add_camera(builder, config)
         _add_point_lights(builder, config)
         glb_bytes = builder.finalize()

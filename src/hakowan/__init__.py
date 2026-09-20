@@ -28,6 +28,16 @@ from .render import (
     set_default_backend,
     list_backends,
 )
+from .observation import (
+    CameraState,
+    Observation,
+    ObservationError,
+    PixelHit,
+    SceneSummary,
+    Snapshot,
+    observe,
+    snapshot,
+)
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
 # bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
@@ -126,4 +136,12 @@ __all__ = [
     "from_json",
     "load_layer",
     "load_spec",
+    "CameraState",
+    "Observation",
+    "ObservationError",
+    "PixelHit",
+    "SceneSummary",
+    "Snapshot",
+    "observe",
+    "snapshot",
 ]

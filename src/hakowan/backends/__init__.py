@@ -47,6 +47,10 @@ WEBGL_CAPABILITIES = BackendCapabilities(
             "image_texture",
             "image_bump_map",
             "image_normal_map",
+            "headless_snapshot",
+            "multi_view_observation",
+            "element_id_observation",
+            "layer_id_observation",
         }
     ),
     limitations=(
