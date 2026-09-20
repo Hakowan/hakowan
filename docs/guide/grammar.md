@@ -142,86 +142,9 @@ column = l0 & l1   # vertical
 
 See the [layer guide](layer.md) for the configurable `juxtapose` method.
 
-## Canonical JSON specifications
+## Canonical specification
 
-Hakowan provides a versioned, JSON-safe specification for validation,
-reproducibility, caching, and generated visualization workflows. The canonical
-format is separate from compiler internals and uses explicit `kind` fields for
-data, composition, textures, materials, scales, and transforms.
-
-```py
-layer = hkw.layer("mesh.ply").material(
-    "Diffuse", hkw.texture.ScalarField("temperature", colormap="viridis")
-)
-
-spec = layer.to_spec()
-spec.save("figure.json")
-
-# Equivalent forms.
-payload = spec.to_dict()
-json_text = layer.to_json()
-
-# Parse only, or load into a runtime layer with relative paths resolved beside
-# the specification file.
-parsed = hkw.load_spec("figure.json")
-restored = hkw.load_layer("figure.json")
-```
-
-`hkw.schema()` returns the JSON Schema for the current canonical version. Input
-models reject unknown fields and unknown `kind` variants.
-
-```py
-schema = hkw.schema()
-assert schema["$id"] == "https://hakowan.github.io/hakowan/schema/v1.json"
-```
-
-### In-memory data
-
-Mesh buffers are not embedded into JSON. Give each in-memory mesh an external
-identifier during serialization, then provide the corresponding resolver when
-loading it:
-
-```py
-spec = hkw.to_spec(layer, data_ids={id(mesh): "simulation-frame"})
-restored = hkw.from_spec(
-    spec,
-    data_resolver={"simulation-frame": mesh},
-)
-```
-
-### Expressions and external functions
-
-Serializable filters and custom scales can use the restricted expression DSL.
-Expressions have access to `value`, component aliases `x`, `y`, `z`, arithmetic,
-comparisons, boolean operators, indexing, and the allowlisted functions `abs`,
-`min`, `max`, `isfinite`, and `norm`.
-
-```json
-{
-  "kind": "filter",
-  "data": {"name": "temperature"},
-  "condition": {
-    "kind": "expression",
-    "source": "value >= 0 and isfinite(value)"
-  }
-}
-```
-
-Arbitrary Python callables are never serialized as code or pickle data. Assign
-them external identifiers and resolve them explicitly:
-
-```py
-spec = hkw.to_spec(
-    layer,
-    data_ids={id(mesh): "mesh"},
-    function_ids={my_scale: "my-scale-v2"},
-)
-restored = hkw.from_spec(
-    spec,
-    data_resolver={"mesh": mesh},
-    function_resolver={"my-scale-v2": my_scale},
-)
-```
-
-`spec.to_json(canonical=True)` produces compact deterministic JSON suitable for
-content hashes and cache keys.
+For versioned JSON serialization, constrained generation, reproducible cache
+keys, and tooling integration, see the [Canonical Specification](schema.md).
+The dedicated Specification section also contains the Python API reference and
+the published JSON Schema.

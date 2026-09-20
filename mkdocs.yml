@@ -69,7 +69,6 @@ nav:
 - Home: index.md
 - User guide:
   - Grammar: guide/grammar.md
-  - Canonical schema: guide/schema.md
   - Data: guide/data.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
@@ -82,11 +81,14 @@ nav:
   - Compile: guide/compile.md
   - Backend: guide/backend.md
   - Configuration: guide/config.md
+- Specification:
+  - Overview: guide/schema.md
+  - Python API: api/spec.md
+  - JSON Schema: schema/v1.json
 - Gallery: gallery.md
 - Reference:
   - Render: api/render.md
   - Compile: api/compile.md
-  - Canonical schema: api/spec.md
   - Data: api/data.md
   - Mark: api/mark.md
   - Channel: api/channel.md
