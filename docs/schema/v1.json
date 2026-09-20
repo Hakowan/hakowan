@@ -100,6 +100,128 @@
       "title": "AffineTransformSpec",
       "type": "object"
     },
+    "AnnotationSpec": {
+      "additionalProperties": false,
+      "description": "A deterministic screen-space text annotation.",
+      "properties": {
+        "anchor": {
+          "default": "left",
+          "description": "Horizontal annotation anchor relative to its position.",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "title": "Anchor",
+          "type": "string"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional annotation background color.",
+          "title": "Background"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Annotation text color.",
+          "title": "Color"
+        },
+        "font_size": {
+          "default": 16,
+          "description": "Annotation font size in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Font Size",
+          "type": "integer"
+        },
+        "padding": {
+          "default": 4,
+          "description": "Annotation background padding in pixels.",
+          "minimum": 0,
+          "title": "Padding",
+          "type": "integer"
+        },
+        "position": {
+          "default": [
+            0.02,
+            0.02
+          ],
+          "description": "Normalized image position with origin at the top-left.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "text": {
+          "description": "Annotation text.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AnnotationSpec",
+      "type": "object"
+    },
     "AttributeSpec": {
       "additionalProperties": false,
       "description": "References a named mesh attribute and an ordered scale pipeline.",
@@ -156,6 +278,19 @@
           },
           "title": "Scales",
           "type": "array"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional physical unit shown in legends and manifests.",
+          "title": "Unit"
         }
       },
       "required": [
@@ -2073,6 +2208,15 @@
       "additionalProperties": false,
       "description": "Partial data, mark, channel, transform, and name properties for a node.",
       "properties": {
+        "annotations": {
+          "default": [],
+          "description": "Ordered screen-space annotations for this node.",
+          "items": {
+            "$ref": "#/$defs/AnnotationSpec"
+          },
+          "title": "Annotations",
+          "type": "array"
+        },
         "channels": {
           "$ref": "#/$defs/ChannelsSpec",
           "description": "Unique visual channels and material contributed by this node."
@@ -2277,6 +2421,86 @@
         "children"
       ],
       "title": "LayoutNodeSpec",
+      "type": "object"
+    },
+    "LegendSpec": {
+      "additionalProperties": false,
+      "description": "Presentation settings for a continuous colorbar or categorical legend.",
+      "properties": {
+        "category_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional mapping from stringified category values to labels.",
+          "title": "Category Labels"
+        },
+        "format": {
+          "default": ".3g",
+          "description": "Python numeric format specifier for tick labels.",
+          "title": "Format",
+          "type": "string"
+        },
+        "position": {
+          "default": "right",
+          "description": "Side on which the legend panel is placed.",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "title": "Position",
+          "type": "string"
+        },
+        "ticks": {
+          "default": 5,
+          "description": "Number of labeled ticks for a continuous colorbar.",
+          "minimum": 2,
+          "title": "Ticks",
+          "type": "integer"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional display title; null derives it from the attribute name.",
+          "title": "Title"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional display units appended to the legend title.",
+          "title": "Units"
+        },
+        "width": {
+          "default": 180,
+          "description": "Raster legend panel width in pixels.",
+          "minimum": 80,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "title": "LegendSpec",
       "type": "object"
     },
     "LogScaleSpec": {
@@ -3926,6 +4150,19 @@
           "description": "Discriminator selecting the concrete specification variant.",
           "title": "Kind",
           "type": "string"
+        },
+        "legend": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/LegendSpec"
+            }
+          ],
+          "default": true,
+          "description": "Automatic legend toggle or detailed configuration.",
+          "title": "Legend"
         },
         "range": {
           "anyOf": [

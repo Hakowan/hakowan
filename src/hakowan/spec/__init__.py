@@ -16,10 +16,12 @@ from .expression import ExpressionError, compile_expression
 from .model import (
     SCHEMA_URL,
     SCHEMA_VERSION,
+    AnnotationSpec,
     AttributeSpec,
     ExpressionSpec,
     FigureSpec,
     FunctionRefSpec,
+    LegendSpec,
     LayerPropertiesSpec,
     NodeSpec,
     json_schema,
@@ -28,6 +30,7 @@ from .model import (
 __all__ = [
     "SCHEMA_URL",
     "SCHEMA_VERSION",
+    "AnnotationSpec",
     "AttributeSpec",
     "DataIds",
     "DataResolver",
@@ -38,6 +41,7 @@ __all__ = [
     "FunctionRefSpec",
     "FunctionResolver",
     "LayerPropertiesSpec",
+    "LegendSpec",
     "NodeSpec",
     "SpecConversionError",
     "compile_expression",

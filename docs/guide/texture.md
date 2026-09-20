@@ -48,6 +48,7 @@ One of the most common use case of texture is to map a scalar field to a color f
 | range | tuple | The range of colormap |
 | categories | bool | Whether the data represents categories (i.e. discrete values) |
 | reverse | bool | Whether to reverse the colormap direction (maps the largest value to the colormap's first color) |
+| `legend` | bool \| Legend | Automatic legend configuration. Default `True`; use `False` to suppress. |
 
 ```py
 t = hkw.texture.ScalarField(data="attr_name")
@@ -55,6 +56,9 @@ t = hkw.texture.ScalarField(data="attr_name")
 
 See the [Heat Method](../examples/heat.md) and the [Components](../examples/components.md) examples
 for application of the scalar field texture.
+
+See [Legends and annotations](overlay.md) for titles, units, tick formatting,
+categorical labels, placement, and backend behavior.
 
 ## Checkerboard texture
 

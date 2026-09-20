@@ -62,6 +62,27 @@
     white-space: nowrap;
   }
   #layers input[type=checkbox] { accent-color: #ccc; cursor: pointer; }
+  .semantic-legends {
+    position: absolute; top: 56px; display: flex; flex-direction: column;
+    gap: 8px; max-height: calc(100vh - 72px); overflow-y: auto;
+    font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    pointer-events: none;
+  }
+  #semantic-legends-left { left: 8px; }
+  #semantic-legends-right { right: 8px; }
+  .semantic-legend {
+    min-width: 130px; padding: 8px; border-radius: 4px;
+    color: #eee; background: rgba(0,0,0,0.58);
+  }
+  .semantic-legend .heading { font-weight: 600; margin-bottom: 5px; }
+  .semantic-legend .scale { color: #bbb; font-size: 10px; margin-bottom: 4px; }
+  .semantic-legend .continuous { display: flex; gap: 6px; height: 150px; }
+  .semantic-legend .bar { width: 18px; border: 1px solid rgba(255,255,255,.6); }
+  .semantic-legend .ticks { display: flex; flex-direction: column; justify-content: space-between; }
+  .semantic-legend .category { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .semantic-legend .swatch { width: 14px; height: 14px; border: 1px solid rgba(255,255,255,.6); }
+  #semantic-annotations { position: absolute; inset: 0; pointer-events: none; }
+  .semantic-annotation { position: absolute; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -70,6 +91,9 @@
 <div id="passes"></div>
 <div id="clip-controls"></div>
 <div id="layers"></div>
+<div id="semantic-legends-left" class="semantic-legends"></div>
+<div id="semantic-legends-right" class="semantic-legends"></div>
+<div id="semantic-annotations"></div>
 <script type="importmap">
 {
   "imports": {
@@ -94,6 +118,8 @@ const RENDER_PASSES = ["albedo", "depth", "normal"];
 // One { index, label } entry per rendered layer (view), in view order. Drives
 // the per-layer visibility checkboxes; empty for single-layer scenes.
 const LAYERS = {{LAYERS_JSON}};
+const LEGENDS = {{LEGENDS_JSON}};
+const ANNOTATIONS = {{ANNOTATIONS_JSON}};
 // index -> array of top-level scene nodes tagged with that layer (populated on load).
 let layerNodeMap = new Map();
 
@@ -1321,6 +1347,76 @@ function buildLayerUI() {
   container.classList.add('visible');
 }
 
+function _cssColor(color, alpha = 1) {
+  const values = color.map(value => Math.round(Math.max(0, Math.min(1, value)) * 255));
+  return `rgba(${values[0]},${values[1]},${values[2]},${alpha})`;
+}
+
+function buildSemanticOverlays() {
+  for (const legend of LEGENDS) {
+    const container = document.getElementById(
+      legend.position === 'left' ? 'semantic-legends-left' : 'semantic-legends-right'
+    );
+    const panel = document.createElement('div');
+    panel.className = 'semantic-legend';
+    const heading = document.createElement('div');
+    heading.className = 'heading';
+    heading.textContent = legend.title + (legend.units ? ` (${legend.units})` : '');
+    panel.appendChild(heading);
+    if (legend.scale && legend.scale.length) {
+      const scale = document.createElement('div');
+      scale.className = 'scale';
+      scale.textContent = legend.scale.join(' → ');
+      panel.appendChild(scale);
+    }
+    if (legend.categories) {
+      legend.labels.forEach((label, index) => {
+        const row = document.createElement('div');
+        row.className = 'category';
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.background = _cssColor(legend.colors[index]);
+        const text = document.createElement('span');
+        text.textContent = label;
+        row.append(swatch, text);
+        panel.appendChild(row);
+      });
+    } else {
+      const body = document.createElement('div');
+      body.className = 'continuous';
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.background = `linear-gradient(to top, ${legend.colors.map(c => _cssColor(c)).join(',')})`;
+      const ticks = document.createElement('div');
+      ticks.className = 'ticks';
+      [...legend.labels].reverse().forEach(label => {
+        const text = document.createElement('span');
+        text.textContent = label;
+        ticks.appendChild(text);
+      });
+      body.append(bar, ticks);
+      panel.appendChild(body);
+    }
+    container.appendChild(panel);
+  }
+  const annotationRoot = document.getElementById('semantic-annotations');
+  for (const annotation of ANNOTATIONS) {
+    const node = document.createElement('div');
+    node.className = 'semantic-annotation';
+    node.textContent = annotation.text;
+    node.style.left = `${annotation.position[0] * 100}%`;
+    node.style.top = `${annotation.position[1] * 100}%`;
+    node.style.color = _cssColor(annotation.color);
+    node.style.fontSize = `${annotation.font_size}px`;
+    node.style.padding = `${annotation.padding}px`;
+    node.style.transform = annotation.anchor === 'center'
+      ? 'translateX(-50%)'
+      : annotation.anchor === 'right' ? 'translateX(-100%)' : 'none';
+    if (annotation.background) node.style.background = _cssColor(annotation.background, 0.86);
+    annotationRoot.appendChild(node);
+  }
+}
+
 function applyCrispCheckerTextures(root) {
   // three.js may still build mipmaps for small PNGs; force point sampling so
   // baked checker cells stay sharp (see material extras from the WebGL backend).
@@ -1379,6 +1475,7 @@ const onLoaded = (gltf) => {
   }
   buildPassUI();
   buildLayerUI();
+  buildSemanticOverlays();
   // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
   // to per-object rotation so dragging compares orientations rather than orbiting
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.

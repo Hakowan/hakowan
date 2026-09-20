@@ -76,6 +76,7 @@ nav:
   - Attribute: guide/attribute.md
   - Scale: guide/scale.md
   - Material: guide/material.md
+  - Legends and annotations: guide/overlay.md
   - Texture: guide/texture.md
   - Layer: guide/layer.md
   - Compile: guide/compile.md
@@ -97,6 +98,7 @@ nav:
   - Transform: api/transform.md
   - Attribute: api/attribute.md
   - Scale: api/scale.md
+  - Legends and annotations: api/overlay.md
   - Material: api/material.md
   - Texture: api/texture.md
   - Layer: api/layer.md

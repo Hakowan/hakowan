@@ -14,6 +14,7 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, Norm, to_attribute
 from ..grammar.transform import Transform
+from ..grammar.overlay import Annotation
 from ..common import logger
 
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ class View:
     channels: list[Channel] = field(default_factory=list)
     transform: Transform | None = None
     name: str | None = None
+    annotations: list[Annotation] = field(default_factory=list)
     global_transform: npt.NDArray = field(default_factory=lambda: np.eye(4))
 
     _position_channel: Position | None = None

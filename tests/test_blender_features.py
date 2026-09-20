@@ -342,6 +342,39 @@ class TestSmoke:
         )
         assert out.exists() and out.stat().st_size > 0
 
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_composites_semantic_overlays(self, triangle, tmp_path):
+        config = hkw.config()
+        config.film.width = 64
+        config.film.height = 160
+        config.sampler.sample_count = 1
+        layer = (
+            hkw.layer(triangle)
+            .material(
+                "Diffuse",
+                hkw.texture.ScalarField(
+                    hkw.attribute("vertex_data", unit="m"),
+                    legend=hkw.Legend(title="Distance", width=120),
+                ),
+            )
+            .annotate("Blender", background="black")
+        )
+        output = tmp_path / "overlay.png"
+
+        hkw.render(
+            layer,
+            config,
+            filename=output,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+
+        with PILImage.open(output) as image:
+            assert image.size == (184, 160)
+
     def _smoke_layer(self, triangle):
         config = hkw.config()
         config.film.width = config.film.height = 16

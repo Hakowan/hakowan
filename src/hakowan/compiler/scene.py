@@ -2,14 +2,20 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 from numpy.linalg import norm
+from typing import TYPE_CHECKING
 
 from .view import View
 from ..grammar.layer import LayoutOptions
+
+if TYPE_CHECKING:
+    from .overlay import CompiledAnnotation, CompiledLegend
 
 
 @dataclass
 class Scene:
     views: list[View] = field(default_factory=list)
+    legends: list["CompiledLegend"] = field(default_factory=list)
+    annotations: list["CompiledAnnotation"] = field(default_factory=list)
 
     def __len__(self):
         return self.views.__len__()

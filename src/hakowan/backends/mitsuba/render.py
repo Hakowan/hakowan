@@ -7,6 +7,7 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 
 from ...common import logger
 from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
+from ...common.overlay import composite_overlay_file
 from ...compiler import Scene, View
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
@@ -351,6 +352,11 @@ class MitsubaBackend(RenderBackend):
             # not, and a missing parent fails silently (deferred I/O error).
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
+            if not composite_overlay_file(filename, scene.legends, scene.annotations):
+                logger.warning(
+                    "Legends and annotations are not composited into HDR output; "
+                    "use PNG or another Pillow-supported format."
+                )
 
             if config.albedo and albedo_offset is not None:
                 save_image(albedo_image, aov_path(filename, ALBEDO))

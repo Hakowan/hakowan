@@ -4,6 +4,7 @@ from .view import View
 from .scene import Scene
 from .transform import apply_transform
 from .channel import preprocess_channels, process_channels
+from .overlay import collect_overlays
 
 import copy
 
@@ -32,6 +33,8 @@ def condense_layer_tree_to_scene(
                 view.mark = lyr._spec.mark
             if view.name is None:
                 view.name = lyr._spec.name
+            if lyr._spec.annotations:
+                view.annotations.extend(copy.deepcopy(lyr._spec.annotations))
             if view.transform is None:
                 view.transform = copy.deepcopy(lyr._spec.transform)
             elif lyr._spec.transform is not None:
@@ -103,8 +106,12 @@ def compile(root: layer.Layer, *, preserve_attributes: bool = False) -> Scene:
         preprocess_channels(view)
 
     # Step 4: process channels, apply scales.
+
     for view in scene:
         process_channels(view)
+    # Step 4.5: collect semantic legends and annotations while processed
+    # texture metadata and source attributes are still available.
+    collect_overlays(scene)
 
     # Step 5: finalize the data frame.
     for view in scene:

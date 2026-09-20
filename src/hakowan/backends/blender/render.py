@@ -3,6 +3,7 @@
 from ...common import logger
 from ...common.image_io import check_supported_suffix, convert_image, is_hdr_suffix
 from ...common.output import manage_native_output
+from ...common.overlay import composite_overlay_file
 from ...compiler import Scene
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, FACET_ID, aov_path
@@ -183,6 +184,13 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             and render_filename.suffix.lower() != out_suffix
         ):
             self._finalize_outputs(config, render_filename, filename)
+
+        if filename is not None:
+            if not composite_overlay_file(filename, scene.legends, scene.annotations):
+                logger.warning(
+                    "Legends and annotations are not composited into HDR output; "
+                    "use PNG or another Pillow-supported format."
+                )
 
         # Drop the private intermediate render directory, if one was used.
         if _tmp_render_dir is not None:

@@ -21,6 +21,7 @@ import numpy.typing as npt
 from PIL import Image, ImageDraw
 
 from .backends import BackendName
+from .common.overlay import composite_overlays
 from .compiler import Scene, compile
 from .grammar.layer import Layer
 from .grammar.mark import Mark
@@ -577,6 +578,12 @@ def _capture_sync(
                             data = np.asarray(image.convert("RGB"), dtype=np.uint8)
                         else:
                             data = None
+                        if pass_name == "beauty" and (
+                            scene.legends or scene.annotations
+                        ):
+                            image = composite_overlays(
+                                image, scene.legends, scene.annotations
+                            )
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
                             data=data,
@@ -691,6 +698,10 @@ def observe(
         "version": "1.0",
         "backend": "webgl",
         "scene": result.scene_summary.to_dict(),
+        "legends": [legend.to_dict() for legend in result.scene.legends],
+        "annotations": [
+            annotation.to_dict() for annotation in result.scene.annotations
+        ],
         "snapshots": [
             result.snapshots[(view, pass_name)].to_manifest()
             for view in views
@@ -716,8 +727,9 @@ def _contact_sheet(
     views: Sequence[str],
     passes: Sequence[str],
 ) -> Image.Image:
-    sample = next(iter(snapshots.values())).image.convert("RGB")
-    width, height = sample.size
+    images = [item.image for item in snapshots.values()]
+    width = max(image.width for image in images)
+    height = max(image.height for image in images)
     header_height = 28
     label_width = max(80, max(len(view) for view in views) * 7 + 12)
     cell_width = max(width, max(len(name) for name in passes) * 7 + 12)

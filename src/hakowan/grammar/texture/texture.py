@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 from ...common.color import ColorLike
 from ..scale import Attribute, AttributeLike
+from ..overlay import Legend
 
 __all__ = [
     "Texture",
@@ -124,6 +125,9 @@ class ScalarField(Texture):
         categories (bool): Whether the attribute represents categorical data (i.e. discrete values).
         reverse (bool): Whether to reverse the colormap direction (i.e. map the
             largest attribute value to the colormap's first color).
+        legend (bool | Legend): Automatic legend configuration. ``True`` derives
+            title/domain/ticks, ``False`` suppresses the legend, and a
+            :class:`Legend` customizes presentation.
     """
 
     data: AttributeLike
@@ -132,3 +136,10 @@ class ScalarField(Texture):
     range: tuple[float, float] | None = None
     categories: bool = False
     reverse: bool = False
+    legend: bool | Legend = True
+
+    # Populated on the compiler's deep-copied texture instance.
+    _legend_domain: tuple[float, float] | None = None
+    _legend_values: tuple[float, ...] | None = None
+    _legend_colors: tuple[tuple[float, float, float], ...] | None = None
+    _legend_scale: tuple[str, ...] = ()

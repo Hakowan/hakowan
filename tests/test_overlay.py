@@ -1,0 +1,236 @@
+from __future__ import annotations
+
+import json
+
+import lagrange
+import numpy as np
+import pytest
+from PIL import Image
+
+import hakowan as hkw
+from hakowan.common.overlay import composite_overlay_file, composite_overlays
+from hakowan.compiler.overlay import CompiledAnnotation, CompiledLegend
+
+
+def _scalar_mesh():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]))
+    mesh.add_triangle(0, 1, 2)
+    mesh.create_attribute(
+        "temperature",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([10.0, 20.0, 30.0]),
+    )
+    return mesh
+
+
+@pytest.fixture(scope="module")
+def playwright_browser():
+    playwright = pytest.importorskip("playwright.sync_api")
+    try:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(headless=True)
+            browser.close()
+    except playwright.Error as exc:
+        pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+
+
+def test_compile_collects_continuous_legend_and_annotation():
+    mesh = _scalar_mesh()
+    layer = (
+        hkw.layer(mesh)
+        .material(
+            "Diffuse",
+            hkw.texture.ScalarField(
+                hkw.attribute("temperature", unit="°C"),
+                colormap="viridis",
+                legend=hkw.Legend(title="Temperature", ticks=3, format=".1f"),
+            ),
+        )
+        .annotate(
+            "heated surface",
+            position=(0.5, 0.05),
+            anchor="center",
+            background="black",
+        )
+    )
+
+    scene = hkw.compile(layer)
+
+    assert len(scene.legends) == 1
+    legend = scene.legends[0]
+    assert legend.title == "Temperature"
+    assert legend.units == "°C"
+    assert legend.domain == (10.0, 30.0)
+    assert legend.values == (10.0, 20.0, 30.0)
+    assert legend.labels == ("10.0", "20.0", "30.0")
+    assert len(legend.colors) == 16
+    assert len(scene.annotations) == 1
+    assert scene.annotations[0].text == "heated surface"
+
+
+def test_legend_domain_tracks_user_scale_pipeline():
+    mesh = _scalar_mesh()
+    field = hkw.attribute(
+        "temperature", unit="K", scale=hkw.scale.Uniform(factor=2.0)
+    )
+
+    scene = hkw.compile(
+        hkw.layer(mesh).material("Diffuse", hkw.texture.ScalarField(field))
+    )
+
+    assert scene.legends[0].domain == (20.0, 60.0)
+    assert scene.legends[0].scale == ("uniform",)
+
+
+def test_compile_collects_categorical_labels_and_deduplicates_overlay():
+    mesh = _scalar_mesh()
+    legend = hkw.Legend(category_labels={"10.0": "cold", "20.0": "warm"})
+    base = (
+        hkw.layer(mesh)
+        .material(
+            "Diffuse",
+            hkw.texture.ScalarField(
+                "temperature", colormap="set1", categories=True, legend=legend
+            ),
+        )
+        .annotate("same")
+    )
+
+    scene = hkw.compile(base + base)
+
+    assert len(scene.legends) == 1
+    assert scene.legends[0].categories
+    assert scene.legends[0].values == (10.0, 20.0, 30.0)
+    assert scene.legends[0].labels == ("cold", "warm", "30")
+    assert len(scene.legends[0].colors) == 3
+    assert len(scene.annotations) == 1
+
+
+@pytest.mark.parametrize(
+    "texture",
+    [
+        hkw.texture.ScalarField("temperature", legend=False),
+        hkw.texture.ScalarField("temperature", colormap="identity"),
+    ],
+)
+def test_legend_can_be_suppressed(texture):
+    scene = hkw.compile(hkw.layer(_scalar_mesh()).material("Diffuse", texture))
+    assert scene.legends == []
+
+
+def test_annotation_validation_and_shorthand():
+    mesh = _scalar_mesh()
+    layer = hkw.layer(mesh).annotate(
+        "center", position=(0.5, 0.5), anchor="center", color="red"
+    )
+
+    assert layer._spec.annotations == [
+        hkw.Annotation("center", position=(0.5, 0.5), anchor="center", color="red")
+    ]
+    with pytest.raises(ValueError, match="position"):
+        hkw.Annotation("outside", position=(2.0, 0.0))
+    with pytest.raises(ValueError, match="ticks"):
+        hkw.Legend(ticks=1)
+
+
+def test_raster_overlay_compositor_adds_panel_and_annotation(tmp_path):
+    legend = CompiledLegend(
+        title="Temperature",
+        units="°C",
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 0.5, 1.0),
+        labels=("0", "0.5", "1"),
+        colors=((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        position="right",
+        width=120,
+        scale=("normalize",),
+    )
+    annotation = CompiledAnnotation(
+        text="sample",
+        position=(0.5, 0.1),
+        color=(1.0, 1.0, 1.0),
+        font_size=14,
+        anchor="center",
+        background=(0.0, 0.0, 0.0),
+        padding=3,
+    )
+    source = Image.new("RGB", (100, 80), "navy")
+
+    result = composite_overlays(source, [legend], [annotation])
+
+    assert result.size == (220, 80)
+    assert np.asarray(result)[:, 100:].std() > 0
+    path = tmp_path / "overlay.png"
+    source.save(path)
+    assert composite_overlay_file(path, [legend], [annotation])
+    assert Image.open(path).size == (220, 80)
+    assert not composite_overlay_file(tmp_path / "image.exr", [legend], [])
+
+
+def test_webgl_embeds_semantic_overlay_metadata(tmp_path):
+    layer = (
+        hkw.layer(_scalar_mesh())
+        .material(
+            "Diffuse",
+            hkw.texture.ScalarField(
+                hkw.attribute("temperature", unit="K"),
+                legend=hkw.Legend(title="Heat"),
+            ),
+        )
+        .annotate("simulation A", position=(0.5, 0.05), anchor="center")
+    )
+    output = tmp_path / "viewer.html"
+
+    hkw.render(layer, filename=output, backend="webgl")
+    html = output.read_text(encoding="utf-8")
+
+    assert "const LEGENDS" in html
+    assert "const ANNOTATIONS" in html
+    assert '"title": "Heat"' in html
+    assert '"units": "K"' in html
+    assert '"text": "simulation A"' in html
+    assert "buildSemanticOverlays()" in html
+    assert "{{LEGENDS_JSON}}" not in html
+
+
+def test_overlay_schema_round_trip():
+    mesh = _scalar_mesh()
+    layer = (
+        hkw.layer(mesh)
+        .material(
+            "Diffuse",
+            hkw.texture.ScalarField(
+                hkw.attribute("temperature", unit="Pa"),
+                legend=hkw.Legend(title="Pressure", position="left"),
+            ),
+        )
+        .annotate("peak", position=(0.8, 0.2), anchor="right")
+    )
+
+    spec = hkw.to_spec(layer, data_ids={id(mesh): "mesh"})
+    restored = hkw.from_spec(spec, data_resolver={"mesh": mesh})
+    round_trip = hkw.to_spec(restored, data_ids={id(mesh): "mesh"})
+
+    assert round_trip.to_json(canonical=True) == spec.to_json(canonical=True)
+    payload = spec.to_dict()
+    json.dumps(payload)
+    assert "annotations" in payload["root"]["spec"]
+
+
+def test_observation_manifest_contains_semantic_metadata(playwright_browser):
+    layer = (
+        hkw.layer(_scalar_mesh())
+        .material("Diffuse", hkw.texture.ScalarField("temperature"))
+        .annotate("note")
+    )
+
+    observation = hkw.observe(
+        layer, views=["front"], passes=["beauty"], resolution=(48, 48)
+    )
+
+    assert observation.manifest["legends"][0]["title"] == "temperature"
+    assert observation.manifest["annotations"][0]["text"] == "note"
+    assert observation.snapshot("front", "beauty").image.width > 48

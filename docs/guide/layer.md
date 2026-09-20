@@ -132,3 +132,19 @@ matrix = (a | b) & (c | d)  # a 2x2 grid
 Cells are spaced by their bounding spheres, so they never overlap — even as you rotate each cell
 in the interactive viewer.
 
+## Annotations
+
+Attach deterministic screen-space labels with `annotate()`:
+
+```py
+layer = hkw.layer("shape.obj").annotate(
+    "Simulation A",
+    position=(0.5, 0.05),
+    anchor="center",
+    background="black",
+)
+```
+
+Annotations follow layer inheritance and are deduplicated when composite views
+are compiled. See [Legends and annotations](overlay.md).
+

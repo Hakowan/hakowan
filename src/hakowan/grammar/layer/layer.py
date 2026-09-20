@@ -29,6 +29,7 @@ from ..channel.material import (
 from ..transform import Transform, Affine
 from ..scale import Attribute, AttributeLike, to_attribute
 from ..texture import TextureLike
+from ..overlay import Annotation
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -124,6 +125,7 @@ class Layer:
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
         name: str | None = None,
+        annotations: list[Annotation] | None = None,
     ):
         """Constructor of Layer.
 
@@ -153,6 +155,8 @@ class Layer:
             self._spec.channels = channels
         if name is not None:
             self._spec.name = name
+        if annotations is not None:
+            self._spec.annotations = list(annotations)
 
     def __add__(self, other: "Layer") -> "Layer":
         """Combine two layers into a composite layer.
@@ -352,6 +356,29 @@ class Layer:
         """
         layer = self.__get_working_layer(in_place)
         layer._spec.name = name
+        return layer
+
+    def annotate(
+        self,
+        annotation: Annotation | str,
+        *,
+        in_place: bool = False,
+        **kwargs: Any,
+    ) -> "Layer":
+        """Add a screen-space text annotation.
+
+        A string is shorthand for ``Annotation(text=annotation, **kwargs)``.
+        The returned wrapper follows the same immutable-by-default behavior as
+        the other layer methods.
+        """
+        layer = self.__get_working_layer(in_place)
+        if isinstance(annotation, str):
+            annotation = Annotation(text=annotation, **kwargs)
+        elif kwargs:
+            raise TypeError("Keyword options require a string annotation.")
+        elif not isinstance(annotation, Annotation):
+            raise TypeError(f"Unsupported annotation type: {type(annotation)!r}")
+        layer._spec.annotations.append(annotation)
         return layer
 
     def channel(

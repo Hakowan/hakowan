@@ -67,6 +67,7 @@ A node's `spec` accepts:
 | `channels` | object | At most one value for each visual channel. |
 | `transforms` | array | Transform operations in application order. |
 | `name` | string or `null` | Viewer-facing layer label. |
+| `annotations` | array | Screen-space text annotations contributed by the node. |
 
 Defaults and explicit `null` values are retained in canonical output so two
 canonical documents can be compared byte-for-byte.
@@ -120,12 +121,13 @@ data.
 
 ## Attributes and scales
 
-An attribute reference contains its mesh attribute name and an ordered scale
-pipeline:
+An attribute reference contains its mesh attribute name, optional physical
+`unit`, and an ordered scale pipeline:
 
 ```json
 {
   "name": "velocity",
+  "unit": "m/s",
   "scales": [
     {"kind": "norm", "order": 2},
     {
@@ -192,7 +194,30 @@ positions additionally accept a number, named/hex color string, or numeric list.
 | `image` | `path`, `uv=null`, `raw=false`, `saturation=1`, `whiteness=0` | Image sampled through UV coordinates. |
 | `checkerboard` | `uv=null`, `texture1=0.8`, `texture2=0.2`, `size=8` | Alternating UV-space textures. |
 | `isocontour` | `data`, `ratio=0.1`, `texture1=0.4`, `texture2=0.2`, `num_contours=8` | Scalar contour bands. |
-| `scalar_field` | `data`, `colormap=viridis`, `domain=null`, `range=null`, `categories=false`, `reverse=false` | Scalar-to-color mapping. |
+| `scalar_field` | `data`, `colormap=viridis`, `domain=null`, `range=null`, `categories=false`, `reverse=false`, `legend=true` | Scalar-to-color mapping with an automatic legend. |
+
+
+`legend` may be `false`, `true`, or an object with `title`, `units`, `ticks`,
+`format`, `position`, `category_labels`, and raster `width`. See
+[Legends and annotations](overlay.md).
+
+## Annotations
+
+Each layer property object accepts an `annotations` array. An annotation has
+`text`, normalized screen `position`, `color`, `font_size`, horizontal `anchor`,
+optional `background`, and `padding`.
+
+```json
+{
+  "text": "Peak stress",
+  "position": [0.5, 0.06],
+  "color": "white",
+  "font_size": 18,
+  "anchor": "center",
+  "background": "black",
+  "padding": 5
+}
+```
 
 ## Materials
 
@@ -381,12 +406,32 @@ by itself guarantee the same camera and lighting.
                 "domain": null,
                 "range": null,
                 "categories": false,
+                "legend": {
+                  "title": "Temperature",
+                  "units": "°C",
+                  "ticks": 5,
+                  "format": ".3g",
+                  "position": "right",
+                  "category_labels": null,
+                  "width": 180
+                },
                 "reverse": false
               }
             }
           },
           "transforms": [],
-          "name": "temperature"
+          "name": "temperature",
+          "annotations": [
+            {
+              "text": "Simulation A",
+              "position": [0.02, 0.02],
+              "color": "white",
+              "font_size": 16,
+              "anchor": "left",
+              "background": "black",
+              "padding": 4
+            }
+          ]
         }
       },
       {

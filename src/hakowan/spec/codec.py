@@ -37,6 +37,7 @@ from ..grammar.channel.material import (
 )
 from ..grammar.dataframe import DataFrameLike
 from ..grammar.layer import Layer, LayoutOptions
+from ..grammar.overlay import Annotation, Legend
 from ..grammar.scale import (
     Affine as AffineScale,
     Attribute,
@@ -164,7 +165,7 @@ def _attribute_to_spec(
         scales.append(_scale_to_spec(current, function_ids, f"{path}.scales[{index}]"))
         current = current._child
         index += 1
-    return sm.AttributeSpec(name=value.name, scales=tuple(scales))
+    return sm.AttributeSpec(name=value.name, scales=tuple(scales), unit=value.unit)
 
 
 def _attribute_from_spec(
@@ -177,7 +178,7 @@ def _attribute_from_spec(
         for index, scale in enumerate(value.scales)
     ]
     chain = _chain_scales(scales)
-    return Attribute(name=value.name, scale=chain)
+    return Attribute(name=value.name, scale=chain, unit=value.unit)
 
 
 def _scale_to_spec(
@@ -263,6 +264,34 @@ def _texture_value_to_spec(
     return _json_value(value, path)
 
 
+def _legend_to_spec(legend: bool | Legend) -> bool | sm.LegendSpec:
+    if isinstance(legend, bool):
+        return legend
+    return sm.LegendSpec(
+        title=legend.title,
+        units=legend.units,
+        ticks=legend.ticks,
+        format=legend.format,
+        position=legend.position,
+        category_labels=legend.category_labels,
+        width=legend.width,
+    )
+
+
+def _legend_from_spec(legend: bool | sm.LegendSpec) -> bool | Legend:
+    if isinstance(legend, bool):
+        return legend
+    return Legend(
+        title=legend.title,
+        units=legend.units,
+        ticks=legend.ticks,
+        format=legend.format,
+        position=legend.position,
+        category_labels=legend.category_labels,
+        width=legend.width,
+    )
+
+
 def _texture_to_spec(
     texture: Texture, function_ids: FunctionIds | None, path: str
 ) -> sm.TextureSpec:
@@ -315,6 +344,7 @@ def _texture_to_spec(
             else None,
             categories=texture.categories,
             reverse=texture.reverse,
+            legend=_legend_to_spec(texture.legend),
         )
     raise SpecConversionError(f"{path}: unsupported texture {type(texture).__name__}.")
 
@@ -386,6 +416,7 @@ def _texture_from_spec(
             range=texture.range,
             categories=texture.categories,
             reverse=texture.reverse,
+            legend=_legend_from_spec(texture.legend),
         )
     raise SpecConversionError(
         f"{path}: unsupported texture spec {type(texture).__name__}."
@@ -1103,6 +1134,21 @@ def _properties_to_spec(
             runtime.transform, function_ids, f"{path}.transforms"
         ),
         name=runtime.name,
+        annotations=tuple(
+            sm.AnnotationSpec(
+                text=item.text,
+                position=item.position,
+                color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
+                font_size=item.font_size,
+                anchor=item.anchor,
+                background=cast(
+                    Any,
+                    _json_value(item.background, f"{path}.annotations.background"),
+                ),
+                padding=item.padding,
+            )
+            for item in runtime.annotations
+        ),
     )
 
 
@@ -1188,6 +1234,18 @@ def _properties_from_spec(
         spec.transforms, function_resolver, f"{path}.transforms"
     )
     layer._spec.name = spec.name
+    layer._spec.annotations = [
+        Annotation(
+            text=item.text,
+            position=item.position,
+            color=item.color,
+            font_size=item.font_size,
+            anchor=item.anchor,
+            background=item.background,
+            padding=item.padding,
+        )
+        for item in spec.annotations
+    ]
 
 
 def _node_from_spec(

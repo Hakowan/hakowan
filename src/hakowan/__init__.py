@@ -9,6 +9,7 @@ from .grammar.layer import Layer as layer
 from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
+from .grammar.overlay import Annotation, Legend
 from .compiler import compile
 from .inspection import AttributeSummary, DataSummary, inspect
 from .validation import Diagnostic, ValidationError, ValidationReport, validate
@@ -117,6 +118,8 @@ __all__ = [
     "render",
     "RenderResult",
     "set_default_backend",
+    "Annotation",
+    "Legend",
     "list_backends",
     "AttributeSummary",
     "DataSummary",

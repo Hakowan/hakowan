@@ -8,6 +8,7 @@ from typing import Any
 
 MODEL_DESCRIPTIONS = {
     "AffineScaleSpec": "Applies a linear or homogeneous affine matrix to an attribute.",
+    "AnnotationSpec": "A deterministic screen-space text annotation.",
     "AffineTransformSpec": "Applies a global affine matrix to a layer's geometry.",
     "AttributeSpec": "References a named mesh attribute and an ordered scale pipeline.",
     "BendStyleSpec": "Controls curve bending from a direction attribute.",
@@ -36,6 +37,7 @@ MODEL_DESCRIPTIONS = {
     "LayerNodeSpec": "A leaf visualization layer with no child composition nodes.",
     "LayerPropertiesSpec": "Partial data, mark, channel, transform, and name properties for a node.",
     "LayoutNodeSpec": "Places child visualizations side by side along one axis.",
+    "LegendSpec": "Presentation settings for a continuous colorbar or categorical legend.",
     "LogScaleSpec": "Applies a logarithm with the selected base to scalar data.",
     "MediumSpec": "Defines the homogeneous medium enclosed by a dielectric material.",
     "MeshFileDataSpec": "References mesh data stored in an external file.",
@@ -80,6 +82,20 @@ FIELD_DESCRIPTIONS = {
     "channels": "Unique visual channels and material contributed by this node.",
     "transforms": "Ordered runtime transform chain stored by this node.",
     "name": "Human-readable layer label used by interactive viewers.",
+    "annotations": "Ordered screen-space text annotations contributed by this node.",
+    "unit": "Optional physical unit associated with the referenced attribute.",
+    "legend": "Automatic legend toggle or detailed legend configuration.",
+    "title": "Optional display title; null derives it from the attribute name.",
+    "units": "Optional display units appended to the legend title.",
+    "ticks": "Number of labeled ticks for a continuous colorbar.",
+    "format": "Python numeric format specifier used for legend labels.",
+    "category_labels": "Optional mapping from stringified category values to labels.",
+    "width": "Raster legend panel width in pixels.",
+    "text": "Annotation text.",
+    "font_size": "Annotation font size in pixels.",
+    "anchor": "Horizontal annotation anchor relative to its position.",
+    "background": "Optional annotation background color.",
+    "padding": "Annotation background padding in pixels.",
     "path": "Resource path; relative paths resolve beside the loaded specification file.",
     "id": "Non-empty application-defined identifier resolved outside the JSON document.",
     "roi_box": "Optional axis-aligned region of interest as minimum and maximum corners.",
@@ -195,6 +211,22 @@ FIELD_DESCRIPTIONS = {
 
 
 FIELD_OVERRIDES = {
+    (
+        "AnnotationSpec",
+        "position",
+    ): "Normalized image position with origin at the top-left.",
+    ("AnnotationSpec", "color"): "Annotation text color.",
+    ("LegendSpec", "position"): "Side on which the legend panel is placed.",
+    ("LegendSpec", "format"): "Python numeric format specifier for tick labels.",
+    ("AttributeSpec", "unit"): "Optional physical unit shown in legends and manifests.",
+    (
+        "LayerPropertiesSpec",
+        "annotations",
+    ): "Ordered screen-space annotations for this node.",
+    (
+        "ScalarFieldTextureSpec",
+        "legend",
+    ): "Automatic legend toggle or detailed configuration.",
     (
         "ClipTransformSpec",
         "normal",

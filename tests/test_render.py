@@ -49,6 +49,30 @@ class TestRender:
         assert result.path == out
         assert out.exists() and out.stat().st_size > 0
 
+    def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
+        from PIL import Image
+
+        config = hkw.config()
+        config.film.width = 64
+        config.film.height = 160
+        layer = (
+            hkw.layer(triangle)
+            .material(
+                "Diffuse",
+                hkw.texture.ScalarField(
+                    hkw.attribute("vertex_data", unit="m"),
+                    legend=hkw.Legend(title="Distance", width=120),
+                ),
+            )
+            .annotate("Mitsuba", background="black")
+        )
+        output = tmp_path / "overlay.png"
+
+        hkw.render(layer, config, filename=output, backend="mitsuba")
+
+        with Image.open(output) as image:
+            assert image.size == (184, 160)
+
     @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
     def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):
         """Non-EXR output is encoded by Pillow, so any Pillow format works."""
@@ -228,9 +252,7 @@ class TestPointOrientation:
         # transform — never the ~magnitude-scaled blowup that caused the hang.
         radius = 0.5
         mesh = lagrange.SurfaceMesh()
-        mesh.add_vertices(
-            np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64)
-        )
+        mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64))
         normals = np.array(
             [[0.0, 0.0, 1000.0], [300.0, 400.0, 0.0], [0.0, 0.0, -1400.0]],
             dtype=np.float64,

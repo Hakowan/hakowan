@@ -52,8 +52,9 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
                 assert len(unique_values) > 0
                 assert isinstance(colormap, ColorMap)
                 num_colors = colormap.num_colors()
+                denominator = max(num_colors - 1, 1)
                 return colormap(
-                    unique_values.index(value) % num_colors / (num_colors - 1)
+                    unique_values.index(value) % num_colors / denominator
                 ).data
 
         if mesh.is_attribute_indexed(attr_name):
@@ -93,6 +94,22 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
         assert isinstance(tex.data, Attribute)
         tex.data._internal_color_field = color_attr_name
 
+    def set_legend_colors(colormap: ColorMap) -> None:
+        if tex.legend is False:
+            return
+        if tex.categories:
+            count = len(tex._legend_values or ())
+            denominator = max(colormap.num_colors() - 1, 1)
+            colors = [
+                colormap(index % colormap.num_colors() / denominator).data
+                for index in range(count)
+            ]
+        else:
+            colors = [colormap(value).data for value in np.linspace(0.0, 1.0, 16)]
+        tex._legend_colors = tuple(
+            tuple(float(channel) for channel in color[:3]) for color in colors
+        )
+
     if tex.colormap == "identity":
         # Assuming attribute is already storing color data.
         attr_to_color(lambda x: to_color(x.tolist()))
@@ -107,12 +124,14 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
             )
         if tex.reverse:
             colormap = colormap.reversed()
+        set_legend_colors(colormap)
         attr_to_color(colormap, tex.categories)
     elif isinstance(tex.colormap, list):
         colors = np.array([to_color(c).data for c in tex.colormap])
         colormap = ColorMap(colors)
         if tex.reverse:
             colormap = colormap.reversed()
+        set_legend_colors(colormap)
         attr_to_color(colormap, tex.categories)
 
 

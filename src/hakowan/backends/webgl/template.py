@@ -24,6 +24,8 @@ def render_html(
     layers: list[dict] | None = None,
     three_module_url: str | None = None,
     three_addons_url: str | None = None,
+    legends: list[dict] | None = None,
+    annotations: list[dict] | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
@@ -65,6 +67,10 @@ def render_html(
         "{{INITIAL_UP}}": json.dumps(initial_view["up"]),
         "{{ENVMAP_JSON}}": json.dumps(envmap) if envmap is not None else "null",
         "{{LAYERS_JSON}}": json.dumps(layers if layers is not None else []),
+        "{{LEGENDS_JSON}}": json.dumps(legends if legends is not None else []),
+        "{{ANNOTATIONS_JSON}}": json.dumps(
+            annotations if annotations is not None else []
+        ),
     }
     for key, value in replacements.items():
         template = template.replace(key, value)

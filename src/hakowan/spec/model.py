@@ -96,6 +96,7 @@ class CustomScaleSpec(SpecModel):
 class AttributeSpec(SpecModel):
     name: str = Field(min_length=1)
     scales: tuple["ScaleSpec", ...] = ()
+    unit: str | None = None
 
 
 class OffsetScaleSpec(SpecModel):
@@ -147,6 +148,25 @@ class IsocontourTextureSpec(SpecModel):
     num_contours: int = Field(default=8, ge=1)
 
 
+class LegendSpec(SpecModel):
+    title: str | None = None
+    units: str | None = None
+    ticks: int = Field(default=5, ge=2)
+    format: str = ".3g"
+    position: Literal["left", "right"] = "right"
+    category_labels: dict[str, str] | None = None
+    width: int = Field(default=180, ge=80)
+
+    @field_validator("format")
+    @classmethod
+    def validate_format(cls, value: str) -> str:
+        try:
+            format(1.0, value)
+        except ValueError as exc:
+            raise ValueError(f"Invalid numeric format: {value!r}") from exc
+        return value
+
+
 class ScalarFieldTextureSpec(SpecModel):
     kind: Literal["scalar_field"] = "scalar_field"
     data: AttributeSpec
@@ -155,6 +175,7 @@ class ScalarFieldTextureSpec(SpecModel):
     range: tuple[float, float] | None = None
     categories: bool = False
     reverse: bool = False
+    legend: bool | LegendSpec = True
 
 
 TextureSpec = Annotated[
@@ -472,12 +493,30 @@ class ExternalDataSpec(SpecModel):
 DataSpec = Annotated[MeshFileDataSpec | ExternalDataSpec, Field(discriminator="kind")]
 
 
+class AnnotationSpec(SpecModel):
+    text: str = Field(min_length=1)
+    position: tuple[float, float] = (0.02, 0.02)
+    color: ColorValue = "white"
+    font_size: int = Field(default=16, gt=0)
+    anchor: Literal["left", "center", "right"] = "left"
+    background: ColorValue | None = None
+    padding: int = Field(default=4, ge=0)
+
+    @field_validator("position")
+    @classmethod
+    def validate_position(cls, value: tuple[float, float]) -> tuple[float, float]:
+        if not all(0.0 <= component <= 1.0 for component in value):
+            raise ValueError("Annotation position values must be in [0, 1].")
+        return value
+
+
 class LayerPropertiesSpec(SpecModel):
     data: DataSpec | None = None
     mark: Literal["point", "curve", "surface"] | None = None
     channels: ChannelsSpec = Field(default_factory=ChannelsSpec)
     transforms: tuple[TransformSpec, ...] = ()
     name: str | None = None
+    annotations: tuple[AnnotationSpec, ...] = ()
 
 
 class LayerNodeSpec(SpecModel):
