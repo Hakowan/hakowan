@@ -169,10 +169,16 @@ def _flatten_views(root: Layer) -> list[_ResolvedView]:
                 channels.extend(ancestor._spec.channels)
                 if ancestor._spec.transform is not None:
                     transforms.append(ancestor._spec.transform)
+            if mark is None:
+                mark = (
+                    Mark.Point
+                    if data is not None and data.mesh.num_facets == 0
+                    else Mark.Surface
+                )
             resolved.append(
                 _ResolvedView(
                     data=data,
-                    mark=mark or Mark.Surface,
+                    mark=mark,
                     channels=channels,
                     transforms=transforms,
                 )
@@ -191,6 +197,197 @@ def _transform_nodes(transform: Transform) -> list[Transform]:
         current = current._child
     return result
 
+
+def _world_points(view: Any) -> np.ndarray:
+    if view.data_frame is None or view.data_frame.mesh.num_vertices == 0:
+        return np.empty((0, 3), dtype=np.float64)
+    points = np.asarray(view.data_frame.mesh.vertices, dtype=np.float64)
+    transform = np.asarray(view.global_transform, dtype=np.float64)
+    return (transform[:3, :3] @ points.T).T + transform[:3, 3]
+
+
+def _camera_coordinates(
+    points: np.ndarray, camera: Any
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    eye = np.asarray(camera.eye, dtype=np.float64)
+    forward = np.asarray(camera.target, dtype=np.float64) - eye
+    forward /= np.linalg.norm(forward)
+    up = np.asarray(camera.up, dtype=np.float64)
+    right = np.cross(forward, up)
+    right /= np.linalg.norm(right)
+    camera_up = np.cross(right, forward)
+    relative = points - eye
+    return relative @ right, relative @ camera_up, relative @ forward
+
+
+def _perspective_tangents(camera: Any, width: int, height: int) -> tuple[float, float]:
+    tangent = float(np.tan(np.radians(camera.fov) / 2.0))
+    aspect = width / height
+    axis = camera.fov_axis
+    if axis == "x" or (axis == "smaller" and width <= height) or (
+        axis == "larger" and width >= height
+    ):
+        return tangent, tangent / aspect
+    if axis == "diagonal":
+        denominator = float(np.sqrt(aspect * aspect + 1.0))
+        return tangent * aspect / denominator, tangent / denominator
+    return tangent * aspect, tangent
+
+
+def _projected_bounds(points: np.ndarray, camera: Any) -> tuple[float, float, float, float] | None:
+    from .grammar.figure import OrthographicCamera
+
+    x, y, depth = _camera_coordinates(points, camera)
+    visible = (depth >= camera.near) & (depth <= camera.far)
+    if not np.any(visible):
+        return None
+    if not isinstance(camera, OrthographicCamera):
+        x = x[visible] / depth[visible]
+        y = y[visible] / depth[visible]
+    else:
+        x = x[visible]
+        y = y[visible]
+    return float(x.min()), float(x.max()), float(y.min()), float(y.max())
+
+
+def _rect_coverage(
+    outer: tuple[float, float, float, float],
+    inner: tuple[float, float, float, float],
+) -> float:
+    inner_area = max(inner[1] - inner[0], 1e-12) * max(inner[3] - inner[2], 1e-12)
+    intersection = max(0.0, min(outer[1], inner[1]) - max(outer[0], inner[0])) * max(
+        0.0, min(outer[3], inner[3]) - max(outer[2], inner[2])
+    )
+    return intersection / inner_area
+
+
+def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -> None:
+    for index, view in enumerate(scene):
+        assert view.data_frame is not None
+        mesh = view.data_frame.mesh
+        empty = mesh.num_vertices == 0 or (
+            view.mark is Mark.Surface and mesh.num_facets == 0
+        )
+        if empty:
+            validator.issue(
+                "geometry.empty_after_transform",
+                f"views[{index}].geometry",
+                "The compiled view contains no renderable geometry.",
+                hint=(
+                    "Inspect filter, clip, and selection transforms; relax their conditions "
+                    "or verify that the source data contains elements for this mark."
+                ),
+            )
+
+    if figure is None or figure.scene.camera is None:
+        return
+    camera = figure.scene.camera
+    view_points = [_world_points(view) for view in scene]
+    nonempty = [points for points in view_points if points.size]
+    if not nonempty:
+        return
+    points = np.concatenate(nonempty, axis=0)
+    x, y, depth = _camera_coordinates(points, camera)
+    bounds_min = points.min(axis=0)
+    bounds_max = points.max(axis=0)
+    center = (bounds_min + bounds_max) / 2.0
+    radius = float(np.linalg.norm(points - center, axis=1).max(initial=0.0))
+    center_x, center_y, center_depth = (
+        values[0] for values in _camera_coordinates(center.reshape(1, 3), camera)
+    )
+    center_x = float(center_x)
+    center_y = float(center_y)
+    center_depth = float(center_depth)
+    min_depth = float(depth.min())
+    max_depth = float(depth.max())
+
+    if max_depth <= 0.0:
+        validator.issue(
+            "camera.scene_behind",
+            "scene.camera",
+            "All scene geometry is behind the camera.",
+            hint="Aim target at the scene bounds or move eye to the opposite side of target.",
+        )
+        return
+    if max_depth < camera.near or min_depth > camera.far:
+        plane = "near" if max_depth < camera.near else "far"
+        validator.issue(
+            "camera.clipping.outside",
+            f"scene.camera.{plane}",
+            f"The complete scene lies outside the camera {plane} clipping plane.",
+            hint=(
+                f"Set {plane} to include the scene depth range "
+                f"[{max(min_depth, 0.0):.4g}, {max_depth:.4g}]."
+            ),
+        )
+        return
+    if min_depth < camera.near:
+        validator.warning(
+            "camera.clipping.near",
+            "scene.camera.near",
+            "The near clipping plane intersects scene geometry.",
+            hint=f"Reduce near below {max(min_depth, 0.0):.4g} or move the camera back.",
+        )
+    if max_depth > camera.far:
+        validator.warning(
+            "camera.clipping.far",
+            "scene.camera.far",
+            "The far clipping plane intersects scene geometry.",
+            hint=f"Increase far above {max_depth:.4g} or move the camera closer.",
+        )
+
+    from .grammar.figure import OrthographicCamera
+
+    if not isinstance(camera, OrthographicCamera):
+        output = figure.scene.output
+        width = output.width if output is not None else 1024
+        height = output.height if output is not None else 800
+        tangent_x, tangent_y = _perspective_tangents(camera, width, height)
+        outside_x = abs(center_x) - center_depth * tangent_x > radius * np.sqrt(
+            1.0 + tangent_x * tangent_x
+        )
+        outside_y = abs(center_y) - center_depth * tangent_y > radius * np.sqrt(
+            1.0 + tangent_y * tangent_y
+        )
+        if outside_x or outside_y:
+            validator.issue(
+                "camera.scene_outside_view",
+                "scene.camera.target",
+                "The scene lies outside the camera field of view.",
+                hint="Aim target at the scene center, widen fov, or move eye farther away.",
+            )
+
+    projected = [_projected_bounds(points, camera) for points in view_points]
+    depth_ranges: list[tuple[float, float] | None] = []
+    for values in view_points:
+        if not values.size:
+            depth_ranges.append(None)
+            continue
+        view_depth = _camera_coordinates(values, camera)[2]
+        depth_ranges.append((float(view_depth.min()), float(view_depth.max())))
+    for back_index, back_bounds in enumerate(projected):
+        if back_bounds is None or scene[back_index].mark is not Mark.Surface:
+            continue
+        back_depth = depth_ranges[back_index]
+        assert back_depth is not None
+        for front_index, front_bounds in enumerate(projected):
+            if front_index == back_index or front_bounds is None:
+                continue
+            if scene[front_index].mark is not Mark.Surface:
+                continue
+            front_depth = depth_ranges[front_index]
+            assert front_depth is not None
+            if front_depth[1] < back_depth[0] and _rect_coverage(front_bounds, back_bounds) >= 0.98:
+                validator.warning(
+                    "layer.possible_occlusion",
+                    f"views[{back_index}]",
+                    f"View {front_index} is entirely closer and covers this view's projected bounds.",
+                    hint=(
+                        "Hide or separate the front layer, use transparency, or inspect the "
+                        "occluded layer from another camera view."
+                    ),
+                )
+                break
 
 def _attribute_name(value: str | Attribute) -> str:
     return value if isinstance(value, str) else value.name
@@ -236,6 +433,7 @@ class _Validator:
                 "backend.mark.unsupported",
                 f"{base}.mark",
                 f"Backend '{self.capabilities.name}' does not support mark '{mark_name}'.",
+                hint=f"Choose one of the backend's supported marks: {sorted(self.capabilities.marks)}.",
                 degradation=True,
             )
 
@@ -277,6 +475,7 @@ class _Validator:
                     "material.back_side.mark_incompatible",
                     f"{path}.back_side",
                     "Back-face material has no effect on non-surface marks.",
+                    hint="Use the Surface mark or remove the back-side material.",
                     degradation=True,
                 )
 
@@ -381,12 +580,14 @@ class _Validator:
                 "attribute.channels",
                 path,
                 f"Expected {channels} channel(s), but attribute has {info.channels}.",
+                hint=f"Choose an attribute with exactly {channels} channels or derive one with a transform.",
             )
         if minimum_channels is not None and info.channels < minimum_channels:
             self.issue(
                 "attribute.channels",
                 path,
                 f"Expected at least {minimum_channels} channels, but attribute has {info.channels}.",
+                hint=f"Choose an attribute with at least {minimum_channels} channels.",
             )
         if elements is not None and info.element not in elements:
             self.issue(
@@ -412,6 +613,7 @@ class _Validator:
                         "scale.norm.order",
                         path,
                         "Norm must be the first scale because it changes vector data to scalar data.",
+                        hint="Reorder the scale chain so Norm receives the original vector field.",
                     )
                 nonnegative = True
             if (
@@ -432,6 +634,7 @@ class _Validator:
                     "scale.custom.unstructured",
                     path,
                     "Custom callable scales cannot be serialized or statically validated.",
+                    hint="Use declarative built-in scales when the layer must round-trip through JSON.",
                 )
             first = False
             current = current._child
@@ -501,6 +704,7 @@ class _Validator:
                     "backend.map.image_required",
                     f"{path}.texture",
                     f"Backend '{self.capabilities.name}' only supports image-based {path.rsplit('.', 1)[-1]} textures.",
+                    hint="Provide hkw.texture.Image(...) or choose Mitsuba for procedural map textures.",
                     degradation=True,
                 )
         elif isinstance(channel, Material):
@@ -531,6 +735,7 @@ class _Validator:
                     "backend.hair.gradient",
                     path,
                     f"Backend '{self.capabilities.name}' does not preserve root/tip hair gradients.",
+                    hint="Use one uniform Hair color or select a backend with hair_gradient support.",
                     degradation=True,
                 )
         for field in fields(material):
@@ -561,6 +766,7 @@ class _Validator:
                     "texture.domain.order",
                     f"{path}.domain",
                     "ScalarField domain minimum exceeds its maximum.",
+                    hint="Swap the two domain endpoints so the minimum comes first.",
                 )
         elif isinstance(texture, Image):
             if not Path(texture.filename).is_file():
@@ -568,6 +774,7 @@ class _Validator:
                     "texture.image.missing",
                     f"{path}.filename",
                     f"Texture file '{texture.filename}' does not exist.",
+                    hint="Correct the texture path or place the image beside the specification file.",
                 )
             if texture.uv is not None:
                 self._check_attribute(texture.uv, mesh, generated, f"{path}.uv", channels=2)
@@ -576,6 +783,7 @@ class _Validator:
                     "texture.uv.missing",
                     f"{path}.uv",
                     "Image texture requires UV coordinates, but the mesh has no UV attribute.",
+                    hint="Provide a two-channel UV attribute or generate UV coordinates before texturing.",
                 )
         elif isinstance(texture, Checkerboard):
             if texture.uv is not None:
@@ -585,6 +793,7 @@ class _Validator:
                     "texture.uv.missing",
                     f"{path}.uv",
                     "Checkerboard texture requires UV coordinates, but the mesh has no UV attribute.",
+                    hint="Provide a two-channel UV attribute or generate UV coordinates before texturing.",
                 )
             self._validate_texture(texture.texture1, mesh, generated, f"{path}.texture1")
             self._validate_texture(texture.texture2, mesh, generated, f"{path}.texture2")
@@ -595,6 +804,7 @@ class _Validator:
                     "texture.isocontour.count",
                     f"{path}.num_contours",
                     "Isocontour num_contours must be positive.",
+                    hint="Set num_contours to an integer greater than zero.",
                 )
             self._validate_texture(texture.texture1, mesh, generated, f"{path}.texture1")
             self._validate_texture(texture.texture2, mesh, generated, f"{path}.texture2")
@@ -615,17 +825,20 @@ class _Validator:
                         "transform.filter.element",
                         f"{path}.data",
                         f"Filter does not support '{info.element}' attributes.",
+                        hint="Filter with a vertex or facet attribute, or convert the attribute domain first.",
                     )
                 if info is not None and mark is Mark.Curve and info.element == "vertex":
                     self.issue(
                         "transform.filter.curve_vertex",
                         path,
                         "Filter does not support vertex filtering for Curve marks.",
+                        hint="Use a facet attribute, or filter the source geometry before applying the Curve mark.",
                     )
             self.warning(
                 "transform.filter.callable",
                 f"{path}.condition",
                 "Filter callable cannot be serialized or statically validated.",
+                hint="Use a serializable filter expression when the layer must round-trip through JSON.",
             )
         elif isinstance(transform, UVMesh):
             if transform.uv is not None:
@@ -635,6 +848,7 @@ class _Validator:
                     "transform.uv.missing",
                     f"{path}.uv",
                     "UVMesh requires a UV attribute, but none is available.",
+                    hint="Set transform.uv to a two-channel UV attribute or add UV coordinates to the mesh.",
                 )
         elif isinstance(transform, Explode):
             self._check_attribute(
@@ -672,6 +886,7 @@ class _Validator:
                     "backend.fur.children",
                     f"{path}.children",
                     f"Backend '{self.capabilities.name}' ignores Fur child hairs.",
+                    hint="Set children=0 or choose a backend advertising fur_children support.",
                     degradation=True,
                 )
 
@@ -724,6 +939,7 @@ def validate(
                 "backend.camera.thin_lens",
                 "scene.camera",
                 "WebGL renders a thin-lens camera as standard perspective.",
+                hint="Use a perspective camera on WebGL or render with Mitsuba/Blender for depth of field.",
                 degradation=True,
             )
         environment = figure.scene.environment
@@ -737,6 +953,7 @@ def validate(
                 "environment.path.missing",
                 "scene.environment.path",
                 f"Environment map '{environment.path}' does not exist.",
+                hint="Correct the path or place the environment asset beside the specification file.",
             )
         output = figure.scene.output
         if output is not None:
@@ -747,6 +964,7 @@ def validate(
                     "backend.passes.unsupported",
                     "scene.output.passes",
                     f"Backend '{capabilities.name}' does not support passes {sorted(unsupported)}.",
+                    hint="Remove unsupported passes or choose a backend that advertises them.",
                     degradation=True,
                 )
     for index, view in enumerate(_flatten_views(root)):
@@ -757,14 +975,15 @@ def validate(
         try:
             from .compiler import compile as compile_layer
 
-            compile_layer(root)
+            scene = compile_layer(root, preserve_attributes=True)
+            _validate_compiled_scene(scene, figure, validator)
         except Exception as exc:
             message = str(exc).strip() or type(exc).__name__
             validator.issue(
                 "compile.failed",
                 "layer",
                 f"Layer compilation failed: {message}",
-                hint=f"Original exception type: {type(exc).__name__}",
+                hint=f"Fix the reported {type(exc).__name__} in the layer or transform configuration.",
             )
     return ValidationReport(
         backend=capabilities.name,

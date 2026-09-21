@@ -93,6 +93,20 @@ validation finishes with a real compile dry-run over deep-copied data, without
 rendering or mutating the layer. Pass `compile_check=False` for static-only,
 low-cost validation of expensive procedural transforms.
 
+The compile dry-run also checks output semantics that static schema validation
+cannot determine:
+
+- transforms that leave a view with no renderable geometry;
+- scenes entirely behind or outside an explicit Figure camera;
+- geometry outside or intersecting near and far clipping planes; and
+- surface layers that are entirely behind another layer covering their
+  projected bounds.
+
+Every finding has a stable `code`, exact `path`, and actionable `hint`. Occlusion
+is intentionally reported as a warning: projected bounding coverage is a
+conservative heuristic and cannot prove that an arbitrary surface is opaque.
+
+
 
 ## Compilation Process
 

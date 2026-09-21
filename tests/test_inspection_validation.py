@@ -150,3 +150,102 @@ def test_unknown_backend_is_a_structured_error(triangle):
     assert not report.valid
     assert report.errors[0].code == "backend.unknown"
     assert report.errors[0].path == "backend"
+
+def test_validate_reports_empty_geometry_after_transform(triangle):
+    layer = hkw.layer(triangle).transform(
+        hkw.transform.Filter(data="vertex_data", condition=lambda _: False)
+    )
+
+    report = hkw.validate(layer, backend="webgl")
+
+    diagnostic = next(
+        item
+        for item in report.errors
+        if item.code == "geometry.empty_after_transform"
+    )
+    assert diagnostic.path == "views[0].geometry"
+    assert "relax" in diagnostic.hint.lower()
+
+
+def test_validate_reports_scene_behind_camera(triangle):
+    figure = hkw.figure(hkw.layer(triangle)).camera(
+        "perspective", eye=(0, 0, 5), target=(0, 0, 10)
+    )
+
+    report = hkw.validate(figure, backend="webgl")
+
+    diagnostic = next(item for item in report.errors if item.code == "camera.scene_behind")
+    assert diagnostic.path == "scene.camera"
+    assert "target" in diagnostic.hint
+
+
+def test_validate_reports_scene_outside_field_of_view(triangle):
+    figure = hkw.figure(hkw.layer(triangle)).camera(
+        "perspective", eye=(0, 0, 5), target=(1, 0, 5), fov=20
+    )
+
+    report = hkw.validate(figure, backend="webgl")
+
+    assert any(item.code == "camera.scene_outside_view" for item in report.errors)
+
+
+def test_validate_reports_complete_and_intersecting_clipping(triangle):
+    outside = hkw.figure(hkw.layer(triangle)).camera(
+        "perspective", eye=(0, 0, 5), near=7, far=10
+    )
+    intersecting = hkw.figure(hkw.layer(triangle)).camera(
+        "perspective", eye=(0, 0, 5), near=5, far=10
+    )
+
+    outside_report = hkw.validate(outside, backend="webgl")
+    intersecting_report = hkw.validate(intersecting, backend="webgl")
+
+    assert any(item.code == "camera.clipping.outside" for item in outside_report.errors)
+    near = next(
+        item
+        for item in intersecting_report.warnings
+        if item.code == "camera.clipping.near"
+    )
+    assert "Reduce near" in near.hint
+    far_intersecting = hkw.figure(hkw.layer(triangle)).camera(
+        "perspective", eye=(0, 0, 5), near=0.01, far=5
+    )
+    far_report = hkw.validate(far_intersecting, backend="webgl")
+    far = next(
+        item
+        for item in far_report.warnings
+        if item.code == "camera.clipping.far"
+    )
+    assert "Increase far" in far.hint
+
+
+def test_validate_warns_about_severe_projected_occlusion():
+    front = lagrange.SurfaceMesh()
+    front.add_vertices(np.array([[-1.0, -1.0, 1.0], [1.0, -1.0, 1.0], [0.0, 1.0, 1.0]]))
+    front.add_triangle(0, 1, 2)
+    back = lagrange.SurfaceMesh()
+    back.add_vertices(np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]]))
+    back.add_triangle(0, 1, 2)
+    figure = hkw.figure(hkw.layer(front) + hkw.layer(back)).camera(
+        "perspective", eye=(0, 0, 5), target=(0, 0, 0)
+    )
+
+    report = hkw.validate(figure, backend="webgl")
+
+    diagnostic = next(
+        item for item in report.warnings if item.code == "layer.possible_occlusion"
+    )
+    assert diagnostic.path == "views[1]"
+    assert "another camera" in diagnostic.hint
+
+
+def test_compile_check_can_disable_geometry_diagnostics(triangle):
+    layer = hkw.layer(triangle).transform(
+        hkw.transform.Filter(data="vertex_data", condition=lambda _: False)
+    )
+
+    report = hkw.validate(layer, backend="webgl", compile_check=False)
+
+    assert not any(
+        item.code == "geometry.empty_after_transform" for item in report.diagnostics
+    )
