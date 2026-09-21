@@ -58,6 +58,93 @@ Lastly, it is also possible to directly specify the components as arguments to `
 base = hkw.layer("shape.obj", mark=hkw.mark.Point)
 ```
 
+## Task-oriented helpers
+
+Common visualization intents have concise methods. Each method expands into the
+same marks, channels, textures, transforms, and composition nodes described by
+the core grammar, so serialization and backend behavior remain unchanged.
+
+### Color by an attribute
+
+```py
+colored = base.color_by(
+    "temperature",
+    colormap="viridis",
+    domain=(0, 100),
+    legend=True,
+)
+```
+
+`color_by()` creates a diffuse material whose reflectance is a `ScalarField`.
+It also supports categorical fields, reversed colormaps, explicit output ranges,
+custom `Legend` objects, and two-sided rendering.
+
+### Overlay mesh edges
+
+```py
+with_edges = colored.show_edges(color="black", width=0.01)
+```
+
+`show_edges()` returns the original visualization overlaid with a curve-mark
+view of the same data. The input layer is not modified.
+
+### Add vector glyphs
+
+```py
+with_velocity = colored.glyph_vectors(
+    "velocity",
+    scale=0.2,
+    size=0.01,
+    color="white",
+    normalize=False,
+    end_type="arrow",
+)
+```
+
+Vector `scale` controls glyph length and `size` controls thickness. By default,
+the glyph layer is overlaid on the input; pass `overlay=False` to return only
+the vector visualization.
+
+### Slice with a plane
+
+```py
+upper = base.slice(normal=(0, 0, 1), offset=0.25)
+```
+
+`offset` is signed distance along the normalized plane normal. Use `point=`
+instead when the plane must pass through a specific point.
+
+### Isolate a connected component
+
+```py
+component = base.isolate_component(3)
+```
+
+By default, Hakowan computes connected-component IDs in a temporary
+`component` attribute and keeps the requested facet group. To use existing
+labels instead:
+
+```py
+region = base.isolate_component(8, attribute="region", compute=False)
+```
+
+The generated filter uses the restricted expression system and remains fully
+serializable.
+
+### Compare two layers
+
+```py
+comparison = before.compare(
+    after,
+    axis="x",
+    gap=0.1,
+    normalize=True,
+    labels=("Before", "After"),
+)
+```
+
+`compare()` is a labeled convenience over `juxtapose()`.
+
 ## Layer composition
 
 In the following example, we will demonstrate the idea of _layer composition_.

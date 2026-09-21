@@ -12,6 +12,7 @@ from ..channel import (
     Size,
     VectorField,
 )
+from ..channel.curvestyle import CurveStyle
 from ..channel.material import (
     Conductor,
     Dielectric,
@@ -26,10 +27,12 @@ from ..channel.material import (
     ThinDielectric,
     ThinPrincipled,
 )
-from ..transform import Transform, Affine
-from ..scale import Attribute, AttributeLike, to_attribute
-from ..texture import TextureLike
-from ..overlay import Annotation
+from ..transform import Transform, Affine, Clip, Compute, Filter
+from ..scale import Attribute, AttributeLike, Uniform as UniformScale, to_attribute, to_scale
+from ..texture import ScalarField, TextureLike
+from ...common.color import ColorLike
+from ..overlay import Annotation, Legend
+import copy
 
 from dataclasses import dataclass, field
 from typing import Any, Literal, Sequence
@@ -508,6 +511,154 @@ class Layer:
             case _:
                 raise ValueError(f"Unsupported material type: {type}!")
         return layer
+
+    def color_by(
+        self,
+        attribute: AttributeLike,
+        *,
+        colormap: str | list[ColorLike] = "viridis",
+        domain: tuple[float, float] | None = None,
+        range: tuple[float, float] | None = None,
+        categories: bool = False,
+        reverse: bool = False,
+        legend: bool | Legend = True,
+        two_sided: bool = False,
+    ) -> "Layer":
+        """Color this layer by an attribute using a diffuse scalar field."""
+        texture = ScalarField(
+            data=attribute,
+            colormap=colormap,
+            domain=domain,
+            range=range,
+            categories=categories,
+            reverse=reverse,
+            legend=legend,
+        )
+        return self.channel(
+            material=Diffuse(reflectance=texture, two_sided=two_sided)
+        )
+
+    def show_edges(
+        self,
+        *,
+        color: ColorLike = "black",
+        width: float = 0.01,
+        name: str | None = "Edges",
+    ) -> "Layer":
+        """Overlay this layer's mesh edges using a curve mark."""
+        if width <= 0.0:
+            raise ValueError("Edge width must be positive")
+        edges = (
+            self.mark(Mark.Curve)
+            .channel(size=width)
+            .channel(material=Diffuse(reflectance=color))
+        )
+        if name is not None:
+            edges = edges.name(name)
+        return self + edges
+
+    def glyph_vectors(
+        self,
+        attribute: AttributeLike,
+        *,
+        scale: float = 1.0,
+        size: float = 0.01,
+        color: ColorLike = "black",
+        normalize: bool = False,
+        end_type: Literal["point", "arrow", "flat"] = "arrow",
+        refinement_level: int = 0,
+        style: CurveStyle | None = None,
+        overlay: bool = True,
+        name: str | None = "Vectors",
+    ) -> "Layer":
+        """Create vector glyphs and optionally overlay them on this layer."""
+        if scale <= 0.0 or size <= 0.0:
+            raise ValueError("Vector scale and size must be positive")
+        vector_attribute = copy.deepcopy(to_attribute(attribute))
+        length_scale = UniformScale(factor=scale)
+        vector_attribute.scale = (
+            length_scale
+            if vector_attribute.scale is None
+            else to_scale(vector_attribute.scale) * length_scale
+        )
+        glyphs = (
+            self.mark(Mark.Curve)
+            .channel(
+                vector_field=VectorField(
+                    data=vector_attribute,
+                    refinement_level=refinement_level,
+                    style=style,
+                    end_type=end_type,
+                    normalize=normalize,
+                ),
+                size=size,
+            )
+            .channel(material=Diffuse(reflectance=color))
+        )
+        if name is not None:
+            glyphs = glyphs.name(name)
+        return self + glyphs if overlay else glyphs
+
+    def slice(
+        self,
+        normal: npt.ArrayLike,
+        *,
+        offset: float = 0.0,
+        point: npt.ArrayLike | None = None,
+    ) -> "Layer":
+        """Clip this layer to the positive side of a plane."""
+        vector = np.asarray(normal, dtype=np.float64)
+        if vector.shape != (3,) or np.linalg.norm(vector) <= 1e-12:
+            raise ValueError("Slice normal must be a non-zero three-vector")
+        vector /= np.linalg.norm(vector)
+        if point is not None and offset != 0.0:
+            raise ValueError("Specify either point or offset, not both")
+        plane_point = (
+            vector * float(offset)
+            if point is None
+            else np.asarray(point, dtype=np.float64)
+        )
+        if plane_point.shape != (3,):
+            raise ValueError("Slice point must contain three values")
+        return self.transform(Clip(point=plane_point, normal=vector))
+
+    def isolate_component(
+        self,
+        component: int,
+        *,
+        attribute: str = "component",
+        compute: bool = True,
+    ) -> "Layer":
+        """Keep one connected component or one existing component label."""
+        if not attribute:
+            raise ValueError("Component attribute name must not be empty")
+        from ...spec.expression import compile_expression
+
+        selection = Filter(
+            data=attribute,
+            condition=compile_expression(f"value == {int(component)}"),
+        )
+        transform = selection * Compute(component=attribute) if compute else selection
+        return self.transform(transform)
+
+
+    def compare(
+        self,
+        other: "Layer",
+        *,
+        axis: int | Literal["x", "y", "z"] = "x",
+        gap: float = 0.05,
+        normalize: bool = False,
+        labels: tuple[str, str] | None = None,
+    ) -> "Layer":
+        """Place two optionally labeled layers side by side for comparison."""
+        left, right = self, other
+        if labels is not None:
+            if len(labels) != 2:
+                raise ValueError("Comparison labels must contain exactly two values")
+            left = left.name(labels[0])
+            right = right.name(labels[1])
+        return left.juxtapose(right, axis=axis, gap=gap, normalize=normalize)
 
     def transform(self, transform: Transform, *, in_place: bool = False) -> "Layer":
         """Overwrite the transform component of this layer.
