@@ -49,14 +49,14 @@ The grammar lives in dataclasses with no machine-readable schema. Needed for val
 - **Effort**: ~2–3 days. **Shared deliverable with B1.**
 - **Done when**: `hkw.schema()` returns valid JSON Schema covering marks/channels/transforms/scales/materials; regenerates automatically from the dataclasses.
 
-### A4. Broader data inputs
+### A4. Broader data inputs — shipped
 
-`DataFrameLike = str | Path | SurfaceMesh | DataFrame` (`grammar/dataframe/dataframe.py:26`) — mesh-only. Excludes the large pandas/xarray/point-cloud audience.
-
-- **Fix**: `hkw.dataframe(pandas_df)`, `hkw.dataframe(xarray_dataset)`, accept point clouds without a mesh (positions + attributes → internal `SurfaceMesh` with no facets). Zero-config interop: `hkw.layer(pyvista_mesh)`, `hkw.layer(trimesh_obj)`.
-- **Files**: `grammar/dataframe/dataframe.py`, new converters in `grammar/dataframe/`.
-- **Effort**: ~3–4 days.
-- **Done when**: a pandas DataFrame of XYZ + scalar columns renders as a colored point cloud with no mesh.
+`hkw.layer(...)`, `Layer.data(...)`, `hkw.inspect(...)`, and
+`hkw.dataframe.to_dataframe(...)` accept numeric NumPy-compatible point arrays,
+pandas DataFrames, xarray Datasets, PyVista datasets, and Trimesh meshes. Tables
+infer `x`, `y`, and optional `z` positions or accept explicit `positions=` names.
+Numeric fields become domain-correct Lagrange attributes; polygonal adapters
+preserve topology and vertex/point plus facet/cell attributes.
 
 ### A5. Camera / lighting / environment in the grammar — shipped
 

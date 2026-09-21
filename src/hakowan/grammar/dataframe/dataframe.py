@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import lagrange
-from typing import TypeAlias
 from pathlib import Path
 import numpy.typing as npt
 
@@ -27,11 +26,10 @@ class DataFrame:
     source: Path | None = None
 
 
-DataFrameLike: TypeAlias = str | Path | lagrange.SurfaceMesh | DataFrame
-"""Type alias for objects that can be converted to a DataFrame.
+DataFrameLike = object
+"""Runtime data accepted by :func:`to_dataframe`.
 
-* A string or a Path object is interpreted as a path to a file that contains a mesh object. A
-`DataFrame` object will be created with the loaded mesh.
-* A SurfaceMesh object will create a DataFrame object with the mesh object.
-* A DataFrame object will be unchanged.
+Supported values are mesh paths, Lagrange meshes, Hakowan data frames, numeric
+point arrays, pandas DataFrames, xarray Datasets, PyVista datasets, and Trimesh
+objects. Optional third-party packages are detected without importing them.
 """

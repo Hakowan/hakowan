@@ -43,8 +43,13 @@ def condense_layer_tree_to_scene(
                 view.channels.extend(copy.deepcopy(lyr._spec.channels))
 
         if view.mark is None:
-            logger.debug("Apply default surface mark.")
-            view.mark = mark.Mark.Surface
+            assert view.data_frame is not None, "Data component is not specified"
+            if view.data_frame.mesh.num_facets == 0:
+                logger.debug("Apply default point mark to facet-free data.")
+                view.mark = mark.Mark.Point
+            else:
+                logger.debug("Apply default surface mark.")
+                view.mark = mark.Mark.Surface
 
         view.validate()
         view.initialize_bbox()

@@ -32,6 +32,9 @@ pip install hakowan[mitsuba,blender]
 # Add deterministic headless snapshots and multi-view observations
 pip install "hakowan[observe]"
 playwright install chromium
+
+# Optional dataframe and geometry adapters
+pip install "hakowan[data]"
 ```
 
 Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender backend).

@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any
 
 import lagrange
 import numpy as np
 
-from .grammar.dataframe import DataFrame, DataFrameLike
+from .grammar.dataframe import DataFrameLike, PositionColumns, to_dataframe
 
 
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
@@ -85,20 +84,11 @@ class DataSummary:
         raise KeyError(name)
 
 
-def _load_data(data: DataFrameLike) -> tuple[lagrange.SurfaceMesh, str | None]:
-    match data:
-        case str() | Path():
-            path = Path(data)
-            return (
-                lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True),
-                str(path),
-            )
-        case lagrange.SurfaceMesh():
-            return data, None
-        case DataFrame():
-            return data.mesh, str(data.source) if data.source is not None else None
-        case _:
-            raise TypeError(f"Unsupported data type: {type(data)!r}")
+def _load_data(
+    data: DataFrameLike, positions: PositionColumns = None
+) -> tuple[lagrange.SurfaceMesh, str | None]:
+    frame = to_dataframe(data, positions=positions)
+    return frame.mesh, str(frame.source) if frame.source is not None else None
 
 
 def _attribute_values(
@@ -163,21 +153,23 @@ def _summarize_attribute(mesh: lagrange.SurfaceMesh, name: str) -> AttributeSumm
     )
 
 
-def inspect(data: DataFrameLike) -> DataSummary:
-    """Inspect a mesh or mesh file without changing it.
+def inspect(
+    data: DataFrameLike, *, positions: PositionColumns = None
+) -> DataSummary:
+    """Inspect supported geometry or tabular data without changing it.
 
     The returned dataclasses contain only JSON-safe metadata. Attribute statistics
     are computed from unique values for indexed attributes; ``element_count``
     reports the index count while ``value_count`` reports the unique-value count.
 
     Args:
-        data: Mesh filename, :class:`lagrange.SurfaceMesh`, or Hakowan
-            :class:`~hakowan.grammar.dataframe.DataFrame`.
+        data: Any input accepted by :func:`hkw.dataframe.to_dataframe`.
+        positions: Optional position column names for pandas and xarray inputs.
 
     Returns:
         Geometry, topology, attribute-domain, and numeric-range metadata.
     """
-    mesh, source = _load_data(data)
+    mesh, source = _load_data(data, positions)
     if mesh.num_vertices:
         vertices = np.asarray(mesh.vertices, dtype=np.float64)
         bounds = [np.min(vertices, axis=0).tolist(), np.max(vertices, axis=0).tolist()]

@@ -1,5 +1,5 @@
 from .layer_spec import LayerSpec
-from ..dataframe import DataFrame, DataFrameLike
+from ..dataframe import DataFrameLike, PositionColumns, to_dataframe
 from ..mark import Mark
 from ..channel import (
     BumpMap,
@@ -32,9 +32,7 @@ from ..texture import TextureLike
 from ..overlay import Annotation
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Literal, Sequence
-import lagrange
 import numpy as np
 import numpy.typing as npt
 
@@ -121,6 +119,7 @@ class Layer:
         self,
         data: DataFrameLike | None = None,
         *,
+        positions: PositionColumns = None,
         mark: Mark | None = None,
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
@@ -146,7 +145,7 @@ class Layer:
         self._layout = None
 
         if data is not None:
-            self.data(data, in_place=True)
+            self.data(data, positions=positions, in_place=True)
         if mark is not None:
             self.mark(mark, in_place=True)
         if transform is not None:
@@ -282,34 +281,23 @@ class Layer:
         self,
         data: DataFrameLike,
         *,
+        positions: PositionColumns = None,
         roi_box: npt.ArrayLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
-        """Overwrite the data component of this layer.
+        """Overwrite this layer's data component.
 
         Args:
-            data (DataFrameLike): The new data component.
-            roi_box (npt.ArrayLike, optional): The region of interest box of the data.
-            in_place (bool, optional): Whether to modify the current layer in place or create new
-                layer. Defaults to False (i.e. create a new layer).
-
-        Returns:
-            result (Layer): The layer object with data component overwritten.
+            data: Mesh path, SurfaceMesh, point array, pandas DataFrame,
+                xarray Dataset, PyVista dataset, Trimesh object, or existing
+                Hakowan DataFrame.
+            positions: Position column names for pandas and xarray inputs.
+                Hakowan infers ``x, y, z`` or ``x, y`` when omitted.
+            roi_box: Optional region-of-interest bounds.
+            in_place: Modify this layer rather than returning a copy.
         """
         layer = self.__get_working_layer(in_place)
-        match data:
-            case str() | Path():
-                source = Path(data)
-                mesh = lagrange.io.load_mesh(source, quiet=True, stitch_vertices=True)  # type: ignore
-                layer._spec.data = DataFrame(mesh=mesh, roi_box=roi_box, source=source)
-            case lagrange.SurfaceMesh():
-                layer._spec.data = DataFrame(mesh=data, roi_box=roi_box)
-            case DataFrame():
-                layer._spec.data = data
-                if roi_box is not None:
-                    layer._spec.data.roi_box = roi_box
-            case _:
-                raise TypeError(f"Unsupported data type: {type(data)}!")
+        layer._spec.data = to_dataframe(data, positions=positions, roi_box=roi_box)
         return layer
 
     def mark(self, mark: Mark | _MarkStr, *, in_place: bool = False) -> "Layer":
