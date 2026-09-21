@@ -2312,6 +2312,10 @@ packages:
   - pygltflib>=1.16.5,<2
   - pydantic>=2.10,<3
   - bpy>=5.1,<6 ; python_full_version == '3.13.*' and extra == 'blender'
+  - pandas>=2.0 ; extra == 'data'
+  - xarray>=2024.1 ; extra == 'data'
+  - pyvista>=0.44 ; extra == 'data'
+  - trimesh>=4.0 ; extra == 'data'
   - mkdocs>=1.5 ; extra == 'docs'
   - mkdocs-material>=9.0 ; extra == 'docs'
   - mkdocstrings[python]>=0.24 ; extra == 'docs'

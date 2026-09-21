@@ -269,7 +269,7 @@ def evaluate_candidate(
                 render_stage = StageResult(
                     rendered,
                     None if rendered else "backend produced no output file",
-                    {"output": str(result.path) if result.path else None},
+                    {"artifact": result.path.name if result.path else None},
                 )
         except Exception as exc:
             render_stage = StageResult(False, str(exc))
