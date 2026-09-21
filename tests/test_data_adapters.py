@@ -125,6 +125,34 @@ def test_pyvista_polydata_preserves_points_faces_and_attributes():
     assert _attribute(frame.mesh, "value").reshape(-1) == pytest.approx([1, 2, 3])
 
 
+def test_pyvista_vertex_cells_preserve_point_attributes():
+    pyvista = pytest.importorskip("pyvista")
+    points = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    source = pyvista.UnstructuredGrid(
+        np.array([1, 0, 1, 1]),
+        np.array([pyvista.CellType.VERTEX, pyvista.CellType.VERTEX]),
+        points,
+    )
+    source.point_data["velocity"] = np.array([[1.0, 0, 0], [0, 2.0, 0]])
+
+    frame = hkw.dataframe.to_dataframe(source)
+
+    assert frame.mesh.num_vertices == 2
+    assert frame.mesh.num_facets == 0
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "velocity"), [[1.0, 0, 0], [0, 2.0, 0]]
+    )
+    colored = (
+        hkw.layer(frame)
+        .mark("point")
+        .color_by("speed", domain=(0, 3))
+        .transform(hkw.transform.Norm("velocity", "speed"))
+    )
+    compiled = hkw.compile(colored, preserve_attributes=True)[0].data_frame.mesh
+    colors = _attribute(compiled, "vertex_color")
+    assert len(np.unique(colors, axis=0)) == 2
+
+
 def test_trimesh_preserves_topology_and_attribute_domains():
     trimesh = pytest.importorskip("trimesh")
     source = trimesh.Trimesh(

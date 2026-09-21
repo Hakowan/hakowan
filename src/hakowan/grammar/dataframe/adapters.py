@@ -153,11 +153,13 @@ def _packed_faces(values: Any) -> list[list[int]]:
 
 
 def _pyvista_mesh(data: Any) -> lagrange.SurfaceMesh:
-    if not hasattr(data, "faces"):
+    faces = getattr(data, "faces", None)
+    if faces is None:
         data = data.extract_surface()
+        faces = data.faces
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(_positions(data.points, label="PyVista points"))
-    faces = _packed_faces(data.faces)
+    faces = _packed_faces(faces)
     for face in faces:
         mesh.add_polygon(np.ascontiguousarray(face, dtype=np.uint32))
     for name, values in data.point_data.items():
