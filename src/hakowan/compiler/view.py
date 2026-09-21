@@ -167,14 +167,19 @@ class View:
             active_attribute_names.append(normal_attr_names[0])
 
         # Rendering only needs active attributes. Observation compilation keeps
-        # source fields so a picked element can report its data values.
-        if not preserve_attributes:
-            for attr_id in mesh.get_matching_attribute_ids():
-                attr_name = mesh.get_attribute_name(attr_id)
-                if attr_name not in active_attribute_names and not attr_name.startswith(
-                    "_hakowan"
-                ):
-                    mesh.delete_attribute(attr_name)
+        # inactive source fields except UV attributes superseded by a processed
+        # UV channel: backends support one UV set and must select the active one.
+        for attr_id in mesh.get_matching_attribute_ids():
+            attr_name = mesh.get_attribute_name(attr_id)
+            if attr_name in active_attribute_names or attr_name.startswith("_hakowan"):
+                continue
+            attribute = (
+                mesh.indexed_attribute(attr_name)
+                if mesh.is_attribute_indexed(attr_name)
+                else mesh.attribute(attr_name)
+            )
+            if not preserve_attributes or attribute.usage == lagrange.AttributeUsage.UV:
+                mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
         for attr_name in active_attribute_names:

@@ -96,9 +96,7 @@ class ValidationError(ValueError):
 
     def __init__(self, report: ValidationReport):
         self.report = report
-        detail = "; ".join(
-            f"{item.path}: {item.message}" for item in report.errors
-        )
+        detail = "; ".join(f"{item.path}: {item.message}" for item in report.errors)
         super().__init__(detail or "Hakowan validation failed")
 
 
@@ -224,8 +222,10 @@ def _perspective_tangents(camera: Any, width: int, height: int) -> tuple[float, 
     tangent = float(np.tan(np.radians(camera.fov) / 2.0))
     aspect = width / height
     axis = camera.fov_axis
-    if axis == "x" or (axis == "smaller" and width <= height) or (
-        axis == "larger" and width >= height
+    if (
+        axis == "x"
+        or (axis == "smaller" and width <= height)
+        or (axis == "larger" and width >= height)
     ):
         return tangent, tangent / aspect
     if axis == "diagonal":
@@ -234,7 +234,9 @@ def _perspective_tangents(camera: Any, width: int, height: int) -> tuple[float, 
     return tangent * aspect, tangent
 
 
-def _projected_bounds(points: np.ndarray, camera: Any) -> tuple[float, float, float, float] | None:
+def _projected_bounds(
+    points: np.ndarray, camera: Any
+) -> tuple[float, float, float, float] | None:
     from .grammar.figure import OrthographicCamera
 
     x, y, depth = _camera_coordinates(points, camera)
@@ -382,7 +384,10 @@ def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -
                 continue
             front_depth = depth_ranges[front_index]
             assert front_depth is not None
-            if front_depth[1] < back_depth[0] and _rect_coverage(front_bounds, back_bounds) >= 0.98:
+            if (
+                front_depth[1] < back_depth[0]
+                and _rect_coverage(front_bounds, back_bounds) >= 0.98
+            ):
                 validator.warning(
                     "layer.possible_occlusion",
                     f"views[{back_index}]",
@@ -393,6 +398,7 @@ def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -
                     ),
                 )
                 break
+
 
 def _attribute_name(value: str | Attribute) -> str:
     return value if isinstance(value, str) else value.name
@@ -449,16 +455,14 @@ class _Validator:
             name = _channel_name(channel)
             path = f"{base}.channels.{name}"
             if name in active:
-                self.warning(
-                    "channel.shadowed",
-                    path,
-                    f"This {name} channel is shadowed by an earlier effective channel.",
-                    hint="Remove the shadowed channel or place the intended override higher in the layer tree.",
-                )
                 continue
             active[name] = channel
             allowed = next(
-                (marks for cls, marks in _MARK_CHANNELS.items() if isinstance(channel, cls)),
+                (
+                    marks
+                    for cls, marks in _MARK_CHANNELS.items()
+                    if isinstance(channel, cls)
+                ),
                 None,
             )
             if allowed is not None and view.mark not in allowed:
@@ -652,12 +656,18 @@ class _Validator:
         path: str,
     ) -> None:
         if isinstance(channel, Position):
-            self._check_attribute(channel.data, mesh, generated, f"{path}.data", channels=mesh.dimension)
+            self._check_attribute(
+                channel.data, mesh, generated, f"{path}.data", channels=mesh.dimension
+            )
         elif isinstance(channel, Normal):
-            self._check_attribute(channel.data, mesh, generated, f"{path}.data", channels=mesh.dimension)
+            self._check_attribute(
+                channel.data, mesh, generated, f"{path}.data", channels=mesh.dimension
+            )
         elif isinstance(channel, Size) and not isinstance(channel.data, (int, float)):
             info = self._check_attribute(channel.data, mesh, generated, f"{path}.data")
-            has_norm = isinstance(channel.data, Attribute) and isinstance(channel.data.scale, NormScale)
+            has_norm = isinstance(channel.data, Attribute) and isinstance(
+                channel.data.scale, NormScale
+            )
             if info is not None and info.channels != 1 and not has_norm:
                 self.issue(
                     "channel.size.scalar_required",
@@ -723,7 +733,9 @@ class _Validator:
         path: str,
     ) -> None:
         if material.back_side is not None:
-            self._validate_material(material.back_side, mesh, generated, f"{path}.back_side")
+            self._validate_material(
+                material.back_side, mesh, generated, f"{path}.back_side"
+            )
         if isinstance(material, Hair):
             if isinstance(material.color, Texture):
                 self.issue(
@@ -759,7 +771,11 @@ class _Validator:
     ) -> None:
         if isinstance(texture, ScalarField):
             info = self._check_attribute(texture.data, mesh, generated, f"{path}.data")
-            if info is not None and texture.colormap != "identity" and info.channels != 1:
+            if (
+                info is not None
+                and texture.colormap != "identity"
+                and info.channels != 1
+            ):
                 self.issue(
                     "texture.scalar_field.scalar_required",
                     f"{path}.data",
@@ -782,7 +798,9 @@ class _Validator:
                     hint="Correct the texture path or place the image beside the specification file.",
                 )
             if texture.uv is not None:
-                self._check_attribute(texture.uv, mesh, generated, f"{path}.uv", channels=2)
+                self._check_attribute(
+                    texture.uv, mesh, generated, f"{path}.uv", channels=2
+                )
             elif not mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV):
                 self.issue(
                     "texture.uv.missing",
@@ -792,7 +810,9 @@ class _Validator:
                 )
         elif isinstance(texture, Checkerboard):
             if texture.uv is not None:
-                self._check_attribute(texture.uv, mesh, generated, f"{path}.uv", channels=2)
+                self._check_attribute(
+                    texture.uv, mesh, generated, f"{path}.uv", channels=2
+                )
             elif not mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV):
                 self.issue(
                     "texture.uv.missing",
@@ -800,10 +820,16 @@ class _Validator:
                     "Checkerboard texture requires UV coordinates, but the mesh has no UV attribute.",
                     hint="Provide a two-channel UV attribute or generate UV coordinates before texturing.",
                 )
-            self._validate_texture(texture.texture1, mesh, generated, f"{path}.texture1")
-            self._validate_texture(texture.texture2, mesh, generated, f"{path}.texture2")
+            self._validate_texture(
+                texture.texture1, mesh, generated, f"{path}.texture1"
+            )
+            self._validate_texture(
+                texture.texture2, mesh, generated, f"{path}.texture2"
+            )
         elif isinstance(texture, Isocontour):
-            self._check_attribute(texture.data, mesh, generated, f"{path}.data", channels=1)
+            self._check_attribute(
+                texture.data, mesh, generated, f"{path}.data", channels=1
+            )
             if texture.num_contours <= 0:
                 self.issue(
                     "texture.isocontour.count",
@@ -811,8 +837,12 @@ class _Validator:
                     "Isocontour num_contours must be positive.",
                     hint="Set num_contours to an integer greater than zero.",
                 )
-            self._validate_texture(texture.texture1, mesh, generated, f"{path}.texture1")
-            self._validate_texture(texture.texture2, mesh, generated, f"{path}.texture2")
+            self._validate_texture(
+                texture.texture1, mesh, generated, f"{path}.texture1"
+            )
+            self._validate_texture(
+                texture.texture2, mesh, generated, f"{path}.texture2"
+            )
 
     def _validate_transform(
         self,
@@ -824,7 +854,9 @@ class _Validator:
     ) -> None:
         if isinstance(transform, Filter):
             if transform.data is not None:
-                info = self._check_attribute(transform.data, mesh, generated, f"{path}.data")
+                info = self._check_attribute(
+                    transform.data, mesh, generated, f"{path}.data"
+                )
                 if info is not None and info.element not in {"vertex", "facet"}:
                     self.issue(
                         "transform.filter.element",
@@ -839,15 +871,19 @@ class _Validator:
                         "Filter does not support vertex filtering for Curve marks.",
                         hint="Use a facet attribute, or filter the source geometry before applying the Curve mark.",
                     )
-            self.warning(
-                "transform.filter.callable",
-                f"{path}.condition",
-                "Filter callable cannot be serialized or statically validated.",
-                hint="Use a serializable filter expression when the layer must round-trip through JSON.",
-            )
+            condition_name = getattr(transform.condition, "__name__", None)
+            if condition_name not in {"_default_condition", "hakowan_expression"}:
+                self.warning(
+                    "transform.filter.callable",
+                    f"{path}.condition",
+                    "Filter callable cannot be serialized or statically validated.",
+                    hint="Use a serializable filter expression when the layer must round-trip through JSON.",
+                )
         elif isinstance(transform, UVMesh):
             if transform.uv is not None:
-                self._check_attribute(transform.uv, mesh, generated, f"{path}.uv", channels=2)
+                self._check_attribute(
+                    transform.uv, mesh, generated, f"{path}.uv", channels=2
+                )
             elif not mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV):
                 self.issue(
                     "transform.uv.missing",
@@ -874,7 +910,9 @@ class _Validator:
             )
         elif isinstance(transform, Boundary):
             for index, name in enumerate(transform.attributes):
-                self._check_attribute(name, mesh, generated, f"{path}.attributes[{index}]")
+                self._check_attribute(
+                    name, mesh, generated, f"{path}.attributes[{index}]"
+                )
         elif isinstance(transform, (Streamline, Fur)):
             self._check_attribute(
                 transform.vec_field,
@@ -884,8 +922,10 @@ class _Validator:
                 channels=mesh.dimension,
                 elements=frozenset({"vertex", "facet", "corner"}),
             )
-            if isinstance(transform, Fur) and transform.children > 0 and (
-                "fur_children" not in self.capabilities.features
+            if (
+                isinstance(transform, Fur)
+                and transform.children > 0
+                and ("fur_children" not in self.capabilities.features)
             ):
                 self.issue(
                     "backend.fur.children",
@@ -939,7 +979,10 @@ def validate(
     if figure is not None:
         from .grammar.figure import ThinLensCamera
 
-        if isinstance(figure.scene.camera, ThinLensCamera) and capabilities.name == "webgl":
+        if (
+            isinstance(figure.scene.camera, ThinLensCamera)
+            and capabilities.name == "webgl"
+        ):
             validator.issue(
                 "backend.camera.thin_lens",
                 "scene.camera",

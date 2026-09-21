@@ -5,6 +5,8 @@ import lagrange
 import numpy as np
 import pytest
 
+from hakowan.spec import compile_expression
+
 
 def test_inspect_returns_json_safe_geometry_and_attribute_statistics(triangle):
     summary = hkw.inspect(triangle)
@@ -119,6 +121,48 @@ def test_validate_recognizes_attributes_generated_by_transform(triangle):
     assert not any(item.code == "attribute.missing" for item in report.diagnostics)
 
 
+def test_validate_accepts_serializable_filter_expression(triangle):
+    layer = hkw.layer(triangle).transform(
+        hkw.transform.Filter(
+            data="vertex_data", condition=compile_expression("value >= 2")
+        )
+    )
+
+    report = hkw.validate(layer, backend="webgl", compile_check=False)
+
+    assert report.valid
+    assert not any(
+        item.code == "transform.filter.callable" for item in report.diagnostics
+    )
+
+
+def test_validate_ignores_intentionally_overridden_channel(triangle):
+    layer = hkw.layer(triangle).material("Diffuse", "red").material("Diffuse", "blue")
+
+    report = hkw.validate(layer, backend="webgl", compile_check=False)
+
+    assert report.valid
+    assert not any(item.code == "channel.shadowed" for item in report.diagnostics)
+
+
+def test_validate_scaled_uv_with_preserved_attributes(triangle, tmp_path):
+    texture = tmp_path / "texture.png"
+    texture.touch()
+    layer = hkw.layer(triangle).material(
+        "Principled",
+        color=hkw.texture.Image(texture, uv=hkw.attribute("uv", scale=2)),
+    )
+
+    report = hkw.validate(layer, backend="webgl")
+
+    assert report.valid
+    scene = hkw.compile(layer, preserve_attributes=True)
+    uv_ids = scene[0].data_frame.mesh.get_matching_attribute_ids(
+        usage=lagrange.AttributeUsage.UV
+    )
+    assert len(uv_ids) == 1
+
+
 def test_validate_compile_check_catches_runtime_failure_without_mutation(triangle):
     texture = hkw.texture.ScalarField("vertex_data")
     layer = (
@@ -151,6 +195,7 @@ def test_unknown_backend_is_a_structured_error(triangle):
     assert report.errors[0].code == "backend.unknown"
     assert report.errors[0].path == "backend"
 
+
 def test_validate_reports_empty_geometry_after_transform(triangle):
     layer = hkw.layer(triangle).transform(
         hkw.transform.Filter(data="vertex_data", condition=lambda _: False)
@@ -159,9 +204,7 @@ def test_validate_reports_empty_geometry_after_transform(triangle):
     report = hkw.validate(layer, backend="webgl")
 
     diagnostic = next(
-        item
-        for item in report.errors
-        if item.code == "geometry.empty_after_transform"
+        item for item in report.errors if item.code == "geometry.empty_after_transform"
     )
     assert diagnostic.path == "views[0].geometry"
     assert "relax" in diagnostic.hint.lower()
@@ -174,7 +217,9 @@ def test_validate_reports_scene_behind_camera(triangle):
 
     report = hkw.validate(figure, backend="webgl")
 
-    diagnostic = next(item for item in report.errors if item.code == "camera.scene_behind")
+    diagnostic = next(
+        item for item in report.errors if item.code == "camera.scene_behind"
+    )
     assert diagnostic.path == "scene.camera"
     assert "target" in diagnostic.hint
 
@@ -212,9 +257,7 @@ def test_validate_reports_complete_and_intersecting_clipping(triangle):
     )
     far_report = hkw.validate(far_intersecting, backend="webgl")
     far = next(
-        item
-        for item in far_report.warnings
-        if item.code == "camera.clipping.far"
+        item for item in far_report.warnings if item.code == "camera.clipping.far"
     )
     assert "Increase far" in far.hint
 
