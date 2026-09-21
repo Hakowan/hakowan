@@ -338,10 +338,15 @@ def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -
 
     from .grammar.figure import OrthographicCamera
 
-    if not isinstance(camera, OrthographicCamera):
-        output = figure.scene.output
-        width = output.width if output is not None else 1024
-        height = output.height if output is not None else 800
+    output = figure.scene.output
+    width = output.width if output is not None else 1024
+    height = output.height if output is not None else 800
+    if isinstance(camera, OrthographicCamera):
+        half_height = camera.scale * 0.5
+        half_width = half_height * width / height
+        outside_x = abs(center_x) - half_width > radius
+        outside_y = abs(center_y) - half_height > radius
+    else:
         tangent_x, tangent_y = _perspective_tangents(camera, width, height)
         outside_x = abs(center_x) - center_depth * tangent_x > radius * np.sqrt(
             1.0 + tangent_x * tangent_x
@@ -349,13 +354,13 @@ def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -
         outside_y = abs(center_y) - center_depth * tangent_y > radius * np.sqrt(
             1.0 + tangent_y * tangent_y
         )
-        if outside_x or outside_y:
-            validator.issue(
-                "camera.scene_outside_view",
-                "scene.camera.target",
-                "The scene lies outside the camera field of view.",
-                hint="Aim target at the scene center, widen fov, or move eye farther away.",
-            )
+    if outside_x or outside_y:
+        validator.issue(
+            "camera.scene_outside_view",
+            "scene.camera.target",
+            "The scene lies outside the camera field of view.",
+            hint="Aim target at the scene center, widen fov/scale, or move eye farther away.",
+        )
 
     projected = [_projected_bounds(points, camera) for points in view_points]
     depth_ranges: list[tuple[float, float] | None] = []

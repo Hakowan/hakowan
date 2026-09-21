@@ -1210,7 +1210,7 @@ def _camera_to_spec(camera):
         return sm.PerspectiveCameraSpec(
             fov=camera.fov, fov_axis=camera.fov_axis, **common
         )
-    return sm.OrthographicCameraSpec(**common)
+    return sm.OrthographicCameraSpec(scale=camera.scale, **common)
 
 
 def _camera_from_spec(camera):
@@ -1231,7 +1231,7 @@ def _camera_from_spec(camera):
         )
     if isinstance(camera, sm.PerspectiveCameraSpec):
         return PerspectiveCamera(fov=camera.fov, fov_axis=camera.fov_axis, **common)
-    return OrthographicCamera(**common)
+    return OrthographicCamera(scale=camera.scale, **common)
 
 
 def _scene_to_spec(scene: SceneSettings | None) -> sm.SceneSettingsSpec | None:

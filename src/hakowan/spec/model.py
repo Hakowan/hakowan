@@ -580,6 +580,7 @@ class OrthographicCameraSpec(SpecModel):
     up: Vec3 = Field(default_factory=lambda: [0.0, 1.0, 0.0])
     near: float = Field(default=0.01, gt=0.0)
     far: float = Field(default=10000.0, gt=0.0)
+    scale: float = Field(default=2.0, gt=0.0)
 
     @model_validator(mode="after")
     def validate_camera(self):

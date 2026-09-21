@@ -39,9 +39,9 @@ class Perspective(Sensor):
 
 @dataclass(kw_only=True, slots=True)
 class Orthographic(Sensor):
-    """Orthographic camera dataclass."""
+    """Orthographic camera with a full vertical framing extent."""
 
-    pass
+    scale: float = 2.0
 
 
 @dataclass(kw_only=True, slots=True)

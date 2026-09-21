@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from importlib import resources
+from typing import Any
 
 
 def _load_template() -> str:
@@ -18,7 +19,7 @@ def render_html(
         str, tuple[tuple[float, float, float], tuple[float, float, float]]
     ],
     background: str,
-    initial_view: dict[str, list[float]],
+    initial_view: dict[str, Any],
     title: str,
     envmap: dict | None = None,
     layers: list[dict] | None = None,
@@ -65,6 +66,8 @@ def render_html(
         "{{INITIAL_EYE}}": json.dumps(initial_view["eye"]),
         "{{INITIAL_TARGET}}": json.dumps(initial_view["target"]),
         "{{INITIAL_UP}}": json.dumps(initial_view["up"]),
+        "{{INITIAL_CAMERA_MODE}}": json.dumps(initial_view.get("mode", "perspective")),
+        "{{INITIAL_ORTHO_SCALE}}": json.dumps(initial_view.get("scale")),
         "{{ENVMAP_JSON}}": json.dumps(envmap) if envmap is not None else "null",
         "{{LAYERS_JSON}}": json.dumps(layers if layers is not None else []),
         "{{LEGENDS_JSON}}": json.dumps(legends if legends is not None else []),

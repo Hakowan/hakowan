@@ -115,6 +115,8 @@ const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {cente
 let bgMode = "{{BG_MODE}}";
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
+const INITIAL_CAMERA_MODE = {{INITIAL_CAMERA_MODE}};
+const INITIAL_ORTHO_SCALE = {{INITIAL_ORTHO_SCALE}};
 // One { index, label } entry per rendered layer (view), in view order. Drives
 // the per-layer visibility checkboxes; empty for single-layer scenes.
 const LAYERS = {{LAYERS_JSON}};
@@ -262,6 +264,13 @@ function setCameraMode(mode) {
   if (btn) {
     btn.textContent = mode === 'orthographic' ? '=' : '<';
     btn.classList.toggle('active', mode === 'orthographic');
+  }
+}
+if (INITIAL_CAMERA_MODE === 'orthographic') {
+  setCameraMode('orthographic');
+  if (INITIAL_ORTHO_SCALE !== null) {
+    orthoHalfHeight = INITIAL_ORTHO_SCALE * 0.5;
+    updateCameraProjection();
   }
 }
 
@@ -1062,6 +1071,10 @@ function savePassPng() {
 function setCameraState(state) {
   setCameraMode(state.mode || 'perspective');
   const active = camera;
+  if (active.isOrthographicCamera && state.scale !== undefined && state.scale !== null) {
+    orthoHalfHeight = state.scale * 0.5;
+    updateCameraProjection();
+  }
   active.position.fromArray(state.eye);
   active.up.fromArray(state.up);
   controls.target.fromArray(state.target);

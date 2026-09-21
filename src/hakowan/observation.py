@@ -70,6 +70,7 @@ class CameraState:
     near: float = 0.01
     far: float = 100.0
     mode: ProjectionMode = "perspective"
+    scale: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -375,6 +376,7 @@ def _camera_state_from_figure(camera) -> CameraState:
         near=camera.near,
         far=camera.far,
         mode="orthographic" if isinstance(camera, OrthographicCamera) else "perspective",
+        scale=camera.scale if isinstance(camera, OrthographicCamera) else None,
     )
 
 
@@ -388,6 +390,7 @@ def _camera_state_from_config(config: Config) -> CameraState:
         near=float(sensor.near_clip),
         far=float(sensor.far_clip),
         mode="orthographic" if isinstance(sensor, Orthographic) else "perspective",
+        scale=sensor.scale if isinstance(sensor, Orthographic) else None,
     )
 
 

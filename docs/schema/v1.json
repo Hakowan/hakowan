@@ -3123,6 +3123,13 @@
           "title": "Near",
           "type": "number"
         },
+        "scale": {
+          "default": 2.0,
+          "description": "Full vertical world-space extent of the orthographic view.",
+          "exclusiveMinimum": 0.0,
+          "title": "Scale",
+          "type": "number"
+        },
         "target": {
           "description": "World-space camera look-at target after scene normalization.",
           "items": {

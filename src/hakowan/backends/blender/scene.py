@@ -297,10 +297,7 @@ class _SceneMixin:
 
         if isinstance(sensor, Orthographic):
             camera_data.type = "ORTHO"
-            # The scene is normalized to fit a [-1, 1] box, which is also what
-            # Mitsuba's orthographic camera frames; an ortho scale of 2 (the full
-            # extent) matches that framing.
-            camera_data.ortho_scale = 2.0
+            camera_data.ortho_scale = float(sensor.scale)
         else:
             # Perspective / ThinLens.
             camera_data.type = "PERSP"

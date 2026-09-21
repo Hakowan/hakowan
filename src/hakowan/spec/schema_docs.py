@@ -263,6 +263,7 @@ FIELD_OVERRIDES = {
     ("BendStyleSpec", "direction"): "Attribute defining curve-bending directions.",
     ("EnvironmentSpec", "path"): "Optional environment-map path resolved beside the specification.",
     ("EnvironmentSpec", "scale"): "Environment-light intensity multiplier.",
+    ("OrthographicCameraSpec", "scale"): "Full vertical world-space extent of the orthographic view.",
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
     ("OutputSettingsSpec", "background"): "Initial light or dark background mode.",
     (

@@ -67,6 +67,9 @@ settings (resolution, background, passes, and sampler seed). Schema version
 1.1 round-trips these settings while continuing to load layer-only 1.0 specs.
 Explicit `Config` and backend keyword arguments retain invocation-time
 precedence.
+High-level framing resolves fitted, principal-axis, attribute-extremum, section,
+named-layer, component, bounding-box, and turntable requests to concrete
+serializable cameras.
 
 ### A6. Examples gallery website  (discoverability)
 

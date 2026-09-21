@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from ..common.color import ColorLike
 from ..setup import Config
@@ -42,9 +42,12 @@ class OrthographicCamera:
     up: tuple[float, float, float] = (0.0, 1.0, 0.0)
     near: float = 0.01
     far: float = 10000.0
+    scale: float = 2.0
 
     def __post_init__(self) -> None:
         _validate_camera(self.eye, self.target, self.up, self.near, self.far)
+        if self.scale <= 0.0:
+            raise ValueError("OrthographicCamera.scale must be positive.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,8 +183,21 @@ class Figure:
     def camera(self, camera: Camera | str = "perspective", **kwargs) -> "Figure":
         if isinstance(camera, str):
             kind = camera
-            if kind == "perspective":
-                resolved: Camera = PerspectiveCamera(**kwargs)
+            if kind in {"fit", "principal_axis", "attribute_extremum", "section"}:
+                from ..framing import resolve_camera
+
+                output = self.scene.output
+                kwargs.setdefault(
+                    "resolution",
+                    (output.width, output.height) if output is not None else (1024, 800),
+                )
+                resolved = resolve_camera(
+                    self.layer,
+                    cast(Literal["fit", "principal_axis", "attribute_extremum", "section"], kind),
+                    **kwargs,
+                )
+            elif kind == "perspective":
+                resolved = PerspectiveCamera(**kwargs)
             elif kind == "orthographic":
                 resolved = OrthographicCamera(**kwargs)
             elif kind == "thin_lens":
@@ -193,6 +209,20 @@ class Figure:
                 raise TypeError("Keyword camera options require a string camera kind.")
             resolved = camera
         return replace(self, scene=replace(self.scene, camera=resolved))
+
+    def turntable(self, **kwargs) -> tuple["Figure", ...]:
+        """Return figures with evenly spaced fitted cameras around the scene."""
+        from ..framing import turntable_cameras
+
+        output = self.scene.output
+        kwargs.setdefault(
+            "resolution",
+            (output.width, output.height) if output is not None else (1024, 800),
+        )
+        return tuple(
+            replace(self, scene=replace(self.scene, camera=camera))
+            for camera in turntable_cameras(self.layer, **kwargs)
+        )
 
     def light(self, light: Light | str = "point", **kwargs) -> "Figure":
         if isinstance(light, str):
@@ -281,6 +311,7 @@ def _sensor(camera: Camera):
         location=list(camera.eye),
         target=list(camera.target),
         up=list(camera.up),
+        scale=camera.scale,
         near_clip=camera.near,
         far_clip=camera.far,
     )

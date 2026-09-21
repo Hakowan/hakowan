@@ -51,9 +51,83 @@ figure.camera(
 )
 ```
 
+### Automatic framing
+
+High-level camera modes compile the layer tree, inspect its final normalized
+geometry, and resolve immediately to a concrete serializable camera:
+
+```py
+# Fit the complete scene using a canonical direction.
+figure = hkw.figure(layer).camera(
+    "fit", direction="isometric", margin=0.08
+)
+
+# Fit one named layer or one component encoded by a scalar attribute.
+figure = hkw.figure(layers).camera("fit", layer="surface")
+figure = hkw.figure(layer).camera(
+    "fit", component=("component", 3), direction="front"
+)
+
+# Fit an explicit box in normalized scene coordinates.
+figure = hkw.figure(layer).camera(
+    "fit", bounds=((-1, -1, -1), (1, 1, 1))
+)
+```
+
+`direction` accepts `front`, `back`, `left`, `right`, `top`, `bottom`,
+`isometric`, or an explicit three-vector. Set `up_axis="z"` for Z-up data.
+Framing uses the Figure output dimensions when computing aspect ratio.
+
+Principal-axis framing derives the camera direction from the selected points:
+
+```py
+figure = hkw.figure(layer).camera(
+    "principal_axis", axis=0, sign="+", margin=0.1
+)
+```
+
+Attribute-extremum framing targets the vertex or facet whose scalar value (or
+vector magnitude) is smallest or largest:
+
+```py
+figure = hkw.figure(layer).camera(
+    "attribute_extremum",
+    attribute="stress",
+    extremum="max",
+    direction="isometric",
+)
+```
+
+A section view aligns the camera with a plane normal and targets that plane.
+It does not clip geometry; combine it with `hkw.transform.Clip` when an actual
+cutaway is required:
+
+```py
+figure = hkw.figure(layer).camera(
+    "section",
+    normal=(0, 0, 1),
+    offset=0.25,
+    projection="orthographic",
+)
+```
+
+Use `turntable()` to create immutable Figures with evenly spaced fitted cameras:
+
+```py
+frames = hkw.figure(layer).turntable(count=12, elevation=20)
+for index, frame in enumerate(frames):
+    hkw.render(frame, filename=f"turntable_{index:02d}.html")
+```
+
+Automatic framing produces ordinary `PerspectiveCamera`,
+`OrthographicCamera`, or `ThinLensCamera` values. Canonical JSON therefore
+contains resolved coordinates and remains independent of framing code at load
+time.
+
 Camera coordinates are evaluated after Hakowan normalizes the compiled scene.
 All cameras support `eye`, `target`, `up`, `near`, and `far`. Perspective and
-thin-lens cameras additionally support `fov` and `fov_axis`.
+thin-lens cameras additionally support `fov` and `fov_axis`; orthographic
+cameras use `scale` as the full vertical world-space extent.
 
 The WebGL backend approximates thin-lens cameras as perspective and reports the
 degradation through strict validation.
