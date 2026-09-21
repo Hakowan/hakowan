@@ -505,6 +505,8 @@ class _SceneMixin:
             config: Rendering configuration (film size, sampler, etc.).
             engine: Blender render engine — ``"CYCLES"`` (default) or
                 ``"BLENDER_EEVEE"``.
+            environment_visible: Keep the world background opaque when true;
+                otherwise render it transparently while retaining its lighting.
         """
         scene = bpy.context.scene
 

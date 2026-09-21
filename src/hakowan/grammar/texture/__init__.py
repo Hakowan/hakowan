@@ -1,3 +1,5 @@
+"""Texture grammar models and accepted texture-like values."""
+
 from .texture import (
     Texture,
     TextureLike,

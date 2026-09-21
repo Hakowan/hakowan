@@ -1,3 +1,5 @@
+"""Point, directional, and environment emitter settings."""
+
 from ..common.color import ColorLike
 
 from dataclasses import dataclass, field
@@ -19,6 +21,7 @@ class Point(Emitter):
     Attributes:
         intensity: Light intensity.
         position: Light position.
+
     """
 
     intensity: ColorLike | float = 1.0
@@ -43,6 +46,7 @@ class Envmap(Emitter):
         scale: Scaling factor to be applied to the environment light.
         up: Up vector of the environment light.
         rotation: Rotation angle of the environment light around the up direction.
+
     """
 
     filename: Path = field(

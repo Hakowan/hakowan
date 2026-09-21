@@ -35,12 +35,15 @@ ColorValue: TypeAlias = Number | str | list[Number]
 
 
 class ExpressionSpec(SpecModel):
+    """Restricted expression used by serializable filters and custom scales."""
+
     kind: Literal["expression"] = "expression"
     source: str = Field(min_length=1, max_length=1024)
 
     @field_validator("source")
     @classmethod
     def validate_source(cls, value: str) -> str:
+        """Validate expression syntax against the safe evaluator allowlist."""
         from .expression import compile_expression
 
         compile_expression(value)
@@ -48,6 +51,8 @@ class ExpressionSpec(SpecModel):
 
 
 class FunctionRefSpec(SpecModel):
+    """Reference a trusted callable supplied through a function resolver."""
+
     kind: Literal["function"] = "function"
     id: str = Field(min_length=1)
 
@@ -94,6 +99,8 @@ class CustomScaleSpec(SpecModel):
 
 
 class AttributeSpec(SpecModel):
+    """Reference an attribute with an ordered scale chain and optional unit."""
+
     name: str = Field(min_length=1)
     scales: tuple["ScaleSpec", ...] = ()
     unit: str | None = None
@@ -511,6 +518,8 @@ class AnnotationSpec(SpecModel):
 
 
 class LayerPropertiesSpec(SpecModel):
+    """Properties contributed by one node in a composed layer tree."""
+
     data: DataSpec | None = None
     mark: Literal["point", "curve", "surface"] | None = None
     channels: ChannelsSpec = Field(default_factory=ChannelsSpec)
@@ -672,9 +681,11 @@ class FigureSpec(SpecModel):
     scene: SceneSettingsSpec | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the complete JSON-safe document, including defaults and nulls."""
         return self.model_dump(mode="json", by_alias=True, exclude_none=False)
 
     def to_json(self, *, indent: int | None = 2, canonical: bool = False) -> str:
+        """Serialize with sorted keys and optional canonical compact formatting."""
         payload = self.to_dict()
         return json.dumps(
             payload,
@@ -685,14 +696,17 @@ class FigureSpec(SpecModel):
         )
 
     def save(self, path: str | Path, *, indent: int | None = 2) -> None:
+        """Write the specification as UTF-8 JSON followed by a newline."""
         Path(path).write_text(self.to_json(indent=indent) + "\n", encoding="utf-8")
 
     @classmethod
     def from_json(cls, text: str | bytes) -> "FigureSpec":
+        """Parse and validate a FigureSpec from JSON text or bytes."""
         return cls.model_validate_json(text)
 
     @classmethod
     def load(cls, path: str | Path) -> "FigureSpec":
+        """Read and validate a FigureSpec from a UTF-8 JSON file."""
         return cls.from_json(Path(path).read_text(encoding="utf-8"))
 
 

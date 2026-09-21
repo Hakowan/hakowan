@@ -1,3 +1,5 @@
+"""Internal geometry-plus-attributes data frame representation."""
+
 from dataclasses import dataclass
 import lagrange
 from pathlib import Path
@@ -6,18 +8,17 @@ import numpy.typing as npt
 
 @dataclass(slots=True)
 class DataFrame:
-    """DataFrame represents data that are stored on a 3D surface.
+    """Store spatial geometry and element attributes on a SurfaceMesh.
 
-    A DataFrame contains a reference to a SurfaceMesh object, which defines the 3D geometry where
-    data are stored. The mesh object also contains a set of attributes, which can be thought of as
-    columns in traditional table-based data representation. Each attribute defines data values
-    associated with mesh vertices, edges, facets, etc.
+    Facet-free meshes represent point clouds; meshes with facets represent
+    surfaces. Attributes act as typed columns defined on vertices, edges,
+    facets, corners, or indexed values.
 
     Attributes:
-        mesh: A SurfaceMesh object that defines the 3D geometry where data are stored.
-        roi_box: A box defining the region of interest. If None, the entire mesh is considered.
-        source: Original mesh path when loaded from a file. Used by canonical
-            specification serialization; None for in-memory meshes.
+        mesh: Lagrange geometry and attribute storage.
+        roi_box: Optional axis-aligned region used for framing and normalization.
+        source: Original mesh path for canonical serialization, or ``None`` for
+            in-memory data.
 
     """
 

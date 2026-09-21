@@ -1,3 +1,5 @@
+"""Composable geometry and attribute transform models."""
+
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 import copy
@@ -38,6 +40,7 @@ class Transform:
 
         Args:
             other: The transform to apply after the current transform.
+
         """
         # Because transform may be used in multiple places in the layer graph, and it may have a
         # child in the future, it must be deep copied to avoid undesired side effects.
@@ -57,6 +60,7 @@ class Transform:
             other: The other transform.
 
         Returns: A new transform that is the composition of the current transform and `other`.
+
         """
         r = copy.deepcopy(self)
         r *= other
@@ -71,6 +75,7 @@ class Filter(Transform):
         data: The attribute to filter on. If None, the vertex position is used.
         condition: A callable that takes a single argument, the value of the attribute, and returns
             a boolean indicating whether the data should be kept.
+
     """
 
     data: AttributeLike | None = None
@@ -94,6 +99,7 @@ class Clip(Transform):
         point: A point lying on the clipping plane.
         normal: The plane normal. The half-space where
             ``dot(normal, x - point) >= 0`` is kept; the rest is clipped away.
+
     """
 
     point: npt.ArrayLike = field(default_factory=lambda: np.zeros(3))
@@ -107,6 +113,7 @@ class UVMesh(Transform):
     Attributes:
         uv: The attribute defining the UV coordinates. If None, automatically deetect the UV
             attribute from the data.
+
     """
 
     uv: AttributeLike | None = None
@@ -118,6 +125,7 @@ class Affine(Transform):
 
     Attributes:
         matrix: The 4x4 affine matrix to apply.
+
     """
 
     matrix: npt.ArrayLike
@@ -140,6 +148,7 @@ class PrincipalAxes(Transform):
         frame: 3x3 matrix whose columns are the target orthonormal axes (see above).
         orthonormalize_frame: If True (default), orthonormalize ``frame`` with QR so mildly
             skewed inputs still yield a proper rotation.
+
     """
 
     frame: npt.ArrayLike = field(default_factory=lambda: np.eye(3))
@@ -165,6 +174,7 @@ class Normalize(Transform):
         normalize_normals: Re-normalize normal attributes to unit length. Default True.
         normalize_tangents_bitangents: Re-normalize tangent/bitangent attributes to
             unit length. Default True.
+
     """
 
     normalize_normals: bool = True
@@ -183,6 +193,7 @@ class Compute(Transform):
         vertex_normal: Compute the vertex normal vector field as an attribute.
         facet_normal: Compute the facet normal vector field as an attribute.
         component: Compute connected component ids.
+
     """
 
     x: str | None = None
@@ -201,6 +212,7 @@ class Explode(Transform):
     Attributes:
         pieces: The attribute defining the pieces.
         magnitude: The magnitude of the displacement.
+
     """
 
     pieces: AttributeLike
@@ -215,6 +227,7 @@ class Norm(Transform):
         data: The vector attribute to compute the norm on.
         norm_attr_name: The name of the output norm attribute.
         order: The order of the norm. Default is 2, which is the L2 norm.
+
     """
 
     data: AttributeLike
@@ -229,6 +242,7 @@ class Boundary(Transform):
     Attributes:
         attributes: The attributes to take into account when computing the boundary.
             i.e. discontinuities in these attributes will be considered as boundaries.
+
     """
 
     attributes: list[str] = field(default_factory=list)
@@ -236,8 +250,7 @@ class Boundary(Transform):
 
 @dataclass(slots=True, kw_only=True)
 class Streamline(Transform):
-    """Replace the mesh with surface streamlines traced from a per-facet vector or
-    cross field.
+    """Replace a surface with streamlines traced along a vector or cross field.
 
     The output is a vertex-only mesh whose 2-vertex polygonal faces encode line
     segments along the streamlines, suitable for the ``curve`` mark.  A per-vertex
@@ -261,6 +274,7 @@ class Streamline(Transform):
             ``None`` (default) uses half the number of facets.
         id_attr_name: Name of the per-vertex streamline-id attribute on the
             output mesh.  Default ``_hakowan_streamline_id``.
+
     """
 
     vec_field: AttributeLike
@@ -275,8 +289,7 @@ class Streamline(Transform):
 
 @dataclass(slots=True, kw_only=True)
 class Fur(Transform):
-    """Replace the mesh with fur/hair strands flowing along a per-facet vector
-    field.
+    """Replace a surface with tapered strands flowing along a vector field.
 
     Each strand is a short, tapered curve that grows from the surface, leans in
     the direction of the vector field, and curls toward the surface flow — so a
@@ -334,6 +347,7 @@ class Fur(Transform):
             ``children > 0``.
         seed: RNG seed for seed-point sampling and per-strand variation.
             Default 0.
+
     """
 
     vec_field: AttributeLike

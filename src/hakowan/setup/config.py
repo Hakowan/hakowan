@@ -1,3 +1,5 @@
+"""Invocation-time renderer configuration and coordinate presets."""
+
 from .sensor import Sensor, Perspective
 from .film import Film
 from .sampler import Sampler, Independent
@@ -38,6 +40,9 @@ class Config:
             written to a ``<stem>_<pass><ext>`` sidecar file (or exposed as a
             live viewer toggle for WebGL); see
             :class:`hakowan.render.RenderResult` for the per-render manifest.
+        environment_visible: Show an environment map to the camera when true.
+        background: Optional WebGL/raster light or dark background override.
+
     """
 
     sensor: Sensor = field(default_factory=Perspective)
@@ -109,6 +114,7 @@ class Config:
 
         Raises:
             ValueError: If any name is not a recognised render pass.
+
         """
         names = set(value)
         for name in names:

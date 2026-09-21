@@ -1,3 +1,5 @@
+"""Participating-medium grammar model."""
+
 from dataclasses import dataclass
 
 from ....common.color import ColorLike
@@ -10,6 +12,7 @@ class Medium:
     Attributes:
         albedo (ColorLike) : The albedo of the medium.
         scale (float): The scale of the medium.
+
     """
 
     albedo: ColorLike = 0.75

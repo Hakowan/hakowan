@@ -1,3 +1,5 @@
+"""Compile declarative layer trees into backend-ready scenes."""
+
 from ..common import logger
 from ..grammar import layer, mark
 from .view import View
@@ -12,6 +14,7 @@ import copy
 def condense_layer_tree_to_scene(
     root: layer.Layer,
 ) -> tuple[Scene, dict[int, layer.LayoutOptions]]:
+    """Flatten each leaf path into a resolved View and collect layout options."""
     scene = Scene()
     # Layout options for every juxtaposition node, keyed by id(node) so the
     # recursive layout can honour each node's own axis/gap/normalize.
@@ -97,6 +100,7 @@ def compile(root: layer.Layer | object, *, preserve_attributes: bool = False) ->
 
     Returns:
         A compiled scene containing one view per leaf path.
+
     """
     if not isinstance(root, layer.Layer):
         from ..grammar.figure import Figure

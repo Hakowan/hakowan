@@ -77,6 +77,7 @@ class DataSummary:
 
         Raises:
             KeyError: If the input has no attribute named ``name``.
+
         """
         for attribute in self.attributes:
             if attribute.name == name:
@@ -168,6 +169,7 @@ def inspect(
 
     Returns:
         Geometry, topology, attribute-domain, and numeric-range metadata.
+
     """
     mesh, source = _load_data(data, positions)
     if mesh.num_vertices:

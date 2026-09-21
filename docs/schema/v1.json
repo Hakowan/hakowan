@@ -224,7 +224,7 @@
     },
     "AttributeSpec": {
       "additionalProperties": false,
-      "description": "References a named mesh attribute and an ordered scale pipeline.",
+      "description": "Reference an attribute with an ordered scale chain and optional unit.",
       "properties": {
         "name": {
           "description": "Human-readable layer label used by interactive viewers.",
@@ -1536,7 +1536,7 @@
     },
     "ExpressionSpec": {
       "additionalProperties": false,
-      "description": "A restricted, validated expression evaluated with one attribute value.",
+      "description": "Restricted expression used by serializable filters and custom scales.",
       "properties": {
         "kind": {
           "const": "expression",
@@ -1669,7 +1669,7 @@
     },
     "FunctionRefSpec": {
       "additionalProperties": false,
-      "description": "References a trusted application function by resolver identifier.",
+      "description": "Reference a trusted callable supplied through a function resolver.",
       "properties": {
         "id": {
           "description": "Non-empty application-defined identifier resolved outside the JSON document.",
@@ -2337,7 +2337,7 @@
     },
     "LayerPropertiesSpec": {
       "additionalProperties": false,
-      "description": "Partial data, mark, channel, transform, and name properties for a node.",
+      "description": "Properties contributed by one node in a composed layer tree.",
       "properties": {
         "annotations": {
           "default": [],

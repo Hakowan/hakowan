@@ -1,3 +1,5 @@
+"""Visual channel models for positions, glyphs, fields, and maps."""
+
 from dataclasses import dataclass
 
 from typing import Literal, Optional
@@ -23,16 +25,14 @@ class Channel:
 
 @dataclass(slots=True)
 class Position(Channel):
-    """Position channel
+    """Map a geometry-dimensional attribute to rendered positions.
 
-    This class is used to specify the mapping from an attribute to the position channel.
-    Note that, by default, the vertex coordinates of the data frame is used as the position
-    channel. Thus, this class is mainly useful when we want to use non-vertex-coordinates as the
-    position channel. For example, this method can be used for visualizing a deformed shape when
-    the deformed position is stored as a vertex attribute in the data frame.
+    Without this channel, source mesh vertices supply positions. Use it for
+    deformed or alternate position attributes.
 
     Attributes:
         data (AttributeLike): The attribute used to encode the position field.
+
     """
 
     data: AttributeLike
@@ -40,15 +40,13 @@ class Position(Channel):
 
 @dataclass(slots=True)
 class Normal(Channel):
-    """Normal channel
+    """Map a geometry-dimensional attribute to surface normals.
 
-    This class is used to specify the mapping from an attribute to the normal channel.
-    By default, Hakowan will automatically compute the normal field from the geometry if normal
-    channel is not specified. This class is useful for ensure the visualization uses a pre-defined
-    normal field.
+    Without this channel, Hakowan computes normals from geometry.
 
     Attributes:
         data (AttributeLike): The attribute used to encode the normal field.
+
     """
 
     data: AttributeLike
@@ -56,14 +54,13 @@ class Normal(Channel):
 
 @dataclass(slots=True)
 class Size(Channel):
-    """Size channel
+    """Map a scalar attribute or constant to point/curve glyph size.
 
-    This class is used to specify the mapping from an attribute or value to the size channel. If a
-    value is used, all elements will have the same size. Note that size is defined in the same unit
-    as the input geometry.
+    Sizes use the input geometry's units.
 
     Attributes:
         data (AttributeLike | float): The attribute or value used to encode the size field.
+
     """
 
     data: AttributeLike | float
@@ -71,12 +68,9 @@ class Size(Channel):
 
 @dataclass(slots=True)
 class VectorField(Channel):
-    """Vector field channel
+    """Render a vertex- or facet-domain vector attribute as curve glyphs.
 
-    This class is used to specify the mapping from an attribute to the vector field channel.
-
-    A vector field can be define over the vertices or facets of the geometry. The vector field must
-    have the same dimension as the geometry.
+    The vector must have the same dimension as the source geometry.
 
     Attributes:
         data (AttributeLike): The attribute used to encode the vector field.
@@ -96,6 +90,7 @@ class VectorField(Channel):
             on ``data`` controls the common arrow length. By default (False),
             arrow length is proportional to the vector magnitude. The default
             value is ``False``.
+
     """
 
     data: AttributeLike
@@ -107,17 +102,17 @@ class VectorField(Channel):
 
 @dataclass(slots=True)
 class Covariance(Channel):
-    """Covariance channel
+    """Map per-point 3x3 covariance data to anisotropic point glyphs.
 
-    This class is used to specify the mapping from an attribute to the covariance matrix channel.
-    The covariance channel only applies to point mark. It is represented as a per-vertex 3x3
-    symmetric matrix, which defines the stretch and rotation of the point marks.
+    ``full=True`` interprets the attribute as covariance; otherwise values are
+    its square-root transform ``M`` where covariance is ``M @ M.T``.
 
     Attributes:
         data (AttributeLike): The attribute used to encode the covariance matrix.
         full: (bool): If True, the full covariance matrix is stored in the attribute.
             If False, its "square root", M, is stored. The full covariance matrix is ∑ := M @ M^T.
             The matrix M represenst the stretch and rotation transform applied on each mark.
+
     """
 
     data: AttributeLike
@@ -126,16 +121,14 @@ class Covariance(Channel):
 
 @dataclass(slots=True)
 class Shape(Channel):
-    """Shape channel
-
-    This class is used to specify the mapping from an attribute to the shape channel.
-    This channel is only used for point mark.
+    """Select and optionally orient sphere, disk, or cube point glyphs.
 
     Attributes:
         base_shape (Literal["sphere", "disk", "cube"]): The base shape used to represent a point.
             The default value is ``"sphere"``.
         orientation (AttributeLike | None): The attribute used to encode the normal orientation
             of the shape. If None, orientation will be identity (i.e. normal along z-axis).
+
     """
 
     base_shape: Literal["sphere", "disk", "cube"] = "sphere"
@@ -144,13 +137,12 @@ class Shape(Channel):
 
 @dataclass(slots=True)
 class BumpMap(Channel):
-    """Bump map channel
-
-    This class specifies the bump map channel.
+    """Perturb surface shading normals with a scalar bump texture.
 
     Attributes:
         texture (TextureLike): The texture used to encode the bump map.
         scale (float): The scale of the bump map. The default value is 1.0.
+
     """
 
     texture: TextureLike
@@ -159,12 +151,11 @@ class BumpMap(Channel):
 
 @dataclass(slots=True)
 class NormalMap(Channel):
-    """Normal map channel
-
-    This class specifies the normal map channel.
+    """Perturb surface shading normals with a tangent-space normal texture.
 
     Attributes:
         texture (TextureLike): The texture used to encode the normal map.
+
     """
 
     texture: TextureLike

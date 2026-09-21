@@ -1,3 +1,5 @@
+"""Uniform, image, procedural, and data-driven texture models."""
+
 from dataclasses import dataclass, field
 from os import PathLike
 from typing import TypeAlias
@@ -47,6 +49,7 @@ class Uniform(Texture):
 
     Attributes:
         color (ColorLike): The color of the uniform texture.
+
     """
 
     color: ColorLike
@@ -63,6 +66,7 @@ class Image(Texture):
             This should be set to True for normal maps.
         saturation (float): Saturation multiplier. 1.0 = full color, 0.0 = grayscale.
         whiteness (float): Blend toward pure white. 0.0 = original, 1.0 = pure white.
+
     """
 
     filename: PathLike
@@ -82,6 +86,7 @@ class Checkerboard(Texture):
         texture1 (TextureLike): The texture to use for the first color/value.
         texture2 (TextureLike): The texture to use for the second color/value.
         size (int): The size of the checkerboard (e.g. 8 means 8x8 checkerboard).
+
     """
 
     uv: AttributeLike | None = None
@@ -100,6 +105,7 @@ class Isocontour(Texture):
         texture1 (TextureLike): The texture to use for the isocontour regions.
         texture2 (TextureLike): The texture to use for the non-isocontour regions.
         num_contours (int): The number of isocontours to generate within a unit distance.
+
     """
 
     data: AttributeLike
@@ -128,6 +134,7 @@ class ScalarField(Texture):
         legend (bool | Legend): Automatic legend configuration. ``True`` derives
             title/domain/ticks, ``False`` suppresses the legend, and a
             :class:`Legend` customizes presentation.
+
     """
 
     data: AttributeLike

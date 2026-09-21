@@ -1,3 +1,5 @@
+"""Attribute references and composable scale models."""
+
 from .scale import (
     Scale,
     Normalize,

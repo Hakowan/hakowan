@@ -1,3 +1,5 @@
+"""RGB color model and accepted color-like values."""
+
 import numpy as np
 import numpy.typing as npt
 from typing import Iterator, TypeAlias
@@ -60,7 +62,7 @@ class Color:
         return self.color.__iter__()
 
     def __repr__(self) -> str:
-        """String representation of color."""
+        """Return a readable RGB representation."""
         return f"Color ({self.red}, {self.green}, {self.blue})"
 
     @property

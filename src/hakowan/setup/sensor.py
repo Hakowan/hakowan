@@ -1,3 +1,5 @@
+"""Perspective, orthographic, and thin-lens camera settings."""
+
 from dataclasses import dataclass, field
 from typing import Literal
 import numpy.typing as npt
@@ -13,6 +15,7 @@ class Sensor:
         up: Camera up vector in world space.
         near_clip: Near clipping plane distance.
         far_clip: Far clipping plane distance.
+
     """
 
     location: npt.ArrayLike = field(default_factory=lambda: [0, 0, 5])
@@ -31,6 +34,7 @@ class Perspective(Sensor):
         fov_axis (Literal["x", "y", "diagonal", "smaller", "larger"]): Axis to which fov
             is applied. ``"smaller"`` / ``"larger"`` refer to the shorter / longer image
             dimension, making the field-of-view resolution-independent.
+
     """
 
     fov: float = 28.8415  # degrees
@@ -51,6 +55,7 @@ class ThinLens(Perspective):
     Attributes:
         aperture_radius: Radius of the aperture in world space.
         focus_distance: Distance to the focal plane in world space.
+
     """
 
     aperture_radius: float = 0.1

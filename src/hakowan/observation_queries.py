@@ -33,6 +33,7 @@ class LayerVisibility:
     depth_range: tuple[float, float] | None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe visibility record."""
         return asdict(self)
 
 
@@ -48,6 +49,7 @@ class RegionSummary:
     layers: tuple[LayerVisibility, ...]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe region summary with nested layer records."""
         return {
             **asdict(self),
             "layers": [layer.to_dict() for layer in self.layers],
@@ -75,6 +77,7 @@ class AttributeVisibility:
     maximum_sample: float | tuple[float, ...]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return JSON-safe visible-attribute statistics."""
         return asdict(self)
 
 
@@ -95,6 +98,7 @@ class OcclusionRecord:
     occluder_depth_range: tuple[float, float]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe occlusion record."""
         return asdict(self)
 
 
@@ -184,7 +188,11 @@ def region(
     *,
     view: str | None = None,
 ) -> RegionSummary:
-    """Summarize IDs, coverage, bounds, and depths inside a pixel rectangle."""
+    """Summarize a half-open pixel rectangle from layer and element ID passes.
+
+    The query requires both ID passes for exactly one view. A matching depth
+    pass is optional and adds per-layer depth ranges.
+    """
     views = _query_views(observation, view, "layer_id")
     if len(views) != 1:
         raise ValueError("region() requires view= when an observation has multiple views")
@@ -268,7 +276,12 @@ def visible_elements(
     *,
     view: str | None = None,
 ) -> tuple[LayerVisibility, ...]:
-    """Return visible elements and coverage for selected layers and views."""
+    """Return visible element IDs, pixel coverage, and projected bounds.
+
+    Fully hidden layers are retained with zero visible pixels. ``layer`` may be
+    a numeric layer ID or its compiled name; ``view=None`` queries every view
+    containing a layer-ID pass.
+    """
     results: list[LayerVisibility] = []
     matched_selector = layer is None
     for selected_view in _query_views(observation, view, "layer_id"):
@@ -361,7 +374,12 @@ def attribute_extrema(
     view: str | None = None,
     bounds: tuple[int, int, int, int] | None = None,
 ) -> tuple[AttributeVisibility, ...]:
-    """Return numeric statistics for visible elements carrying an attribute."""
+    """Return visible-only numeric attribute statistics.
+
+    Scalar extrema use the value itself; vector extrema use magnitude. Surface
+    vertex attributes include vertices belonging to visible facets. Indexed
+    attributes are rejected because their element mapping is ambiguous.
+    """
     results: list[AttributeVisibility] = []
     missing: list[str] = []
     if bounds is None:
@@ -476,7 +494,12 @@ def occlusion_report(
     view: str | None = None,
     layer: str | int | None = None,
 ) -> tuple[OcclusionRecord, ...]:
-    """Report depth-ordered projected overlap inferred from captured ID buffers."""
+    """Report likely occlusion from projected overlap and strict depth ordering.
+
+    Records are geometric evidence rather than opacity proofs. A layer is
+    ``fully_hidden`` when it projects into the view but contributes no visible
+    pixels to the captured layer-ID pass.
+    """
     if observation._scene is None:
         raise ValueError("Observation does not retain its compiled scene")
     results: list[OcclusionRecord] = []
@@ -531,7 +554,7 @@ def occlusion_report(
 
 
 def query_manifest(observation: Observation) -> dict[str, Any]:
-    """Build JSON-safe visibility and occlusion summaries for available ID passes."""
+    """Build JSON-safe visibility and occlusion sections for a manifest."""
     result: dict[str, Any] = {}
     layer_views = _available_views(observation, "layer_id")
     element_views = set(_available_views(observation, "element_id"))

@@ -145,6 +145,8 @@ class WebGLBackend(RenderBackend):
                 Both are soft studio radial gradients with a bright centre spot.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
+            three_module_url: Explicit Three.js ES-module URL; defaults to unpkg.
+            three_addons_url: Explicit Three.js addons base URL; defaults to unpkg.
 
         Returns:
             Complete HTML page as a string.

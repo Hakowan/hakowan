@@ -20,6 +20,7 @@ class Legend:
         position: Side of the image or viewer containing the legend.
         category_labels: Optional mapping from stringified values to labels.
         width: Raster legend panel width in pixels.
+
     """
 
     title: str | None = None
@@ -31,6 +32,7 @@ class Legend:
     width: int = 180
 
     def __post_init__(self) -> None:
+        """Validate tick count, panel width, and numeric format."""
         if self.ticks < 2:
             raise ValueError("Legend.ticks must be at least 2.")
         if self.width < 80:
@@ -58,6 +60,7 @@ class Annotation:
     padding: int = 4
 
     def __post_init__(self) -> None:
+        """Validate annotation text, normalized position, and pixel sizes."""
         if not self.text:
             raise ValueError("Annotation.text must not be empty.")
         if not all(0.0 <= value <= 1.0 for value in self.position):

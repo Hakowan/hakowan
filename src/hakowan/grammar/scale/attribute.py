@@ -1,3 +1,5 @@
+"""Attribute references with optional units and scale chains."""
+
 from dataclasses import dataclass
 from typing import TypeAlias
 
@@ -19,6 +21,7 @@ class Attribute:
     Note:
         The attribute object can be constructed with `hakowan.attribute()` function, which is an
         alias of the constructor of this class.
+
     """
 
     name: str
@@ -52,6 +55,7 @@ def to_attribute(value: AttributeLike) -> Attribute:
 
     Returns:
         The corresponding `Attribute` object.
+
     """
     if isinstance(value, str):
         return Attribute(name=value)
@@ -97,6 +101,7 @@ def norm(
         >>> hkw.channel.Size(data=hkw.norm("velocity",
         ...                                 scale=hkw.scale.Normalize(
         ...                                     range_min=0.005, range_max=0.02)))
+
     """
     norm_scale: Scale = Norm(order=order)
     if scale is not None:

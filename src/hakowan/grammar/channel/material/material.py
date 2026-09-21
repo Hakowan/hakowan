@@ -1,3 +1,5 @@
+"""Declarative surface and hair material channels."""
+
 from dataclasses import dataclass
 from typing import Literal
 
@@ -19,6 +21,7 @@ class Material(Channel):
             two-sided rendering regardless of ``two_sided``. Only meaningful for
             surface marks. A nested ``back_side`` on the back material itself is
             ignored.
+
     """
 
     two_sided: bool = False
@@ -31,6 +34,7 @@ class Diffuse(Material):
 
     Attributes:
         reflectance: Diffuse reflectance (i.e. base color) texture (default: 0.5).
+
     """
 
     reflectance: TextureLike = 0.5
@@ -42,6 +46,7 @@ class Conductor(Material):
 
     Attributes:
         material: Conductor material name based on [Mitsuba preset](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#conductor-ior-list).
+
     """
 
     material: str
@@ -55,6 +60,7 @@ class RoughConductor(Conductor):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -68,6 +74,7 @@ class Plastic(Material):
     Attributes:
         diffuse_reflectance: Diffuse reflectance (i.e. base color) texture (default: 0.5).
         specular_reflectance: Specular reflectance texture (default: 1.0).
+
     """
 
     diffuse_reflectance: TextureLike = 0.5
@@ -82,6 +89,7 @@ class RoughPlastic(Plastic):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -103,6 +111,7 @@ class Principled(Material):
         sheen: Sheen amount (default: 0.0).
         sheen_tint: Sheen tint towards base color (default: 0.0).
         flatness: Blend between thin and volumetric subsurface scattering (default: 0.0).
+
     """
 
     color: TextureLike = 0.5
@@ -123,6 +132,7 @@ class ThinPrincipled(Principled):
 
     Attributes:
         diff_trans: Diffuse transmission amount (default: 0.0).
+
     """
 
     diff_trans: float = 0.0
@@ -138,6 +148,7 @@ class Dielectric(Material):
         medium: Medium (default: None).
         specular_reflectance: Specular reflectance (default: 1.0).
         specular_transmittance: Specular transmittance (default: 1.0).
+
     """
 
     int_ior: str | float = "bk7"
@@ -162,6 +173,7 @@ class RoughDielectric(Dielectric):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -201,6 +213,7 @@ class Hair(Material):
         tip_color: Strand-tip color of the root-to-tip gradient.
         color_variation: Per-strand random brightness jitter in ``[0, 1]``
             (0 = uniform).  Applied on top of the melanin / color / gradient.
+
     """
 
     eumelanin: float = 1.3

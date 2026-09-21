@@ -1,3 +1,5 @@
+"""Immutable-by-default layer grammar and composition helpers."""
+
 from .layer_spec import LayerSpec
 from ..dataframe import DataFrameLike, PositionColumns, to_dataframe
 from ..mark import Mark
@@ -105,10 +107,10 @@ class LayoutOptions:
 
 @dataclass(kw_only=True, slots=True)
 class Layer:
-    """Layer contains the specification of data, mark, channels and transform.
+    """Specify data, marks, channels, transforms, labels, and annotations.
 
-    Note:
-        `hakowan.layer()` method is an alias of the constructor of this class.
+    ``hakowan.layer`` is an alias for this class. Fluent methods return wrapper
+    layers by default, preserving the original layer for reuse.
     """
 
     _spec: LayerSpec = field(default_factory=LayerSpec)
@@ -129,19 +131,18 @@ class Layer:
         name: str | None = None,
         annotations: list[Annotation] | None = None,
     ):
-        """Constructor of Layer.
+        """Initialize a layer specification.
 
         Args:
-            data (DataFrameLike | None, optional): The data component of
-                the layer.
-            mark (Mark|None, optional): The mark component of the layer.
-            channels (list[Channel], optional): The channels of the layer.
-            transform (Transform, optional): The transform component of the layer.
-            name (str, optional): A human-readable label for the layer. Surfaced
-                as the layer's checkbox label in the interactive WebGL viewer.
+            data: Any source supported by :func:`hakowan.dataframe.to_dataframe`.
+            positions: Position columns for pandas or xarray inputs; inferred
+                from ``x``, ``y``, and optional ``z`` when omitted.
+            mark: Optional point, curve, or surface mark.
+            channels: Initial channel specifications.
+            transform: Initial transform chain.
+            name: Human-readable layer label used by interactive viewers.
+            annotations: Initial screen-space annotations.
 
-        Returns:
-            (Layer): The constructed layer object.
         """
         self._spec = LayerSpec()
         self._children = []
@@ -168,6 +169,7 @@ class Layer:
 
         Returns:
             (Layer): The composite layer.
+
         """
         parent = Layer()
         parent._children = [self, other]
@@ -200,6 +202,7 @@ class Layer:
 
         Returns:
             (Layer): The composite juxtaposition layer.
+
         """
         if len(others) == 0:
             raise ValueError("juxtapose() requires at least one other layer.")
@@ -236,6 +239,7 @@ class Layer:
 
         Returns:
             (Layer): The composite juxtaposition layer.
+
         """
         return self.juxtapose(other)
 
@@ -254,6 +258,7 @@ class Layer:
 
         Returns:
             (Layer): The composite juxtaposition layer.
+
         """
         return self.juxtapose(other, axis="y")
 
@@ -298,6 +303,7 @@ class Layer:
                 Hakowan infers ``x, y, z`` or ``x, y`` when omitted.
             roi_box: Optional region-of-interest bounds.
             in_place: Modify this layer rather than returning a copy.
+
         """
         layer = self.__get_working_layer(in_place)
         layer._spec.data = to_dataframe(data, positions=positions, roi_box=roi_box)
@@ -316,6 +322,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with mark component overwritten.
+
         """
         layer = self.__get_working_layer(in_place)
         match mark:
@@ -344,6 +351,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with its name set.
+
         """
         layer = self.__get_working_layer(in_place)
         layer._spec.name = name
@@ -386,26 +394,28 @@ class Layer:
         normal_map: NormalMap | TextureLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
-        """Overwrite a channel component of this layer.
+        """Add one or more visual-channel specifications to this layer node.
+
+        Channel arguments accept full channel objects or documented shorthand
+        values. During compilation, the first effective channel of each kind on
+        a root-to-leaf path wins; later duplicates are shadowed and validation
+        reports them.
 
         Args:
-            position (Position | AttributeLike, optional): The new position channel.
-            normal (Normal | AttributeLike, optional): The new normal channel.
-            size (float | Size | AttributeLike, optional): The new size channel.
-                An ``Attribute`` (e.g. from ``hakowan.norm()``) maps a data
-                field to size.
-            shape (Literal["sphere", "disk", "cube"] | Shape, optional): The new shape channel.
-                When a string is given, it sets ``Shape.base_shape`` directly.
-            vector_field (VectorField | str, optional): The new vector field channel.
-            covariance (Covariance | str, optional): The new covariance channel.
-            material (Material, optional): The new material channel.
-            bump_map (BumpMap | TextureLike, optional): The new bump map channel.
-            normal_map (NormalMap | TextureLike, optional): The new normal map channel.
-            in_place (bool, optional): Whether to modify the current layer in place or create new
-                layer. Defaults to False (i.e. create a new layer).
+            position: Position channel or attribute reference.
+            normal: Surface normal channel or attribute reference.
+            size: Constant size, Size channel, or scalar attribute reference.
+            shape: Point-glyph primitive or Shape channel.
+            vector_field: VectorField channel or attribute name.
+            covariance: Covariance channel or attribute name.
+            material: Material channel.
+            bump_map: BumpMap channel or texture shorthand.
+            normal_map: NormalMap channel or texture shorthand.
+            in_place: Append to this node instead of returning a wrapper layer.
 
         Returns:
-            result (Layer): The layer object with the channel component overwritten.
+            The modified node or an immutable-style wrapper layer.
+
         """
         layer = self.__get_working_layer(in_place)
 
@@ -467,22 +477,20 @@ class Layer:
     def material(
         self, type: _MaterialTypeStr, *args: Any, in_place: bool = False, **kwargs: Any
     ) -> "Layer":
-        """Overwrite material for this layer.
+        """Add a material channel constructed from a registered material kind.
 
         Args:
-            type (str): The material type. Accepted values (case-insensitive canonical forms):
-                ``"diffuse"``, ``"conductor"``, ``"rough_conductor"``, ``"plastic"``,
-                ``"rough_plastic"``, ``"principled"``, ``"thin_principled"``,
-                ``"dielectric"``, ``"thin_dielectric"``, ``"rough_dielectric"``,
-                ``"hair"``. PascalCase (e.g. ``"RoughConductor"``) and UPPER_CASE
-                (e.g. ``"ROUGH_CONDUCTOR"``) variants are also accepted.
-            in_place (bool, optional): Whether to modify the current layer in place or create new
-                layer. Defaults to False (i.e. create a new layer).
-            *args: Variable length argument list that will be forwarded to material constructor.
-            **kwargs: Arbitrary keyword arguments that will be forwarded to material constructor.
+            type: Case-insensitive material kind: diffuse, conductor,
+                rough_conductor, plastic, rough_plastic, principled,
+                thin_principled, dielectric, thin_dielectric,
+                rough_dielectric, or hair.
+            *args: Positional arguments forwarded to the material constructor.
+            in_place: Append to this node instead of returning a wrapper layer.
+            **kwargs: Keyword arguments forwarded to the material constructor.
 
         Returns:
-            result (Layer): The layer object with the channel component overwritten.
+            The modified node or an immutable-style wrapper layer.
+
         """
         layer = self.__get_working_layer(in_place)
         match type:
@@ -524,7 +532,11 @@ class Layer:
         legend: bool | Legend = True,
         two_sided: bool = False,
     ) -> "Layer":
-        """Color this layer by an attribute using a diffuse scalar field."""
+        """Map an attribute to diffuse color with an optional semantic legend.
+
+        This shorthand expands to a Diffuse material containing a ScalarField,
+        so the result uses the ordinary canonical grammar representation.
+        """
         texture = ScalarField(
             data=attribute,
             colormap=colormap,
@@ -545,7 +557,7 @@ class Layer:
         width: float = 0.01,
         name: str | None = "Edges",
     ) -> "Layer":
-        """Overlay this layer's mesh edges using a curve mark."""
+        """Overlay mesh edges as a named curve layer of constant color and width."""
         if width <= 0.0:
             raise ValueError("Edge width must be positive")
         edges = (
@@ -571,7 +583,11 @@ class Layer:
         overlay: bool = True,
         name: str | None = "Vectors",
     ) -> "Layer":
-        """Create vector glyphs and optionally overlay them on this layer."""
+        """Create vector glyphs and optionally overlay them on this layer.
+
+        ``scale`` controls glyph length, ``size`` controls thickness, and
+        ``overlay=False`` returns only the generated curve-mark layer.
+        """
         if scale <= 0.0 or size <= 0.0:
             raise ValueError("Vector scale and size must be positive")
         vector_attribute = copy.deepcopy(to_attribute(attribute))
@@ -606,7 +622,11 @@ class Layer:
         offset: float = 0.0,
         point: npt.ArrayLike | None = None,
     ) -> "Layer":
-        """Clip this layer to the positive side of a plane."""
+        """Clip geometry to the positive side of a normalized plane.
+
+        ``offset`` is signed distance along ``normal``. Use ``point`` instead to
+        define a plane through an explicit point; the two forms are exclusive.
+        """
         vector = np.asarray(normal, dtype=np.float64)
         if vector.shape != (3,) or np.linalg.norm(vector) <= 1e-12:
             raise ValueError("Slice normal must be a non-zero three-vector")
@@ -629,7 +649,11 @@ class Layer:
         attribute: str = "component",
         compute: bool = True,
     ) -> "Layer":
-        """Keep one connected component or one existing component label."""
+        """Keep one connected component or one existing scalar component label.
+
+        With ``compute=True``, connected facet components are first written to
+        ``attribute``. With ``compute=False``, that attribute must already exist.
+        """
         if not attribute:
             raise ValueError("Component attribute name must not be empty")
         from ...spec.expression import compile_expression
@@ -651,7 +675,11 @@ class Layer:
         normalize: bool = False,
         labels: tuple[str, str] | None = None,
     ) -> "Layer":
-        """Place two optionally labeled layers side by side for comparison."""
+        """Juxtapose this layer and ``other`` with optional labels.
+
+        This shorthand delegates to :meth:`juxtapose` and preserves the
+        canonical layout representation.
+        """
         left, right = self, other
         if labels is not None:
             if len(labels) != 2:
@@ -670,6 +698,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with transform component overwritten.
+
         """
         layer = self.__get_working_layer(in_place)
         layer._spec.transform = transform
@@ -688,6 +717,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with transform component updated.
+
         """
         layer = self.__get_working_layer(in_place)
         v = np.array(axis, dtype=np.float64)
@@ -708,6 +738,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with transform component updated.
+
         """
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)
@@ -725,6 +756,7 @@ class Layer:
 
         Returns:
             result (Layer): The layer object with transform component updated.
+
         """
         layer = self.__get_working_layer(in_place)
         M = np.eye(4)

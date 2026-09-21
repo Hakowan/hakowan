@@ -44,6 +44,7 @@ class PatchFailure:
     operation_index: int | None = None
 
     def to_dict(self) -> dict[str, str | int | None]:
+        """Return this failure as a JSON-safe mapping."""
         return {
             "code": self.code,
             "path": self.path,
@@ -61,6 +62,7 @@ class PatchError(ValueError):
         *,
         validation_report: ValidationReport | None = None,
     ) -> None:
+        """Initialize an error with its structured failure and validation report."""
         self.failure = failure
         self.validation_report = validation_report
         location = (
@@ -170,7 +172,23 @@ def patch_spec(
     spec: FigureSpec | Mapping[str, Any],
     operations: Iterable[PatchOperation | Mapping[str, Any]],
 ) -> FigureSpec:
-    """Apply an atomic add/remove/replace patch and validate the resulting schema."""
+    """Apply atomic JSON Pointer operations and validate the resulting schema.
+
+    Supported operations are ``add``, ``remove``, and ``replace``. All
+    operations run against a private deep copy; failure leaves ``spec`` and
+    supplied values unchanged. ``-`` appends to an array.
+
+    Args:
+        spec: Immutable FigureSpec or a canonical specification mapping.
+        operations: Ordered patch operations using RFC 6901 pointer paths.
+
+    Returns:
+        A newly validated immutable FigureSpec.
+
+    Raises:
+        PatchError: If an operation or final schema is invalid.
+
+    """
     document = copy.deepcopy(
         spec.to_dict() if isinstance(spec, FigureSpec) else dict(spec)
     )
@@ -290,9 +308,29 @@ def patch(
 ) -> Layer | Figure:
     """Atomically patch a runtime Layer or Figure through its canonical form.
 
-    In-memory meshes and callable references are bound automatically for the
-    round trip. Explicit identifier and resolver hooks remain available when a
-    patch introduces external references.
+    In-memory meshes and callable references are rebound automatically.
+    Explicit identifier and resolver hooks support references introduced by a
+    patch. Schema validation always runs; semantic validation runs by default.
+
+    Args:
+        value: Runtime Layer or Figure to patch without mutation.
+        operations: Ordered add, remove, or replace operations.
+        data_ids: Optional stable IDs for existing in-memory meshes.
+        function_ids: Optional stable IDs for existing callables.
+        data_resolver: Resolver for new external data IDs.
+        function_resolver: Resolver for new external function IDs.
+        base_dir: Base directory for relative resource paths.
+        backend: Backend used by semantic validation.
+        strict: Promote backend degradations to semantic errors.
+        semantic: Run semantic and compile validation when true.
+
+    Returns:
+        A reconstructed Layer or Figure containing all patch operations.
+
+    Raises:
+        PatchError: If conversion, an operation, schema validation, or semantic
+            validation fails.
+
     """
     if not isinstance(value, (Layer, Figure)):
         raise TypeError(f"Expected Layer or Figure, got {type(value)!r}")

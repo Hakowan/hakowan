@@ -197,6 +197,7 @@ class MitsubaBackend(RenderBackend):
             config: Rendering configuration.
             filename: Output image filename.
             yaml_file: Optional YAML scene export filename (mi_config).
+            **kwargs: Rejected compatibility catch-all for unknown options.
 
         Returns:
             Rendered image as Mitsuba tensor.

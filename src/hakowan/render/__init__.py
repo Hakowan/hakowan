@@ -41,6 +41,7 @@ class RenderResult:
     The object is also a :pep:`519` path-like (``__fspath__``), so it can be
     passed straight to ``open()``, :class:`~pathlib.Path`, etc. when a main
     output file was written.
+
     """
 
     backend: BackendName
@@ -49,6 +50,12 @@ class RenderResult:
     path: Path | None = None
 
     def __fspath__(self) -> str:
+        """Return the main output path for os.PathLike consumers.
+
+        Raises:
+            TypeError: If rendering produced no file path.
+
+        """
         if self.path is None:
             raise TypeError(
                 "RenderResult has no output path "
@@ -64,35 +71,33 @@ def render(
     backend: BackendName | None = None,
     **kwargs: Any,
 ) -> RenderResult:
-    """Render a layer using the specified backend.
+    """Compile and render a Layer or Figure with the selected backend.
+
+    Figure scene settings supply camera, lighting, environment, and output
+    intent only when ``config`` is omitted. An explicit Config overrides the
+    complete Figure-derived Config; backend keyword arguments override their
+    corresponding backend-facing settings.
 
     Args:
-        root: Root layer to render.
-        config: Rendering configuration. If None, uses default.
-        filename: Output filename.
-        backend: Backend name — ``"webgl"`` (ships with the base install),
-            ``"mitsuba"``, or ``"blender"``. If ``None``, uses the configured
-            default, which is ``"webgl"`` unless changed via
-            :func:`set_default_backend`. The heavier Mitsuba and Blender
-            backends must be requested explicitly.
-        **kwargs: Backend-specific keyword arguments forwarded verbatim to the
-            chosen backend (e.g. ``background`` / ``title`` for WebGL,
-            ``yaml_file`` for Mitsuba, ``blender_engine`` / ``blend_file`` for
-            Blender). Unknown keys raise ``TypeError``.
+        root: Layer tree or declarative Figure to render.
+        config: Explicit invocation configuration, or Figure/default settings.
+        filename: Main output path; WebGL rewrites non-HTML suffixes to HTML.
+        backend: ``webgl``, ``mitsuba``, ``blender``, or the configured default.
+        **kwargs: Backend-specific options such as WebGL ``background`` and
+            ``offline``, Mitsuba ``yaml_file``, or Blender ``blender_engine``.
 
     Returns:
-        A :class:`RenderResult` bundling the in-memory ``image`` (Mitsuba), the
-        main output ``path``, and the ``outputs`` manifest (per-pass sidecar
-        files, or ``"interactive"`` for the WebGL viewer).
+        RenderResult with the backend, primary path/image, and output manifest.
+
+    Raises:
+        TypeError: If backend-specific keyword arguments are unknown.
 
     Examples:
         >>> import hakowan as hkw
-        >>> layer = hkw.layer(mesh)
-        >>> result = hkw.render(layer, filename="output.png")
-        >>> result.path            # PosixPath('output.png')
-        >>> result.outputs         # {'main': PosixPath('output.png'), ...}
-        >>> # Mitsuba: display the rendered image in a notebook
-        >>> result.image
+        >>> result = hkw.render(hkw.layer("mesh.obj"), filename="viewer.html")
+        >>> result.path
+        PosixPath('viewer.html')
+
     """
     runtime_layer = root.layer if isinstance(root, Figure) else root
     use_figure_settings = isinstance(root, Figure) and config is None

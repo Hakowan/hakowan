@@ -67,8 +67,11 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                 automatically.  Pass ``None`` to render without saving.
             blender_engine: Blender render engine — ``"CYCLES"`` (default) or
                 ``"BLENDER_EEVEE"``.
+            environment_visible: Override whether the environment map is visible
+                to the camera; ``None`` inherits Config.
             blend_file: If provided, save the Blender scene to this path before
                 rendering (useful for debugging).
+            **kwargs: Rejected compatibility catch-all for unknown options.
 
         Returns:
             ``None`` — Blender writes directly to *filename*.

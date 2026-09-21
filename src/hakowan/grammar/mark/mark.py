@@ -1,3 +1,5 @@
+"""Primitive visualization mark enumeration."""
+
 from enum import Enum
 
 

@@ -186,10 +186,27 @@ def to_dataframe(
     positions: PositionColumns = None,
     roi_box: npt.ArrayLike | None = None,
 ) -> DataFrame:
-    """Convert a supported geometry or table object to a Hakowan ``DataFrame``.
+    """Convert supported geometry or tabular data to a Hakowan DataFrame.
 
-    Optional pandas, xarray, PyVista, and Trimesh dependencies are detected by
-    object type and are never imported by Hakowan.
+    Paths and Lagrange meshes retain topology. Numeric arrays become 2D/3D
+    point clouds. Pandas and xarray inputs use inferred or explicit position
+    columns; numeric fields become vertex attributes. PyVista and Trimesh
+    adapters preserve supported point/vertex and cell/facet attributes without
+    importing optional libraries inside Hakowan.
+
+    Args:
+        data: Mesh path, Lagrange mesh, point array, table, PyVista dataset,
+            Trimesh object, or existing Hakowan DataFrame.
+        positions: Two or three position column names for pandas/xarray input.
+        roi_box: Optional axis-aligned region of interest.
+
+    Returns:
+        A DataFrame backed by a Lagrange SurfaceMesh.
+
+    Raises:
+        TypeError: If the input type or option combination is unsupported.
+        ValueError: If positions, topology, or numeric values are invalid.
+
     """
     if isinstance(data, DataFrame):
         if positions is not None:

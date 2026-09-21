@@ -350,14 +350,16 @@ def _base_color_diffuse(material) -> "hkw.material.Material":
 def extract_material(
     scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
 ):
-    """
-    Extracts materials from a Lagrange scene and converts them to hakowan material objects.
+    """Convert Lagrange scene materials to Hakowan materials.
 
-    Parameters:
-        scene (lagrange.scene.Scene): The scene object containing materials, textures, and images.
+    Args:
+        scene: Scene containing materials, textures, and embedded images.
+        saturation: Saturation multiplier applied to extracted image textures.
+        whiteness: Fraction used to blend extracted image textures toward white.
 
     Returns:
-        list[hkw.material.Material]: A list of hakowan material objects corresponding to the scene's materials.
+        Hakowan material objects in source-scene order.
+
     """
     mats = []
 

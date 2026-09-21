@@ -8,7 +8,7 @@ import lagrange
 import numpy as np
 import numpy.typing as npt
 
-from .compiler import compile
+from .compiler.compile import compile as compile_layer
 from .grammar.figure import (
     Camera,
     OrthographicCamera,
@@ -282,7 +282,7 @@ def _compiled_selection(
     component: ComponentSelector,
     bounds: npt.ArrayLike | None,
 ) -> tuple[Any, list[Any], npt.NDArray[np.float64]]:
-    scene = compile(root, preserve_attributes=True)
+    scene = compile_layer(root, preserve_attributes=True)
     if bounds is not None:
         if layer is not None or component is not None:
             raise ValueError("bounds cannot be combined with layer or component selection")

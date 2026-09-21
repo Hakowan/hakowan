@@ -54,6 +54,7 @@ class Diagnostic:
     hint: str | None = None
 
     def to_dict(self) -> dict[str, str | None]:
+        """Return this diagnostic as a JSON-safe mapping."""
         return asdict(self)
 
 
@@ -67,17 +68,21 @@ class ValidationReport:
 
     @property
     def valid(self) -> bool:
+        """Return whether the report contains no error diagnostics."""
         return not any(item.severity == "error" for item in self.diagnostics)
 
     @property
     def errors(self) -> tuple[Diagnostic, ...]:
+        """Return error diagnostics in their original order."""
         return tuple(item for item in self.diagnostics if item.severity == "error")
 
     @property
     def warnings(self) -> tuple[Diagnostic, ...]:
+        """Return warning diagnostics in their original order."""
         return tuple(item for item in self.diagnostics if item.severity == "warning")
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe report including the derived validity flag."""
         return {
             "backend": self.backend,
             "strict": self.strict,
@@ -95,6 +100,7 @@ class ValidationError(ValueError):
     """Raised by :meth:`ValidationReport.raise_for_errors`."""
 
     def __init__(self, report: ValidationReport):
+        """Initialize the exception from a structured validation report."""
         self.report = report
         detail = "; ".join(f"{item.path}: {item.message}" for item in report.errors)
         super().__init__(detail or "Hakowan validation failed")
@@ -434,7 +440,10 @@ class _Validator:
                 "data.missing",
                 f"{base}.data",
                 "No data component is specified.",
-                hint="Attach a mesh or mesh filename with hkw.layer(data) or .data(data).",
+                hint=(
+                    "Attach a mesh, point array, table, or supported geometry object "
+                    "with hkw.layer(data) or .data(data)."
+                ),
             )
             return
 
@@ -943,12 +952,22 @@ def validate(
     strict: bool = True,
     compile_check: bool = True,
 ) -> ValidationReport:
-    """Validate a layer without rendering or mutating it.
+    """Validate a Layer or Figure without rendering or mutating it.
 
-    ``strict=True`` promotes backend approximations and ignored features to
-    errors. With ``strict=False`` they remain warnings; intrinsic problems such
-    as missing attributes are always errors. ``compile_check=True`` also runs
-    the real compiler on deep-copied view data after static validation succeeds.
+    Static checks cover attributes, channels, scales, transforms, resources,
+    scene settings, and backend capabilities. ``compile_check=True`` then runs
+    the real compiler on deep-copied data and checks empty geometry, camera
+    framing/clipping, and likely layer occlusion.
+
+    Args:
+        root: Layer or Figure to validate.
+        backend: Target backend, or the configured default when omitted.
+        strict: Promote backend approximations and ignored features to errors.
+        compile_check: Compile and inspect the resolved scene after static checks.
+
+    Returns:
+        A structured report; intrinsic failures are errors in every mode.
+
     """
     figure = None
     if not isinstance(root, Layer):

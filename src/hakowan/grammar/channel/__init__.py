@@ -1,3 +1,5 @@
+"""Visual channel models and shared mark-size defaults."""
+
 from .channel import (
     BumpMap,
     Channel,

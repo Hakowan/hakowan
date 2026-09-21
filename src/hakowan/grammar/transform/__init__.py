@@ -1,3 +1,5 @@
+"""Geometry and attribute transform grammar models."""
+
 from .transform import (
     Transform,
     Filter,

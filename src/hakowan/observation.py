@@ -72,7 +72,11 @@ class ObservationError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class CameraState:
-    """Resolved deterministic camera used for one or more snapshots."""
+    """Resolved deterministic camera used for one or more snapshots.
+
+    ``scale`` is the full vertical extent for orthographic cameras and is
+    ``None`` for perspective cameras.
+    """
 
     eye: tuple[float, float, float]
     target: tuple[float, float, float]
@@ -84,11 +88,14 @@ class CameraState:
     scale: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe camera-state mapping."""
         return asdict(self)
 
 
 @dataclass(frozen=True, slots=True)
 class LayerSummary:
+    """Geometry counts and identity for one compiled observation layer."""
+
     id: int
     name: str
     mark: str
@@ -96,11 +103,14 @@ class LayerSummary:
     facet_count: int
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe layer summary."""
         return asdict(self)
 
 
 @dataclass(frozen=True, slots=True)
 class SceneSummary:
+    """Normalized scene bounds, coordinate convention, and layer summaries."""
+
     bounds: tuple[tuple[float, float, float], tuple[float, float, float]]
     center: tuple[float, float, float]
     radius: float
@@ -108,6 +118,7 @@ class SceneSummary:
     layers: tuple[LayerSummary, ...]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe scene summary."""
         return {
             "bounds": [list(self.bounds[0]), list(self.bounds[1])],
             "center": list(self.center),
@@ -147,6 +158,7 @@ class Snapshot:
     data_path: Path | None = None
 
     def to_manifest(self) -> dict[str, Any]:
+        """Return this snapshot's paths, camera, matrices, bounds, and diagnostics."""
         return {
             "view": self.view,
             "pass": self.pass_name,
@@ -192,10 +204,11 @@ class Observation:
     _scene: Scene | None = field(default=None, repr=False)
 
     def snapshot(self, view: str, pass_name: str) -> Snapshot:
+        """Return the snapshot captured for ``view`` and ``pass_name``."""
         return self.snapshots[(view, pass_name)]
 
     def save(self, directory: str | Path) -> None:
-        """Write individual PNGs, contact sheet, and JSON manifest."""
+        """Write PNGs, raw NumPy pass arrays, a contact sheet, and manifest."""
         output = Path(directory)
         output.mkdir(parents=True, exist_ok=True)
         for (view, pass_name), item in self.snapshots.items():
@@ -222,7 +235,11 @@ class Observation:
         )
 
     def pick(self, view: str, pixel: tuple[int, int]) -> PixelHit | None:
-        """Resolve IDs, depth, position, normal, and mesh attributes at a pixel."""
+        """Resolve IDs, depth, world position, normal, and attributes at a pixel.
+
+        The observation must contain depth, element-ID, and layer-ID passes for
+        the requested view. Background pixels return ``None``.
+        """
         x, y = pixel
         depth_snapshot = self.snapshots.get((view, "depth"))
         element_snapshot = self.snapshots.get((view, "element_id"))
@@ -275,13 +292,13 @@ class Observation:
         *,
         view: str | None = None,
     ) -> RegionSummary:
-        """Summarize visible layers and elements in a pixel rectangle."""
+        """Summarize IDs and coverage inside half-open pixel bounds."""
         return _region(self, x0, y0, x1, y1, view=view)
 
     def visible_elements(
         self, layer: str | int | None = None, *, view: str | None = None
     ) -> tuple[LayerVisibility, ...]:
-        """Return visible element IDs and coverage for selected layers."""
+        """Return visibility records for all layers or one ID/name selector."""
         return _visible_elements(self, layer, view=view)
 
     def attribute_extrema(
@@ -292,7 +309,12 @@ class Observation:
         view: str | None = None,
         bounds: tuple[int, int, int, int] | None = None,
     ) -> tuple[AttributeVisibility, ...]:
-        """Summarize a numeric attribute over visible source elements."""
+        """Summarize a numeric attribute over visible source elements.
+
+        ``bounds`` optionally restricts the query to a half-open pixel region.
+        Vector extrema are selected by magnitude while component-wise statistics
+        and the original extremum samples are retained.
+        """
         return _attribute_extrema(
             self, attribute, layer=layer, view=view, bounds=bounds
         )
@@ -300,7 +322,7 @@ class Observation:
     def occlusion_report(
         self, *, view: str | None = None, layer: str | int | None = None
     ) -> tuple[OcclusionRecord, ...]:
-        """Report depth-ordered projected overlap among layers."""
+        """Report depth-ordered projected overlap for selected views or layers."""
         return _occlusion_report(self, view=view, layer=layer)
 
 
@@ -751,7 +773,29 @@ def snapshot(
     filename: str | Path | None = None,
     timeout: float = 60.0,
 ) -> Snapshot:
-    """Capture one deterministic raster observation of a Layer or Figure."""
+    """Capture one deterministic WebGL raster and optional raw pass array.
+
+    A Figure camera is used when neither ``view`` nor ``camera`` is supplied;
+    otherwise named presets frame the compiled scene. Explicit ``config``,
+    ``resolution``, and ``background`` override Figure intent.
+
+    Args:
+        root: Layer or Figure to capture.
+        view: Named camera preset and result label.
+        pass_name: Beauty, albedo, depth, normal, element-ID, or layer-ID pass.
+        resolution: Output width and height in pixels.
+        camera: Explicit camera overriding the named preset.
+        config: Explicit invocation configuration.
+        backend: Capture backend; currently only ``webgl`` is supported.
+        background: Light or dark studio background.
+        up_axis: Coordinate convention used by named camera presets.
+        filename: Optional PNG path; raw pass data is saved beside it as NPY.
+        timeout: Chromium capture timeout in seconds.
+
+    Returns:
+        Snapshot containing the image, raw data, camera, matrices, and metadata.
+
+    """
     if backend != "webgl":
         raise NotImplementedError("snapshot() currently supports backend='webgl'.")
     figure = root if isinstance(root, Figure) else None
@@ -804,7 +848,29 @@ def observe(
     output_dir: str | Path | None = None,
     timeout: float = 60.0,
 ) -> Observation:
-    """Capture a deterministic multi-view, multi-pass inspection bundle."""
+    """Capture a deterministic multi-view, multi-pass inspection bundle.
+
+    Defaults to front, right, top, and isometric views with beauty, depth, and
+    normal passes. Figure output passes are inherited when present. Request
+    depth plus both ID passes to enable picking and structured visibility queries.
+
+    Args:
+        root: Layer or Figure to inspect.
+        views: Ordered named view presets.
+        passes: Ordered semantic pass names.
+        resolution: Width and height shared by every capture.
+        cameras: Explicit CameraState overrides keyed by view label.
+        config: Explicit invocation configuration.
+        backend: Capture backend; currently only ``webgl`` is supported.
+        background: Light or dark studio background.
+        up_axis: Coordinate convention used by named camera presets.
+        output_dir: Optional directory for PNG, NPY, contact-sheet, and manifest files.
+        timeout: Chromium capture timeout in seconds.
+
+    Returns:
+        Observation containing snapshots, structured scene evidence, and manifest.
+
+    """
     if backend != "webgl":
         raise NotImplementedError("observe() currently supports backend='webgl'.")
     figure = root if isinstance(root, Figure) else None
