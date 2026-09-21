@@ -1,0 +1,172 @@
+[
+  {
+    "id": "scalar-temperature",
+    "dataset": "scalar_surface",
+    "prompt": "Color the surface by temperature with a viridis legend and fit an isometric camera.",
+    "recipe": "scalar_color",
+    "tags": ["grounding", "scalar", "legend"],
+    "expected": {"marks": ["surface"], "attributes": ["temperature"], "kinds": ["scalar_field", "diffuse"], "colormaps": ["viridis"], "legend": true, "camera_kind": "perspective", "occupancy": [0.02, 0.95]}
+  },
+  {
+    "id": "missing-attribute-repair",
+    "dataset": "scalar_surface",
+    "prompt": "Color the surface by temperature; do not invent fields.",
+    "recipe": "scalar_color",
+    "initial_variant": "wrong_attribute",
+    "allowed_patch_prefixes": ["/root"],
+    "tags": ["adversarial", "repair", "grounding"],
+    "expected": {"marks": ["surface"], "attributes": ["temperature"], "kinds": ["scalar_field"], "legend": true}
+  },
+  {
+    "id": "log-pressure",
+    "dataset": "scalar_surface",
+    "prompt": "Show pressure on a logarithmic viridis scale with a colorbar.",
+    "recipe": "log_color",
+    "tags": ["scale", "log", "legend"],
+    "expected": {"attributes": ["pressure"], "kinds": ["scalar_field", "log"], "colormaps": ["viridis"], "legend": true}
+  },
+  {
+    "id": "nonpositive-log-repair",
+    "dataset": "signed_surface",
+    "prompt": "Color the signed field while preserving negative values.",
+    "recipe": "signed_color",
+    "initial_variant": "log_nonpositive",
+    "allowed_patch_prefixes": ["/root"],
+    "tags": ["adversarial", "repair", "log"],
+    "expected": {"attributes": ["signed"], "kinds": ["scalar_field"], "colormaps": ["coolwarm"]}
+  },
+  {
+    "id": "nonfinite-field-repair",
+    "dataset": "signed_surface",
+    "prompt": "Use a finite scalar field for surface color.",
+    "recipe": "finite_quality",
+    "initial_variant": "nonfinite",
+    "allowed_patch_prefixes": ["/root"],
+    "tags": ["adversarial", "repair", "nonfinite"],
+    "expected": {"attributes": ["signed"], "kinds": ["scalar_field"]}
+  },
+  {
+    "id": "categorical-regions",
+    "dataset": "disconnected",
+    "prompt": "Color region labels categorically and show a legend.",
+    "recipe": "categorical_components",
+    "tags": ["categorical", "components"],
+    "expected": {"attributes": ["region"], "kinds": ["scalar_field"], "colormaps": ["set1"], "legend": true}
+  },
+  {
+    "id": "wireframe-overlay",
+    "dataset": "scalar_surface",
+    "prompt": "Overlay black mesh edges on the original surface.",
+    "recipe": "wireframe",
+    "tags": ["composition", "wireframe"],
+    "expected": {"marks": ["surface", "curve"], "kinds": ["size", "diffuse"], "minimum_views": 2}
+  },
+  {
+    "id": "velocity-glyphs",
+    "dataset": "scalar_surface",
+    "prompt": "Render velocity as arrow glyphs with a short uniform length.",
+    "recipe": "vector_glyphs",
+    "tags": ["vector", "glyph"],
+    "expected": {"marks": ["curve"], "attributes": ["velocity"], "kinds": ["vector_field", "uniform"]}
+  },
+  {
+    "id": "point-pressure",
+    "dataset": "point_cloud",
+    "prompt": "Render the point cloud colored by pressure using the fire colormap.",
+    "recipe": "point_color",
+    "tags": ["point-cloud", "scalar"],
+    "expected": {"marks": ["point"], "attributes": ["pressure"], "kinds": ["scalar_field"], "colormaps": ["fire"]}
+  },
+  {
+    "id": "point-vector-size",
+    "dataset": "point_cloud",
+    "prompt": "Size point glyphs by velocity magnitude.",
+    "recipe": "point_size",
+    "tags": ["point-cloud", "vector-norm"],
+    "expected": {"marks": ["point"], "attributes": ["velocity"], "kinds": ["size", "norm"]}
+  },
+  {
+    "id": "plane-slice",
+    "dataset": "scalar_surface",
+    "prompt": "Slice the surface at x=0 and retain the positive half-space.",
+    "recipe": "slice",
+    "tags": ["transform", "clip"],
+    "expected": {"marks": ["surface"], "kinds": ["clip"]}
+  },
+  {
+    "id": "isolate-region",
+    "dataset": "disconnected",
+    "prompt": "Keep only region 1 using the existing region labels.",
+    "recipe": "isolate_component",
+    "tags": ["transform", "component", "filter"],
+    "expected": {"attributes": ["region"], "kinds": ["filter"]}
+  },
+  {
+    "id": "before-after-comparison",
+    "dataset": "scalar_surface",
+    "prompt": "Compare the raw surface with a temperature-colored surface side by side.",
+    "recipe": "comparison",
+    "tags": ["layout", "comparison"],
+    "expected": {"marks": ["surface"], "attributes": ["temperature"], "kinds": ["layout", "scalar_field"], "minimum_views": 2}
+  },
+  {
+    "id": "isometric-fit-camera",
+    "dataset": "elongated",
+    "prompt": "Fit the complete elongated surface in an isometric perspective view.",
+    "recipe": "fit_camera",
+    "tags": ["camera", "fit"],
+    "expected": {"camera_kind": "perspective", "occupancy": [0.001, 0.2]}
+  },
+  {
+    "id": "orthographic-section",
+    "dataset": "scalar_surface",
+    "prompt": "Create an orthographic section view along +Z.",
+    "recipe": "section_camera",
+    "tags": ["camera", "orthographic", "section"],
+    "expected": {"camera_kind": "orthographic", "kinds": ["orthographic"]}
+  },
+  {
+    "id": "stress-extremum-camera",
+    "dataset": "elongated",
+    "prompt": "Focus the camera on the maximum stress location.",
+    "recipe": "extremum_camera",
+    "tags": ["camera", "attribute-extremum"],
+    "expected": {"camera_kind": "perspective"}
+  },
+  {
+    "id": "unsupported-pass-repair",
+    "dataset": "scalar_surface",
+    "prompt": "Produce beauty and depth in the WebGL viewer.",
+    "recipe": "backend_passes",
+    "initial_variant": "unsupported_pass",
+    "allowed_patch_prefixes": ["/scene/output/passes"],
+    "tags": ["adversarial", "repair", "backend"],
+    "expected": {"passes": ["beauty", "depth"]}
+  },
+  {
+    "id": "occluded-layers",
+    "dataset": "scalar_surface",
+    "prompt": "Overlay front and back surfaces and keep both named layers inspectable.",
+    "recipe": "occlusion_layers",
+    "tags": ["layers", "occlusion", "observation"],
+    "expected": {"marks": ["surface"], "minimum_views": 2, "camera_kind": "perspective"}
+  },
+  {
+    "id": "constant-field",
+    "dataset": "scalar_surface",
+    "prompt": "Color by the constant scalar field without inventing a varying domain.",
+    "recipe": "constant_field",
+    "tags": ["adversarial", "constant"],
+    "expected": {"attributes": ["constant"], "kinds": ["scalar_field"], "legend": true}
+  },
+  {
+    "id": "extreme-aspect-repair",
+    "dataset": "elongated",
+    "prompt": "Frame the entire extreme-aspect surface without clipping.",
+    "recipe": "elongated_camera",
+    "initial_variant": "bad_camera",
+    "allowed_patch_prefixes": ["/scene/camera"],
+    "tags": ["adversarial", "repair", "camera"],
+    "expected": {"camera_kind": "perspective"}
+  }
+]
