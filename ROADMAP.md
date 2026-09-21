@@ -5,16 +5,17 @@ Status: draft, 2026-06-14, against v0.5.2 (branch `dev/0.5.2`).
 ## Goals
 
 1. **Make hakowan more useful as a 3D visualization tool** — close the gaps that block it from being the default tool for publication-quality 3D mesh figures.
-2. **Engage with LLMs directly** — let users describe a figure in natural language and get back an editable, reproducible hakowan spec.
+2. **Make Hakowan easy for external agents to use** — expose deterministic visualization tools through MCP while leaving provider communication and reasoning to the host.
 
 ## Guiding principles
 
-- **The LLM amplifies the grammar; it cannot exceed it.** A model can only emit specs the grammar can express. Building NL on top of a grammar that lacks colorbars/legends produces confident specs that render *incomplete figures*. **Therefore foundation (Track A) is sequenced before the LLM layer (Track B).**
-- **Preserve "one spec = one image."** Everything that determines the figure lives in the declarative spec; only cosmetic global defaults live in `config`. (Camera/lighting currently violate this — A5 fixes it.)
-- **Stay in the niche.** 3D mesh + photoreal rendering. Do not chase text-to-3D / scene generation (that's 3D-GPT's lane). Frame the LLM work as "NL → editable spec," never "AI generates your viz."
-- **Hakowan is a complement, not a replacement.** Workflow: polyscope/pyvista to debug interactively → hakowan for the final figure. Lean into this in docs and positioning.
+- **The agent amplifies the grammar; it cannot exceed it.** A model can only emit specs the grammar can express. Foundation work remains the prerequisite for reliable agent use.
+- **Preserve "one spec = one image."** Everything determining the figure belongs in the declarative FigureSpec; invocation policy remains outside it.
+- **Stay in the niche.** Hakowan owns 3D data semantics, validation, rendering, observation, and safe edits—not model providers, authentication, or conversation state.
+- **Use a standard agent boundary.** MCP exposes inspect → author → validate → render → observe → patch to Copilot, Oh My Pi, and other hosts.
+- **Hakowan is a complement, not a replacement.** Use interactive tools to debug data and Hakowan to produce reproducible figures.
 
-The structural bet: a *declarative* spec is a far more reliable LLM target than imperative pyvista/polyscope code. Track B is where the grammar design pays off competitively — but only once Track A makes the grammar complete.
+The structural bet remains a declarative spec, but external agent harnesses own natural-language interpretation and provider integrations.
 
 ---
 
@@ -89,64 +90,49 @@ Niche name + sparse docs = low discovery. A Vega-Lite-style gallery is the best 
 
 ---
 
-## Track B — Engage with LLMs directly
+## Track B — Agent integration
 
-Builds on the existing saved NL plan (`hakowan-nl-plan.md`, Path B). **Hard dependency: A1 (colorbar), A2 (serialization), A3 (schema) must land first** — otherwise the model emits specs that can't express complete figures or can't be validated.
+Hakowan remains provider-neutral. It does not maintain OpenAI, Anthropic,
+Ollama, or other model clients. External MCP hosts own credentials, model
+selection, language understanding, conversation state, and retry reasoning.
 
-### B0. Module + packaging
+### B1. Agent-facing schema and inspection — shipped
 
-- New `src/hakowan/nl/`, import-guarded like backends (mirror `register_backend_loader` in `__init__.py`).
-- `pip install hakowan[nl]` extra → `anthropic` + `pydantic`.
-- Target API: `layer = hkw.nl.generate("color by curvature, log scale, glass material", data="mesh.obj")`.
-- **Effort**: ~0.5 day.
+Canonical FigureSpec JSON Schema, `hkw.inspect()`, strict semantic validation,
+backend capability reports, and the canonical gallery provide grounded context.
 
-### B1. LLM-facing schema  (= A3)
+### B2. Deterministic authoring tools — shipped
 
-Reuse the Pydantic mirror from A3. Do **not** expose internal dataclasses to the LLM (internal plumbing leaks; `SurfaceMesh` isn't JSON-able → path-only at the boundary; discriminated unions on a `kind` field are cleaner). Add `nl/compile.py::spec_to_layer`.
+Compilation, high-level framing, rendering, observation queries, and atomic
+JSON Pointer patches provide the complete deterministic authoring loop.
 
-### B2. Data introspection
+### B3. MCP server — shipped
 
-The model needs the mesh's actual attributes or it hallucinates (`velocity` when only `curvature` exists). `nl/introspect.py`: load via lagrange, return attribute names/types/ranges + vertex count + bounds; inject into the system prompt.
+`pip install "hakowan[mcp]"` installs the provider-neutral MCP server. It
+exposes schema retrieval, data inspection, gallery search, validation,
+compilation, rendering, observation, and patching over stdio or Streamable
+HTTP. All agent-controlled paths are confined to an explicit workspace root.
 
-- **Effort**: ~1 day.
+### B4. Agent workflow guidance — shipped
 
-### B3. LLM backend abstraction
+The MCP server publishes a reusable authoring prompt and workflow resource:
+inspect data, retrieve schema/examples, author FigureSpec JSON, validate
+strictly, render/observe, and repair with minimal patches.
 
-`nl/llm.py` interface `complete(messages, schema) -> dict`. `ClaudeBackend` (Anthropic SDK, tool-use with the JSON schema, prompt caching on the system prompt). `OllamaBackend` (OpenAI-compat, json-schema mode) for offline/privacy. Select via arg or `HAKOWAN_NL_BACKEND`.
+### B5. Evaluation harness — shipped
 
-- Honest expectations: Claude ~95% on moderate prompts; 32B-class local models ~70–80%; below that, structured output degrades on nested schema.
-- **Follow the `claude-api` skill for model IDs, caching, and tool-use specifics before coding this.**
-- **Effort**: ~1 day.
+`benchmarks/llm_eval` provides 20 natural-language visualization cases over
+five deterministic scientific datasets. It records schema, semantic, compile,
+render, grounding, grammar, camera, repair, and patch-minimality scores; emits
+JSON and HTML reports; consumes canonical gallery examples; and supports
+deterministic reference, stored replay, and plugin-based live providers.
+Browser-backed occupancy scoring is optional via `--observe`.
 
-### B4. Prompt + few-shot library
+### B6. Vision refinement — host-owned
 
-Hardest part — "hakowan" is not in training data, so few-shot carries the weight. `nl/prompts/system.md` (mark/channel/transform/material menus) + `nl/prompts/examples/*.json` (15–20 curated NL→spec pairs derived from `examples/`, easy→hard). Cache the system prompt + examples on the Claude path.
-
-- **Effort**: ~2 days.
-
-### B5. Validation + retry loop
-
-LLM output → Pydantic parse → `spec_to_layer` → optional `compile()` dry-run. Pydantic error → re-prompt with the exact message (max 3 tries). Compile error (bad attribute) → re-prompt with the valid attribute list. Render error → bubble up.
-
-- **Effort**: ~1 day.
-
-### B6. Vision feedback loop
-
-Now practical: WebGL default gives sub-second renders, so render→look→critique→refine is cheap (the old "Mitsuba too slow for eval" risk is gone). Gated by `hkw.nl.generate(..., iterate=True, max_iters=3)`. Each iteration renders a low-res preview, feeds the PNG back, requests diff edits. Claude path only.
-
-- **Effort**: ~1.5 days. Optional for v1.
-
-### B7. UX
-
-CLI `python -m hakowan.nl "prompt" --data mesh.obj --out fig.png`. Notebook: `hkw.nl.generate(...)` returns a `Layer`, which already renders inline via the existing `_repr_html_` — so generated specs preview automatically. No new display code needed.
-
-- **Effort**: ~1 day.
-
-### B8. Eval harness
-
-`tests/nl/eval.py`: 30 NL prompts with reference specs. Metrics: schema-valid %, compile %, render %, semantic match (LLM-judge or manual). Run vs Claude + a local 32B model; publish the numbers to justify model floors.
-
-- **Effort**: ~1 day.
+External agents may render, observe structured visibility/occlusion evidence,
+and apply bounded patches. Hakowan supplies the deterministic primitives but
+does not own the reasoning loop.
 
 ---
 
@@ -157,10 +143,10 @@ CLI `python -m hakowan.nl "prompt" --data mesh.obj --out fig.png`. Notebook: `hk
 | **M1** (~2 wk) | Publishable figures | A1 colorbar, A2 serialization | Figures gain colorbars; specs round-trip — the two biggest blockers gone |
 | **M2** (~2 wk) | Reach + reproducibility | A3 schema, A4 data inputs, A5 camera/lighting | Non-mesh users onboard; full spec reproduces the figure |
 | **M3** (~1 wk) | Discoverability | A6 gallery | People can actually find and copy examples |
-| **M4** (~2 wk) | LLM layer | B0–B5, B7, B8 | `hkw.nl.generate(...)` ships; specs are editable + reproducible |
-| **M5** (optional) | LLM polish | B6 vision loop, A7 marks/animation | Self-correcting generation; broader grammar |
+| **M4** (shipped) | Agent integration | B1–B5 | MCP hosts can inspect, author, validate, render, observe, patch, and evaluate specs |
+| **M5** (host-owned) | Agent refinement | B6, A7 | External agents iterate on visual evidence; Hakowan broadens visualization grammar |
 
-**Critical path for the LLM goal**: A2 + A3 → B1 → B3 → B4 → B5. A1 should land before any NL release so generated figures aren't missing colorbars.
+**Agent critical path**: schema + inspection → strict validation → render/observe → atomic patch. MCP exposes this path without provider-specific code.
 
 ## What to resist
 
@@ -169,6 +155,7 @@ CLI `python -m hakowan.nl "prompt" --data mesh.obj --out fig.png`. Notebook: `hk
 - Generative/scene-creation features and "text-to-3D" framing — wrong lane, wrong expectations.
 - Merging marks/channels into one config blob — the separation is the grammar's strength.
 - Hand-maintaining the LLM schema — auto-generate it from the dataclasses (A3) so it can't drift.
+- Provider SDKs, model routing, credentials, and conversation orchestration — keep them in MCP hosts, not Hakowan core.
 
 ## References
 
