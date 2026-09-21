@@ -140,6 +140,82 @@ surface hits. Vertex attributes are returned directly for point hits and
 averaged across a triangle for surface hits. Indexed attributes are currently
 omitted from the attribute dictionary.
 
+## Structured visibility queries
+
+Request `element_id` and `layer_id` together to enable region, visibility,
+attribute, and occlusion queries. Add `depth` for per-layer depth ranges.
+
+```py
+observation = hkw.observe(
+    layer,
+    views=["front", "right"],
+    passes=["depth", "element_id", "layer_id"],
+)
+```
+
+Summarize a half-open pixel rectangle `(x0, y0, x1, y1)`:
+
+```py
+region = observation.region(100, 80, 300, 260, view="front")
+print(region.background_fraction)
+for layer in region.layers:
+    print(
+        layer.name,
+        layer.visible_pixel_count,
+        layer.visible_element_ids,
+        layer.visible_element_fraction,
+        layer.visible_bounds,    # bounds of actually visible pixels
+        layer.projected_bounds,  # projected bounds of all layer geometry
+        layer.depth_range,
+    )
+```
+
+Query complete captured views, optionally selecting a layer by ID or name:
+
+```py
+visible = observation.visible_elements("surface", view="front")
+```
+
+Compute statistics over only the visible source elements carrying an attribute:
+
+```py
+stats = observation.attribute_extrema(
+    "stress", layer="surface", view="front"
+)
+
+# Restrict the same statistics to a pixel rectangle.
+regional = observation.attribute_extrema(
+    "stress", layer="surface", view="front", bounds=(100, 80, 300, 260)
+)
+for item in stats:
+    print(item.minimum, item.maximum, item.mean)
+    print(item.minimum_element_id, item.maximum_element_id)
+```
+
+Scalar attributes use their value as the extremum criterion. Vector attributes
+use magnitude while retaining component-wise minimum, maximum, mean, and the
+original sample at each extremum. For surfaces, facet fields sample visible
+facets and vertex fields sample the union of vertices belonging to visible
+facets. Indexed attributes are rejected rather than ambiguously flattened.
+
+Projected depth ordering can identify likely occlusion:
+
+```py
+for item in observation.occlusion_report(view="front"):
+    print(
+        item.occluder_layer_name,
+        "covers",
+        item.occluded_layer_name,
+        item.projected_coverage,
+        item.fully_hidden,
+    )
+```
+
+Occlusion records are geometric evidence, not an opacity proof: they report a
+closer layer whose visible pixel bounds overlap a farther layer's projected
+geometry. Visibility and occlusion summaries are added automatically to the
+observation manifest when both ID passes are captured.
+
 ## Explicit cameras
 
 ```py

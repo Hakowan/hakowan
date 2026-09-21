@@ -29,6 +29,17 @@ from .grammar.mark import Mark
 from .setup import Config
 from .setup.sensor import Orthographic, Perspective
 from .validation import Diagnostic, validate
+from .observation_queries import (
+    AttributeVisibility,
+    LayerVisibility,
+    OcclusionRecord,
+    RegionSummary,
+    attribute_extrema as _attribute_extrema,
+    occlusion_report as _occlusion_report,
+    query_manifest as _query_manifest,
+    region as _region,
+    visible_elements as _visible_elements,
+)
 
 
 ViewPreset = Literal["front", "back", "left", "right", "top", "bottom", "isometric"]
@@ -254,6 +265,43 @@ class Observation:
             normal=normal,
             attributes=attributes,
         )
+
+    def region(
+        self,
+        x0: int,
+        y0: int,
+        x1: int,
+        y1: int,
+        *,
+        view: str | None = None,
+    ) -> RegionSummary:
+        """Summarize visible layers and elements in a pixel rectangle."""
+        return _region(self, x0, y0, x1, y1, view=view)
+
+    def visible_elements(
+        self, layer: str | int | None = None, *, view: str | None = None
+    ) -> tuple[LayerVisibility, ...]:
+        """Return visible element IDs and coverage for selected layers."""
+        return _visible_elements(self, layer, view=view)
+
+    def attribute_extrema(
+        self,
+        attribute: str,
+        *,
+        layer: str | int | None = None,
+        view: str | None = None,
+        bounds: tuple[int, int, int, int] | None = None,
+    ) -> tuple[AttributeVisibility, ...]:
+        """Summarize a numeric attribute over visible source elements."""
+        return _attribute_extrema(
+            self, attribute, layer=layer, view=view, bounds=bounds
+        )
+
+    def occlusion_report(
+        self, *, view: str | None = None, layer: str | int | None = None
+    ) -> tuple[OcclusionRecord, ...]:
+        """Report depth-ordered projected overlap among layers."""
+        return _occlusion_report(self, view=view, layer=layer)
 
 
 @dataclass(slots=True)
@@ -814,6 +862,7 @@ def observe(
         manifest=manifest,
         _scene=result.scene,
     )
+    manifest.update(_query_manifest(observation))
     if output_dir is not None:
         observation.save(output_dir)
     return observation
@@ -935,14 +984,18 @@ def _attributes_at(
 
 
 __all__ = [
+    "AttributeVisibility",
     "BACKGROUND_ID",
     "CameraState",
     "LayerSummary",
+    "LayerVisibility",
     "Observation",
     "ObservationError",
+    "OcclusionRecord",
     "PASS_NAMES",
     "PixelHit",
     "SceneSummary",
+    "RegionSummary",
     "Snapshot",
     "VIEW_PRESETS",
     "observe",

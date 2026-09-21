@@ -19,4 +19,12 @@ render-pass semantics, installation, offline assets, and pixel picking.
 
 ::: hakowan.observation.LayerSummary
 
+::: hakowan.observation.RegionSummary
+
+::: hakowan.observation.LayerVisibility
+
+::: hakowan.observation.AttributeVisibility
+
+::: hakowan.observation.OcclusionRecord
+
 ::: hakowan.observation.ObservationError
