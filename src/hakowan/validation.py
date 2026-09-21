@@ -677,7 +677,7 @@ class _Validator:
 
 
 def validate(
-    root: Layer,
+    root: Layer | object,
     backend: BackendName | None = None,
     *,
     strict: bool = True,
@@ -690,8 +690,14 @@ def validate(
     as missing attributes are always errors. ``compile_check=True`` also runs
     the real compiler on deep-copied view data after static validation succeeds.
     """
+    figure = None
     if not isinstance(root, Layer):
-        raise TypeError(f"Expected a Layer, got {type(root)!r}")
+        from .grammar.figure import Figure
+
+        if not isinstance(root, Figure):
+            raise TypeError(f"Expected a Layer or Figure, got {type(root)!r}")
+        figure = root
+        root = root.layer
     try:
         capabilities = get_backend_capabilities(backend)
     except ValueError as exc:
@@ -710,6 +716,39 @@ def validate(
             ),
         )
     validator = _Validator(capabilities, strict)
+    if figure is not None:
+        from .grammar.figure import ThinLensCamera
+
+        if isinstance(figure.scene.camera, ThinLensCamera) and capabilities.name == "webgl":
+            validator.issue(
+                "backend.camera.thin_lens",
+                "scene.camera",
+                "WebGL renders a thin-lens camera as standard perspective.",
+                degradation=True,
+            )
+        environment = figure.scene.environment
+        if (
+            environment is not None
+            and environment.enabled
+            and environment.path is not None
+            and not environment.path.is_file()
+        ):
+            validator.issue(
+                "environment.path.missing",
+                "scene.environment.path",
+                f"Environment map '{environment.path}' does not exist.",
+            )
+        output = figure.scene.output
+        if output is not None:
+            requested = {str(item) for item in output.passes if item != "beauty"}
+            unsupported = requested - capabilities.render_passes
+            if unsupported:
+                validator.issue(
+                    "backend.passes.unsupported",
+                    "scene.output.passes",
+                    f"Backend '{capabilities.name}' does not support passes {sorted(unsupported)}.",
+                    degradation=True,
+                )
     for index, view in enumerate(_flatten_views(root)):
         validator.validate_view(view, index)
     if compile_check and not any(

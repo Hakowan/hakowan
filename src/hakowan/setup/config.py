@@ -7,6 +7,7 @@ from .render_pass import RENDER_PASSES, get_render_pass
 
 import numpy as np
 from dataclasses import dataclass, field
+from typing import Literal
 
 
 @dataclass(kw_only=True, slots=True)
@@ -45,6 +46,8 @@ class Config:
     emitters: list[Emitter] = field(default_factory=lambda: [Envmap()])
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
+    environment_visible: bool = False
+    background: Literal["light", "dark"] | None = None
 
     def z_up(self) -> None:
         """Update configuration for z-up coordinate system."""

@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pygltflib
 
-from .utils import gltf_matrix, np_to_bytes
+from .utils import gltf_matrix, look_at, np_to_bytes
 
 
 # glTF component-type constants (subset)
@@ -565,6 +565,42 @@ class GLTFBuilder:
         node = pygltflib.Node(
             translation=translation,
             extensions={"KHR_lights_punctual": {"light": light_idx}},
+        )
+        self._gltf.nodes.append(node)
+        node_idx = len(self._gltf.nodes) - 1
+        self._gltf.scenes[0].nodes.append(node_idx)
+        return node_idx
+
+    def add_directional_light(
+        self,
+        direction: tuple[float, float, float] | list[float],
+        color: tuple[float, float, float] | list[float],
+        intensity: float,
+    ) -> int:
+        """Register a KHR_lights_punctual directional light."""
+        ext_obj = self._gltf.extensions or {}
+        khr = ext_obj.setdefault("KHR_lights_punctual", {"lights": []})
+        khr["lights"].append(
+            {
+                "type": "directional",
+                "color": [float(color[0]), float(color[1]), float(color[2])],
+                "intensity": float(intensity),
+            }
+        )
+        self._gltf.extensions = ext_obj
+        used = self._gltf.extensionsUsed or []
+        if "KHR_lights_punctual" not in used:
+            used.append("KHR_lights_punctual")
+            self._gltf.extensionsUsed = used
+        vector = np.asarray(direction, dtype=np.float64)
+        vector /= np.linalg.norm(vector)
+        up = np.array([0.0, 1.0, 0.0])
+        if abs(float(vector @ up)) > 0.99:
+            up = np.array([1.0, 0.0, 0.0])
+        matrix = look_at(np.zeros(3), vector, up)
+        node = pygltflib.Node(
+            matrix=gltf_matrix(matrix),
+            extensions={"KHR_lights_punctual": {"light": len(khr["lights"]) - 1}},
         )
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1

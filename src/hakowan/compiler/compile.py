@@ -77,7 +77,7 @@ def condense_layer_tree_to_scene(
     return scene, node_options
 
 
-def compile(root: layer.Layer, *, preserve_attributes: bool = False) -> Scene:
+def compile(root: layer.Layer | object, *, preserve_attributes: bool = False) -> Scene:
     """Compile a layer tree into a renderable :class:`Scene`.
 
     Traverses the layer tree, resolves channels, applies transforms and scales,
@@ -93,6 +93,12 @@ def compile(root: layer.Layer, *, preserve_attributes: bool = False) -> Scene:
     Returns:
         A compiled scene containing one view per leaf path.
     """
+    if not isinstance(root, layer.Layer):
+        from ..grammar.figure import Figure
+
+        if not isinstance(root, Figure):
+            raise TypeError(f"Expected Layer or Figure, got {type(root)!r}")
+        root = root.layer
     # Step 1: condense each path from root to leaf in the layer tree into a view.
     scene, node_options = condense_layer_tree_to_scene(root)
     logger.debug(f"Created scene with {len(scene)} views")

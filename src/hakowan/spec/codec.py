@@ -37,6 +37,17 @@ from ..grammar.channel.material import (
 )
 from ..grammar.dataframe import DataFrameLike
 from ..grammar.layer import Layer, LayoutOptions
+from ..grammar.figure import (
+    DirectionalLight,
+    Environment,
+    Figure,
+    OrthographicCamera,
+    OutputSettings,
+    PerspectiveCamera,
+    PointLight,
+    SceneSettings,
+    ThinLensCamera,
+)
 from ..grammar.overlay import Annotation, Legend
 from ..grammar.scale import (
     Affine as AffineScale,
@@ -1175,16 +1186,170 @@ def _node_to_spec(
     return sm.OverlayNodeSpec(spec=spec, children=children)
 
 
+def _float3(values) -> tuple[float, float, float]:
+    return float(values[0]), float(values[1]), float(values[2])
+
+
+def _camera_to_spec(camera):
+    common = {
+        "eye": _float3(camera.eye),
+        "target": _float3(camera.target),
+        "up": _float3(camera.up),
+        "near": camera.near,
+        "far": camera.far,
+    }
+    if isinstance(camera, ThinLensCamera):
+        return sm.ThinLensCameraSpec(
+            fov=camera.fov,
+            fov_axis=camera.fov_axis,
+            aperture_radius=camera.aperture_radius,
+            focus_distance=camera.focus_distance,
+            **common,
+        )
+    if isinstance(camera, PerspectiveCamera):
+        return sm.PerspectiveCameraSpec(
+            fov=camera.fov, fov_axis=camera.fov_axis, **common
+        )
+    return sm.OrthographicCameraSpec(**common)
+
+
+def _camera_from_spec(camera):
+    common = {
+        "eye": tuple(camera.eye),
+        "target": tuple(camera.target),
+        "up": tuple(camera.up),
+        "near": camera.near,
+        "far": camera.far,
+    }
+    if isinstance(camera, sm.ThinLensCameraSpec):
+        return ThinLensCamera(
+            fov=camera.fov,
+            fov_axis=camera.fov_axis,
+            aperture_radius=camera.aperture_radius,
+            focus_distance=camera.focus_distance,
+            **common,
+        )
+    if isinstance(camera, sm.PerspectiveCameraSpec):
+        return PerspectiveCamera(fov=camera.fov, fov_axis=camera.fov_axis, **common)
+    return OrthographicCamera(**common)
+
+
+def _scene_to_spec(scene: SceneSettings | None) -> sm.SceneSettingsSpec | None:
+    if scene is None:
+        return None
+    lights = None
+    if scene.lights is not None:
+        lights = tuple(
+            sm.PointLightSpec(
+                position=list(_float3(light.position)),
+                color=cast(Any, _json_value(light.color, "scene.lights.color")),
+                intensity=light.intensity,
+            )
+            if isinstance(light, PointLight)
+            else sm.DirectionalLightSpec(
+                direction=list(_float3(light.direction)),
+                color=cast(Any, _json_value(light.color, "scene.lights.color")),
+                intensity=light.intensity,
+            )
+            for light in scene.lights
+        )
+    environment = None
+    if scene.environment is not None:
+        logical_path = scene.environment._source or scene.environment.path
+        environment = sm.EnvironmentSpec(
+            enabled=scene.environment.enabled,
+            path=logical_path.as_posix() if logical_path is not None else None,
+            scale=scene.environment.scale,
+            up=list(_float3(scene.environment.up)),
+            rotation=scene.environment.rotation,
+            visible=scene.environment.visible,
+        )
+    output = None
+    if scene.output is not None:
+        output = sm.OutputSettingsSpec(
+            width=scene.output.width,
+            height=scene.output.height,
+            background=scene.output.background,
+            passes=scene.output.passes,
+            sampler_seed=scene.output.sampler_seed,
+        )
+    return sm.SceneSettingsSpec(
+        camera=_camera_to_spec(scene.camera) if scene.camera is not None else None,
+        lights=lights,
+        environment=environment,
+        output=output,
+    )
+
+
+def _scene_from_spec(
+    scene: sm.SceneSettingsSpec, base_dir: Path | None
+) -> SceneSettings:
+    lights = None
+    if scene.lights is not None:
+        lights = tuple(
+            PointLight(
+                position=_float3(light.position),
+                color=light.color,
+                intensity=light.intensity,
+            )
+            if isinstance(light, sm.PointLightSpec)
+            else DirectionalLight(
+                direction=_float3(light.direction),
+                color=light.color,
+                intensity=light.intensity,
+            )
+            for light in scene.lights
+        )
+    environment = None
+    if scene.environment is not None:
+        logical = Path(scene.environment.path) if scene.environment.path else None
+        resolved = logical
+        if logical is not None and base_dir is not None and not logical.is_absolute():
+            resolved = base_dir / logical
+        environment = Environment(
+            path=resolved,
+            scale=scene.environment.scale,
+            up=_float3(scene.environment.up),
+            rotation=scene.environment.rotation,
+            visible=scene.environment.visible,
+            enabled=scene.environment.enabled,
+            _source=logical,
+        )
+    output = None
+    if scene.output is not None:
+        output = OutputSettings(
+            width=scene.output.width,
+            height=scene.output.height,
+            background=scene.output.background,
+            passes=scene.output.passes,
+            sampler_seed=scene.output.sampler_seed,
+        )
+    return SceneSettings(
+        camera=_camera_from_spec(scene.camera) if scene.camera is not None else None,
+        lights=lights,
+        environment=environment,
+        output=output,
+    )
+
+
 def to_spec(
-    layer: Layer,
+    value: Layer | Figure,
     *,
     data_ids: DataIds | None = None,
     function_ids: FunctionIds | None = None,
 ) -> sm.FigureSpec:
-    """Convert a runtime layer tree into a canonical specification."""
-    if not isinstance(layer, Layer):
-        raise TypeError(f"Expected Layer, got {type(layer)!r}")
-    return sm.FigureSpec(root=_node_to_spec(layer, data_ids, function_ids, "root"))
+    """Convert a runtime Layer or Figure into a canonical specification."""
+    if isinstance(value, Figure):
+        return sm.FigureSpec(
+            version="1.1",
+            root=_node_to_spec(value.layer, data_ids, function_ids, "root"),
+            scene=_scene_to_spec(value.scene),
+        )
+    if not isinstance(value, Layer):
+        raise TypeError(f"Expected Layer or Figure, got {type(value)!r}")
+    return sm.FigureSpec(
+        version="1.0", root=_node_to_spec(value, data_ids, function_ids, "root")
+    )
 
 
 def _resolve_data(
@@ -1291,15 +1456,18 @@ def from_spec(
     data_resolver: DataResolver | None = None,
     function_resolver: FunctionResolver | None = None,
     base_dir: str | Path | None = None,
-) -> Layer:
-    """Build a runtime layer tree from a canonical specification."""
+) -> Layer | Figure:
+    """Build a runtime Layer or Figure from a canonical specification."""
     parsed = (
         spec if isinstance(spec, sm.FigureSpec) else sm.FigureSpec.model_validate(spec)
     )
     directory = Path(base_dir) if base_dir is not None else None
-    return _node_from_spec(
+    layer = _node_from_spec(
         parsed.root, data_resolver, function_resolver, directory, "root"
     )
+    if parsed.scene is None:
+        return layer
+    return Figure(layer=layer, scene=_scene_from_spec(parsed.scene, directory))
 
 
 def from_json(
@@ -1308,7 +1476,7 @@ def from_json(
     data_resolver: DataResolver | None = None,
     function_resolver: FunctionResolver | None = None,
     base_dir: str | Path | None = None,
-) -> Layer:
+) -> Layer | Figure:
     """Parse canonical JSON and build a runtime layer tree."""
     return from_spec(
         sm.FigureSpec.from_json(text),
@@ -1328,7 +1496,7 @@ def load_layer(
     *,
     data_resolver: DataResolver | None = None,
     function_resolver: FunctionResolver | None = None,
-) -> Layer:
+) -> Layer | Figure:
     """Load a specification and resolve relative resources beside its file."""
     filename = Path(path)
     return from_spec(

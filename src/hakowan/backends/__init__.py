@@ -51,6 +51,10 @@ WEBGL_CAPABILITIES = BackendCapabilities(
             "multi_view_observation",
             "element_id_observation",
             "layer_id_observation",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
         }
     ),
     limitations=(
@@ -66,7 +70,18 @@ MITSUBA_CAPABILITIES = BackendCapabilities(
     render_passes=frozenset({"albedo", "depth", "normal"}),
     pass_delivery="file",
     features=frozenset(
-        {"in_memory_image", "image_texture", "bump_map", "normal_map", "hair"}
+        {
+            "in_memory_image",
+            "image_texture",
+            "bump_map",
+            "normal_map",
+            "hair",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
+            "thin_lens",
+        }
     ),
     limitations=(
         "Hair root/tip gradients collapse to one average color.",
@@ -86,6 +101,10 @@ BLENDER_CAPABILITIES = BackendCapabilities(
             "image_normal_map",
             "hair",
             "hair_gradient",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
             "fur_children",
             "thin_lens",
         }

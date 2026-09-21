@@ -44,6 +44,7 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         filename: Path | str | None = None,
         *,
         blender_engine: str = "CYCLES",
+        environment_visible: bool | None = None,
         blend_file: Path | str | None = None,
         **kwargs: Any,
     ) -> Any:
@@ -76,6 +77,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             raise TypeError(
                 f"render() got unexpected keyword argument(s): {list(kwargs)}"
             )
+        if environment_visible is None:
+            environment_visible = config.environment_visible
         logger.info("Starting Blender rendering...")
 
         # Clear existing scene
@@ -91,8 +94,11 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         # Setup lighting
         self._setup_lighting(config)
 
-        # Setup render settings
-        self._setup_render_settings(config, engine=blender_engine)
+        self._setup_render_settings(
+            config,
+            engine=blender_engine,
+            environment_visible=environment_visible,
+        )
 
         # Save .blend file if requested (for debugging)
         if blend_file is not None:
@@ -186,7 +192,9 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             self._finalize_outputs(config, render_filename, filename)
 
         if filename is not None:
-            if not composite_overlay_file(filename, scene.legends, scene.annotations):
+            if not composite_overlay_file(
+                filename, scene.legends, scene.annotations, config.background
+            ):
                 logger.warning(
                     "Legends and annotations are not composited into HDR output; "
                     "use PNG or another Pillow-supported format."

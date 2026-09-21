@@ -10,6 +10,7 @@ from ..backends import (
 )
 from ..compiler import compile
 from ..grammar import layer
+from ..grammar.figure import Figure
 from ..setup import Config
 from ..setup.render_pass import aov_path
 from ..common import logger
@@ -57,7 +58,7 @@ class RenderResult:
 
 
 def render(
-    root: layer.Layer,
+    root: layer.Layer | Figure,
     config: Config | None = None,
     filename: Path | str | None = None,
     backend: BackendName | None = None,
@@ -93,16 +94,29 @@ def render(
         >>> # Mitsuba: display the rendered image in a notebook
         >>> result.image
     """
-    # Compile the layer tree into a scene
-    scene = compile(root)
-    logger.info("Compilation done")
-
-    # Get config
-    if config is None:
+    runtime_layer = root.layer if isinstance(root, Figure) else root
+    use_figure_settings = isinstance(root, Figure) and config is None
+    if isinstance(root, Figure) and config is None:
+        config = root.to_config()
+    elif config is None:
         config = Config()
 
+    # Compile the layer tree after resolving the figure wrapper.
+    scene = compile(runtime_layer)
+    logger.info("Compilation done")
     # Get backend and render
     backend_name = resolve_backend_name(backend)
+    if use_figure_settings:
+        assert isinstance(root, Figure)
+        output = root.scene.output
+        environment = root.scene.environment
+        if output is not None and backend_name == "webgl":
+            kwargs.setdefault("background", output.background)
+        if environment is not None:
+            if backend_name == "webgl":
+                kwargs.setdefault("envmap_background", environment.visible)
+            elif backend_name == "blender":
+                kwargs.setdefault("environment_visible", environment.visible)
     logger.info(f"Using backend: {backend_name}")
     backend_impl = get_backend(backend_name)
 

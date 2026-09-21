@@ -14,7 +14,9 @@ from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL
 from .. import RenderBackend
 
+from ...setup.emitter import Directional as DirectionalEmitter
 from ...setup.emitter import Point as PointEmitter
+from ...common.to_color import to_color
 
 from .builder import GLTFBuilder
 from .camera import add_camera
@@ -74,9 +76,9 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] | None = None,
         title: str = _DEFAULT_TITLE,
-        envmap_background: bool = False,
+        envmap_background: bool | None = None,
         offline: bool = False,
         **kwargs: Any,
     ) -> Path:
@@ -85,6 +87,10 @@ class WebGLBackend(RenderBackend):
             raise TypeError(
                 f"render() got unexpected keyword argument(s): {list(kwargs)}"
             )
+        if envmap_background is None:
+            envmap_background = config.environment_visible
+        if background is None:
+            background = config.background or _DEFAULT_BACKGROUND
 
         _validate_background(background)
         out_path = _resolve_output_path(filename)
@@ -123,9 +129,9 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] | None = None,
         title: str = _DEFAULT_TITLE,
-        envmap_background: bool = False,
+        envmap_background: bool | None = None,
         three_module_url: str | None = None,
         three_addons_url: str | None = None,
     ) -> str:
@@ -143,6 +149,10 @@ class WebGLBackend(RenderBackend):
         Returns:
             Complete HTML page as a string.
         """
+        if envmap_background is None:
+            envmap_background = config.environment_visible
+        if background is None:
+            background = config.background or _DEFAULT_BACKGROUND
         _validate_background(background)
         glb_bytes, envmap, initial_view, layers = self._build_scene_artifacts(
             scene, config, envmap_background
@@ -207,7 +217,7 @@ class WebGLBackend(RenderBackend):
                 continue
             layers.append({"index": index, "label": view.name or f"Layer {index + 1}"})
         _, initial_view = add_camera(builder, config)
-        _add_point_lights(builder, config)
+        _add_lights(builder, config)
         glb_bytes = builder.finalize()
         envmap = envmap_descriptor(config)
         if envmap is not None:
@@ -251,29 +261,42 @@ def _resolve_output_path(filename: Path | str | None) -> Path:
     return path
 
 
-def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
-    """Emit one KHR_lights_punctual entry per Point emitter."""
-    from ...common.color import Color
-
-    for emitter in config.emitters:
-        if not isinstance(emitter, PointEmitter):
-            continue
-        intensity = emitter.intensity
-        if isinstance(intensity, Color):
-            color = (
-                float(intensity.red),
-                float(intensity.green),
-                float(intensity.blue),
-            )
-            mag = max(color) if max(color) > 1.0 else 1.0
-            color = (color[0] / mag, color[1] / mag, color[2] / mag)
-            strength = float(max(intensity.red, intensity.green, intensity.blue))
-        else:
-            color = (1.0, 1.0, 1.0)
-            strength = float(intensity)
-        builder.add_point_light(
-            position=list(emitter.position), color=color, intensity=strength
+def _light_color_intensity(emitter) -> tuple[tuple[float, float, float], float]:
+    if getattr(emitter, "color", None) is not None:
+        color = to_color(emitter.color)
+        return (
+            (float(color.red), float(color.green), float(color.blue)),
+            float(emitter.intensity),
         )
+    if isinstance(emitter.intensity, (int, float)):
+        return (1.0, 1.0, 1.0), float(emitter.intensity)
+    color = to_color(emitter.intensity)
+    values = (float(color.red), float(color.green), float(color.blue))
+    strength = max(values)
+    normalized = (
+        tuple(value / strength for value in values) if strength > 1.0 else values
+    )
+    return (
+        float(normalized[0]),
+        float(normalized[1]),
+        float(normalized[2]),
+    ), strength if strength > 0.0 else 1.0
+
+
+def _add_lights(builder: GLTFBuilder, config: Config) -> None:
+    """Emit supported KHR_lights_punctual lights."""
+    for emitter in config.emitters:
+        if not isinstance(emitter, (PointEmitter, DirectionalEmitter)):
+            continue
+        color, intensity = _light_color_intensity(emitter)
+        if isinstance(emitter, PointEmitter):
+            builder.add_point_light(
+                position=list(emitter.position), color=color, intensity=intensity
+            )
+        else:
+            builder.add_directional_light(
+                direction=list(emitter.direction), color=color, intensity=intensity
+            )
 
 
 def _add_surface_view(builder: GLTFBuilder, view) -> None:

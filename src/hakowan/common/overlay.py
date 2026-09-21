@@ -120,6 +120,7 @@ def composite_overlays(
     image: Image.Image,
     legends: Sequence[CompiledLegend],
     annotations: Sequence[CompiledAnnotation],
+    background: str | None = None,
 ) -> Image.Image:
     """Return an image with legend side panels and screen annotations."""
     source = image.convert("RGBA")
@@ -127,8 +128,9 @@ def composite_overlays(
     right = [legend for legend in legends if legend.position == "right"]
     left_width = max((legend.width for legend in left), default=0)
     right_width = max((legend.width for legend in right), default=0)
+    canvas_color = "white" if background != "dark" else (18, 18, 18, 255)
     output = Image.new(
-        "RGBA", (left_width + source.width + right_width, source.height), "white"
+        "RGBA", (left_width + source.width + right_width, source.height), canvas_color
     )
     if left:
         output.paste(_draw_legend_panel(left, left_width, source.height), (0, 0))
@@ -146,18 +148,19 @@ def composite_overlay_file(
     path: str | Path,
     legends: Sequence[CompiledLegend],
     annotations: Sequence[CompiledAnnotation],
+    background: str | None = None,
 ) -> bool:
     """Composite overlays into a Pillow-readable image file.
 
     Returns ``False`` for HDR formats that cannot carry a raster text overlay.
     """
     filename = Path(path)
-    if not legends and not annotations:
+    if not legends and not annotations and background is None:
         return True
     if filename.suffix.lower() in {".exr", ".hdr"}:
         return False
     with Image.open(filename) as source:
-        result = composite_overlays(source, legends, annotations)
+        result = composite_overlays(source, legends, annotations, background)
     if filename.suffix.lower() in {".jpg", ".jpeg"}:
         result = result.convert("RGB")
     result.save(filename)

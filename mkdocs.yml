@@ -69,6 +69,7 @@ nav:
 - Home: index.md
 - User guide:
   - Grammar: guide/grammar.md
+  - Figure and scene: guide/figure.md
   - Data: guide/data.md
   - Mark: guide/mark.md
   - Channel: guide/channel.md
@@ -90,6 +91,7 @@ nav:
 - Gallery: gallery.md
 - Reference:
   - Render: api/render.md
+  - Figure and scene: api/figure.md
   - Snapshot and observation: api/observation.md
   - Compile: api/compile.md
   - Data: api/data.md

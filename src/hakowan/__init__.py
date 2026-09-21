@@ -10,6 +10,18 @@ from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
 from .grammar.overlay import Annotation, Legend
+from .grammar.figure import (
+    DirectionalLight,
+    Environment,
+    Figure,
+    OrthographicCamera,
+    OutputSettings,
+    PerspectiveCamera,
+    PointLight,
+    SceneSettings,
+    ThinLensCamera,
+)
+
 from .compiler import compile
 from .inspection import AttributeSummary, DataSummary, inspect
 from .validation import Diagnostic, ValidationError, ValidationReport, validate
@@ -53,6 +65,8 @@ from .backends import (
     list_backend_capabilities,
     register_backend_loader,
 )
+
+figure = Figure
 
 
 def _load_mitsuba_backend():
@@ -120,6 +134,16 @@ __all__ = [
     "set_default_backend",
     "Annotation",
     "Legend",
+    "figure",
+    "Figure",
+    "PerspectiveCamera",
+    "OrthographicCamera",
+    "ThinLensCamera",
+    "PointLight",
+    "DirectionalLight",
+    "Environment",
+    "OutputSettings",
+    "SceneSettings",
     "list_backends",
     "AttributeSummary",
     "DataSummary",

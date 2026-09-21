@@ -1,4 +1,4 @@
-from ..common.color import Color
+from ..common.color import ColorLike
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,8 +21,17 @@ class Point(Emitter):
         position: Light position.
     """
 
-    intensity: Color | float
-    position: list[float]
+    intensity: ColorLike | float = 1.0
+    position: list[float] = field(default_factory=lambda: [0.0, 0.0, 1.0])
+    color: ColorLike | None = None
+
+@dataclass(kw_only=True, slots=True)
+class Directional(Emitter):
+    """Directional light with rays traveling along ``direction``."""
+
+    direction: list[float] = field(default_factory=lambda: [0.0, 0.0, -1.0])
+    intensity: float = 1.0
+    color: ColorLike = "white"
 
 
 @dataclass(kw_only=True, slots=True)

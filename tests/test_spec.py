@@ -32,7 +32,8 @@ def test_schema_is_versioned_json_schema():
     schema = hkw.schema()
 
     assert schema["$id"] == "https://hakowan.github.io/hakowan/schema/v1.json"
-    assert schema["properties"]["version"]["const"] == "1.0"
+    assert schema["properties"]["version"]["default"] == "1.1"
+    assert set(schema["properties"]["version"]["enum"]) == {"1.0", "1.1"}
     assert schema["additionalProperties"] is False
     assert len(schema["$defs"]) > 40
     json.dumps(schema)

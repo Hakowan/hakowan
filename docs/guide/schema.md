@@ -35,10 +35,67 @@ The complete Python reference is under [Canonical specification API](../api/spec
 | Field | Required | Value |
 |---|---:|---|
 | `$schema` | yes | `https://hakowan.github.io/hakowan/schema/v1.json` |
-| `version` | yes | `1.0` |
+| `version` | yes | `1.0` or `1.1`; new output uses `1.1` |
 | `root` | yes | A composition node |
+| `scene` | no | Figure-level camera, lights, environment, and output intent (`1.1`) |
 
-A different version, unknown field, or unknown `kind` is rejected during parsing.
+Unknown versions, fields, and `kind` values are rejected during parsing.
+
+## Scene configuration
+
+Schema 1.1 adds an optional top-level `scene` block:
+
+```json
+{
+  "camera": {
+    "kind": "perspective",
+    "eye": [2, 3, 4],
+    "target": [0, 0, 0],
+    "up": [0, 1, 0],
+    "fov": 35,
+    "fov_axis": "y",
+    "near": 0.01,
+    "far": 100
+  },
+  "lights": [
+    {
+      "kind": "directional",
+      "direction": [0, 0, -1],
+      "color": "white",
+      "intensity": 2
+    }
+  ],
+  "environment": {
+    "enabled": true,
+    "path": "studio.exr",
+    "scale": 1,
+    "up": [0, 1, 0],
+    "rotation": 180,
+    "visible": false
+  },
+  "output": {
+    "width": 1024,
+    "height": 800,
+    "background": "dark",
+    "passes": ["beauty", "depth"],
+    "sampler_seed": 0
+  }
+}
+```
+
+Camera kinds are `perspective`, `orthographic`, and `thin_lens`. Light kinds
+are `point` and `directional`. A `null` scene component preserves runtime
+defaults; `lights: []` explicitly removes direct lights. Environment paths use
+the same relative-resolution rules as mesh and image paths.
+
+When rendering, precedence is:
+
+```text
+explicit Config/backend keyword > Figure scene setting > Config default
+```
+
+Output filenames, backend selection, browser executable, and device selection
+remain invocation-only.
 
 ## Composition nodes
 
@@ -339,11 +396,11 @@ semantically significant.
 
 ## Version compatibility
 
-Version `1.0` is the only accepted version. Documents with another `$schema`,
-version, unknown field, or unknown variant are rejected. There is currently no
-implicit migration path: callers must explicitly convert a future incompatible
-document before loading it. Within the `1.x` line, additions must remain
-backward-readable; semantic reinterpretation requires a new major version.
+Versions `1.0` and `1.1` are accepted. Version 1.0 contains the layer tree;
+version 1.1 adds the optional scene block and is the default for `Figure`
+serialization. Loading a 1.0 document remains backward-compatible and returns a
+`Layer`. Loading a document with scene settings returns a `Figure`. Unknown
+versions, fields, and variants are rejected rather than migrated implicitly.
 
 ## Unsupported serialization cases
 
@@ -357,17 +414,17 @@ The canonical boundary deliberately rejects:
 - NaN and Infinity;
 - binary mesh or image payloads embedded directly in JSON.
 
-Render `Config`—camera, lights, film, sampler, integrator, and passes—is not yet
-part of version 1.0. Serialize it separately until those concepts move into the
-figure grammar. Consequently, version 1.0 reproduces the layer tree but does not
-by itself guarantee the same camera and lighting.
+Backend performance controls such as device selection, browser executable,
+temporary paths, and output filename remain invocation-only. The scene schema
+stores semantic output intent but does not promise pixel-identical results
+across renderer versions or hardware.
 
 ## Complete handwritten example
 
 ```json
 {
   "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
-  "version": "1.0",
+  "version": "1.1",
   "root": {
     "kind": "overlay",
     "spec": {
@@ -455,6 +512,41 @@ by itself guarantee the same camera and lighting.
         }
       }
     ]
+  },
+  "scene": {
+    "camera": {
+      "kind": "perspective",
+      "eye": [2, 3, 4],
+      "target": [0, 0, 0],
+      "up": [0, 1, 0],
+      "fov": 35,
+      "fov_axis": "y",
+      "near": 0.01,
+      "far": 100
+    },
+    "lights": [
+      {
+        "kind": "directional",
+        "direction": [0, 0, -1],
+        "color": "white",
+        "intensity": 2
+      }
+    ],
+    "environment": {
+      "enabled": false,
+      "path": null,
+      "scale": 1,
+      "up": [0, 1, 0],
+      "rotation": 180,
+      "visible": false
+    },
+    "output": {
+      "width": 1024,
+      "height": 800,
+      "background": "dark",
+      "passes": ["beauty", "depth"],
+      "sampler_seed": 0
+    }
   }
 }
 ```

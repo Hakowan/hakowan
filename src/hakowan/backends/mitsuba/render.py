@@ -352,7 +352,9 @@ class MitsubaBackend(RenderBackend):
             # not, and a missing parent fails silently (deferred I/O error).
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
-            if not composite_overlay_file(filename, scene.legends, scene.annotations):
+            if not composite_overlay_file(
+                filename, scene.legends, scene.annotations, config.background
+            ):
                 logger.warning(
                     "Legends and annotations are not composited into HDR output; "
                     "use PNG or another Pillow-supported format."

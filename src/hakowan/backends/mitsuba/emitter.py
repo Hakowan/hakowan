@@ -1,5 +1,6 @@
-from ...setup.emitter import Emitter, Point, Envmap
+from ...setup.emitter import Directional, Emitter, Envmap, Point
 from .spectrum import generate_spectrum_config
+from ...common.to_color import to_color
 from .utils import rotation
 
 from typing import Any
@@ -16,7 +17,22 @@ def generate_emitter_config(emitter: Emitter) -> dict:
         case Point():
             mi_config["type"] = "point"
             mi_config["position"] = list(emitter.position)
-            mi_config["intensity"] = generate_spectrum_config(emitter.intensity)
+            if emitter.color is None:
+                intensity = (
+                    float(emitter.intensity)
+                    if isinstance(emitter.intensity, (int, float))
+                    else to_color(emitter.intensity)
+                )
+            else:
+                if not isinstance(emitter.intensity, (int, float)):
+                    raise TypeError("Point intensity must be numeric when color is set")
+                intensity = to_color(emitter.color) * float(emitter.intensity)
+            mi_config["intensity"] = generate_spectrum_config(intensity)
+        case Directional():
+            mi_config["type"] = "directional"
+            mi_config["direction"] = list(emitter.direction)
+            irradiance = to_color(emitter.color) * emitter.intensity
+            mi_config["irradiance"] = generate_spectrum_config(irradiance)
         case Envmap():
             mi_config["type"] = "envmap"
             mi_config["filename"] = str(emitter.filename)

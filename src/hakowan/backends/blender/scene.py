@@ -362,16 +362,10 @@ class _SceneMixin:
 
     def _setup_lighting(self, config: Config):
         """Setup Blender lighting from config."""
-        from ...setup.emitter import Envmap, Point
+        from ...setup.emitter import Directional, Envmap, Point
 
         if not config.emitters:
-            # No emitters specified, add default sun light
-            light_data = bpy.data.lights.new(name="Sun", type="SUN")
-            light_data.energy = 1.0
-            light_obj = bpy.data.objects.new("Sun", light_data)
-            bpy.context.collection.objects.link(light_obj)
-            light_obj.location = (0, 0, 10)
-            logger.debug("Added default sun light")
+            logger.debug("No emitters configured")
             return
 
         # Process emitters from config
@@ -380,6 +374,8 @@ class _SceneMixin:
                 self._setup_environment_light(emitter)
             elif isinstance(emitter, Point):
                 self._setup_point_light(emitter, i)
+            elif isinstance(emitter, Directional):
+                self._setup_directional_light(emitter, i)
             else:
                 logger.warning(
                     f"Emitter type {type(emitter)} not supported in Blender backend"
@@ -458,15 +454,19 @@ class _SceneMixin:
         """
         light_data = bpy.data.lights.new(name=f"Point_{index:03d}", type="POINT")
 
-        # Set intensity
-        if isinstance(point_light.intensity, (int, float)):
+        # Set intensity and color.
+        from ...common.to_color import to_color
+
+        if point_light.color is not None:
+            color = to_color(point_light.color)
+            light_data.color = (float(color.red), float(color.green), float(color.blue))
+            light_data.energy = float(point_light.intensity)
+        elif isinstance(point_light.intensity, (int, float)):
             light_data.energy = float(point_light.intensity)
         else:
-            # If intensity is a color, use its average as energy
-            light_data.energy = 1.0
-            logger.warning(
-                "Color intensity for point lights not fully supported, using default energy"
-            )
+            color = to_color(point_light.intensity)
+            light_data.color = (float(color.red), float(color.green), float(color.blue))
+            light_data.energy = max(float(color.red), float(color.green), float(color.blue), 1.0)
 
         # Create light object
         light_obj = bpy.data.objects.new(f"Point_{index:03d}", light_data)
@@ -477,7 +477,26 @@ class _SceneMixin:
 
         logger.debug(f"Point light {index} added at {point_light.position}")
 
-    def _setup_render_settings(self, config: Config, engine: str = "CYCLES"):
+    def _setup_directional_light(self, directional, index: int):
+        """Setup a Blender sun light from a world-space ray direction."""
+        from ...common.to_color import to_color
+
+        light_data = bpy.data.lights.new(name=f"Directional_{index:03d}", type="SUN")
+        light_data.energy = float(directional.intensity)
+        color = to_color(directional.color)
+        light_data.color = (float(color.red), float(color.green), float(color.blue))
+        light_obj = bpy.data.objects.new(f"Directional_{index:03d}", light_data)
+        bpy.context.collection.objects.link(light_obj)
+        direction = mathutils.Vector(directional.direction)
+        light_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+        logger.debug(f"Directional light {index} added along {tuple(direction)}")
+
+    def _setup_render_settings(
+        self,
+        config: Config,
+        engine: str = "CYCLES",
+        environment_visible: bool = False,
+    ):
         """Configure Blender render settings for the *main* render pass.
 
         Sets resolution, render engine, sample count, output format, and
@@ -527,8 +546,8 @@ class _SceneMixin:
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
 
-        # Transparent background
-        scene.render.film_transparent = True
+        # Environment visibility controls film transparency.
+        scene.render.film_transparent = not environment_visible
 
         logger.debug(
             f"Render settings: {scene.render.resolution_x}x{scene.render.resolution_y}, blender_engine={engine}"

@@ -13,7 +13,7 @@ import math
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, Sequence, cast
 
 import lagrange
 import numpy as np
@@ -23,10 +23,11 @@ from PIL import Image, ImageDraw
 from .backends import BackendName
 from .common.overlay import composite_overlays
 from .compiler import Scene, compile
+from .grammar.figure import Figure, OrthographicCamera
 from .grammar.layer import Layer
 from .grammar.mark import Mark
 from .setup import Config
-from .setup.sensor import Perspective
+from .setup.sensor import Orthographic, Perspective
 from .validation import Diagnostic, validate
 
 
@@ -361,6 +362,35 @@ def _camera_for_view(
     )
 
 
+def _vec3(values) -> tuple[float, float, float]:
+    return float(values[0]), float(values[1]), float(values[2])
+
+
+def _camera_state_from_figure(camera) -> CameraState:
+    return CameraState(
+        eye=_vec3(camera.eye),
+        target=_vec3(camera.target),
+        up=_vec3(camera.up),
+        fov=float(getattr(camera, "fov", 35.0)),
+        near=camera.near,
+        far=camera.far,
+        mode="orthographic" if isinstance(camera, OrthographicCamera) else "perspective",
+    )
+
+
+def _camera_state_from_config(config: Config) -> CameraState:
+    sensor = config.sensor
+    return CameraState(
+        eye=_vec3(sensor.location),
+        target=_vec3(sensor.target),
+        up=_vec3(sensor.up),
+        fov=float(getattr(sensor, "fov", 35.0)),
+        near=float(sensor.near_clip),
+        far=float(sensor.far_clip),
+        mode="orthographic" if isinstance(sensor, Orthographic) else "perspective",
+    )
+
+
 def _require_playwright():
     try:
         from playwright.sync_api import Error as PlaywrightError
@@ -422,7 +452,7 @@ def _normal_from_image(image: Image.Image, world_to_camera: np.ndarray) -> np.nd
 
 def _capture_sync(
     root: Layer,
-    views: Sequence[ViewPreset],
+    views: Sequence[str],
     passes: Sequence[PassName],
     resolution: tuple[int, int],
     *,
@@ -439,7 +469,11 @@ def _capture_sync(
     width, height = resolution
     if width <= 0 or height <= 0:
         raise ValueError(f"Resolution must be positive, got {resolution}.")
-    unknown_views = set(views) - set(VIEW_PRESETS)
+    unknown_views = {
+        view
+        for view in views
+        if view not in VIEW_PRESETS and (cameras is None or view not in cameras)
+    }
     unknown_passes = set(passes) - set(PASS_NAMES)
     if unknown_views:
         raise ValueError(f"Unknown view preset(s): {sorted(unknown_views)}")
@@ -453,7 +487,7 @@ def _capture_sync(
     resolved_cameras = {
         view: cameras[view]
         if cameras is not None and view in cameras
-        else _camera_for_view(view, summary, resolution)
+        else _camera_for_view(cast(ViewPreset, view), summary, resolution)
         for view in views
     }
 
@@ -582,7 +616,7 @@ def _capture_sync(
                             scene.legends or scene.annotations
                         ):
                             image = composite_overlays(
-                                image, scene.legends, scene.annotations
+                                image, scene.legends, scene.annotations, background
                             )
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
@@ -622,37 +656,77 @@ def _capture(*args: Any, **kwargs: Any) -> _CaptureResult:
     call = functools.partial(_capture_sync, *args, **kwargs)
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(call).result()
+def _capture_context(
+    root: Layer | Figure,
+    config: Config | None,
+    resolution: tuple[int, int] | None,
+    background: Literal["light", "dark"] | None,
+) -> tuple[Layer, Config | None, tuple[int, int], Literal["light", "dark"], bool]:
+    explicit_config = config is not None
+    figure = root if isinstance(root, Figure) else None
+    runtime_layer = cast(Layer, figure.layer if figure is not None else root)
+    if figure is not None and config is None:
+        config = figure.to_config()
+    if resolution is None:
+        if explicit_config and config is not None:
+            resolution = (config.film.width, config.film.height)
+        elif figure is not None and figure.scene.output is not None:
+            resolution = (figure.scene.output.width, figure.scene.output.height)
+        else:
+            resolution = (512, 512)
+    if background is None:
+        if (
+            figure is not None
+            and not explicit_config
+            and figure.scene.output is not None
+        ):
+            background = figure.scene.output.background
+        else:
+            background = "dark"
+    return runtime_layer, config, resolution, background, explicit_config
 
 
 def snapshot(
-    root: Layer,
+    root: Layer | Figure,
     *,
-    view: ViewPreset = "isometric",
+    view: ViewPreset | None = None,
     pass_name: PassName = "beauty",
-    resolution: tuple[int, int] = (512, 512),
+    resolution: tuple[int, int] | None = None,
     camera: CameraState | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark"] = "dark",
+    background: Literal["light", "dark"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     filename: str | Path | None = None,
     timeout: float = 60.0,
 ) -> Snapshot:
-    """Capture one deterministic raster observation of a layer."""
+    """Capture one deterministic raster observation of a Layer or Figure."""
     if backend != "webgl":
         raise NotImplementedError("snapshot() currently supports backend='webgl'.")
+    figure = root if isinstance(root, Figure) else None
+    runtime_layer, resolved_config, resolution, background, explicit_config = (
+        _capture_context(root, config, resolution, background)
+    )
+    label: str = view or "isometric"
+    if camera is None and view is None:
+        if figure is not None and not explicit_config and figure.scene.camera is not None:
+            camera = _camera_state_from_figure(figure.scene.camera)
+            label = "figure"
+        elif explicit_config and resolved_config is not None:
+            camera = _camera_state_from_config(resolved_config)
+            label = "config"
     result = _capture(
-        root,
-        [view],
+        runtime_layer,
+        [label],
         [pass_name],
         resolution,
-        cameras={view: camera} if camera is not None else None,
-        config=config,
+        cameras={label: camera} if camera is not None else None,
+        config=resolved_config,
         background=background,
         up_axis=up_axis,
         timeout=timeout,
     )
-    item = result.snapshots[(view, pass_name)]
+    item = result.snapshots[(label, pass_name)]
     if filename is not None:
         path = Path(filename)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -666,15 +740,15 @@ def snapshot(
 
 
 def observe(
-    root: Layer,
+    root: Layer | Figure,
     *,
-    views: Sequence[ViewPreset] = ("front", "right", "top", "isometric"),
-    passes: Sequence[PassName] = ("beauty", "depth", "normal"),
-    resolution: tuple[int, int] = (512, 512),
+    views: Sequence[ViewPreset] | None = None,
+    passes: Sequence[PassName] | None = None,
+    resolution: tuple[int, int] | None = None,
     cameras: dict[str, CameraState] | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark"] = "dark",
+    background: Literal["light", "dark"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     output_dir: str | Path | None = None,
     timeout: float = 60.0,
@@ -682,13 +756,33 @@ def observe(
     """Capture a deterministic multi-view, multi-pass inspection bundle."""
     if backend != "webgl":
         raise NotImplementedError("observe() currently supports backend='webgl'.")
+    figure = root if isinstance(root, Figure) else None
+    runtime_layer, resolved_config, resolution, background, explicit_config = (
+        _capture_context(root, config, resolution, background)
+    )
+    if views is None:
+        views = ("front", "right", "top", "isometric")
+    if passes is None:
+        if (
+            figure is not None
+            and not explicit_config
+            and figure.scene.output is not None
+        ):
+            passes = tuple(
+                "element_id" if item == "facet_id" else item
+                for item in figure.scene.output.passes
+            )
+        else:
+            passes = ("beauty", "depth", "normal")
+    assert views is not None
+    assert passes is not None
     result = _capture(
-        root,
+        runtime_layer,
         views,
         passes,
         resolution,
         cameras=cameras,
-        config=config,
+        config=resolved_config,
         background=background,
         up_axis=up_axis,
         timeout=timeout,

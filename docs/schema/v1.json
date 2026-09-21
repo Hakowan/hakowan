@@ -1375,6 +1375,137 @@
       "title": "DiffuseMaterialSpec",
       "type": "object"
     },
+    "DirectionalLightSpec": {
+      "additionalProperties": false,
+      "description": "A distant light with parallel rays along a world-space direction.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Directional-light RGB or named color.",
+          "title": "Color"
+        },
+        "direction": {
+          "description": "World-space direction traveled by light rays.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Direction",
+          "type": "array"
+        },
+        "intensity": {
+          "default": 1.0,
+          "description": "Non-negative light intensity in backend-neutral relative units.",
+          "minimum": 0.0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "kind": {
+          "const": "directional",
+          "default": "directional",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "DirectionalLightSpec",
+      "type": "object"
+    },
+    "EnvironmentSpec": {
+      "additionalProperties": false,
+      "description": "Environment-map lighting, orientation, scale, and visibility settings.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Whether environment lighting is enabled.",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional environment-map path resolved beside the specification.",
+          "title": "Path"
+        },
+        "rotation": {
+          "default": 180.0,
+          "description": "Environment rotation in degrees around its up axis.",
+          "title": "Rotation",
+          "type": "number"
+        },
+        "scale": {
+          "default": 1.0,
+          "description": "Environment-light intensity multiplier.",
+          "minimum": 0.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        },
+        "visible": {
+          "default": false,
+          "description": "Whether the environment map is visible to the camera.",
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "title": "EnvironmentSpec",
+      "type": "object"
+    },
     "ExplodeTransformSpec": {
       "additionalProperties": false,
       "description": "Separates facet groups outward from the mesh center.",
@@ -2950,6 +3081,142 @@
       "title": "OffsetScaleSpec",
       "type": "object"
     },
+    "OrthographicCameraSpec": {
+      "additionalProperties": false,
+      "description": "An orthographic camera with explicit look-at vectors and clipping planes.",
+      "properties": {
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "kind": {
+          "const": "orthographic",
+          "default": "orthographic",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "OrthographicCameraSpec",
+      "type": "object"
+    },
+    "OutputSettingsSpec": {
+      "additionalProperties": false,
+      "description": "Semantic output resolution, background, passes, and deterministic seed.",
+      "properties": {
+        "background": {
+          "default": "dark",
+          "description": "Initial light or dark background mode.",
+          "enum": [
+            "light",
+            "dark"
+          ],
+          "title": "Background",
+          "type": "string"
+        },
+        "height": {
+          "default": 800,
+          "description": "Output image height in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "passes": {
+          "default": [
+            "beauty"
+          ],
+          "description": "Ordered semantic render-pass requests.",
+          "items": {
+            "enum": [
+              "beauty",
+              "albedo",
+              "depth",
+              "normal",
+              "facet_id"
+            ],
+            "type": "string"
+          },
+          "title": "Passes",
+          "type": "array"
+        },
+        "sampler_seed": {
+          "default": 0,
+          "description": "Deterministic renderer sampler seed.",
+          "title": "Sampler Seed",
+          "type": "integer"
+        },
+        "width": {
+          "default": 1024,
+          "description": "Output image width in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "title": "OutputSettingsSpec",
+      "type": "object"
+    },
     "OverlayNodeSpec": {
       "additionalProperties": false,
       "description": "Renders two or more child nodes in the same coordinate space.",
@@ -3001,6 +3268,107 @@
         "children"
       ],
       "title": "OverlayNodeSpec",
+      "type": "object"
+    },
+    "PerspectiveCameraSpec": {
+      "additionalProperties": false,
+      "description": "A perspective camera with explicit look-at vectors and field of view.",
+      "properties": {
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "fov": {
+          "default": 28.8415,
+          "description": "Perspective field of view in degrees.",
+          "exclusiveMaximum": 180.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Fov",
+          "type": "number"
+        },
+        "fov_axis": {
+          "default": "smaller",
+          "description": "Image axis to which the field of view applies.",
+          "enum": [
+            "x",
+            "y",
+            "diagonal",
+            "smaller",
+            "larger"
+          ],
+          "title": "Fov Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "perspective",
+          "default": "perspective",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "PerspectiveCameraSpec",
       "type": "object"
     },
     "PlasticMaterialSpec": {
@@ -3185,6 +3553,74 @@
         }
       },
       "title": "PlasticMaterialSpec",
+      "type": "object"
+    },
+    "PointLightSpec": {
+      "additionalProperties": false,
+      "description": "An omnidirectional point light with color and intensity.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Point-light RGB or named color.",
+          "title": "Color"
+        },
+        "intensity": {
+          "default": 1.0,
+          "description": "Non-negative light intensity in backend-neutral relative units.",
+          "minimum": 0.0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "kind": {
+          "const": "point",
+          "default": "point",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "position": {
+          "description": "World-space point-light position.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        }
+      },
+      "title": "PointLightSpec",
       "type": "object"
     },
     "PositionChannelSpec": {
@@ -4200,6 +4636,99 @@
       "title": "ScalarFieldTextureSpec",
       "type": "object"
     },
+    "SceneSettingsSpec": {
+      "additionalProperties": false,
+      "description": "Optional figure-level camera, lights, environment, and output intent.",
+      "properties": {
+        "camera": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "orthographic": "#/$defs/OrthographicCameraSpec",
+                  "perspective": "#/$defs/PerspectiveCameraSpec",
+                  "thin_lens": "#/$defs/ThinLensCameraSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PerspectiveCameraSpec"
+                },
+                {
+                  "$ref": "#/$defs/OrthographicCameraSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinLensCameraSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional figure camera specification.",
+          "title": "Camera"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnvironmentSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional environment lighting and background settings."
+        },
+        "lights": {
+          "anyOf": [
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "directional": "#/$defs/DirectionalLightSpec",
+                    "point": "#/$defs/PointLightSpec"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/PointLightSpec"
+                  },
+                  {
+                    "$ref": "#/$defs/DirectionalLightSpec"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional ordered light list; null preserves defaults and an empty list disables explicit lights.",
+          "title": "Lights"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputSettingsSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional semantic output settings."
+        }
+      },
+      "title": "SceneSettingsSpec",
+      "type": "object"
+    },
     "ShapeChannelSpec": {
       "additionalProperties": false,
       "description": "Selects and optionally orients the glyph used for point marks.",
@@ -4483,6 +5012,121 @@
         }
       },
       "title": "ThinDielectricMaterialSpec",
+      "type": "object"
+    },
+    "ThinLensCameraSpec": {
+      "additionalProperties": false,
+      "description": "A perspective camera with aperture and focus-distance controls.",
+      "properties": {
+        "aperture_radius": {
+          "default": 0.1,
+          "description": "Thin-lens aperture radius.",
+          "minimum": 0.0,
+          "title": "Aperture Radius",
+          "type": "number"
+        },
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "focus_distance": {
+          "default": 0.0,
+          "description": "Thin-lens focus distance; zero selects the target distance.",
+          "minimum": 0.0,
+          "title": "Focus Distance",
+          "type": "number"
+        },
+        "fov": {
+          "default": 28.8415,
+          "description": "Perspective field of view in degrees.",
+          "exclusiveMaximum": 180.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Fov",
+          "type": "number"
+        },
+        "fov_axis": {
+          "default": "smaller",
+          "description": "Image axis to which the field of view applies.",
+          "enum": [
+            "x",
+            "y",
+            "diagonal",
+            "smaller",
+            "larger"
+          ],
+          "title": "Fov Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "thin_lens",
+          "default": "thin_lens",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "ThinLensCameraSpec",
       "type": "object"
     },
     "ThinPrincipledMaterialSpec": {
@@ -4961,7 +5605,52 @@
           "transforms": []
         }
       },
-      "version": "1.0"
+      "scene": {
+        "camera": {
+          "eye": [
+            2,
+            3,
+            4
+          ],
+          "fov": 35,
+          "kind": "perspective",
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1,
+            0
+          ]
+        },
+        "environment": {
+          "enabled": false
+        },
+        "lights": [
+          {
+            "color": "white",
+            "direction": [
+              0,
+              0,
+              -1
+            ],
+            "intensity": 2,
+            "kind": "directional"
+          }
+        ],
+        "output": {
+          "background": "dark",
+          "height": 800,
+          "passes": [
+            "beauty"
+          ],
+          "sampler_seed": 0,
+          "width": 1024
+        }
+      },
+      "version": "1.1"
     }
   ],
   "properties": {
@@ -4999,10 +5688,25 @@
       ],
       "title": "Root"
     },
+    "scene": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SceneSettingsSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional reproducible camera, lighting, environment, and output settings."
+    },
     "version": {
-      "const": "1.0",
-      "default": "1.0",
+      "default": "1.1",
       "description": "Hakowan specification format version.",
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
       "title": "Version",
       "type": "string"
     }

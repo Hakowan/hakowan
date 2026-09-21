@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 SCHEMA_URL = "https://hakowan.github.io/hakowan/schema/v1.json"
 
 
@@ -551,15 +551,124 @@ NodeSpec = Annotated[
 ]
 
 
+class PerspectiveCameraBaseSpec(SpecModel):
+    eye: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 5.0])
+    target: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    up: Vec3 = Field(default_factory=lambda: [0.0, 1.0, 0.0])
+    fov: float = Field(default=28.8415, gt=0.0, lt=180.0)
+    fov_axis: Literal["x", "y", "diagonal", "smaller", "larger"] = "smaller"
+    near: float = Field(default=0.01, gt=0.0)
+    far: float = Field(default=10000.0, gt=0.0)
+
+    @model_validator(mode="after")
+    def validate_camera(self):
+        if self.eye == self.target:
+            raise ValueError("Camera eye and target must differ.")
+        if self.far <= self.near:
+            raise ValueError("Camera far must be greater than near.")
+        return self
+
+
+class PerspectiveCameraSpec(PerspectiveCameraBaseSpec):
+    kind: Literal["perspective"] = "perspective"
+
+
+class OrthographicCameraSpec(SpecModel):
+    kind: Literal["orthographic"] = "orthographic"
+    eye: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 5.0])
+    target: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    up: Vec3 = Field(default_factory=lambda: [0.0, 1.0, 0.0])
+    near: float = Field(default=0.01, gt=0.0)
+    far: float = Field(default=10000.0, gt=0.0)
+
+    @model_validator(mode="after")
+    def validate_camera(self):
+        if self.eye == self.target:
+            raise ValueError("Camera eye and target must differ.")
+        if self.far <= self.near:
+            raise ValueError("Camera far must be greater than near.")
+        return self
+
+
+class ThinLensCameraSpec(PerspectiveCameraBaseSpec):
+    kind: Literal["thin_lens"] = "thin_lens"
+    aperture_radius: float = Field(default=0.1, ge=0.0)
+    focus_distance: float = Field(default=0.0, ge=0.0)
+
+
+CameraSpec = Annotated[
+    PerspectiveCameraSpec | OrthographicCameraSpec | ThinLensCameraSpec,
+    Field(discriminator="kind"),
+]
+
+
+class PointLightSpec(SpecModel):
+    kind: Literal["point"] = "point"
+    position: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 5.0])
+    color: ColorValue = "white"
+    intensity: float = Field(default=1.0, ge=0.0)
+
+
+class DirectionalLightSpec(SpecModel):
+    kind: Literal["directional"] = "directional"
+    direction: Vec3 = Field(default_factory=lambda: [0.0, 0.0, -1.0])
+    color: ColorValue = "white"
+    intensity: float = Field(default=1.0, ge=0.0)
+
+    @model_validator(mode="after")
+    def validate_direction(self):
+        if sum(value * value for value in self.direction) <= 1e-20:
+            raise ValueError("Directional light direction must be non-zero.")
+        return self
+
+
+LightSpec = Annotated[
+    PointLightSpec | DirectionalLightSpec, Field(discriminator="kind")
+]
+
+
+class EnvironmentSpec(SpecModel):
+    enabled: bool = True
+    path: str | None = None
+    scale: float = Field(default=1.0, ge=0.0)
+    up: Vec3 = Field(default_factory=lambda: [0.0, 1.0, 0.0])
+    rotation: float = 180.0
+    visible: bool = False
+
+
+class OutputSettingsSpec(SpecModel):
+    width: int = Field(default=1024, gt=0)
+    height: int = Field(default=800, gt=0)
+    background: Literal["light", "dark"] = "dark"
+    passes: tuple[Literal["beauty", "albedo", "depth", "normal", "facet_id"], ...] = (
+        "beauty",
+    )
+    sampler_seed: int = 0
+    @field_validator("passes")
+    @classmethod
+    def validate_passes(cls, value):
+        if len(set(value)) != len(value):
+            raise ValueError("Output passes must not contain duplicates.")
+        return value
+
+
+class SceneSettingsSpec(SpecModel):
+    camera: CameraSpec | None = None
+
+    lights: tuple[LightSpec, ...] | None = None
+    environment: EnvironmentSpec | None = None
+    output: OutputSettingsSpec | None = None
+
+
 class FigureSpec(SpecModel):
     """Canonical versioned Hakowan visualization specification."""
 
     schema_url: Literal["https://hakowan.github.io/hakowan/schema/v1.json"] = Field(
         default="https://hakowan.github.io/hakowan/schema/v1.json", alias="$schema"
     )
-    version: Literal["1.0"] = "1.0"
-
+    version: Literal["1.0", "1.1"] = "1.1"
     root: NodeSpec
+    scene: SceneSettingsSpec | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", by_alias=True, exclude_none=False)

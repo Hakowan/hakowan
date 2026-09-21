@@ -566,3 +566,26 @@ class TestBackSide:
         # but the mix structure is still built.
         assert any(n.type == "MIX_SHADER" for n in nodes)
         assert sum(1 for n in nodes if n.type == "BSDF_PRINCIPLED") == 2
+
+
+def test_blender_directional_light_and_environment_visibility():
+    from hakowan.setup.emitter import Directional
+
+    backend = BlenderBackend()
+    backend._clear_scene()
+    config = hkw.config()
+    config.emitters = [
+        Directional(direction=[0, 0, -1], color="red", intensity=2.5)
+    ]
+
+    backend._setup_lighting(config)
+    lights = [obj.data for obj in bpy.context.scene.objects if obj.type == "LIGHT"]
+    assert len(lights) == 1
+    assert lights[0].type == "SUN"
+    assert lights[0].energy == pytest.approx(2.5)
+    assert tuple(lights[0].color) == pytest.approx((1.0, 0.0, 0.0))
+
+    backend._setup_render_settings(
+        config, engine="BLENDER_EEVEE", environment_visible=True
+    )
+    assert not bpy.context.scene.render.film_transparent
