@@ -30,6 +30,50 @@ schema = hkw.schema()                       # JSON Schema dict
 `Layer.to_spec()` and `Layer.to_json()` are equivalent convenience methods.
 The complete Python reference is under [Canonical specification API](../api/spec.md).
 
+## Atomic patches
+
+Use `hkw.patch()` to make small validated changes without regenerating a whole
+specification:
+
+```py
+updated = hkw.patch(
+    figure,
+    [
+        {
+            "op": "replace",
+            "path": "/scene/camera/eye",
+            "value": [2, 3, 4],
+        }
+    ],
+)
+```
+
+Paths use [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901) syntax. The
+supported operations are `add`, `remove`, and `replace`; `-` appends to an
+array. Operations run against a private canonical copy. Hakowan then validates
+the complete schema, reconstructs the runtime object, and runs semantic and
+backend validation. Any failure raises `PatchError` and leaves the input
+unchanged.
+
+```py
+try:
+    updated = hkw.patch(figure, operations, backend="webgl")
+except hkw.PatchError as error:
+    print(error.failure.code, error.failure.path, error.failure.message)
+    if error.validation_report is not None:
+        print(error.validation_report.to_dict())
+```
+
+Backend degradations are warnings by default. Pass `strict=True` to reject
+them, or `semantic=False` when deliberately constructing an intermediate spec.
+In-memory meshes and Python callables are rebound automatically. A patch that
+introduces a new external identifier must supply `data_resolver=` or
+`function_resolver=`.
+
+`hkw.patch_spec()` applies the same atomic operations to a `FigureSpec` or
+mapping and performs schema validation only. It always returns an immutable
+`FigureSpec`.
+
 ## Document root
 
 | Field | Required | Value |

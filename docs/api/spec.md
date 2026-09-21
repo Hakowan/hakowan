@@ -18,6 +18,10 @@ versioning, and complete examples.
 
 ::: hakowan.spec.model.json_schema
 
+::: hakowan.spec.patch.patch
+
+::: hakowan.spec.patch.patch_spec
+
 ## Root model
 
 ::: hakowan.spec.model.FigureSpec
@@ -34,6 +38,10 @@ versioning, and complete examples.
 ::: hakowan.spec.codec.SpecConversionError
 
 ::: hakowan.spec.expression.ExpressionError
+
+::: hakowan.spec.patch.PatchError
+
+::: hakowan.spec.patch.PatchFailure
 
 ## Expression compiler
 

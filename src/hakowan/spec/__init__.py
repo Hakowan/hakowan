@@ -13,6 +13,7 @@ from .codec import (
     to_spec,
 )
 from .expression import ExpressionError, compile_expression
+from .patch import PatchError, PatchFailure, PatchOperation, patch, patch_spec
 from .model import (
     SCHEMA_URL,
     SCHEMA_VERSION,
@@ -59,6 +60,9 @@ __all__ = [
     "SceneSettingsSpec",
     "ThinLensCameraSpec",
     "NodeSpec",
+    "PatchError",
+    "PatchFailure",
+    "PatchOperation",
     "SpecConversionError",
     "compile_expression",
     "from_json",
@@ -67,4 +71,6 @@ __all__ = [
     "load_layer",
     "load_spec",
     "to_spec",
+    "patch",
+    "patch_spec",
 ]
