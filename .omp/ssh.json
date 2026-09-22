@@ -1,7 +1,0 @@
-{
-  "hosts": {
-    "pulsar": {
-      "host": "pulsar"
-    }
-  }
-}
