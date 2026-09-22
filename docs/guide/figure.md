@@ -140,7 +140,7 @@ Add any number of direct lights:
 figure = figure.light(
     "point",
     position=(3, 4, 5),
-    color="warmwhite",
+    color="#ffe4b5",
     intensity=20,
 )
 

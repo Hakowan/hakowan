@@ -70,9 +70,11 @@ full `float32` depth and world normals.
 | `layer_id` | deterministic false color | `uint32[H,W]` |
 
 ID pass background pixels use `hkw.workflow.observation.BACKGROUND_ID` (`2**32 - 1`).
-For surface marks, `element_id` identifies the rendered triangle. For instanced
-point and curve geometry it identifies the rendered instance. Polygonal source
-facets may produce multiple rendered triangle IDs after triangulation.
+For surface marks, `element_id` identifies the rendered triangle. Polygonal
+surfaces are triangulated before capture, and the retained observation scene
+uses the same triangle IDs for picking, region queries, and attribute extrema.
+For instanced point and curve geometry, `element_id` identifies the rendered
+instance.
 
 ## Multi-view observation
 
@@ -233,6 +235,11 @@ snapshot = hkw.snapshot(layer, camera=camera)
 
 `view` remains the result label when an explicit camera is supplied. In an
 `observe()` call, pass `cameras={"front": camera}` to override selected presets.
+
+Custom camera keys also become artifact name prefixes. They may contain spaces
+and Unicode text, but empty labels, `.`/`..`, path separators, and NUL bytes are
+rejected so `output_dir` remains the artifact boundary. The `timeout=` value
+applies to navigation and every Playwright capture operation.
 
 ## Offline WebGL viewers
 

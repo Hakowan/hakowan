@@ -167,6 +167,8 @@ and shadow of the scene. Multiple emitters can be used at the same time.
 ### Point emitter
 
 A point emitter radiates from a world-space position.
+When `color` is supplied, `intensity` must be a finite non-negative number.
+Positions must contain three finite coordinates.
 
 ```py
 l = hkw.setup.emitter.Point(
@@ -178,6 +180,8 @@ config.emitters.append(l)
 ### Directional emitter
 
 A directional emitter produces parallel rays traveling along `direction`.
+`direction` must be a finite non-zero vector and `intensity` must be finite and
+non-negative. `Config.background` accepts only `"light"`, `"dark"`, or `None`.
 
 ```py
 l = hkw.setup.emitter.Directional(

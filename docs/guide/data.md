@@ -47,7 +47,9 @@ points_layer = hkw.layer(points).mark("point")
 
 Pandas and xarray inputs use `x`, `y`, and optional `z` columns as positions.
 Use `positions=` when the columns have domain-specific names. Other numeric
-columns become vertex attributes; unsupported non-numeric columns are ignored.
+columns become vertex attributes, boolean columns are retained as `0`/`1`
+attributes, and unsupported non-numeric columns are ignored. Position tables
+must contain at least one row.
 
 ```py
 table = pandas.DataFrame({

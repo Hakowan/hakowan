@@ -20,3 +20,9 @@ backend semantics.
 ::: hakowan.grammar.figure.Environment
 
 ::: hakowan.grammar.figure.OutputSettings
+
+## Camera framing
+
+::: hakowan.workflow.framing.resolve_camera
+
+::: hakowan.workflow.framing.turntable_cameras

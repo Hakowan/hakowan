@@ -74,6 +74,10 @@ introduces a new external identifier must supply `data_resolver=` or
 mapping and performs schema validation only. It always returns an immutable
 `FigureSpec`.
 
+Canonical documents, runtime conversion graphs, and individual patch values are
+limited to 64 nesting levels. Inputs beyond that limit fail with structured
+validation or patch errors before recursive conversion begins.
+
 ## Document root
 
 | Field | Required | Value |
@@ -380,17 +384,18 @@ Available values:
 
 Allowed operations:
 
-- numeric literals, lists, and tuples;
-- `+`, `-`, `*`, `/`, `//`, `%`, and bounded literal powers;
+- scalar and vector literals (sequence repetition is rejected);
+- numeric `+`, `-`, `*`, `/`, `//`, `%`, and one bounded literal power;
 - comparisons, `in`, and `not in`;
 - `and`, `or`, and `not`;
 - integer indexing;
 - `abs`, `min`, `max`, `isfinite`, and `norm`.
 
 Attribute access, imports, comprehensions, keyword arguments, arbitrary calls,
-and non-literal or large exponents are rejected. Expressions are limited to
-1024 characters and 128 AST nodes. Hakowan interprets the validated AST; it does
-not call `eval()`.
+sequence repetition, chained powers, and non-literal or large exponents are
+rejected. Expressions are limited to 1024 characters, 128 AST nodes, 4096-item
+sequence or array results, and 4096-bit integer results. Hakowan interprets the
+validated AST; it does not call `eval()`.
 
 ### External functions
 

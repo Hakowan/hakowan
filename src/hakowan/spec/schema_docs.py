@@ -150,7 +150,7 @@ FIELD_DESCRIPTIONS = {
     "order": "Vector norm order.",
     "offset": "Attribute whose values are added to the current attribute.",
     "function": "Safe expression or trusted external function reference.",
-    "source": "Restricted expression source, limited to 1024 characters and 128 AST nodes.",
+    "source": "Restricted expression source, bounded by syntax-tree and result-size limits.",
     "color": "Constant or texture-driven base color.",
     "reflectance": "Diffuse reflectance as a constant color or texture.",
     "diffuse_reflectance": "Diffuse plastic reflectance as a color or texture.",

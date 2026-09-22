@@ -240,9 +240,10 @@ hkw.render(
 )
 ```
 
-The first offline build downloads the pinned module files into
-`~/.cache/hakowan/three/`. Subsequent bundles are copied from that cache. See
-[Snapshot and observation](observation.md) for deterministic PNG capture.
+The first offline build downloads the pinned core, controls, geometry utilities,
+and environment-map loader dependencies into `~/.cache/hakowan/three/` and
+verifies their SHA-256 digests. Subsequent bundles are copied from that cache.
+See [Snapshot and observation](observation.md) for deterministic PNG capture.
 
 ## Choosing a Backend
 

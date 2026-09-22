@@ -1,6 +1,6 @@
 site_name: Hakowan - A 3D Data Visualization Grammar
 
-repo_url: https://github.com/qnzhou/hakowan
+repo_url: https://github.com/Hakowan/hakowan
 
 theme:
   name: material

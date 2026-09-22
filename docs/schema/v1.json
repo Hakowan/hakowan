@@ -1550,7 +1550,7 @@
           "type": "string"
         },
         "source": {
-          "description": "Restricted expression source, limited to 1024 characters and 128 AST nodes.",
+          "description": "Restricted expression source, bounded by syntax-tree and result-size limits.",
           "maxLength": 1024,
           "minLength": 1,
           "title": "Source",

@@ -88,10 +88,11 @@ report.raise_for_errors()
 
 Intrinsic errors such as missing attributes are always errors. In strict mode,
 backend fallbacks and mark/channel combinations that would be ignored are also
-errors. With `strict=False`, those degradations are warnings. By default,
-validation finishes with a real compile dry-run over deep-copied data, without
-rendering or mutating the layer. Pass `compile_check=False` for static-only,
-low-cost validation of expensive procedural transforms.
+errors. With `strict=False`, those degradations are warnings. When static checks
+find no errors, validation finishes with a real compile dry-run; compilation
+deep-copies layer data, so validation does not mutate the input. Pass
+`compile_check=False` for static-only, low-cost validation of expensive
+procedural transforms.
 
 The compile dry-run also checks output semantics that static schema validation
 cannot determine:
