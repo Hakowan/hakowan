@@ -5632,6 +5632,30 @@
             "material": {
               "kind": "diffuse",
               "reflectance": {
+                "data": {
+                  "name": "temperature"
+                },
+                "kind": "scalar_field"
+              }
+            }
+          },
+          "data": {
+            "kind": "mesh_file",
+            "path": "mesh.ply"
+          }
+        }
+      },
+      "version": "1.0"
+    },
+    {
+      "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+      "root": {
+        "kind": "layer",
+        "spec": {
+          "channels": {
+            "material": {
+              "kind": "diffuse",
+              "reflectance": {
                 "colormap": "viridis",
                 "data": {
                   "name": "temperature",
@@ -5767,6 +5791,7 @@
     "channel_composition": "Each channel key is a semantic slot. Along a root-to-leaf path, the first value for a slot wins; unrelated slots compose.",
     "config": "Invocation-time renderer policy; an explicit Config overrides all Figure-derived rendering configuration.",
     "figure": "Portable visualization intent serialized as FigureSpec.",
-    "geometry_source": "Only LayerPropertiesSpec.data selects mesh geometry."
+    "geometry_source": "Only LayerPropertiesSpec.data selects mesh geometry.",
+    "scalar_field": "To color geometry by a scalar attribute, use a diffuse material whose reflectance is a scalar_field texture. Supply only data.name for the default inferred domain, viridis colormap, and automatic legend."
   }
 }

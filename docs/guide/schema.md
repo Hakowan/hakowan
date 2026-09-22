@@ -30,6 +30,38 @@ schema = hkw.schema()                       # JSON Schema dict
 `Layer.to_spec()` and `Layer.to_json()` are equivalent convenience methods.
 The complete Python reference is under [Canonical specification API](../api/spec.md).
 
+## Minimal scalar-field recipe
+
+For constrained generation, the shortest canonical surface-coloring document
+needs one data source, one diffuse material, and one scalar-field texture. The
+attribute domain, `viridis` colormap, and legend are inferred:
+
+```json
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "version": "1.0",
+  "root": {
+    "kind": "layer",
+    "spec": {
+      "data": {"kind": "mesh_file", "path": "mesh.ply"},
+      "channels": {
+        "material": {
+          "kind": "diffuse",
+          "reflectance": {
+            "kind": "scalar_field",
+            "data": {"name": "temperature"}
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Do not emit default fields unless a consumer requires fully expanded output.
+Use `hkw.inspect()` or the companion MCP service to discover real attribute
+names before authoring the document; never guess them.
+
 ## Atomic patches
 
 Use `hkw.patch()` to make small validated changes without regenerating a whole

@@ -62,6 +62,22 @@ def test_color_by_builds_scalar_material_and_legend():
     assert len(scene.legends) == 1
 
 
+def test_color_by_serializes_to_minimal_canonical_scalar_field():
+    mesh = _triangle()
+
+    spec = hkw.to_spec(
+        hkw.layer(mesh).color_by("temperature"),
+        data_ids={id(mesh): "mesh"},
+    ).to_dict()
+
+    material = spec["root"]["spec"]["channels"]["material"]
+    assert material["kind"] == "diffuse"
+    assert material["reflectance"]["kind"] == "scalar_field"
+    assert material["reflectance"]["data"]["name"] == "temperature"
+    assert material["reflectance"]["colormap"] == "viridis"
+    assert material["reflectance"]["legend"] is True
+
+
 def test_show_edges_overlays_surface_and_curve():
     mesh = _triangle()
 

@@ -542,10 +542,13 @@ class Layer:
         legend: bool | Legend = True,
         two_sided: bool = False,
     ) -> "Layer":
-        """Map an attribute to diffuse color with an optional semantic legend.
+        """Map a scalar attribute to diffuse color and an automatic legend.
 
-        This shorthand expands to a Diffuse material containing a ScalarField,
-        so the result uses the ordinary canonical grammar representation.
+        ``hkw.layer(data).color_by("temperature")`` is the shortest supported
+        scalar-field workflow. Domain inference, the ``viridis`` colormap, and
+        a semantic legend are enabled by default. The shorthand expands to a
+        Diffuse material containing a ScalarField, so canonical serialization
+        uses only the ordinary grammar models.
         """
         texture = ScalarField(
             data=attribute,

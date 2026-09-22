@@ -38,27 +38,33 @@ t = hkw.texture.Image(
 
 ## Scalar field texture
 
-One of the most common use case of texture is to map a scalar field to a color field.
+For the common task of coloring geometry by one scalar attribute, prefer the
+high-level layer helper:
+
+```py
+colored = hkw.layer("mesh.ply").color_by("temperature")
+```
+
+It infers the domain and creates a diffuse `ScalarField` with `viridis` and an
+automatic legend. Construct `ScalarField` directly when nesting it in another
+material field or texture:
+
+```py
+t = hkw.texture.ScalarField(data="temperature")
+```
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| data  | AttributeLike | The attribute defining the scalar field |
-| colormap | str \| list | A built-in or [colorcet](https://colorcet.holoviz.org) colormap name, `"identity"`, or an explicit list of colors |
-| domain | tuple | The domain of the attribute |
-| range | tuple | The range of colormap |
-| categories | bool | Whether the data represents categories (i.e. discrete values) |
-| reverse | bool | Whether to reverse the colormap direction (maps the largest value to the colormap's first color) |
-| `legend` | bool \| Legend | Automatic legend configuration. Default `True`; use `False` to suppress. |
+| data | AttributeLike | Scalar attribute to visualize |
+| colormap | str \| list | Built-in or [colorcet](https://colorcet.holoviz.org) name, `"identity"`, or explicit colors; default `"viridis"` |
+| domain | tuple \| None | Input domain; inferred from finite data when omitted |
+| range | tuple \| None | Subrange of the colormap; full range when omitted |
+| categories | bool | Treat values as discrete categories |
+| reverse | bool | Reverse colormap direction |
+| legend | bool \| Legend | Automatic by default; `False` suppresses it |
 
-```py
-t = hkw.texture.ScalarField(data="attr_name")
-```
-
-See the [Heat Method](../examples/heat.md) and the [Components](../examples/components.md) examples
-for application of the scalar field texture.
-
-See [Legends and annotations](overlay.md) for titles, units, tick formatting,
-categorical labels, placement, and backend behavior.
+See the [Heat Method](../examples/heat.md), [Components](../examples/components.md),
+and [Legends and annotations](overlay.md) guides for advanced examples.
 
 ## Checkerboard texture
 

@@ -47,9 +47,11 @@ def test_schema_is_versioned_json_schema():
         assert not definition["description"].startswith("Supporting schema")
         for property_schema in definition.get("properties", {}).values():
             assert property_schema["description"]
-    FigureSpec.model_validate(schema["examples"][0])
+    for example in schema["examples"]:
+        FigureSpec.model_validate(example)
     conventions = schema["x-hakowan-conventions"]
     assert "LayerPropertiesSpec.data" in conventions["geometry_source"]
+    assert "diffuse material" in conventions["scalar_field"]
     assert "first value" in conventions["channel_composition"]
     assert (
         schema["$defs"]["LayerPropertiesSpec"]["properties"]["data"]["x-hakowan-role"]

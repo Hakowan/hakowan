@@ -346,6 +346,27 @@ ROOT_DESCRIPTIONS = {
 }
 
 
+SCALAR_FIELD_EXAMPLE = {
+    "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+    "version": "1.0",
+    "root": {
+        "kind": "layer",
+        "spec": {
+            "data": {"kind": "mesh_file", "path": "mesh.ply"},
+            "channels": {
+                "material": {
+                    "kind": "diffuse",
+                    "reflectance": {
+                        "kind": "scalar_field",
+                        "data": {"name": "temperature"},
+                    },
+                }
+            },
+        },
+    },
+}
+
+
 ROOT_EXAMPLE = {
     "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
     "version": "1.1",
@@ -435,8 +456,13 @@ def enrich_schema(schema: dict[str, Any]) -> dict[str, Any]:
             "Invocation-time renderer policy; an explicit Config overrides all "
             "Figure-derived rendering configuration."
         ),
+        "scalar_field": (
+            "To color geometry by a scalar attribute, use a diffuse material whose "
+            "reflectance is a scalar_field texture. Supply only data.name for the "
+            "default inferred domain, viridis colormap, and automatic legend."
+        ),
     }
-    result["examples"] = [ROOT_EXAMPLE]
+    result["examples"] = [SCALAR_FIELD_EXAMPLE, ROOT_EXAMPLE]
     for field_name, property_schema in result.get("properties", {}).items():
         property_schema.setdefault(
             "description",

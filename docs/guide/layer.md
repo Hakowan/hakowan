@@ -64,20 +64,29 @@ Common visualization intents have concise methods. Each method expands into the
 same marks, channels, textures, transforms, and composition nodes described by
 the core grammar, so serialization and backend behavior remain unchanged.
 
-### Color by an attribute
+### Color by a scalar attribute
+
+The default workflow needs only the data and attribute name. Hakowan infers the
+domain and supplies `viridis` plus an automatic legend:
+
+```py
+colored = hkw.layer("mesh.ply").color_by("temperature")
+```
+
+Specify only the options that differ from those defaults:
 
 ```py
 colored = base.color_by(
     "temperature",
-    colormap="viridis",
     domain=(0, 100),
-    legend=True,
+    legend=hkw.Legend(title="Temperature", units="°C"),
 )
 ```
 
 `color_by()` creates a diffuse material whose reflectance is a `ScalarField`.
-It also supports categorical fields, reversed colormaps, explicit output ranges,
-custom `Legend` objects, and two-sided rendering.
+It also supports categorical fields, reversed or custom colormaps, an explicit
+output range, custom legends, and two-sided rendering. Use `hkw.inspect()` when
+the scalar attribute name or element domain is not known.
 
 ### Overlay mesh edges
 

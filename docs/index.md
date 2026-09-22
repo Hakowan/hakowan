@@ -42,6 +42,17 @@ The above code creates a single visualization [_layer_](guide/layer.md) using
 default WebGL backend into an interactive viewer named `output.html`, which you
 can open in any modern browser.
 
+The shortest scalar-field visualization is one additional method call. Hakowan
+infers the numeric domain and adds a `viridis` color map and legend:
+
+```py
+temperature = hkw.layer("mesh.ply").color_by("temperature")
+hkw.render(temperature, filename="temperature.html")
+```
+
+Use `hkw.inspect("mesh.ply")` first when the available attribute names are not
+already known.
+
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:
 
