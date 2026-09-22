@@ -24,16 +24,12 @@ dependencies=[
 ]
 requires-python = ">=3.11"
 
-[project.scripts]
-hakowan-mcp = "hakowan.mcp.__main__:main"
-
 [project.optional-dependencies]
 # Optional integrations and rendering backends. WebGL needs no extra. Backends
 # whose dependencies are absent do not appear in ``hakowan.list_backends()``.
 mitsuba = ["mitsuba~=3.8"]
 blender = ["bpy>=5.1,<6; python_version == '3.13'"]
 observe = ["playwright>=1.49,<2"]
-mcp = ["mcp>=2,<3"]
 data = [
     "pandas>=2.0",
     "xarray>=2024.1",

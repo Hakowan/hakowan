@@ -83,7 +83,6 @@ nav:
   - Compile: guide/compile.md
   - Backend: guide/backend.md
   - Snapshot and observation: guide/observation.md
-  - Agent integration (MCP): guide/mcp.md
   - Configuration: guide/config.md
 - Specification:
   - Overview: guide/schema.md

@@ -36,8 +36,8 @@ playwright install chromium
 # Optional dataframe and geometry adapters
 pip install "hakowan[data]"
 
-# Agent integration through the Model Context Protocol
-pip install "hakowan[mcp]"
+# Agent integration is distributed separately
+pip install "hakowan-mcp"
 ```
 
 Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender backend).
@@ -68,19 +68,11 @@ result = hkw.render(layer, filename="viewer.html", backend="webgl")
 
 ## Agent integration
 
-Run Hakowan as a provider-neutral MCP server for Copilot, Oh My Pi, and other
-agent hosts:
-
-```sh
-hakowan-mcp --root /path/to/project
-```
-
-The server exposes data inspection, schema retrieval, validation, compilation,
-rendering, structured observation, and atomic patch tools. Canonical-example
-search prefers an optional local gallery checkout and otherwise uses the public
-static corpus; gallery and network failures are non-fatal. The server does not
-call or depend on any LLM provider. See the
-[MCP guide](https://hakowan.github.io/hakowan/guide/mcp/).
+Hakowan's provider-neutral agent integration is maintained separately in
+[`Hakowan/hakowan-mcp`](https://github.com/Hakowan/hakowan-mcp). It exposes
+Hakowan's deterministic inspection, schema, validation, compilation, rendering,
+observation, camera-fitting, and patch APIs to Copilot, Oh My Pi, and other MCP
+hosts without adding model-provider dependencies to this package.
 
 ## Documentation
 
@@ -89,7 +81,7 @@ call or depend on any LLM provider. See the
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.5.2},
+    version = {0.6.0},
     year = 2026,
 }
 ```
