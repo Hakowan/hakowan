@@ -670,9 +670,8 @@ def _add_instanced_arrows(
 
 def _has_strand_radius(view: View) -> bool:
     """True when the view's mesh carries the baked fur/strand radius attribute."""
-    return (
-        view.data_frame is not None
-        and view.data_frame.mesh.has_attribute(STRAND_RADIUS_ATTR)
+    return view.data_frame is not None and view.data_frame.mesh.has_attribute(
+        STRAND_RADIUS_ATTR
     )
 
 

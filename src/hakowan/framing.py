@@ -47,7 +47,9 @@ def _selected_views(scene: Any, selector: LayerSelector) -> list[Any]:
     matches = [view for view in scene if view.name == selector]
     if not matches:
         names = [view.name for view in scene if view.name is not None]
-        raise ValueError(f"No compiled layer named {selector!r}; available names: {names}")
+        raise ValueError(
+            f"No compiled layer named {selector!r}; available names: {names}"
+        )
     return matches
 
 
@@ -83,7 +85,9 @@ def _component_points(
     if attribute.element_type == lagrange.AttributeElement.Facet:
         vertex_ids: set[int] = set()
         for facet in np.flatnonzero(selected):
-            vertex_ids.update(int(value) for value in mesh.get_facet_vertices(int(facet)))
+            vertex_ids.update(
+                int(value) for value in mesh.get_facet_vertices(int(facet))
+            )
         return points[sorted(vertex_ids)] if vertex_ids else points[:0]
     raise ValueError(
         f"Component attribute {name!r} must be defined on vertices or facets"
@@ -135,7 +139,9 @@ def _direction(
         if value not in presets:
             raise ValueError(f"Unknown camera direction {value!r}")
         result = np.asarray(presets[value], dtype=np.float64)
-        up = pole_up if value == "top" else -pole_up if value == "bottom" else default_up
+        up = (
+            pole_up if value == "top" else -pole_up if value == "bottom" else default_up
+        )
     else:
         result = np.asarray(value, dtype=np.float64)
         if result.shape != (3,):
@@ -285,17 +291,14 @@ def _compiled_selection(
     scene = compile_layer(root, preserve_attributes=True)
     if bounds is not None:
         if layer is not None or component is not None:
-            raise ValueError("bounds cannot be combined with layer or component selection")
+            raise ValueError(
+                "bounds cannot be combined with layer or component selection"
+            )
         array = np.asarray(bounds, dtype=np.float64)
         if array.shape != (2, 3) or np.any(array[0] > array[1]):
             raise ValueError("bounds must have shape (2, 3) with minimum <= maximum")
         points = np.array(
-            [
-                [x, y, z]
-                for x in array[:, 0]
-                for y in array[:, 1]
-                for z in array[:, 2]
-            ],
+            [[x, y, z] for x in array[:, 0] for y in array[:, 1] for z in array[:, 2]],
             dtype=np.float64,
         )
         return scene, list(scene), points
@@ -372,8 +375,12 @@ def resolve_camera(
             if not mesh.has_attribute(attribute):
                 continue
             source, values = _attribute_values(mesh, attribute)
-            magnitudes = values[:, 0] if values.shape[1] == 1 else np.linalg.norm(values, axis=1)
-            index = int(np.argmin(magnitudes) if extremum == "min" else np.argmax(magnitudes))
+            magnitudes = (
+                values[:, 0] if values.shape[1] == 1 else np.linalg.norm(values, axis=1)
+            )
+            index = int(
+                np.argmin(magnitudes) if extremum == "min" else np.argmax(magnitudes)
+            )
             world = _world_points(view)
             if source.element_type == lagrange.AttributeElement.Vertex:
                 position = world[index]
@@ -387,7 +394,11 @@ def resolve_camera(
             candidates.append((float(magnitudes[index]), position))
         if not candidates:
             raise ValueError(f"Selected layers have no attribute {attribute!r}")
-        chosen = min(candidates, key=lambda item: item[0]) if extremum == "min" else max(candidates, key=lambda item: item[0])
+        chosen = (
+            min(candidates, key=lambda item: item[0])
+            if extremum == "min"
+            else max(candidates, key=lambda item: item[0])
+        )
         target = chosen[1]
     elif mode == "section":
         if normal is None:
@@ -397,7 +408,9 @@ def resolve_camera(
             raise ValueError("Section normal must be a non-zero three-vector")
         section_normal /= np.linalg.norm(section_normal)
         center = (points.min(axis=0) + points.max(axis=0)) * 0.5
-        target = center + section_normal * (offset - float(np.dot(section_normal, center)))
+        target = center + section_normal * (
+            offset - float(np.dot(section_normal, center))
+        )
         camera_direction = section_normal
     elif mode != "fit":
         raise ValueError(f"Unknown camera framing mode: {mode!r}")

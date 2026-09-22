@@ -967,8 +967,12 @@ class _GeometryMixin(_MaterialMixin):
             spread: Child-root scatter radius in object space.
         """
         ng = bpy.data.node_groups.new(f"fur_children_{index:03d}", "GeometryNodeTree")
-        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket(
+            "Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+        )
+        ng.interface.new_socket(
+            "Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
+        )
         nodes = ng.nodes
         links = ng.links
 

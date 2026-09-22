@@ -111,9 +111,9 @@ def _compute_fur(
     )
 
     # Project the field onto each face tangent plane and normalize -> flow dir.
-    tangent = vec_field_3d - normals * np.einsum(
-        "fi,fi->f", vec_field_3d, normals
-    )[:, None]
+    tangent = (
+        vec_field_3d - normals * np.einsum("fi,fi->f", vec_field_3d, normals)[:, None]
+    )
     tnorm = np.linalg.norm(tangent, axis=1)
     valid_face = tnorm > 1e-12
     tangent[valid_face] /= tnorm[valid_face, None]
@@ -156,7 +156,9 @@ def _compute_fur(
     # length and in-plane direction without pushing strands off the surface.
     r = float(np.clip(randomness, 0.0, 1.0))
     len_k = length * (1.0 + r * (rng.random(n) - 0.5) * 0.8)  # +/-40% * r
-    lift_k = np.radians(np.maximum(0.0, lift * (1.0 + r * rng.standard_normal(n) * 0.5)))
+    lift_k = np.radians(
+        np.maximum(0.0, lift * (1.0 + r * rng.standard_normal(n) * 0.5))
+    )
     curl_k = curl * (1.0 + r * (rng.random(n) - 0.5))
     azim_k = r * rng.standard_normal(n) * np.radians(18.0)
 
@@ -316,7 +318,9 @@ def _transfer_source_attributes(src_mesh, out_mesh, face_ids, bary, npts):
             per_strand = data[face_ids]
         elif attr.element_type == lagrange.AttributeElement.Vertex:
             tri = facets[face_ids]
-            per_strand = b0 * data[tri[:, 0]] + b1 * data[tri[:, 1]] + b2 * data[tri[:, 2]]
+            per_strand = (
+                b0 * data[tri[:, 0]] + b1 * data[tri[:, 1]] + b2 * data[tri[:, 2]]
+            )
         else:
             continue
 

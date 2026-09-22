@@ -49,9 +49,7 @@ def _yfov_radians(sensor: Perspective, aspect: float) -> float:
     return fov_rad
 
 
-def add_camera(
-    builder: GLTFBuilder, config: Config
-) -> tuple[int, dict[str, Any]]:
+def add_camera(builder: GLTFBuilder, config: Config) -> tuple[int, dict[str, Any]]:
     """Register a camera node and return ``(node_index, initial_view_dict)``.
 
     ``initial_view_dict`` carries the eye/target/up vectors that the HTML

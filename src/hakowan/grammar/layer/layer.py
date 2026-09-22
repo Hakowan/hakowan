@@ -30,7 +30,13 @@ from ..channel.material import (
     ThinPrincipled,
 )
 from ..transform import Transform, Affine, Clip, Compute, Filter
-from ..scale import Attribute, AttributeLike, Uniform as UniformScale, to_attribute, to_scale
+from ..scale import (
+    Attribute,
+    AttributeLike,
+    Uniform as UniformScale,
+    to_attribute,
+    to_scale,
+)
 from ..texture import ScalarField, TextureLike
 from ...common.color import ColorLike
 from ..overlay import Annotation, Legend
@@ -551,9 +557,7 @@ class Layer:
             reverse=reverse,
             legend=legend,
         )
-        return self.channel(
-            material=Diffuse(reflectance=texture, two_sided=two_sided)
-        )
+        return self.channel(material=Diffuse(reflectance=texture, two_sided=two_sided))
 
     def show_edges(
         self,
@@ -669,7 +673,6 @@ class Layer:
         )
         transform = selection * Compute(component=attribute) if compute else selection
         return self.transform(transform)
-
 
     def compare(
         self,

@@ -259,11 +259,20 @@ FIELD_OVERRIDES = {
     ("PointLightSpec", "position"): "World-space point-light position.",
     ("PointLightSpec", "color"): "Point-light RGB or named color.",
     ("DirectionalLightSpec", "color"): "Directional-light RGB or named color.",
-    ("DirectionalLightSpec", "direction"): "World-space direction traveled by light rays.",
+    (
+        "DirectionalLightSpec",
+        "direction",
+    ): "World-space direction traveled by light rays.",
     ("BendStyleSpec", "direction"): "Attribute defining curve-bending directions.",
-    ("EnvironmentSpec", "path"): "Optional environment-map path resolved beside the specification.",
+    (
+        "EnvironmentSpec",
+        "path",
+    ): "Optional environment-map path resolved beside the specification.",
     ("EnvironmentSpec", "scale"): "Environment-light intensity multiplier.",
-    ("OrthographicCameraSpec", "scale"): "Full vertical world-space extent of the orthographic view.",
+    (
+        "OrthographicCameraSpec",
+        "scale",
+    ): "Full vertical world-space extent of the orthographic view.",
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
     ("OutputSettingsSpec", "background"): "Initial light or dark background mode.",
     (
@@ -402,9 +411,7 @@ def enrich_schema(schema: dict[str, Any]) -> dict[str, Any]:
         "fields and unknown discriminated variants are rejected."
     )
     result["x-hakowan-conventions"] = {
-        "geometry_source": (
-            "Only LayerPropertiesSpec.data selects mesh geometry."
-        ),
+        "geometry_source": ("Only LayerPropertiesSpec.data selects mesh geometry."),
         "attribute_reference": (
             "Channel, texture, and transform attribute inputs reference named fields "
             "inside the selected geometry source."

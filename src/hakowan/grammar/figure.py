@@ -160,9 +160,7 @@ class SceneSettings:
             config.sensor = _sensor(self.camera)
         if self.lights is not None:
             config.emitters = [
-                emitter
-                for emitter in config.emitters
-                if isinstance(emitter, Envmap)
+                emitter for emitter in config.emitters if isinstance(emitter, Envmap)
             ]
             config.emitters.extend(_emitter(light) for light in self.lights)
         if self.environment is not None:
@@ -219,11 +217,18 @@ class Figure:
                 output = self.scene.output
                 kwargs.setdefault(
                     "resolution",
-                    (output.width, output.height) if output is not None else (1024, 800),
+                    (output.width, output.height)
+                    if output is not None
+                    else (1024, 800),
                 )
                 resolved = resolve_camera(
                     self.layer,
-                    cast(Literal["fit", "principal_axis", "attribute_extremum", "section"], kind),
+                    cast(
+                        Literal[
+                            "fit", "principal_axis", "attribute_extremum", "section"
+                        ],
+                        kind,
+                    ),
                     **kwargs,
                 )
             elif kind == "perspective":
@@ -315,9 +320,9 @@ class Figure:
 
     def to_json(self, *, data_ids=None, function_ids=None, indent=2, canonical=False):
         """Serialize this Figure through its canonical specification."""
-        return self.to_spec(
-            data_ids=data_ids, function_ids=function_ids
-        ).to_json(indent=indent, canonical=canonical)
+        return self.to_spec(data_ids=data_ids, function_ids=function_ids).to_json(
+            indent=indent, canonical=canonical
+        )
 
 
 def _validate_camera(eye, target, up, near: float, far: float) -> None:

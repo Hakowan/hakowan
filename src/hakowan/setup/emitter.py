@@ -28,6 +28,7 @@ class Point(Emitter):
     position: list[float] = field(default_factory=lambda: [0.0, 0.0, 1.0])
     color: ColorLike | None = None
 
+
 @dataclass(kw_only=True, slots=True)
 class Directional(Emitter):
     """Directional light with rays traveling along ``direction``."""

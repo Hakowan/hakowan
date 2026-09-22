@@ -326,7 +326,9 @@ def get_backend_capabilities(name: BackendName | None = None) -> BackendCapabili
     try:
         return _backend_capabilities[backend_name]
     except KeyError as exc:
-        raise ValueError(f"Backend '{backend_name}' has no capability declaration.") from exc
+        raise ValueError(
+            f"Backend '{backend_name}' has no capability declaration."
+        ) from exc
 
 
 def list_backend_capabilities() -> dict[str, BackendCapabilities]:

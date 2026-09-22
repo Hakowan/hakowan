@@ -161,7 +161,8 @@ def generate_point_config(view: View, stamp: str, index: int) -> dict:
                 # Compose with the global transform in Mitsuba's transform space;
                 # ``global_transform @ np.ndarray`` is not a valid matmul.
                 local_transforms = [
-                    mi.ScalarTransform4f(m) for m in local_transforms  # type: ignore
+                    mi.ScalarTransform4f(m)
+                    for m in local_transforms  # type: ignore
                 ]
 
                 if base_shape == "cube":

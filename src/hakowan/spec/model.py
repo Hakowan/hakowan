@@ -654,6 +654,7 @@ class OutputSettingsSpec(SpecModel):
         "beauty",
     )
     sampler_seed: int = 0
+
     @field_validator("passes")
     @classmethod
     def validate_passes(cls, value):

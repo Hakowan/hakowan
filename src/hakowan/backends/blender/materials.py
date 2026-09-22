@@ -409,7 +409,9 @@ class _MaterialMixin:
             color_socket = None
             if gradient:
                 color_socket = self._hair_gradient_color(
-                    nodes, links, root_lin or tip_lin or fallback,
+                    nodes,
+                    links,
+                    root_lin or tip_lin or fallback,
                     tip_lin or root_lin or fallback,
                 )
             # Per-strand brightness jitter driven by Hair Info random.

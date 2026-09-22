@@ -109,7 +109,11 @@ def _attribute_values(
 
 def _summarize_attribute(mesh: lagrange.SurfaceMesh, name: str) -> AttributeSummary:
     attribute, values, indices, indexed = _attribute_values(mesh, name)
-    rows = values.reshape(values.shape[0], -1) if values.ndim > 1 else values.reshape(-1, 1)
+    rows = (
+        values.reshape(values.shape[0], -1)
+        if values.ndim > 1
+        else values.reshape(-1, 1)
+    )
     numeric = np.issubdtype(rows.dtype, np.number)
 
     if numeric and rows.size:
@@ -154,9 +158,7 @@ def _summarize_attribute(mesh: lagrange.SurfaceMesh, name: str) -> AttributeSumm
     )
 
 
-def inspect(
-    data: DataFrameLike, *, positions: PositionColumns = None
-) -> DataSummary:
+def inspect(data: DataFrameLike, *, positions: PositionColumns = None) -> DataSummary:
     """Inspect supported geometry or tabular data without changing it.
 
     The returned dataclasses contain only JSON-safe metadata. Attribute statistics

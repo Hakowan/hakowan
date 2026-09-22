@@ -148,7 +148,9 @@ def _apply_one(document: Any, operation: Mapping[str, Any]) -> Any:
         index = _list_index(token, len(parent), append=op == "add")
         if op == "add":
             if index > len(parent):
-                raise IndexError(f"Array insertion index {index} exceeds length {len(parent)}")
+                raise IndexError(
+                    f"Array insertion index {index} exceeds length {len(parent)}"
+                )
             parent.insert(index, copy.deepcopy(operation["value"]))
         else:
             if index >= len(parent):
@@ -163,8 +165,7 @@ def _apply_one(document: Any, operation: Mapping[str, Any]) -> Any:
 
 def _schema_pointer(location: tuple[Any, ...]) -> str:
     return "".join(
-        "/" + str(item).replace("~", "~0").replace("/", "~1")
-        for item in location
+        "/" + str(item).replace("~", "~0").replace("/", "~1") for item in location
     )
 
 

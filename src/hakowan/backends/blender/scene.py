@@ -463,7 +463,9 @@ class _SceneMixin:
         else:
             color = to_color(point_light.intensity)
             light_data.color = (float(color.red), float(color.green), float(color.blue))
-            light_data.energy = max(float(color.red), float(color.green), float(color.blue), 1.0)
+            light_data.energy = max(
+                float(color.red), float(color.green), float(color.blue), 1.0
+            )
 
         # Create light object
         light_obj = bpy.data.objects.new(f"Point_{index:03d}", light_data)

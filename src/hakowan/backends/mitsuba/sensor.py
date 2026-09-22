@@ -23,7 +23,9 @@ def generate_sensor_config(sensor: Sensor) -> dict:
             mi_config["fov_axis"] = sensor.fov_axis
         case Orthographic():
             mi_config["type"] = "orthographic"
-            mi_config["to_world"] = mi_config["to_world"] @ mi.ScalarTransform4f().scale(  # type: ignore
+            mi_config["to_world"] = mi_config[
+                "to_world"
+            ] @ mi.ScalarTransform4f().scale(  # type: ignore
                 [sensor.scale * 0.5, sensor.scale * 0.5, 1.0]
             )
         case ThinLens():
