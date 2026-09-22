@@ -9,6 +9,8 @@ import lagrange
 import numpy as np
 
 from .grammar.mark import Mark
+from .validation import Diagnostic
+
 
 if TYPE_CHECKING:
     from .observation import Observation, Snapshot
@@ -127,9 +129,7 @@ def _query_views(
     return available
 
 
-def _data_snapshot(
-    observation: Observation, view: str, pass_name: str
-) -> Snapshot:
+def _data_snapshot(observation: Observation, view: str, pass_name: str) -> Snapshot:
     snapshot = observation.snapshots.get((view, pass_name))
     if snapshot is None or snapshot.data is None:
         raise ValueError(
@@ -157,7 +157,9 @@ def _total_elements(observation: Observation, layer_id: int) -> int | None:
     return None
 
 
-def _pixel_bounds(mask: np.ndarray, x0: int = 0, y0: int = 0) -> tuple[int, int, int, int] | None:
+def _pixel_bounds(
+    mask: np.ndarray, x0: int = 0, y0: int = 0
+) -> tuple[int, int, int, int] | None:
     rows, columns = np.nonzero(mask)
     if len(rows) == 0:
         return None
@@ -169,7 +171,9 @@ def _pixel_bounds(mask: np.ndarray, x0: int = 0, y0: int = 0) -> tuple[int, int,
     )
 
 
-def _depth_range(depth: np.ndarray | None, mask: np.ndarray) -> tuple[float, float] | None:
+def _depth_range(
+    depth: np.ndarray | None, mask: np.ndarray
+) -> tuple[float, float] | None:
     if depth is None:
         return None
     values = np.asarray(depth[mask], dtype=np.float64)
@@ -195,7 +199,9 @@ def region(
     """
     views = _query_views(observation, view, "layer_id")
     if len(views) != 1:
-        raise ValueError("region() requires view= when an observation has multiple views")
+        raise ValueError(
+            "region() requires view= when an observation has multiple views"
+        )
     selected_view = views[0]
     layer_snapshot = _data_snapshot(observation, selected_view, "layer_id")
     element_snapshot = _data_snapshot(observation, selected_view, "element_id")
@@ -224,14 +230,10 @@ def region(
         layer_id = int(raw_layer_id)
         mask = layer_crop == raw_layer_id
         ids = element_crop[mask]
-        elements = tuple(
-            int(value) for value in np.unique(ids[ids != _BACKGROUND_ID])
-        )
+        elements = tuple(int(value) for value in np.unique(ids[ids != _BACKGROUND_ID]))
         total = _total_elements(observation, layer_id)
         fraction = (
-            min(len(elements) / total, 1.0)
-            if total is not None and total > 0
-            else None
+            min(len(elements) / total, 1.0) if total is not None and total > 0 else None
         )
         name, mark = _layer_summary(observation, layer_id)
         layers.append(
@@ -247,9 +249,11 @@ def region(
                 visible_bounds=_pixel_bounds(mask, x0, y0),
                 projected_bounds=(
                     projection[0]
-                    if (projection := _projected_geometry(
-                        observation, selected_view, layer_id
-                    ))
+                    if (
+                        projection := _projected_geometry(
+                            observation, selected_view, layer_id
+                        )
+                    )
                     is not None
                     else None
                 ),
@@ -266,8 +270,6 @@ def region(
         background_fraction=background_count / pixel_count,
         layers=tuple(layers),
     )
-
-
 
 
 def visible_elements(
@@ -313,9 +315,11 @@ def visible_elements(
                     visible_bounds=None,
                     projected_bounds=(
                         projection[0]
-                        if (projection := _projected_geometry(
-                            observation, selected_view, known.id
-                        ))
+                        if (
+                            projection := _projected_geometry(
+                                observation, selected_view, known.id
+                            )
+                        )
                         is not None
                         else None
                     ),
@@ -327,7 +331,9 @@ def visible_elements(
     return tuple(results)
 
 
-def _attribute_rows(observation: Observation, item: LayerVisibility, attribute_name: str) -> tuple[Any, np.ndarray, np.ndarray]:
+def _attribute_rows(
+    observation: Observation, item: LayerVisibility, attribute_name: str
+) -> tuple[Any, np.ndarray, np.ndarray]:
     if observation._scene is None or not 0 <= item.layer_id < len(observation._scene):
         raise ValueError("Observation does not retain its compiled scene")
     view = observation._scene[item.layer_id]
@@ -336,20 +342,33 @@ def _attribute_rows(observation: Observation, item: LayerVisibility, attribute_n
     if not mesh.has_attribute(attribute_name):
         raise KeyError(attribute_name)
     if mesh.is_attribute_indexed(attribute_name):
-        raise ValueError(f"Visible statistics do not support indexed attribute {attribute_name!r}")
+        raise ValueError(
+            f"Visible statistics do not support indexed attribute {attribute_name!r}"
+        )
     attribute = mesh.attribute(attribute_name)
     values = np.asarray(attribute.data)
     if values.ndim == 1:
         values = values.reshape(-1, 1)
     visible = np.asarray(item.visible_element_ids, dtype=np.int64)
-    if view.mark is Mark.Point and attribute.element_type == lagrange.AttributeElement.Vertex:
+    if (
+        view.mark is Mark.Point
+        and attribute.element_type == lagrange.AttributeElement.Vertex
+    ):
         rows = visible
-    elif view.mark is Mark.Surface and attribute.element_type == lagrange.AttributeElement.Facet:
+    elif (
+        view.mark is Mark.Surface
+        and attribute.element_type == lagrange.AttributeElement.Facet
+    ):
         rows = visible[visible < mesh.num_facets]
-    elif view.mark is Mark.Surface and attribute.element_type == lagrange.AttributeElement.Vertex:
+    elif (
+        view.mark is Mark.Surface
+        and attribute.element_type == lagrange.AttributeElement.Vertex
+    ):
         vertex_ids: set[int] = set()
         for facet_id in visible[visible < mesh.num_facets]:
-            vertex_ids.update(int(value) for value in mesh.get_facet_vertices(int(facet_id)))
+            vertex_ids.update(
+                int(value) for value in mesh.get_facet_vertices(int(facet_id))
+            )
         rows = np.asarray(sorted(vertex_ids), dtype=np.int64)
     else:
         raise ValueError(
@@ -406,9 +425,7 @@ def attribute_extrema(
         if not len(values):
             continue
         criterion = (
-            values[:, 0]
-            if values.shape[1] == 1
-            else np.linalg.norm(values, axis=1)
+            values[:, 0] if values.shape[1] == 1 else np.linalg.norm(values, axis=1)
         )
         minimum_index = int(np.argmin(criterion))
         maximum_index = int(np.argmax(criterion))
@@ -549,8 +566,307 @@ def occlusion_report(
                         occluder_depth_range=front_depth,
                     )
                 )
-    results.sort(key=lambda item: (item.view, item.occluded_layer_id, -item.projected_coverage))
+    results.sort(
+        key=lambda item: (item.view, item.occluded_layer_id, -item.projected_coverage)
+    )
     return tuple(results)
+
+
+def _projected_vertex_evidence(
+    observation: Observation, view_name: str, layer_id: int
+) -> dict[str, Any]:
+    snapshot = _data_snapshot(observation, view_name, "layer_id")
+    points = _world_points(observation, layer_id)
+    if not len(points):
+        return {"vertex_count": 0, "visible_vertex_count": 0, "clipped_fraction": 0.0}
+    homogeneous = np.column_stack((points, np.ones(len(points))))
+    camera = (snapshot.world_to_camera @ homogeneous.T).T
+    depth = -camera[:, 2]
+    clip = (snapshot.projection @ camera.T).T
+    finite = np.all(np.isfinite(clip), axis=1) & (np.abs(clip[:, 3]) > 1e-12)
+    ndc = np.full((len(points), 3), np.nan, dtype=np.float64)
+    ndc[finite] = clip[finite, :3] / clip[finite, 3, None]
+    inside = (
+        finite
+        & (depth >= snapshot.camera.near)
+        & (depth <= snapshot.camera.far)
+        & np.all(np.abs(ndc) <= 1.0, axis=1)
+    )
+    visible_count = int(np.count_nonzero(inside))
+    return {
+        "vertex_count": int(len(points)),
+        "visible_vertex_count": visible_count,
+        "clipped_fraction": 1.0 - visible_count / len(points),
+    }
+
+
+def _contrast_evidence(
+    observation: Observation, view_name: str, foreground: np.ndarray
+) -> dict[str, float] | None:
+    snapshot = observation.snapshots.get((view_name, "beauty"))
+    if snapshot is None:
+        return None
+    rgb = np.asarray(snapshot.image.convert("RGB"), dtype=np.float64) / 255.0
+    height, width = foreground.shape
+    if rgb.shape[0] < height or rgb.shape[1] < width or not np.any(foreground):
+        return None
+    rgb = rgb[:height, :width]
+    luminance = rgb @ np.array([0.2126, 0.7152, 0.0722])
+    background = ~foreground
+    foreground_mean = float(np.mean(luminance[foreground]))
+    background_mean = (
+        float(np.mean(luminance[background])) if np.any(background) else foreground_mean
+    )
+    return {
+        "foreground_luminance": foreground_mean,
+        "background_luminance": background_mean,
+        "luminance_contrast": abs(foreground_mean - background_mean),
+    }
+
+
+def _visible_attributes(
+    observation: Observation, view_name: str, layer_id: int
+) -> list[dict[str, Any]]:
+    if observation._scene is None or not 0 <= layer_id < len(observation._scene):
+        return []
+    view = observation._scene[layer_id]
+    assert view.data_frame is not None
+    mesh = view.data_frame.mesh
+    result: list[dict[str, Any]] = []
+    for attribute_id in mesh.get_matching_attribute_ids():
+        name = mesh.get_attribute_name(attribute_id)
+        try:
+            summaries = attribute_extrema(
+                observation, name, layer=layer_id, view=view_name
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+        result.extend(item.to_dict() for item in summaries)
+    return result
+
+
+def visual_evidence(observation: Observation) -> dict[str, Any]:
+    """Build compact framing, visibility, depth, and contrast evidence."""
+    result: dict[str, Any] = {"views": {}}
+    layer_views = _available_views(observation, "layer_id")
+    element_views = set(_available_views(observation, "element_id"))
+    queryable_views = tuple(view for view in layer_views if view in element_views)
+    occlusions = tuple(
+        item
+        for view in queryable_views
+        for item in occlusion_report(observation, view=view)
+    )
+    for view_name in queryable_views:
+        snapshot = _data_snapshot(observation, view_name, "layer_id")
+        layer_data = np.asarray(snapshot.data, dtype=np.uint32)
+        height, width = layer_data.shape
+        foreground = layer_data != _BACKGROUND_ID
+        summary = region(observation, 0, 0, width, height, view=view_name)
+        visible = visible_elements(observation, view=view_name)
+        occlusion_by_layer: dict[int, float] = {}
+        for occlusion in occlusions:
+            if occlusion.view != view_name:
+                continue
+            value = 1.0 if occlusion.fully_hidden else occlusion.projected_coverage
+            occlusion_by_layer[occlusion.occluded_layer_id] = max(
+                value, occlusion_by_layer.get(occlusion.occluded_layer_id, 0.0)
+            )
+        layers: list[dict[str, Any]] = []
+        for visibility in visible:
+            projected_pixels = (
+                (visibility.projected_bounds[2] - visibility.projected_bounds[0])
+                * (visibility.projected_bounds[3] - visibility.projected_bounds[1])
+                if visibility.projected_bounds is not None
+                else 0
+            )
+            geometry = next(
+                layer
+                for layer in observation.scene_summary.layers
+                if layer.id == visibility.layer_id
+            )
+            layers.append(
+                {
+                    **visibility.to_dict(),
+                    "screen_fraction": visibility.visible_pixel_count
+                    / (width * height),
+                    "projected_pixel_count": projected_pixels,
+                    "projected_visibility_fraction": (
+                        min(visibility.visible_pixel_count / projected_pixels, 1.0)
+                        if projected_pixels
+                        else 0.0
+                    ),
+                    "occluded_fraction_estimate": occlusion_by_layer.get(
+                        visibility.layer_id, 0.0
+                    ),
+                    "empty": geometry.vertex_count == 0
+                    or (geometry.mark == "surface" and geometry.facet_count == 0),
+                    "projection": _projected_vertex_evidence(
+                        observation, view_name, visibility.layer_id
+                    ),
+                    "attributes": _visible_attributes(
+                        observation, view_name, visibility.layer_id
+                    ),
+                }
+            )
+        depth_order = [
+            item["name"]
+            for item in sorted(
+                layers,
+                key=lambda value: (
+                    value["depth_range"][0]
+                    if value["depth_range"] is not None
+                    else float("inf")
+                ),
+            )
+        ]
+        result["views"][view_name] = {
+            "size": [width, height],
+            "occupancy": 1.0 - summary.background_fraction,
+            "background_fraction": summary.background_fraction,
+            "visible_bounds": _pixel_bounds(foreground),
+            "depth_order_near_to_far": depth_order,
+            "contrast": _contrast_evidence(observation, view_name, foreground),
+            "layers": layers,
+        }
+    view_values = list(result["views"].values())
+    result["summary"] = {
+        "view_count": len(view_values),
+        "minimum_occupancy": min(
+            (item["occupancy"] for item in view_values), default=0.0
+        ),
+        "maximum_occupancy": max(
+            (item["occupancy"] for item in view_values), default=0.0
+        ),
+        "maximum_clipped_fraction": max(
+            (
+                layer["projection"]["clipped_fraction"]
+                for item in view_values
+                for layer in item["layers"]
+            ),
+            default=0.0,
+        ),
+        "fully_hidden_layer_count": sum(
+            layer["visible_pixel_count"] == 0 and not layer["empty"]
+            for item in view_values
+            for layer in item["layers"]
+        ),
+        "legend_count": len(observation.manifest.get("legends", [])),
+        "legend_observed": bool(observation.manifest.get("legends"))
+        and any((view, "beauty") in observation.snapshots for view in layer_views),
+    }
+    return result
+
+
+def visual_diagnostics(
+    observation: Observation,
+    *,
+    min_occupancy: float = 0.02,
+    max_occupancy: float = 0.95,
+    max_clipped_fraction: float = 0.05,
+    min_contrast: float = 0.08,
+    _evidence: dict[str, Any] | None = None,
+) -> tuple[Diagnostic, ...]:
+    """Return deterministic diagnostics for common visual failures."""
+    evidence = _evidence if _evidence is not None else visual_evidence(observation)
+    diagnostics: list[Diagnostic] = []
+    for view_name, view in evidence["views"].items():
+        path = f"views/{view_name}"
+        occupancy = view["occupancy"]
+        if occupancy < min_occupancy:
+            diagnostics.append(
+                Diagnostic(
+                    code="visual.frame_empty"
+                    if occupancy == 0.0
+                    else "visual.occupancy_low",
+                    severity="error" if occupancy == 0.0 else "warning",
+                    path=path,
+                    message=f"Foreground occupancy is {occupancy:.3f}.",
+                    hint="Use fit_camera or move the camera closer to the scene.",
+                )
+            )
+        elif occupancy > max_occupancy:
+            diagnostics.append(
+                Diagnostic(
+                    code="visual.occupancy_high",
+                    severity="warning",
+                    path=path,
+                    message=f"Foreground occupancy is {occupancy:.3f}.",
+                    hint="Use fit_camera with a larger margin.",
+                )
+            )
+        contrast = view["contrast"]
+        if contrast is not None and contrast["luminance_contrast"] < min_contrast:
+            diagnostics.append(
+                Diagnostic(
+                    code="visual.low_contrast",
+                    severity="warning",
+                    path=path,
+                    message=(
+                        "Foreground/background luminance contrast is "
+                        f"{contrast['luminance_contrast']:.3f}."
+                    ),
+                    hint="Change material color, lighting, or background.",
+                )
+            )
+        for layer in view["layers"]:
+            layer_path = f"{path}/layers/{layer['layer_id']}"
+            clipped = layer["projection"]["clipped_fraction"]
+            if layer["empty"]:
+                diagnostics.append(
+                    Diagnostic(
+                        code="visual.layer_empty",
+                        severity="error",
+                        path=layer_path,
+                        message=f"Layer {layer['name']!r} has no vertices.",
+                        hint="Check its data source and transforms.",
+                    )
+                )
+            elif layer["visible_pixel_count"] == 0:
+                diagnostics.append(
+                    Diagnostic(
+                        code="visual.layer_hidden",
+                        severity="error",
+                        path=layer_path,
+                        message=f"Layer {layer['name']!r} contributes no visible pixels.",
+                        hint="Change the camera, offset the layer, or adjust occluding material.",
+                    )
+                )
+            if clipped > max_clipped_fraction:
+                diagnostics.append(
+                    Diagnostic(
+                        code="visual.camera_clipping",
+                        severity="warning",
+                        path=layer_path,
+                        message=f"Projected vertex clipping fraction is {clipped:.3f}.",
+                        hint="Use fit_camera or increase the camera margin.",
+                    )
+                )
+            occluded = layer["occluded_fraction_estimate"]
+            if occluded >= 0.9:
+                diagnostics.append(
+                    Diagnostic(
+                        code="visual.layer_occluded",
+                        severity="warning",
+                        path=layer_path,
+                        message=(
+                            f"Layer {layer['name']!r} has estimated projected "
+                            f"occlusion {occluded:.3f}."
+                        ),
+                        hint="Offset the layer, use transparency, or change the camera.",
+                    )
+                )
+    summary = evidence["summary"]
+    if summary["legend_count"] and not summary["legend_observed"]:
+        diagnostics.append(
+            Diagnostic(
+                code="visual.legend_unobserved",
+                severity="warning",
+                path="legends",
+                message="The scene declares a legend but no beauty pass observed it.",
+                hint="Include the beauty pass when capturing visual evidence.",
+            )
+        )
+    return tuple(diagnostics)
 
 
 def query_manifest(observation: Observation) -> dict[str, Any]:
@@ -572,9 +888,12 @@ def query_manifest(observation: Observation) -> dict[str, Any]:
         visibility[view] = payload
     if visibility:
         result["visibility"] = visibility
-        result["occlusion"] = [
-            item.to_dict() for item in occlusion_report(observation)
-        ]
+        result["occlusion"] = [item.to_dict() for item in occlusion_report(observation)]
+    evidence = visual_evidence(observation)
+    result["evidence"] = evidence
+    result["visual_diagnostics"] = [
+        item.to_dict() for item in visual_diagnostics(observation, _evidence=evidence)
+    ]
     return result
 
 
@@ -588,4 +907,6 @@ __all__ = [
     "query_manifest",
     "region",
     "visible_elements",
+    "visual_diagnostics",
+    "visual_evidence",
 ]

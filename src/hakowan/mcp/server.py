@@ -11,9 +11,11 @@ from .service import HakowanMCPService
 _SERVER_INSTRUCTIONS = """Hakowan authors deterministic 3D data visualizations.
 Always inspect source data before writing a spec; never invent attributes. Use
 canonical FigureSpec JSON, validate strictly, repair with minimal JSON Pointer
-patches, and render or observe the result before completion. All file paths are
-restricted to the configured workspace root. Arbitrary Python functions are not
-accepted through this server; use safe expression specs instead.
+patches, and fit geometry-dependent cameras with fit_camera. Render or observe
+before completion. Use evaluate_visual_patch for bounded visual repairs and keep
+only accepted candidates. All file paths are restricted to the configured
+workspace root. Arbitrary Python functions are not accepted through this server;
+use safe expression specs instead.
 """
 
 
@@ -28,8 +30,7 @@ def create_server(
         from mcp.types import ToolAnnotations
     except (ImportError, AttributeError) as exc:
         raise RuntimeError(
-            "Hakowan MCP support requires MCP Python SDK v2: "
-            "pip install 'hakowan[mcp]'"
+            "Hakowan MCP support requires MCP Python SDK v2: pip install 'hakowan[mcp]'"
         ) from exc
 
     service = HakowanMCPService(root=root, gallery=gallery)
@@ -56,9 +57,23 @@ def create_server(
     )
 
     @mcp.tool(name="get_schema", annotations=read_only)
-    def get_schema() -> dict[str, Any]:
-        """Return the canonical Hakowan FigureSpec JSON Schema."""
-        return service.get_schema()
+    def get_schema(fragment: str | None = None) -> dict[str, Any]:
+        """Return the full FigureSpec schema or a focused fragment."""
+        return service.get_schema(fragment)
+
+    @mcp.tool(name="get_spec_template", annotations=read_only)
+    def get_spec_template(
+        name: str | None = None,
+        data_id: str = "data",
+        attribute: str = "value",
+    ) -> dict[str, Any]:
+        """List or return minimal canonical FigureSpec templates."""
+        return service.get_spec_template(name, data_id, attribute)
+
+    @mcp.tool(name="get_spec", annotations=read_only)
+    def get_spec(spec_id: str) -> dict[str, Any]:
+        """Resolve a session-local content-addressed FigureSpec handle."""
+        return service.get_spec(spec_id)
 
     @mcp.tool(name="get_backends", annotations=read_only)
     def get_backends() -> dict[str, Any]:
@@ -77,12 +92,12 @@ def create_server(
         limit: int = 5,
         include_spec: bool = False,
     ) -> dict[str, Any]:
-        """Find feature-matched canonical gallery recipes and optional specs."""
+        """Search local or published recipes; return no matches if unavailable."""
         return service.search_gallery(query, features, limit, include_spec)
 
     @mcp.tool(name="validate_spec", annotations=read_only)
     def validate_spec(
-        spec: dict[str, Any],
+        spec: dict[str, Any] | str,
         backend: str = "webgl",
         strict: bool = True,
         data_bindings: dict[str, str] | None = None,
@@ -93,16 +108,43 @@ def create_server(
             spec, backend, strict, data_bindings, compile_check
         )
 
+    @mcp.tool(name="fit_camera", annotations=read_only)
+    def fit_camera(
+        spec: dict[str, Any] | str,
+        data_bindings: dict[str, str] | None = None,
+        backend: str = "webgl",
+        direction: str | list[float] = "isometric",
+        projection: str = "perspective",
+        margin: float = 0.08,
+        resolution: list[int] | None = None,
+        fov: float = 35.0,
+        fov_axis: str = "smaller",
+        up_axis: str = "y",
+    ) -> dict[str, Any]:
+        """Fit and validate a concrete camera, returning a minimal spec patch."""
+        return service.fit_camera(
+            spec,
+            data_bindings,
+            backend,
+            direction,
+            projection,
+            margin,
+            resolution,
+            fov,
+            fov_axis,
+            up_axis,
+        )
+
     @mcp.tool(name="compile_spec", annotations=read_only)
     def compile_spec(
-        spec: dict[str, Any], data_bindings: dict[str, str] | None = None
+        spec: dict[str, Any] | str, data_bindings: dict[str, str] | None = None
     ) -> dict[str, Any]:
         """Compile a FigureSpec and return resolved view and overlay metadata."""
         return service.compile_spec(spec, data_bindings)
 
     @mcp.tool(name="render_spec", annotations=writes_files)
     def render_spec(
-        spec: dict[str, Any],
+        spec: dict[str, Any] | str,
         output: str,
         backend: str = "webgl",
         data_bindings: dict[str, str] | None = None,
@@ -116,28 +158,53 @@ def create_server(
 
     @mcp.tool(name="observe_spec", annotations=writes_files)
     def observe_spec(
-        spec: dict[str, Any],
+        spec: dict[str, Any] | str,
         output_dir: str,
         views: list[str] | None = None,
         passes: list[str] | None = None,
         resolution: list[int] | None = None,
         data_bindings: dict[str, str] | None = None,
         strict: bool = True,
+        visual_criteria: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         """Capture multi-view WebGL evidence and structured visibility metadata."""
         return service.observe_spec(
             spec,
             output_dir,
+            views=views,
+            passes=passes,
+            resolution=resolution,
+            data_bindings=data_bindings,
+            strict=strict,
+            visual_criteria=visual_criteria,
+        )
+
+    @mcp.tool(name="evaluate_visual_patch", annotations=writes_files)
+    def evaluate_visual_patch(
+        spec: dict[str, Any] | str,
+        operations: list[dict[str, Any]],
+        output_dir: str,
+        views: list[str] | None = None,
+        resolution: list[int] | None = None,
+        data_bindings: dict[str, str] | None = None,
+        visual_criteria: dict[str, float] | None = None,
+        max_operations: int = 3,
+    ) -> dict[str, Any]:
+        """Accept a patch only if deterministic visual evidence improves."""
+        return service.evaluate_visual_patch(
+            spec,
+            operations,
+            output_dir,
             views,
-            passes,
             resolution,
             data_bindings,
-            strict,
+            visual_criteria,
+            max_operations,
         )
 
     @mcp.tool(name="apply_patch", annotations=read_only)
     def apply_patch(
-        spec: dict[str, Any],
+        spec: dict[str, Any] | str,
         operations: list[dict[str, Any]],
         backend: str = "webgl",
         data_bindings: dict[str, str] | None = None,

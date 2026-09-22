@@ -14,7 +14,12 @@ from typing import Literal
 
 @dataclass(kw_only=True, slots=True)
 class Config:
-    """Configuration for rendering.
+    """Invocation-time renderer policy, separate from visualization intent.
+
+    A :class:`~hakowan.grammar.figure.Figure` stores portable camera, lighting,
+    environment, and output intent. Passing an explicit ``Config`` to rendering
+    selects operational backend settings and overrides the complete
+    Figure-derived configuration rather than merging with it.
 
     Attributes:
         sensor: Sensor settings.

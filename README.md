@@ -72,12 +72,14 @@ Run Hakowan as a provider-neutral MCP server for Copilot, Oh My Pi, and other
 agent hosts:
 
 ```sh
-hakowan-mcp --root /path/to/project --gallery /path/to/hakowan-gallery
+hakowan-mcp --root /path/to/project
 ```
 
-The server exposes data inspection, schema and gallery retrieval, validation,
-compilation, rendering, structured observation, and atomic patch tools. It does
-not call or depend on any LLM provider. See the
+The server exposes data inspection, schema retrieval, validation, compilation,
+rendering, structured observation, and atomic patch tools. Canonical-example
+search prefers an optional local gallery checkout and otherwise uses the public
+static corpus; gallery and network failures are non-fatal. The server does not
+call or depend on any LLM provider. See the
 [MCP guide](https://hakowan.github.io/hakowan/guide/mcp/).
 
 ## Documentation

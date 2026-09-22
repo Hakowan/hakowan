@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import asyncio
+import hashlib
 import functools
 from concurrent.futures import ThreadPoolExecutor
 
@@ -37,6 +38,8 @@ from .observation_queries import (
     attribute_extrema as _attribute_extrema,
     occlusion_report as _occlusion_report,
     query_manifest as _query_manifest,
+    visual_diagnostics as _visual_diagnostics,
+    visual_evidence as _visual_evidence,
     region as _region,
     visible_elements as _visible_elements,
 )
@@ -64,6 +67,13 @@ PASS_NAMES: tuple[PassName, ...] = (
     "layer_id",
 )
 BACKGROUND_ID = np.uint32(0xFFFFFFFF)
+
+
+def _file_sha256(path: Path | None) -> str | None:
+    if path is None or not path.is_file():
+        return None
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 class ObservationError(RuntimeError):
@@ -158,12 +168,18 @@ class Snapshot:
     data_path: Path | None = None
 
     def to_manifest(self) -> dict[str, Any]:
-        """Return this snapshot's paths, camera, matrices, bounds, and diagnostics."""
+        """Return paths, hashes, camera state, matrices, bounds, and diagnostics."""
         return {
             "view": self.view,
             "pass": self.pass_name,
             "path": str(self.path) if self.path is not None else None,
+            "mime_type": "image/png",
+            "sha256": _file_sha256(self.path),
             "data_path": str(self.data_path) if self.data_path is not None else None,
+            "data_mime_type": "application/x-npy"
+            if self.data_path is not None
+            else None,
+            "data_sha256": _file_sha256(self.data_path),
             "size": list(self.image.size),
             "camera": self.camera.to_dict(),
             "world_to_camera": self.world_to_camera.tolist(),
@@ -224,8 +240,17 @@ class Observation:
         self.manifest["snapshots"] = [
             self.snapshots[key].to_manifest() for key in self.snapshots
         ]
+        contact_sheet_path = output / "contact_sheet.png"
         self.manifest["contact_sheet"] = (
-            str(output / "contact_sheet.png")
+            str(contact_sheet_path) if self.contact_sheet is not None else None
+        )
+        self.manifest["contact_sheet_metadata"] = (
+            {
+                "path": str(contact_sheet_path),
+                "mime_type": "image/png",
+                "size": list(self.contact_sheet.size),
+                "sha256": _file_sha256(contact_sheet_path),
+            }
             if self.contact_sheet is not None
             else None
         )
@@ -324,6 +349,27 @@ class Observation:
     ) -> tuple[OcclusionRecord, ...]:
         """Report depth-ordered projected overlap for selected views or layers."""
         return _occlusion_report(self, view=view, layer=layer)
+
+    def visual_evidence(self) -> dict[str, Any]:
+        """Return compact framing, visibility, depth, and contrast evidence."""
+        return _visual_evidence(self)
+
+    def visual_diagnostics(
+        self,
+        *,
+        min_occupancy: float = 0.02,
+        max_occupancy: float = 0.95,
+        max_clipped_fraction: float = 0.05,
+        min_contrast: float = 0.08,
+    ) -> tuple[Diagnostic, ...]:
+        """Diagnose deterministic visual failures against explicit thresholds."""
+        return _visual_diagnostics(
+            self,
+            min_occupancy=min_occupancy,
+            max_occupancy=max_occupancy,
+            max_clipped_fraction=max_clipped_fraction,
+            min_contrast=min_contrast,
+        )
 
 
 @dataclass(slots=True)
@@ -445,7 +491,9 @@ def _camera_state_from_figure(camera) -> CameraState:
         fov=float(getattr(camera, "fov", 35.0)),
         near=camera.near,
         far=camera.far,
-        mode="orthographic" if isinstance(camera, OrthographicCamera) else "perspective",
+        mode="orthographic"
+        if isinstance(camera, OrthographicCamera)
+        else "perspective",
         scale=camera.scale if isinstance(camera, OrthographicCamera) else None,
     )
 
@@ -729,6 +777,8 @@ def _capture(*args: Any, **kwargs: Any) -> _CaptureResult:
     call = functools.partial(_capture_sync, *args, **kwargs)
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(call).result()
+
+
 def _capture_context(
     root: Layer | Figure,
     config: Config | None,
@@ -804,7 +854,11 @@ def snapshot(
     )
     label: str = view or "isometric"
     if camera is None and view is None:
-        if figure is not None and not explicit_config and figure.scene.camera is not None:
+        if (
+            figure is not None
+            and not explicit_config
+            and figure.scene.camera is not None
+        ):
             camera = _camera_state_from_figure(figure.scene.camera)
             label = "figure"
         elif explicit_config and resolved_config is not None:
@@ -817,8 +871,8 @@ def snapshot(
         resolution,
         cameras={label: camera} if camera is not None else None,
         config=resolved_config,
-        background=background,
         up_axis=up_axis,
+        background=background,
         timeout=timeout,
     )
     item = result.snapshots[(label, pass_name)]
@@ -837,7 +891,7 @@ def snapshot(
 def observe(
     root: Layer | Figure,
     *,
-    views: Sequence[ViewPreset] | None = None,
+    views: Sequence[str] | None = None,
     passes: Sequence[PassName] | None = None,
     resolution: tuple[int, int] | None = None,
     cameras: dict[str, CameraState] | None = None,
@@ -856,7 +910,7 @@ def observe(
 
     Args:
         root: Layer or Figure to inspect.
-        views: Ordered named view presets.
+        views: Ordered named view presets or labels with explicit camera overrides.
         passes: Ordered semantic pass names.
         resolution: Width and height shared by every capture.
         cameras: Explicit CameraState overrides keyed by view label.
@@ -878,7 +932,18 @@ def observe(
         _capture_context(root, config, resolution, background)
     )
     if views is None:
-        views = ("front", "right", "top", "isometric")
+        if (
+            figure is not None
+            and not explicit_config
+            and figure.scene.camera is not None
+        ):
+            views = ("figure",)
+            cameras = {
+                **(cameras or {}),
+                "figure": _camera_state_from_figure(figure.scene.camera),
+            }
+        else:
+            views = ("front", "right", "top", "isometric")
     if passes is None:
         if (
             figure is not None

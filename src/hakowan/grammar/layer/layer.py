@@ -394,12 +394,17 @@ class Layer:
         normal_map: NormalMap | TextureLike | None = None,
         in_place: bool = False,
     ) -> "Layer":
-        """Add one or more visual-channel specifications to this layer node.
+        """Add visual channels to this layer node.
 
-        Channel arguments accept full channel objects or documented shorthand
-        values. During compilation, the first effective channel of each kind on
-        a root-to-leaf path wins; later duplicates are shadowed and validation
-        reports them.
+        Each keyword names a semantic slot, so one call may set several
+        independent channels. Calls are immutable by default: a new wrapper
+        node is created around the current layer. During compilation, nodes are
+        visited from root to leaf and the first channel for each slot wins.
+        Therefore a later fluent call overrides the same slot on the wrapped
+        child, while unrelated slots compose. With ``in_place=True``, channels
+        append directly to the current node in keyword order; an earlier channel
+        of the same kind remains effective and validation reports the shadowed
+        duplicate.
 
         Args:
             position: Position channel or attribute reference.
@@ -411,7 +416,7 @@ class Layer:
             material: Material channel.
             bump_map: BumpMap channel or texture shorthand.
             normal_map: NormalMap channel or texture shorthand.
-            in_place: Append to this node instead of returning a wrapper layer.
+            in_place: Append to this node instead of creating a wrapper layer.
 
         Returns:
             The modified node or an immutable-style wrapper layer.

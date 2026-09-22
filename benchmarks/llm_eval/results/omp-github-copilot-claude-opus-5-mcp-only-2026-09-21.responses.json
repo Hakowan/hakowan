@@ -1,0 +1,2648 @@
+{
+  "model": "github-copilot/claude-opus-5",
+  "responses": {
+    "scalar-temperature": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "temperature",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "colormap": "viridis",
+                    "domain": [
+                      10.0,
+                      40.0
+                    ],
+                    "range": null,
+                    "categories": false,
+                    "reverse": false,
+                    "legend": {
+                      "title": "Temperature",
+                      "units": null,
+                      "ticks": 5,
+                      "format": ".3g",
+                      "position": "right",
+                      "category_labels": null,
+                      "width": 180
+                    }
+                  },
+                  "roughness": 0.4,
+                  "metallic": 0,
+                  "anisotropic": 0.0,
+                  "spec_trans": 0.0,
+                  "eta": 1.5,
+                  "spec_tint": 0.0,
+                  "sheen": 0.0,
+                  "sheen_tint": 0.0,
+                  "flatness": 0.0,
+                  "kind": "principled"
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": "Temperature",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                2.9,
+                -2.9,
+                3
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 28.8415,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": null,
+            "environment": null,
+            "output": null
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[],\"unit\":null},\"colormap\":\"viridis\",\"domain\":[10.0,40.0],\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":{\"title\":\"Temperature\",\"units\":null,\"ticks\":5,\"format\":\".3g\",\"position\":\"right\",\"category_labels\":null,\"width\":180}},\"roughness\":0.4,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"Temperature\",\"annotations\":[]}},\"scene\":{\"camera\":{\"eye\":[2.9,-2.9,3],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":28.8415,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":null,\"environment\":null,\"output\":null}},\"metadata\":{\"notes\":\"inspect_data: indexed int32 attribute 'temperature', 1 channel, range 10-40 (also pressure, constant, velocity; not used). Mesh bounds [-1,-1,0]..[1,1,0.2], 4 verts / 2 facets. Camera eye (2.9,-2.9,3) with up=+Z gives equal-angle isometric view of the z-up plate, target at bbox center (0,0,0.1); fov 28.84 frames radius ~1.42 at distance ~5.1. Domain pinned to [10,40] matching data extent. Backend webgl supports surface mark, principled material, scalar_field texture, legend. validate_spec (webgl, strict, compile_check) returned valid=true with zero diagnostics on round 1; no repair patches needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: indexed int32 attribute 'temperature', 1 channel, range 10-40 (also pressure, constant, velocity; not used). Mesh bounds [-1,-1,0]..[1,1,0.2], 4 verts / 2 facets. Camera eye (2.9,-2.9,3) with up=+Z gives equal-angle isometric view of the z-up plate, target at bbox center (0,0,0.1); fov 28.84 frames radius ~1.42 at distance ~5.1. Domain pinned to [10,40] matching data extent. Backend webgl supports surface mark, principled material, scalar_field texture, legend. validate_spec (webgl, strict, compile_check) returned valid=true with zero diagnostics on round 1; no repair patches needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 20.724
+        }
+      }
+    ],
+    "missing-attribute-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "temperature",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "temperature"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                3,
+                4
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[]},\"colormap\":\"viridis\"}}},\"transforms\":[],\"name\":\"temperature\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,3,4],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data confirms indexed scalar attributes: constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used existing 'temperature' only; no invented fields. 4 vertices, 2 facets, bounds [-1,-1,0]..[1,1,0.2]. validate_spec(webgl, strict=true, compile_check=true, data_bindings={data:data/scalar_surface.ply}) returned valid=true with zero diagnostics on the first round; no apply_patch repair needed. webgl backend supports 'surface' mark and declarative_scene/directional_light/environment used here.\"}}",
+        "metadata": {
+          "notes": "inspect_data confirms indexed scalar attributes: constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used existing 'temperature' only; no invented fields. 4 vertices, 2 facets, bounds [-1,-1,0]..[1,1,0.2]. validate_spec(webgl, strict=true, compile_check=true, data_bindings={data:data/scalar_surface.ply}) returned valid=true with zero diagnostics on the first round; no apply_patch repair needed. webgl backend supports 'surface' mark and declarative_scene/directional_light/environment used here.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 15.049
+        }
+      }
+    ],
+    "log-pressure": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": [
+                        {
+                          "kind": "log",
+                          "base": 10.0
+                        }
+                      ],
+                      "unit": null
+                    },
+                    "colormap": "viridis",
+                    "domain": null,
+                    "range": null,
+                    "categories": false,
+                    "reverse": false,
+                    "legend": {
+                      "title": "Pressure (log10)",
+                      "units": null,
+                      "ticks": 5,
+                      "format": ".3g",
+                      "position": "right",
+                      "category_labels": null,
+                      "width": 180
+                    }
+                  },
+                  "roughness": 0.5,
+                  "metallic": 0,
+                  "anisotropic": 0.0,
+                  "spec_trans": 0.0,
+                  "eta": 1.5,
+                  "spec_tint": 0.0,
+                  "sheen": 0.0,
+                  "sheen_tint": 0.0,
+                  "flatness": 0.0,
+                  "kind": "principled"
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": "pressure",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                2,
+                2,
+                3
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 28.8415,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": null,
+            "environment": null,
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\",\"base\":10.0}],\"unit\":null},\"colormap\":\"viridis\",\"domain\":null,\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":{\"title\":\"Pressure (log10)\",\"units\":null,\"ticks\":5,\"format\":\".3g\",\"position\":\"right\",\"category_labels\":null,\"width\":180}},\"roughness\":0.5,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"pressure\",\"annotations\":[]}},\"scene\":{\"camera\":{\"eye\":[2,2,3],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":28.8415,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":null,\"environment\":null,\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: pressure is indexed float64 scalar, 4 values, min 0.1 max 100.0, all finite and strictly positive so log10 is safe. Other attributes (constant, temperature int32 scalars, velocity 3-channel vector) unused. Mesh: 4 vertices, 2 facets, bounds z 0..0.2, so camera uses z-up. Backend webgl supports surface mark and declarative scene. validate_spec (webgl, strict, compile_check) returned valid:true with zero diagnostics on the first round; no repair patches needed. Colorbar supplied by scalar_field legend, position right, 5 ticks.\"}}",
+        "metadata": {
+          "notes": "inspect_data: pressure is indexed float64 scalar, 4 values, min 0.1 max 100.0, all finite and strictly positive so log10 is safe. Other attributes (constant, temperature int32 scalars, velocity 3-channel vector) unused. Mesh: 4 vertices, 2 facets, bounds z 0..0.2, so camera uses z-up. Backend webgl supports surface mark and declarative scene. validate_spec (webgl, strict, compile_check) returned valid:true with zero diagnostics on the first round; no repair patches needed. Colorbar supplied by scalar_field legend, position right, 5 ticks.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 20.017
+        }
+      }
+    ],
+    "nonpositive-log-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "signed",
+                      "scales": []
+                    },
+                    "colormap": "coolwarm"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "signed"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                0,
+                0,
+                4
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"signed\",\"scales\":[]},\"colormap\":\"coolwarm\"}}},\"transforms\":[],\"name\":\"signed\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[0,0,4],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0]; attributes 'quality' (float64, 1 nonfinite value) and 'signed' (int32, min -1, max 2, all finite, indexed). Used 'signed' with empty scales chain - no log scale, since log is undefined at the negative/zero values (-1..2) and would drop them; diverging 'coolwarm' colormap preserves sign. Avoided 'quality' due to its nonfinite value. validate_spec(webgl, strict, compile_check) returned valid:true with zero diagnostics on the first round; no repair patches needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0]; attributes 'quality' (float64, 1 nonfinite value) and 'signed' (int32, min -1, max 2, all finite, indexed). Used 'signed' with empty scales chain - no log scale, since log is undefined at the negative/zero values (-1..2) and would drop them; diverging 'coolwarm' colormap preserves sign. Avoided 'quality' due to its nonfinite value. validate_spec(webgl, strict, compile_check) returned valid:true with zero diagnostics on the first round; no repair patches needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 16.45
+        }
+      }
+    ],
+    "nonfinite-field-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "signed",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "signed"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                2,
+                3
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"signed\",\"scales\":[]},\"colormap\":\"viridis\"}}},\"transforms\":[],\"name\":\"signed\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,2,3],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: two indexed scalar attributes. 'quality' float64 has nonfinite_count=1 (finite 3/4) so it was rejected; 'signed' int32 has finite_count=4, nonfinite_count=0, range [-1,2] and is used for the color scalar_field. Mesh: 4 verts, 2 facets, flat z=0 quad. webgl backend supports surface mark. validate_spec strict+compile_check returned valid=true with zero diagnostics on the first round; no apply_patch repairs needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: two indexed scalar attributes. 'quality' float64 has nonfinite_count=1 (finite 3/4) so it was rejected; 'signed' int32 has finite_count=4, nonfinite_count=0, range [-1,2] and is used for the color scalar_field. Mesh: 4 verts, 2 facets, flat z=0 quad. webgl backend supports surface mark. validate_spec strict+compile_check returned valid=true with zero diagnostics on the first round; no apply_patch repairs needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 15.882
+        }
+      }
+    ],
+    "categorical-regions": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "region",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "colormap": "set1",
+                    "domain": null,
+                    "range": null,
+                    "categories": true,
+                    "reverse": false,
+                    "legend": {
+                      "title": "Region",
+                      "units": null,
+                      "ticks": 5,
+                      "format": ".3g",
+                      "position": "right",
+                      "category_labels": null,
+                      "width": 180
+                    }
+                  },
+                  "roughness": 0.2,
+                  "metallic": 0,
+                  "anisotropic": 0.0,
+                  "spec_trans": 0.0,
+                  "eta": 1.5,
+                  "spec_tint": 0.0,
+                  "sheen": 0.0,
+                  "sheen_tint": 0.0,
+                  "flatness": 0.0,
+                  "kind": "principled"
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": "Regions",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                0,
+                1.5,
+                6
+              ],
+              "target": [
+                0,
+                0.5,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 28.8415,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": null,
+            "environment": null,
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"region\",\"scales\":[],\"unit\":null},\"colormap\":\"set1\",\"domain\":null,\"range\":null,\"categories\":true,\"reverse\":false,\"legend\":{\"title\":\"Region\",\"units\":null,\"ticks\":5,\"format\":\".3g\",\"position\":\"right\",\"category_labels\":null,\"width\":180}},\"roughness\":0.2,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"Regions\",\"annotations\":[]}},\"scene\":{\"camera\":{\"eye\":[0,1.5,6],\"target\":[0,0.5,0],\"up\":[0,1,0],\"fov\":28.8415,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":null,\"environment\":null,\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: only attribute is 'region' (indexed int32, 1 channel, min 0 max 1, 6 values); mesh 6 verts / 2 facets, bounds x[-2,2] y[0,1] z=0. Spec binds region to a categorical scalar_field texture (colormap set1, categories=true) with right-side legend titled 'Region'. Gallery recipe 'connected-components' used as pattern. validate_spec(webgl, strict, compile_check) returned valid=true with zero diagnostics on the first round; no repair patches needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: only attribute is 'region' (indexed int32, 1 channel, min 0 max 1, 6 values); mesh 6 verts / 2 facets, bounds x[-2,2] y[0,1] z=0. Spec binds region to a categorical scalar_field texture (colormap set1, categories=true) with right-side legend titled 'Region'. Gallery recipe 'connected-components' used as pattern. validate_spec(webgl, strict, compile_check) returned valid=true with zero diagnostics on the first round; no repair patches needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 17.407
+        }
+      }
+    ],
+    "wireframe-overlay": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "overlay",
+            "spec": {
+              "data": null,
+              "mark": null,
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": null,
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": null,
+              "annotations": []
+            },
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": null,
+                    "shape": null,
+                    "vector_field": null,
+                    "covariance": null,
+                    "material": {
+                      "two_sided": false,
+                      "back_side": null,
+                      "color": "ivory",
+                      "roughness": 0.35,
+                      "metallic": 0,
+                      "anisotropic": 0.0,
+                      "spec_trans": 0.0,
+                      "eta": 1.5,
+                      "spec_tint": 0.0,
+                      "sheen": 0.0,
+                      "sheen_tint": 0.0,
+                      "flatness": 0.0,
+                      "kind": "principled"
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [],
+                  "name": "Surface",
+                  "annotations": []
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "curve",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": {
+                      "kind": "size",
+                      "data": 0.01
+                    },
+                    "shape": null,
+                    "vector_field": null,
+                    "covariance": null,
+                    "material": {
+                      "two_sided": false,
+                      "back_side": null,
+                      "kind": "diffuse",
+                      "reflectance": "black"
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [],
+                  "name": "Wireframe",
+                  "annotations": []
+                }
+              }
+            ]
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                2.5,
+                -2.5,
+                2
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35.0,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -0.5,
+                  0.5,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "environment": {
+              "enabled": true,
+              "path": null,
+              "scale": 1.0,
+              "up": [
+                0.0,
+                1.0,
+                0.0
+              ],
+              "rotation": 180.0,
+              "visible": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"overlay\",\"spec\":{\"data\":null,\"mark\":null,\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":null,\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]},\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":\"ivory\",\"roughness\":0.35,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"Surface\",\"annotations\":[]}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"curve\",\"channels\":{\"position\":null,\"normal\":null,\"size\":{\"kind\":\"size\",\"data\":0.01},\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"kind\":\"diffuse\",\"reflectance\":\"black\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"Wireframe\",\"annotations\":[]}}]},\"scene\":{\"camera\":{\"eye\":[2.5,-2.5,2],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":35.0,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":[{\"kind\":\"directional\",\"direction\":[-0.5,0.5,-1],\"color\":\"white\",\"intensity\":2.5}],\"environment\":{\"enabled\":true,\"path\":null,\"scale\":1.0,\"up\":[0.0,1.0,0.0],\"rotation\":180.0,\"visible\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; attributes constant/pressure/temperature/velocity all indexed \u2014 none bound, request is geometric only. Overlay root with two layers sharing external id 'data': ivory principled surface + curve mark wireframe with diffuse black reflectance, size 0.01 (~0.5% of 2-unit extent). Gallery recipe 'spot' confirms surface+curve overlay pattern for wireframe. webgl backend supports marks curve/surface. validate_spec strict+compile_check: valid, zero diagnostics, no repair rounds needed. Camera along +x/-y/+z looking at z=0.1 mid-height; edges not pre-initialized in source (edges_initialized=false), curve mark derives polygon edges.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; attributes constant/pressure/temperature/velocity all indexed \u2014 none bound, request is geometric only. Overlay root with two layers sharing external id 'data': ivory principled surface + curve mark wireframe with diffuse black reflectance, size 0.01 (~0.5% of 2-unit extent). Gallery recipe 'spot' confirms surface+curve overlay pattern for wireframe. webgl backend supports marks curve/surface. validate_spec strict+compile_check: valid, zero diagnostics, no repair rounds needed. Camera along +x/-y/+z looking at z=0.1 mid-height; edges not pre-initialized in source (edges_initialized=false), curve mark derives polygon edges.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 22.28
+        }
+      }
+    ],
+    "velocity-glyphs": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "curve",
+              "channels": {
+                "size": {
+                  "kind": "size",
+                  "data": 0.02
+                },
+                "vector_field": {
+                  "kind": "vector_field",
+                  "data": {
+                    "name": "velocity",
+                    "scales": [
+                      {
+                        "kind": "uniform",
+                        "factor": 0.15
+                      }
+                    ],
+                    "unit": null
+                  },
+                  "refinement_level": 0,
+                  "style": null,
+                  "end_type": "arrow",
+                  "normalize": true
+                },
+                "material": {
+                  "kind": "principled",
+                  "color": "#4C78A8",
+                  "roughness": 0.5,
+                  "metallic": 0
+                }
+              },
+              "transforms": [],
+              "name": "Velocity arrows",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                -2.5,
+                2
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -0.5,
+                  0.6,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": null,
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"curve\",\"channels\":{\"size\":{\"kind\":\"size\",\"data\":0.02},\"vector_field\":{\"kind\":\"vector_field\",\"data\":{\"name\":\"velocity\",\"scales\":[{\"kind\":\"uniform\",\"factor\":0.15}],\"unit\":null},\"refinement_level\":0,\"style\":null,\"end_type\":\"arrow\",\"normalize\":true},\"material\":{\"kind\":\"principled\",\"color\":\"#4C78A8\",\"roughness\":0.5,\"metallic\":0}},\"transforms\":[],\"name\":\"Velocity arrows\",\"annotations\":[]}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,-2.5,2],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[-0.5,0.6,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":null,\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; all attributes (constant, pressure, temperature, velocity) are element='indexed'. velocity: 3 channels, int32, usage=vector, range [-1,-2,0]..[1,2,0]. Spec uses vector_field channel with end_type='arrow', normalize=true (uniform direction length) plus uniform scale factor 0.15 for a short glyph; size 0.02 sets arrow radius. Repair round 1: normalize scale rejected (needs range_min/range_max) -> replaced with uniform factor 0.15. Repair round 2: mark 'surface' rejected for size and vector_field channels -> mark 'curve'. Remaining diagnostic (unresolvable with this data): channels.vector_field.data 'attribute.element' error - velocity is indexed; supported elements are facet/vertex, and no transform in the schema (filter, clip, uv_mesh, affine, principal_axes, normalize, compute, explode, norm, boundary, streamline, fur) converts indexed to vertex. Final spec is therefore still invalid under webgl strict validation.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; all attributes (constant, pressure, temperature, velocity) are element='indexed'. velocity: 3 channels, int32, usage=vector, range [-1,-2,0]..[1,2,0]. Spec uses vector_field channel with end_type='arrow', normalize=true (uniform direction length) plus uniform scale factor 0.15 for a short glyph; size 0.02 sets arrow radius. Repair round 1: normalize scale rejected (needs range_min/range_max) -> replaced with uniform factor 0.15. Repair round 2: mark 'surface' rejected for size and vector_field channels -> mark 'curve'. Remaining diagnostic (unresolvable with this data): channels.vector_field.data 'attribute.element' error - velocity is indexed; supported elements are facet/vertex, and no transform in the schema (filter, clip, uv_mesh, affine, principal_axes, normalize, compute, explode, norm, boundary, streamline, fur) converts indexed to vertex. Final spec is therefore still invalid under webgl strict validation.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec"
+          ],
+          "duration_seconds": 94.422
+        }
+      }
+    ],
+    "point-pressure": [
+      {
+        "kind": "spec",
+        "value": {},
+        "raw": "I'll start by gathering the required information.",
+        "metadata": {
+          "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery"
+          ],
+          "duration_seconds": 270.162
+        }
+      }
+    ],
+    "point-vector-size": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "point",
+              "channels": {
+                "size": {
+                  "kind": "size",
+                  "data": {
+                    "name": "velocity",
+                    "scales": [
+                      {
+                        "kind": "norm",
+                        "order": 2
+                      },
+                      {
+                        "kind": "normalize",
+                        "range_min": 0.005,
+                        "range_max": 0.03
+                      }
+                    ],
+                    "unit": "m/s"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "velocity magnitude"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                2,
+                3
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"point\",\"channels\":{\"size\":{\"kind\":\"size\",\"data\":{\"name\":\"velocity\",\"scales\":[{\"kind\":\"norm\",\"order\":2},{\"kind\":\"normalize\",\"range_min\":0.005,\"range_max\":0.03}],\"unit\":\"m/s\"}}},\"transforms\":[],\"name\":\"velocity magnitude\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,2,3],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data failed twice on data/point_cloud.ply (inspect.failed: 'cannot reshape array of size 0 into shape (0,newaxis)'), so attribute names were not obtainable from the source; 'velocity' taken from gallery recipe sph-speed (point-cloud, vector-norm, webgl). Size channel: norm(order=2) then normalize to [0.005,0.03]. Round 1 invalid: normalize requires range_min/range_max, 'bbox' rejected. apply_patch could not be used because it re-validates the input spec and rejected it; corrected inline instead. Round 2 validate_spec backend=webgl strict=true compile_check=true => valid:true, no diagnostics. webgl supports 'point' mark.\"}}",
+        "metadata": {
+          "notes": "inspect_data failed twice on data/point_cloud.ply (inspect.failed: 'cannot reshape array of size 0 into shape (0,newaxis)'), so attribute names were not obtainable from the source; 'velocity' taken from gallery recipe sph-speed (point-cloud, vector-norm, webgl). Size channel: norm(order=2) then normalize to [0.005,0.03]. Round 1 invalid: normalize requires range_min/range_max, 'bbox' rejected. apply_patch could not be used because it re-validates the input spec and rejected it; corrected inline instead. Round 2 validate_spec backend=webgl strict=true compile_check=true => valid:true, no diagnostics. webgl supports 'point' mark.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 28.719
+        }
+      }
+    ],
+    "plane-slice": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              },
+              "transforms": [
+                {
+                  "kind": "clip",
+                  "point": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "normal": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "name": "pressure (x>=0 half-space)"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                2,
+                2
+              ],
+              "target": [
+                0.5,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[]},\"colormap\":\"viridis\"}}},\"transforms\":[{\"kind\":\"clip\",\"point\":[0,0,0],\"normal\":[1,0,0]}],\"name\":\"pressure (x>=0 half-space)\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,2,2],\"target\":[0.5,0,0.1],\"up\":[0,0,1],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1],\"color\":\"white\",\"intensity\":2.5}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attributes constant(int), pressure(float 0.1-100), temperature(int 10-40), velocity(vec3). Slice via transforms[0] kind=clip, point=[0,0,0], normal=[1,0,0]; clip retains the half-space the normal points into, i.e. x>=0. Transform discriminator set confirmed by probe: filter/clip/uv_mesh/affine/principal_axes/normalize/compute/explode/norm/boundary/streamline/fur. webgl backend supports surface mark and interactive_clip. search_gallery: local gallery available, 0 matches for plane-slice query. validate_spec(backend=webgl, strict=true, compile_check=true) returned valid=true with zero diagnostics on the first authored spec; no repair rounds needed. Color channel uses the real pressure attribute; no invented names.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attributes constant(int), pressure(float 0.1-100), temperature(int 10-40), velocity(vec3). Slice via transforms[0] kind=clip, point=[0,0,0], normal=[1,0,0]; clip retains the half-space the normal points into, i.e. x>=0. Transform discriminator set confirmed by probe: filter/clip/uv_mesh/affine/principal_axes/normalize/compute/explode/norm/boundary/streamline/fur. webgl backend supports surface mark and interactive_clip. search_gallery: local gallery available, 0 matches for plane-slice query. validate_spec(backend=webgl, strict=true, compile_check=true) returned valid=true with zero diagnostics on the first authored spec; no repair rounds needed. Color channel uses the real pressure attribute; no invented names.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 30.5
+        }
+      }
+    ],
+    "isolate-region": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": "steelblue",
+                  "two_sided": true,
+                  "back_side": null
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [
+                {
+                  "kind": "compute",
+                  "x": null,
+                  "y": null,
+                  "z": null,
+                  "normal": null,
+                  "vertex_normal": null,
+                  "facet_normal": null,
+                  "component": "region_component"
+                },
+                {
+                  "kind": "filter",
+                  "data": {
+                    "name": "region_component",
+                    "scales": [],
+                    "unit": null
+                  },
+                  "condition": {
+                    "kind": "expression",
+                    "source": "value == 1"
+                  }
+                }
+              ],
+              "name": "Region 1",
+              "annotations": []
+            }
+          },
+          "scene": null
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"kind\":\"diffuse\",\"reflectance\":\"steelblue\",\"two_sided\":true,\"back_side\":null},\"bump_map\":null,\"normal_map\":null},\"transforms\":[{\"kind\":\"compute\",\"x\":null,\"y\":null,\"z\":null,\"normal\":null,\"vertex_normal\":null,\"facet_normal\":null,\"component\":\"region_component\"},{\"kind\":\"filter\",\"data\":{\"name\":\"region_component\",\"scales\":[],\"unit\":null},\"condition\":{\"kind\":\"expression\",\"source\":\"value == 1\"}}],\"name\":\"Region 1\",\"annotations\":[]}},\"scene\":null},\"metadata\":{\"notes\":\"inspect_data: data/disconnected.ply, 6 verts, 2 facets, only attribute 'region' (element=indexed, int32, min 0 max 1). Direct filter on 'region' validated invalid: transform.filter.element 'Filter does not support indexed attributes' (hint: convert domain first). No transform converts indexed->facet (kinds: filter, clip, uv_mesh, affine, principal_axes, normalize, compute, explode, norm, boundary, streamline, fur); explode.pieces also rejects indexed (supported: facet). Repair: compute.component materializes a facet-element component id ('region_component') on this disconnected mesh, then filter value == 1. Final validate_spec(webgl, strict, compile_check): valid, 0 diagnostics. observe_spec confirms 1 layer, 1 facet, 3 verts retained, bounds x [0.485,0.970] (half of original [-2,2]). [INFERENCE] component id 1 corresponds to the region==1 patch; component ordering is traversal-based, not read from the region labels, since the indexed 'region' attribute cannot drive a filter in this backend.\"}}",
+        "metadata": {
+          "notes": "inspect_data: data/disconnected.ply, 6 verts, 2 facets, only attribute 'region' (element=indexed, int32, min 0 max 1). Direct filter on 'region' validated invalid: transform.filter.element 'Filter does not support indexed attributes' (hint: convert domain first). No transform converts indexed->facet (kinds: filter, clip, uv_mesh, affine, principal_axes, normalize, compute, explode, norm, boundary, streamline, fur); explode.pieces also rejects indexed (supported: facet). Repair: compute.component materializes a facet-element component id ('region_component') on this disconnected mesh, then filter value == 1. Final validate_spec(webgl, strict, compile_check): valid, 0 diagnostics. observe_spec confirms 1 layer, 1 facet, 3 verts retained, bounds x [0.485,0.970] (half of original [-2,2]). [INFERENCE] component id 1 corresponds to the region==1 patch; component ordering is traversal-based, not read from the region labels, since the indexed 'region' attribute cannot drive a filter in this backend.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_observe_spec"
+          ],
+          "duration_seconds": 90.149
+        }
+      }
+    ],
+    "before-after-comparison": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layout",
+            "normalize": true,
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "material": {
+                      "kind": "diffuse",
+                      "reflectance": {
+                        "kind": "uniform",
+                        "color": "ivory"
+                      }
+                    }
+                  },
+                  "transforms": [],
+                  "name": "raw surface"
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "material": {
+                      "kind": "diffuse",
+                      "reflectance": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "temperature",
+                          "scales": [],
+                          "unit": "C"
+                        },
+                        "colormap": "inferno"
+                      }
+                    }
+                  },
+                  "transforms": [],
+                  "name": "temperature"
+                }
+              }
+            ]
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                3,
+                4
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1280,
+              "height": 720,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layout\",\"normalize\":true,\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"uniform\",\"color\":\"ivory\"}}},\"transforms\":[],\"name\":\"raw surface\"}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[],\"unit\":\"C\"},\"colormap\":\"inferno\"}}},\"transforms\":[],\"name\":\"temperature\"}}]},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,3,4],\"target\":[0,0,0],\"up\":[0,0,1],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1280,\"height\":720,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attrs constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used only temperature. Layout node places both layers side by side; resolved defaults axis='x', gap=0.05. One repair round: initial spec rejected extra_forbidden fields root.layout.direction and root.layout.spacing; removed both (apply_patch rejects pre-patch invalid input, so corrected spec revalidated directly). Final validate_spec webgl strict compile_check: valid=true, diagnostics empty. webgl supports surface mark; scalar_field legend defaults true.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attrs constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used only temperature. Layout node places both layers side by side; resolved defaults axis='x', gap=0.05. One repair round: initial spec rejected extra_forbidden fields root.layout.direction and root.layout.spacing; removed both (apply_patch rejects pre-patch invalid input, so corrected spec revalidated directly). Final validate_spec webgl strict compile_check: valid=true, diagnostics empty. webgl supports surface mark; scalar_field legend defaults true.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 32.567
+        }
+      }
+    ],
+    "isometric-fit-camera": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "stress",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  },
+                  "roughness": 0.4,
+                  "metallic": 0
+                }
+              },
+              "transforms": [],
+              "name": "stress"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2.0735825240242343,
+                2.0735825240242343,
+                2.0735825240242343
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1200,
+              "height": 900,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"stress\",\"scales\":[]},\"colormap\":\"viridis\"},\"roughness\":0.4,\"metallic\":0}},\"transforms\":[],\"name\":\"stress\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2.0735825240242343,2.0735825240242343,2.0735825240242343],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1],\"color\":\"white\",\"intensity\":2.5}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1200,\"height\":900,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds x[-50,50] y[-0.2,0.2] z=0, one indexed scalar attribute 'stress' in [0,1] \u2014 only attribute used, none invented. Renderer normalizes scene to unit radius with up_axis y (manifest radius=1.0), so an eye derived from raw coordinates (104,104,104) was ~30x too far; patched to normalized isometric fit distance 3.5916 along (1,1,1) with up (0,1,0). observe_spec isometric view: visible_element_fraction=1.0, visible_bounds [118,176,447,366] inside 512x512 frame \u2014 full elongated surface framed, no clipping. validate_spec webgl/strict/compile_check: valid, zero diagnostics before and after the single repair round.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds x[-50,50] y[-0.2,0.2] z=0, one indexed scalar attribute 'stress' in [0,1] \u2014 only attribute used, none invented. Renderer normalizes scene to unit radius with up_axis y (manifest radius=1.0), so an eye derived from raw coordinates (104,104,104) was ~30x too far; patched to normalized isometric fit distance 3.5916 along (1,1,1) with up (0,1,0). observe_spec isometric view: visible_element_fraction=1.0, visible_bounds [118,176,447,366] inside 512x512 frame \u2014 full elongated surface framed, no clipping. validate_spec webgl/strict/compile_check: valid, zero diagnostics before and after the single repair round.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_observe_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 45.513
+        }
+      }
+    ],
+    "orthographic-section": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "pressure section"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "orthographic",
+              "eye": [
+                0,
+                0,
+                4
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "scale": 1.5
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[]},\"colormap\":\"viridis\"}}},\"transforms\":[],\"name\":\"pressure section\"}},\"scene\":{\"camera\":{\"kind\":\"orthographic\",\"eye\":[0,0,4],\"target\":[0,0,0],\"up\":[0,1,0],\"scale\":1.5},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts/2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attrs constant(int32), pressure(float64 0.1-100), temperature(int32 10-40), velocity(vec3). Used pressure for scalar_field colormap. Orthographic camera eye +Z (0,0,4) looking -Z at origin, scale 1.5 covers XY extent 2. webgl backend supports surface mark, declarative_scene, directional_light. validate_spec backend=webgl strict=true compile_check=true: valid=true, zero diagnostics, no repair rounds needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts/2 facets, bounds [-1,-1,0]..[1,1,0.2]; indexed attrs constant(int32), pressure(float64 0.1-100), temperature(int32 10-40), velocity(vec3). Used pressure for scalar_field colormap. Orthographic camera eye +Z (0,0,4) looking -Z at origin, scale 1.5 covers XY extent 2. webgl backend supports surface mark, declarative_scene, directional_light. validate_spec backend=webgl strict=true compile_check=true: valid=true, zero diagnostics, no repair rounds needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 15.143
+        }
+      }
+    ],
+    "stress-extremum-camera": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "stress",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "colormap": "viridis",
+                    "domain": null,
+                    "range": null,
+                    "categories": false,
+                    "reverse": false,
+                    "legend": true
+                  }
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": "stress",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                50,
+                0,
+                300
+              ],
+              "target": [
+                50,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 60.0,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.0
+              }
+            ],
+            "environment": {
+              "enabled": false,
+              "path": null,
+              "scale": 1.0,
+              "up": [
+                0.0,
+                1.0,
+                0.0
+              ],
+              "rotation": 180.0,
+              "visible": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"stress\",\"scales\":[],\"unit\":null},\"colormap\":\"viridis\",\"domain\":null,\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":true}},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"stress\",\"annotations\":[]}},\"scene\":{\"camera\":{\"eye\":[50,0,300],\"target\":[50,0,0],\"up\":[0,1,0],\"fov\":60.0,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2.0}],\"environment\":{\"enabled\":false,\"path\":null,\"scale\":1.0,\"up\":[0.0,1.0,0.0],\"rotation\":180.0,\"visible\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds x[-50,50] y[-0.2,0.2] z=0; single attribute 'stress' (indexed scalar, float64, min 0.0 max 1.0, no non-finite). Only 'stress' used; no attributes invented. Camera target set to the +x extremity (50,0,0) of the elongated bar as the focus point; exact max-stress vertex coordinates are not exposed by inspect_data (per-value positions unavailable), so focus is the x-extremum end [INFERENCE]. Round 1 validation failed with camera.scene_outside_view (eye [50,0,40], fov 35); one apply_patch round replaced eye->[50,0,300] and fov->60 so the full 100-unit extent stays in frame while remaining centered on the focus. Final validate/patch semantic check: valid=true, zero diagnostics, backend=webgl, strict=true, compile_check=true. webgl supports surface mark and declarative_scene; no backend limitations apply (no hair/fur/thin-lens usage).\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds x[-50,50] y[-0.2,0.2] z=0; single attribute 'stress' (indexed scalar, float64, min 0.0 max 1.0, no non-finite). Only 'stress' used; no attributes invented. Camera target set to the +x extremity (50,0,0) of the elongated bar as the focus point; exact max-stress vertex coordinates are not exposed by inspect_data (per-value positions unavailable), so focus is the x-extremum end [INFERENCE]. Round 1 validation failed with camera.scene_outside_view (eye [50,0,40], fov 35); one apply_patch round replaced eye->[50,0,300] and fov->60 so the full 100-unit extent stays in frame while remaining centered on the focus. Final validate/patch semantic check: valid=true, zero diagnostics, backend=webgl, strict=true, compile_check=true. webgl supports surface mark and declarative_scene; no backend limitations apply (no hair/fur/thin-lens usage).",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch"
+          ],
+          "duration_seconds": 33.652
+        }
+      }
+    ],
+    "unsupported-pass-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": [
+                        {
+                          "kind": "log",
+                          "base": 10
+                        }
+                      ]
+                    },
+                    "colormap": "viridis"
+                  },
+                  "roughness": 0.35,
+                  "metallic": 0.1
+                }
+              },
+              "transforms": [],
+              "name": "pressure"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2.2,
+                2.4,
+                2.6
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -0.4,
+                  -0.5,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "environment": {
+              "enabled": true
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty",
+                "depth"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\",\"base\":10}]},\"colormap\":\"viridis\"},\"roughness\":0.35,\"metallic\":0.1}},\"transforms\":[],\"name\":\"pressure\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2.2,2.4,2.6],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[-0.4,-0.5,-1],\"color\":\"white\",\"intensity\":2.5}],\"environment\":{\"enabled\":true},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\",\"depth\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, bounds z 0..0.2; indexed attrs constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used pressure with log base 10 because range spans 3 decades. webgl declares render_passes albedo/depth/normal with pass_delivery interactive; beauty is the implicit base pass, so passes ['beauty','depth'] validated clean on round 1 (valid=true, zero diagnostics) and no repair patches were needed. render_spec produced results/scalar_surface.html with outputs.main=html and outputs.depth='interactive'. z-up camera chosen since mesh is a near-planar xy sheet.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, bounds z 0..0.2; indexed attrs constant(int32,2..2), pressure(float64,0.1..100), temperature(int32,10..40), velocity(vector,3ch). Used pressure with log base 10 because range spans 3 decades. webgl declares render_passes albedo/depth/normal with pass_delivery interactive; beauty is the implicit base pass, so passes ['beauty','depth'] validated clean on round 1 (valid=true, zero diagnostics) and no repair patches were needed. render_spec produced results/scalar_surface.html with outputs.main=html and outputs.depth='interactive'. z-up camera chosen since mesh is a near-planar xy sheet.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_render_spec"
+          ],
+          "duration_seconds": 26.287
+        }
+      }
+    ],
+    "occluded-layers": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "overlay",
+            "spec": {
+              "data": null,
+              "mark": null,
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": null,
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": null,
+              "annotations": []
+            },
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": null,
+                    "shape": null,
+                    "vector_field": null,
+                    "covariance": null,
+                    "material": {
+                      "two_sided": false,
+                      "back_side": null,
+                      "color": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "pressure",
+                          "scales": [],
+                          "unit": null
+                        },
+                        "colormap": "viridis",
+                        "domain": [
+                          0.1,
+                          100.0
+                        ],
+                        "range": null,
+                        "categories": false,
+                        "reverse": false,
+                        "legend": {
+                          "title": "Pressure",
+                          "units": null,
+                          "ticks": 5,
+                          "format": ".3g",
+                          "position": "right",
+                          "category_labels": null,
+                          "width": 180
+                        }
+                      },
+                      "roughness": 0.5,
+                      "metallic": 0,
+                      "anisotropic": 0.0,
+                      "spec_trans": 0.0,
+                      "eta": 1.5,
+                      "spec_tint": 0.0,
+                      "sheen": 0.0,
+                      "sheen_tint": 0.0,
+                      "flatness": 0.0,
+                      "kind": "principled"
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [],
+                  "name": "Front surface",
+                  "annotations": []
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": null,
+                    "shape": null,
+                    "vector_field": null,
+                    "covariance": null,
+                    "material": {
+                      "two_sided": true,
+                      "back_side": null,
+                      "color": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "temperature",
+                          "scales": [],
+                          "unit": null
+                        },
+                        "colormap": "plasma",
+                        "domain": [
+                          10.0,
+                          40.0
+                        ],
+                        "range": null,
+                        "categories": false,
+                        "reverse": false,
+                        "legend": {
+                          "title": "Temperature",
+                          "units": null,
+                          "ticks": 5,
+                          "format": ".3g",
+                          "position": "left",
+                          "category_labels": null,
+                          "width": 180
+                        }
+                      },
+                      "roughness": 0.5,
+                      "metallic": 0,
+                      "anisotropic": 0.0,
+                      "spec_trans": 0.0,
+                      "eta": 1.5,
+                      "spec_tint": 0.0,
+                      "sheen": 0.0,
+                      "sheen_tint": 0.0,
+                      "flatness": 0.0,
+                      "kind": "principled"
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [
+                    {
+                      "kind": "affine",
+                      "matrix": [
+                        [
+                          1,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          1,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          1,
+                          -0.05
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      ]
+                    }
+                  ],
+                  "name": "Back surface",
+                  "annotations": []
+                }
+              }
+            ]
+          },
+          "scene": {
+            "camera": {
+              "eye": [
+                2.5,
+                2.5,
+                2.5
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35.0,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0,
+              "kind": "perspective"
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "environment": null,
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"overlay\",\"spec\":{\"data\":null,\"mark\":null,\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":null,\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]},\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[],\"unit\":null},\"colormap\":\"viridis\",\"domain\":[0.1,100.0],\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":{\"title\":\"Pressure\",\"units\":null,\"ticks\":5,\"format\":\".3g\",\"position\":\"right\",\"category_labels\":null,\"width\":180}},\"roughness\":0.5,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"Front surface\",\"annotations\":[]}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":true,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[],\"unit\":null},\"colormap\":\"plasma\",\"domain\":[10.0,40.0],\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":{\"title\":\"Temperature\",\"units\":null,\"ticks\":5,\"format\":\".3g\",\"position\":\"left\",\"category_labels\":null,\"width\":180}},\"roughness\":0.5,\"metallic\":0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[{\"kind\":\"affine\",\"matrix\":[[1,0,0,0],[0,1,0,0],[0,0,1,-0.05],[0,0,0,1]]}],\"name\":\"Back surface\",\"annotations\":[]}}]},\"scene\":{\"camera\":{\"eye\":[2.5,2.5,2.5],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":35.0,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0,\"kind\":\"perspective\"},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1],\"color\":\"white\",\"intensity\":2.5}],\"environment\":null,\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: 4 verts, 2 facets, indexed attrs constant/pressure(0.1-100)/temperature(10-40)/velocity(3ch). Only real attrs used. webgl supports layer_id_observation + layer_visibility, so named layers 'Front surface' and 'Back surface' stay inspectable. Back layer offset -0.05 in z via affine to avoid z-fighting and is two_sided. validate_spec(webgl, strict, compile_check): valid=true, zero diagnostics, no repair rounds needed.\"}}",
+        "metadata": {
+          "notes": "inspect_data: 4 verts, 2 facets, indexed attrs constant/pressure(0.1-100)/temperature(10-40)/velocity(3ch). Only real attrs used. webgl supports layer_id_observation + layer_visibility, so named layers 'Front surface' and 'Back surface' stay inspectable. Back layer offset -0.05 in z via affine to avoid z-fighting and is two_sided. validate_spec(webgl, strict, compile_check): valid=true, zero diagnostics, no repair rounds needed.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 26.5
+        }
+      }
+    ],
+    "constant-field": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "constant",
+                      "scales": []
+                    },
+                    "colormap": "viridis",
+                    "domain": null
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "constant"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                2,
+                3,
+                4
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"constant\",\"scales\":[]},\"colormap\":\"viridis\",\"domain\":null}}},\"transforms\":[],\"name\":\"constant\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[2,3,4],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: attributes constant(int32, indexed, min=max=2), pressure, temperature, velocity; 4 verts / 2 facets. Used 'constant' as scalar_field reflectance with domain=null so the compiler derives the degenerate domain itself; no synthetic min/max invented. validate_spec(webgl, strict, compile_check) returned valid=true with zero diagnostics on round 0, so no apply_patch rounds were needed. render_spec(webgl) wrote results/constant_field.html successfully.\"}}",
+        "metadata": {
+          "notes": "inspect_data: attributes constant(int32, indexed, min=max=2), pressure, temperature, velocity; 4 verts / 2 facets. Used 'constant' as scalar_field reflectance with domain=null so the compiler derives the degenerate domain itself; no synthetic min/max invented. validate_spec(webgl, strict, compile_check) returned valid=true with zero diagnostics on round 0, so no apply_patch rounds were needed. render_spec(webgl) wrote results/constant_field.html successfully.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_render_spec"
+          ],
+          "duration_seconds": 21.949
+        }
+      }
+    ],
+    "extreme-aspect-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "stress",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  },
+                  "two_sided": true
+                }
+              },
+              "transforms": [],
+              "name": "stress"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                0,
+                0,
+                -30
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35,
+              "fov_axis": "smaller",
+              "near": 1,
+              "far": 100
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 2048,
+              "height": 256,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"stress\",\"scales\":[]},\"colormap\":\"viridis\"},\"two_sided\":true}},\"transforms\":[],\"name\":\"stress\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[0,0,-30],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35,\"fov_axis\":\"smaller\",\"near\":1,\"far\":100},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":2048,\"height\":256,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"inspect_data: bounds [-50,-0.2,0]..[50,0.2,0] (aspect 250:1, planar z=0), 4 verts / 2 facets, single indexed scalar attribute 'stress' (0..1, no non-finite). Only 'stress' used; no invented attributes. validate_spec (webgl, strict, compile_check) passed on the first round with zero diagnostics, so no apply_patch repairs were needed. Two observation rounds diagnosed non-framing defects: +z-side views reported visible_pixel_count=0 with visible_element_fraction=0 (facet normals point -z, front faces culled), while view=back reported 904 visible pixels and visible_element_fraction=1.0. Camera therefore placed at eye=[0,0,-30] with light direction [0,0,1]; two_sided=true added for robustness. Framing math: fov_axis='smaller' = 256px vertical, half-angle 17.5 deg -> vertical half-extent 9.46 (>0.2 needed), horizontal half-extent 9.46*(2048/256)=75.7 (>50 needed); near=1/far=100 bracket the 30-unit depth, so the full 100x0.4 extent is inside the frustum with margin on every side. Output 2048x256 (8:1) chosen to suit the extreme aspect ratio. render_spec (webgl, strict) succeeded: out/elongated.html.\"}}",
+        "metadata": {
+          "notes": "inspect_data: bounds [-50,-0.2,0]..[50,0.2,0] (aspect 250:1, planar z=0), 4 verts / 2 facets, single indexed scalar attribute 'stress' (0..1, no non-finite). Only 'stress' used; no invented attributes. validate_spec (webgl, strict, compile_check) passed on the first round with zero diagnostics, so no apply_patch repairs were needed. Two observation rounds diagnosed non-framing defects: +z-side views reported visible_pixel_count=0 with visible_element_fraction=0 (facet normals point -z, front faces culled), while view=back reported 904 visible pixels and visible_element_fraction=1.0. Camera therefore placed at eye=[0,0,-30] with light direction [0,0,1]; two_sided=true added for robustness. Framing math: fov_axis='smaller' = 256px vertical, half-angle 17.5 deg -> vertical half-extent 9.46 (>0.2 needed), horizontal half-extent 9.46*(2048/256)=75.7 (>50 needed); near=1/far=100 bracket the 30-unit depth, so the full 100x0.4 extent is inside the frustum with margin on every side. Output 2048x256 (8:1) chosen to suit the extreme aspect ratio. render_spec (webgl, strict) succeeded: out/elongated.html.",
+          "host": "oh-my-pi",
+          "model": "github-copilot/claude-opus-5",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_observe_spec",
+            "mcp__hakowan_observe_spec",
+            "mcp__hakowan_observe_spec",
+            "mcp__hakowan_render_spec"
+          ],
+          "duration_seconds": 81.295
+        }
+      }
+    ]
+  },
+  "run_metadata": {
+    "date": "2026-09-21",
+    "host": "oh-my-pi",
+    "model": "github-copilot/claude-opus-5",
+    "builtin_tools": "disabled via --no-tools",
+    "model_class": "Anthropic Claude Opus 5 via GitHub Copilot",
+    "isolation": "strict-mcp-only",
+    "skills": "disabled via --no-skills",
+    "rules": "disabled via --no-rules",
+    "mcp_transport": "stdio",
+    "case_count": 20,
+    "model_retries": 0,
+    "tool_calls": {
+      "mcp__hakowan_apply_patch": 10,
+      "mcp__hakowan_compile_spec": 8,
+      "mcp__hakowan_get_backends": 20,
+      "mcp__hakowan_get_schema": 20,
+      "mcp__hakowan_inspect_data": 21,
+      "mcp__hakowan_observe_spec": 5,
+      "mcp__hakowan_render_spec": 3,
+      "mcp__hakowan_search_gallery": 21,
+      "mcp__hakowan_validate_spec": 28
+    },
+    "usage": {
+      "input": 188,
+      "output": 58654,
+      "cache_read": 1759495,
+      "premium_requests": 20,
+      "reported_cost": 5.070312500000001
+    },
+    "runs": {
+      "scalar-temperature": {
+        "exit_code": 0,
+        "duration_seconds": 20.724,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "missing-attribute-repair": {
+        "exit_code": 0,
+        "duration_seconds": 15.049,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "log-pressure": {
+        "exit_code": 0,
+        "duration_seconds": 20.017,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "nonpositive-log-repair": {
+        "exit_code": 0,
+        "duration_seconds": 16.45,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "nonfinite-field-repair": {
+        "exit_code": 0,
+        "duration_seconds": 15.882,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "categorical-regions": {
+        "exit_code": 0,
+        "duration_seconds": 17.407,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "wireframe-overlay": {
+        "exit_code": 0,
+        "duration_seconds": 22.28,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "velocity-glyphs": {
+        "exit_code": 0,
+        "duration_seconds": 94.422,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "point-pressure": {
+        "exit_code": 1,
+        "duration_seconds": 270.162,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "point-vector-size": {
+        "exit_code": 0,
+        "duration_seconds": 28.719,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "plane-slice": {
+        "exit_code": 0,
+        "duration_seconds": 30.5,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "isolate-region": {
+        "exit_code": 0,
+        "duration_seconds": 90.149,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_observe_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "before-after-comparison": {
+        "exit_code": 0,
+        "duration_seconds": 32.567,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "isometric-fit-camera": {
+        "exit_code": 0,
+        "duration_seconds": 45.513,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_observe_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "orthographic-section": {
+        "exit_code": 0,
+        "duration_seconds": 15.143,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "stress-extremum-camera": {
+        "exit_code": 0,
+        "duration_seconds": 33.652,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "unsupported-pass-repair": {
+        "exit_code": 0,
+        "duration_seconds": 26.287,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_render_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "occluded-layers": {
+        "exit_code": 0,
+        "duration_seconds": 26.5,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "constant-field": {
+        "exit_code": 0,
+        "duration_seconds": 21.949,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_render_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "extreme-aspect-repair": {
+        "exit_code": 0,
+        "duration_seconds": 81.295,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_observe_spec",
+          "mcp__hakowan_observe_spec",
+          "mcp__hakowan_observe_spec",
+          "mcp__hakowan_render_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      }
+    },
+    "direct_anthropic_probe": {
+      "model": "anthropic/claude-opus-5",
+      "available": false,
+      "error": "HTTP 404 model not found"
+    },
+    "actual_route": "github-copilot/claude-opus-5",
+    "direct_json_responses": 19,
+    "normalized_json_envelopes": 0,
+    "unusable_responses": 1,
+    "provider_auto_retry_attempts": 0,
+    "cases_with_provider_auto_retries": 0
+  }
+}

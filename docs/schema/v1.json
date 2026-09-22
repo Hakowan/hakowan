@@ -316,7 +316,8 @@
         },
         "direction": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Attribute defining curve-bending directions."
+          "description": "Attribute defining curve-bending directions.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "bend",
@@ -439,7 +440,7 @@
     },
     "ChannelsSpec": {
       "additionalProperties": false,
-      "description": "The unique visual encodings and material assigned to a layer node.",
+      "description": "One optional slot per visual role; each compiled view uses the first channel of each kind encountered from root to leaf.",
       "properties": {
         "bump_map": {
           "anyOf": [
@@ -748,7 +749,8 @@
             }
           ],
           "default": null,
-          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted."
+          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted.",
+          "x-hakowan-role": "attribute_reference"
         }
       },
       "title": "CheckerboardTextureSpec",
@@ -1040,7 +1042,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Nine-channel per-vertex covariance attribute."
+          "description": "Nine-channel per-vertex covariance attribute.",
+          "x-hakowan-role": "attribute_reference"
         },
         "full": {
           "default": false,
@@ -1525,7 +1528,8 @@
         },
         "pieces": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Facet attribute grouping geometry into exploded pieces."
+          "description": "Facet attribute grouping geometry into exploded pieces.",
+          "x-hakowan-role": "attribute_reference"
         }
       },
       "required": [
@@ -1654,7 +1658,8 @@
             }
           ],
           "default": null,
-          "description": "Attribute tested by the predicate; null uses vertex positions."
+          "description": "Attribute tested by the predicate; null uses vertex positions.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "filter",
@@ -2097,7 +2102,8 @@
             }
           ],
           "default": null,
-          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted."
+          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted.",
+          "x-hakowan-role": "attribute_reference"
         },
         "whiteness": {
           "default": 0.0,
@@ -2169,7 +2175,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Scalar attribute from which contour bands are generated."
+          "description": "Scalar attribute from which contour bands are generated.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "isocontour",
@@ -2377,7 +2384,8 @@
           ],
           "default": null,
           "description": "Optional file-backed or externally resolved mesh data.",
-          "title": "Data"
+          "title": "Data",
+          "x-hakowan-role": "geometry_source"
         },
         "mark": {
           "anyOf": [
@@ -2780,7 +2788,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Referenced mesh data or mesh attribute, depending on the containing model."
+          "description": "Context-specific input. LayerPropertiesSpec.data is a geometry source; channel, texture, and transform data fields are attribute references.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "norm",
@@ -2814,7 +2823,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Vector attribute supplying shading normals."
+          "description": "Vector attribute supplying shading normals.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "normal",
@@ -3072,7 +3082,8 @@
         },
         "offset": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Attribute whose values are added to the current attribute."
+          "description": "Attribute whose values are added to the current attribute.",
+          "x-hakowan-role": "attribute_reference"
         }
       },
       "required": [
@@ -3636,7 +3647,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Vector attribute supplying mark positions."
+          "description": "Vector attribute supplying mark positions.",
+          "x-hakowan-role": "attribute_reference"
         },
         "kind": {
           "const": "position",
@@ -4562,7 +4574,8 @@
         },
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Scalar attribute mapped through the selected colormap."
+          "description": "Scalar attribute mapped through the selected colormap.",
+          "x-hakowan-role": "attribute_reference"
         },
         "domain": {
           "anyOf": [
@@ -4768,7 +4781,8 @@
             }
           ],
           "default": null,
-          "description": "Optional vector attribute orienting each point glyph."
+          "description": "Optional vector attribute orienting each point glyph.",
+          "x-hakowan-role": "attribute_reference"
         }
       },
       "title": "ShapeChannelSpec",
@@ -4788,7 +4802,8 @@
             }
           ],
           "description": "Constant radius or scalar attribute supplying radii.",
-          "title": "Data"
+          "title": "Data",
+          "x-hakowan-role": "attribute_or_constant"
         },
         "kind": {
           "const": "size",
@@ -4878,7 +4893,8 @@
         },
         "vec_field": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Vector or cross-field attribute used to generate curves."
+          "description": "Vector or cross-field attribute used to generate curves.",
+          "x-hakowan-role": "attribute_reference"
         }
       },
       "required": [
@@ -5527,7 +5543,8 @@
       "properties": {
         "data": {
           "$ref": "#/$defs/AttributeSpec",
-          "description": "Vector attribute supplying arrow or curve directions."
+          "description": "Vector attribute supplying arrow or curve directions.",
+          "x-hakowan-role": "attribute_reference"
         },
         "end_type": {
           "default": "point",
@@ -5722,5 +5739,12 @@
     "root"
   ],
   "title": "FigureSpec",
-  "type": "object"
+  "type": "object",
+  "x-hakowan-conventions": {
+    "attribute_reference": "Channel, texture, and transform attribute inputs reference named fields inside the selected geometry source.",
+    "channel_composition": "Each channel key is a semantic slot. Along a root-to-leaf path, the first value for a slot wins; unrelated slots compose.",
+    "config": "Invocation-time renderer policy; an explicit Config overrides all Figure-derived rendering configuration.",
+    "figure": "Portable visualization intent serialized as FigureSpec.",
+    "geometry_source": "Only LayerPropertiesSpec.data selects mesh geometry."
+  }
 }

@@ -48,6 +48,28 @@ def test_inspect_loads_mesh_file(triangle, tmp_path):
     assert summary.facet_count == 1
 
 
+def test_inspect_loads_point_cloud_attributes_from_file(tmp_path):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))
+    mesh.create_attribute(
+        "pressure",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([1.0, 3.0]),
+    )
+    path = tmp_path / "points.ply"
+    lagrange.io.save_mesh(path, mesh)
+
+    summary = hkw.inspect(path)
+
+    assert summary.facet_count == 0
+    pressure = summary.attribute("pressure")
+    assert pressure.element == "vertex"
+    assert pressure.value_count == 2
+    assert pressure.minimum == 1.0
+    assert pressure.maximum == 3.0
+
+
 def test_validate_accepts_valid_scalar_color_layer(triangle):
     layer = hkw.layer(triangle).material(
         "Diffuse", hkw.texture.ScalarField("vertex_data")

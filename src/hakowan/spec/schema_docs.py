@@ -14,7 +14,7 @@ MODEL_DESCRIPTIONS = {
     "BendStyleSpec": "Controls curve bending from a direction attribute.",
     "BoundaryTransformSpec": "Extracts geometric boundaries and optional attribute discontinuities.",
     "BumpMapChannelSpec": "Perturbs surface shading normals from a height texture.",
-    "ChannelsSpec": "The unique visual encodings and material assigned to a layer node.",
+    "ChannelsSpec": "One optional slot per visual role; each compiled view uses the first channel of each kind encountered from root to leaf.",
     "CheckerboardTextureSpec": "Alternates two texture or color values in UV space.",
     "ClipScaleSpec": "Clamps attribute values to a closed numeric domain.",
     "ClipTransformSpec": "Cuts geometry against a plane and keeps its positive half-space.",
@@ -37,7 +37,7 @@ MODEL_DESCRIPTIONS = {
     "InheritNodeSpec": "Applies partial layer properties to one child node.",
     "IsocontourTextureSpec": "Alternates two textures in bands derived from a scalar field.",
     "LayerNodeSpec": "A leaf visualization layer with no child composition nodes.",
-    "LayerPropertiesSpec": "Partial data, mark, channel, transform, and name properties for a node.",
+    "LayerPropertiesSpec": "Partial geometry source, mark, visual channels, transforms, and labels contributed by one node.",
     "LayoutNodeSpec": "Places child visualizations side by side along one axis.",
     "LegendSpec": "Presentation settings for a continuous colorbar or categorical legend.",
     "LogScaleSpec": "Applies a logarithm with the selected base to scalar data.",
@@ -86,7 +86,7 @@ FIELD_DESCRIPTIONS = {
     "spec": "Layer properties contributed by this composition node.",
     "child": "Single child that inherits this node's layer properties.",
     "children": "Ordered child visualization nodes.",
-    "data": "Referenced mesh data or mesh attribute, depending on the containing model.",
+    "data": "Context-specific input. LayerPropertiesSpec.data is a geometry source; channel, texture, and transform data fields are attribute references.",
     "mark": "Optional mark type; unresolved marks default to surface during compilation.",
     "channels": "Unique visual channels and material contributed by this node.",
     "transforms": "Ordered runtime transform chain stored by this node.",
@@ -308,6 +308,26 @@ FIELD_OVERRIDES = {
     ): "Scalar attribute from which contour bands are generated.",
 }
 
+FIELD_ROLES = {
+    ("LayerPropertiesSpec", "data"): "geometry_source",
+    ("FilterTransformSpec", "data"): "attribute_reference",
+    ("IsocontourTextureSpec", "data"): "attribute_reference",
+    ("NormTransformSpec", "data"): "attribute_reference",
+    ("NormalChannelSpec", "data"): "attribute_reference",
+    ("PositionChannelSpec", "data"): "attribute_reference",
+    ("ScalarFieldTextureSpec", "data"): "attribute_reference",
+    ("SizeChannelSpec", "data"): "attribute_or_constant",
+    ("VectorFieldChannelSpec", "data"): "attribute_reference",
+    ("CovarianceChannelSpec", "data"): "attribute_reference",
+    ("BendStyleSpec", "direction"): "attribute_reference",
+    ("CheckerboardTextureSpec", "uv"): "attribute_reference",
+    ("ImageTextureSpec", "uv"): "attribute_reference",
+    ("OffsetScaleSpec", "offset"): "attribute_reference",
+    ("ShapeChannelSpec", "orientation"): "attribute_reference",
+    ("ExplodeTransformSpec", "pieces"): "attribute_reference",
+    ("StreamlineTransformSpec", "vec_field"): "attribute_reference",
+}
+
 
 ROOT_DESCRIPTIONS = {
     "$schema": FIELD_DESCRIPTIONS["$schema"],
@@ -381,6 +401,24 @@ def enrich_schema(schema: dict[str, Any]) -> dict[str, Any]:
         "Canonical, versioned Hakowan 3D visualization specification. Unknown "
         "fields and unknown discriminated variants are rejected."
     )
+    result["x-hakowan-conventions"] = {
+        "geometry_source": (
+            "Only LayerPropertiesSpec.data selects mesh geometry."
+        ),
+        "attribute_reference": (
+            "Channel, texture, and transform attribute inputs reference named fields "
+            "inside the selected geometry source."
+        ),
+        "channel_composition": (
+            "Each channel key is a semantic slot. Along a root-to-leaf path, the "
+            "first value for a slot wins; unrelated slots compose."
+        ),
+        "figure": "Portable visualization intent serialized as FigureSpec.",
+        "config": (
+            "Invocation-time renderer policy; an explicit Config overrides all "
+            "Figure-derived rendering configuration."
+        ),
+    }
     result["examples"] = [ROOT_EXAMPLE]
     for field_name, property_schema in result.get("properties", {}).items():
         property_schema.setdefault(
@@ -405,6 +443,9 @@ def enrich_schema(schema: dict[str, Any]) -> dict[str, Any]:
                     f"Missing schema description for {model_name}.{field_name}"
                 )
             property_schema.setdefault("description", description)
+            role = FIELD_ROLES.get((canonical_name, field_name))
+            if role is not None:
+                property_schema["x-hakowan-role"] = role
     return result
 
 

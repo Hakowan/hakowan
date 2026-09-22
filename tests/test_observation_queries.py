@@ -48,9 +48,7 @@ def _synthetic_observation():
     element[1, 5] = 1
     depth[0:2, 4:6] = 3.0
     image = Image.new("RGBA", (6, 4), "black")
-    camera = hkw.CameraState(
-        eye=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0)
-    )
+    camera = hkw.CameraState(eye=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0))
     snapshots = {
         ("front", "layer_id"): hkw.Snapshot(
             image=image, data=layer, view="front", pass_name="layer_id", camera=camera
@@ -102,6 +100,10 @@ def test_region_reports_background_layers_elements_bounds_and_depth():
     assert first.depth_range == pytest.approx((2.0, 2.5))
     json.dumps(summary.to_dict())
 
+    assert "visual.camera_clipping" in {
+        item.code for item in observation.visual_diagnostics()
+    }
+
 
 def test_visible_elements_supports_layer_name_and_full_view():
     observation = _synthetic_observation()
@@ -138,6 +140,7 @@ def test_attribute_extrema_can_be_scoped_to_region():
 
     assert result.sample_count == 1
     assert result.minimum == result.maximum == 1.0
+
 
 def test_region_requires_id_passes_and_unambiguous_view():
     observation = _synthetic_observation()
@@ -193,7 +196,9 @@ def test_browser_observation_queries_and_manifest():
     occlusion = observation.occlusion_report(view="front")
     stress = observation.attribute_extrema("stress", layer="front", view="front")[0]
 
-    assert any(item.name == "front" and item.visible_pixel_count > 0 for item in visibility)
+    assert any(
+        item.name == "front" and item.visible_pixel_count > 0 for item in visibility
+    )
     back_visibility = next(item for item in visibility if item.name == "back")
     assert back_visibility.visible_pixel_count == 0
     assert back_visibility.visible_element_ids == ()
@@ -211,3 +216,10 @@ def test_browser_observation_queries_and_manifest():
     assert "visibility" in observation.manifest
     assert "occlusion" in observation.manifest
     json.dumps(observation.manifest)
+    evidence = observation.visual_evidence()["views"]["front"]
+    back_evidence = next(item for item in evidence["layers"] if item["name"] == "back")
+    assert back_evidence["occluded_fraction_estimate"] == 1.0
+    assert back_evidence["visible_pixel_count"] == 0
+    codes = {item.code for item in observation.visual_diagnostics()}
+    assert "visual.layer_hidden" in codes
+    assert "visual.layer_occluded" in codes

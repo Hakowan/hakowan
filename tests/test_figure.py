@@ -25,6 +25,7 @@ def _glb_from_html(path):
     assert match
     return base64.b64decode(match.group(1))
 
+
 @pytest.fixture(scope="module")
 def playwright_browser():
     playwright = pytest.importorskip("playwright.sync_api")
@@ -112,9 +113,11 @@ def test_scene_model_validation():
 
 
 def test_figure_render_uses_scene_settings_and_explicit_config_wins(tmp_path):
-    figure = hkw.figure(hkw.layer(_triangle())).camera(
-        "perspective", eye=(2.0, 3.0, 4.0)
-    ).output(width=320, height=200, background="light")
+    figure = (
+        hkw.figure(hkw.layer(_triangle()))
+        .camera("perspective", eye=(2.0, 3.0, 4.0))
+        .output(width=320, height=200, background="light")
+    )
     figure_path = tmp_path / "figure.html"
     hkw.render(figure, filename=figure_path, backend="webgl")
     figure_html = figure_path.read_text(encoding="utf-8")
@@ -164,6 +167,7 @@ def test_webgl_emits_point_and_directional_lights(tmp_path):
     assert lights[0]["intensity"] == pytest.approx(4.0)
     assert lights[1]["color"] == pytest.approx([0.0, 0.0, 1.0])
     assert lights[1]["intensity"] == pytest.approx(2.0)
+
 
 def test_webgl_uses_visible_declarative_environment(tmp_path):
     figure = hkw.figure(hkw.layer(_triangle())).environment(visible=True)
@@ -223,8 +227,10 @@ def test_schema_1_0_remains_backward_compatible():
 
 
 def test_scene_validation_reports_backend_degradation(tmp_path):
-    figure = hkw.figure(hkw.layer(_triangle())).camera("thin_lens").output(
-        passes=("beauty", "facet_id")
+    figure = (
+        hkw.figure(hkw.layer(_triangle()))
+        .camera("thin_lens")
+        .output(passes=("beauty", "facet_id"))
     )
     strict = hkw.validate(figure, backend="webgl", strict=True)
     permissive = hkw.validate(figure, backend="webgl", strict=False)
@@ -241,9 +247,11 @@ def test_scene_validation_reports_backend_degradation(tmp_path):
 
 
 def test_figure_snapshot_uses_camera_and_output_defaults(playwright_browser):
-    figure = hkw.figure(hkw.layer(_triangle())).camera(
-        "perspective", eye=(0.0, 0.0, 4.0), fov=25.0
-    ).output(width=48, height=32, background="light", passes=("beauty", "depth"))
+    figure = (
+        hkw.figure(hkw.layer(_triangle()))
+        .camera("perspective", eye=(0.0, 0.0, 4.0), fov=25.0)
+        .output(width=48, height=32, background="light", passes=("beauty", "depth"))
+    )
 
     snapshot = hkw.snapshot(figure)
     observation = hkw.observe(figure, views=["front"])
@@ -255,9 +263,11 @@ def test_figure_snapshot_uses_camera_and_output_defaults(playwright_browser):
 
 
 def test_explicit_observation_options_override_figure(playwright_browser):
-    figure = hkw.figure(hkw.layer(_triangle())).camera(
-        "perspective", eye=(0.0, 0.0, 4.0)
-    ).output(width=100, height=80, background="light")
+    figure = (
+        hkw.figure(hkw.layer(_triangle()))
+        .camera("perspective", eye=(0.0, 0.0, 4.0))
+        .output(width=100, height=80, background="light")
+    )
     explicit = hkw.CameraState(
         eye=(4.0, 0.0, 0.0),
         target=(0.0, 0.0, 0.0),

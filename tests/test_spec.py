@@ -47,6 +47,19 @@ def test_schema_is_versioned_json_schema():
         for property_schema in definition.get("properties", {}).values():
             assert property_schema["description"]
     FigureSpec.model_validate(schema["examples"][0])
+    conventions = schema["x-hakowan-conventions"]
+    assert "LayerPropertiesSpec.data" in conventions["geometry_source"]
+    assert "first value" in conventions["channel_composition"]
+    assert (
+        schema["$defs"]["LayerPropertiesSpec"]["properties"]["data"]["x-hakowan-role"]
+        == "geometry_source"
+    )
+    assert (
+        schema["$defs"]["ScalarFieldTextureSpec"]["properties"]["data"][
+            "x-hakowan-role"
+        ]
+        == "attribute_reference"
+    )
 
 
 def test_published_schema_is_synchronized():

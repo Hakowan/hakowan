@@ -33,7 +33,9 @@ def _positions(values: Any, *, label: str = "positions") -> npt.NDArray[np.float
     return np.ascontiguousarray(result)
 
 
-def _position_names(columns: Sequence[Any], positions: PositionColumns) -> tuple[str, ...]:
+def _position_names(
+    columns: Sequence[Any], positions: PositionColumns
+) -> tuple[str, ...]:
     names = tuple(str(column) for column in columns)
     if positions is not None:
         requested = (positions,) if isinstance(positions, str) else tuple(positions)
@@ -71,8 +73,7 @@ def _add_attribute(
     if array.ndim == 0 or array.shape[0] != count:
         return
     if array.ndim > 2 or not (
-        np.issubdtype(array.dtype, np.number)
-        or np.issubdtype(array.dtype, np.bool_)
+        np.issubdtype(array.dtype, np.number) or np.issubdtype(array.dtype, np.bool_)
     ):
         return
     if array.ndim == 1:
@@ -103,12 +104,18 @@ def _point_mesh(points: Any, attributes: Mapping[str, Any]) -> lagrange.SurfaceM
 def _table_mesh(table: Any, positions: PositionColumns) -> lagrange.SurfaceMesh:
     names = _position_names(tuple(table.columns), positions)
     points = np.column_stack([np.asarray(table[name]) for name in names])
-    attributes = {str(name): np.asarray(table[name]) for name in table.columns if str(name) not in names}
+    attributes = {
+        str(name): np.asarray(table[name])
+        for name in table.columns
+        if str(name) not in names
+    }
     return _point_mesh(points, attributes)
 
 
 def _xarray_mesh(dataset: Any, positions: PositionColumns) -> lagrange.SurfaceMesh:
-    available = tuple(dict.fromkeys((*dataset.coords.keys(), *dataset.data_vars.keys())))
+    available = tuple(
+        dict.fromkeys((*dataset.coords.keys(), *dataset.data_vars.keys()))
+    )
     names = _position_names(available, positions)
     coordinate_arrays = [np.asarray(dataset[name].values) for name in names]
     if any(array.ndim != 1 for array in coordinate_arrays):
@@ -163,9 +170,13 @@ def _pyvista_mesh(data: Any) -> lagrange.SurfaceMesh:
     for face in faces:
         mesh.add_polygon(np.ascontiguousarray(face, dtype=np.uint32))
     for name, values in data.point_data.items():
-        _add_attribute(mesh, name, values, lagrange.AttributeElement.Vertex, mesh.num_vertices)
+        _add_attribute(
+            mesh, name, values, lagrange.AttributeElement.Vertex, mesh.num_vertices
+        )
     for name, values in data.cell_data.items():
-        _add_attribute(mesh, name, values, lagrange.AttributeElement.Facet, mesh.num_facets)
+        _add_attribute(
+            mesh, name, values, lagrange.AttributeElement.Facet, mesh.num_facets
+        )
     return mesh
 
 
@@ -174,9 +185,22 @@ def _trimesh_mesh(data: Any) -> lagrange.SurfaceMesh:
     mesh.add_vertices(_positions(data.vertices, label="Trimesh vertices"))
     _add_facets(mesh, data.faces)
     for name, values in data.vertex_attributes.items():
-        _add_attribute(mesh, name, values, lagrange.AttributeElement.Vertex, mesh.num_vertices)
+        _add_attribute(
+            mesh, name, values, lagrange.AttributeElement.Vertex, mesh.num_vertices
+        )
     for name, values in data.face_attributes.items():
-        _add_attribute(mesh, name, values, lagrange.AttributeElement.Facet, mesh.num_facets)
+        _add_attribute(
+            mesh, name, values, lagrange.AttributeElement.Facet, mesh.num_facets
+        )
+    return mesh
+
+
+def _mesh_file(path: Path) -> lagrange.SurfaceMesh:
+    mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
+    if mesh.num_facets == 0:
+        # Lagrange's vertex stitching converts point-cloud vertex attributes to
+        # empty indexed attributes because there are no corners to reindex.
+        return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
     return mesh
 
 
@@ -219,7 +243,7 @@ def to_dataframe(
             raise TypeError("positions cannot be used with a mesh file")
         source = Path(data)
         return DataFrame(
-            mesh=lagrange.io.load_mesh(source, quiet=True, stitch_vertices=True),
+            mesh=_mesh_file(source),
             roi_box=roi_box,
             source=source,
         )

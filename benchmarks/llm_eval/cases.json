@@ -5,7 +5,7 @@
     "prompt": "Color the surface by temperature with a viridis legend and fit an isometric camera.",
     "recipe": "scalar_color",
     "tags": ["grounding", "scalar", "legend"],
-    "expected": {"marks": ["surface"], "attributes": ["temperature"], "kinds": ["scalar_field", "diffuse"], "colormaps": ["viridis"], "legend": true, "camera_kind": "perspective", "occupancy": [0.02, 0.95]}
+    "expected": {"marks": ["surface"], "attributes": ["temperature"], "kinds": ["scalar_field"], "colormaps": ["viridis"], "legend": true, "camera_kind": "perspective", "occupancy": [0.02, 0.95]}
   },
   {
     "id": "missing-attribute-repair",

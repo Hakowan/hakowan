@@ -1,0 +1,2074 @@
+{
+  "model": "anthropic/claude-sonnet-4-6",
+  "responses": {
+    "scalar-temperature": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "temperature",
+                      "scales": []
+                    },
+                    "colormap": "viridis",
+                    "legend": {
+                      "title": "Temperature",
+                      "ticks": 5,
+                      "format": ".3g",
+                      "position": "right",
+                      "width": 180
+                    }
+                  },
+                  "roughness": 0.5,
+                  "metallic": 0
+                }
+              },
+              "transforms": [],
+              "name": "temperature"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "orthographic",
+              "eye": [
+                3,
+                3,
+                3
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ]
+            }
+          }
+        },
+        "raw": "Valid on first pass. Final spec:\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[]},\"colormap\":\"viridis\",\"legend\":{\"title\":\"Temperature\",\"ticks\":5,\"format\":\".3g\",\"position\":\"right\",\"width\":180}},\"roughness\":0.5,\"metallic\":0}},\"transforms\":[],\"name\":\"temperature\"}},\"scene\":{\"camera\":{\"kind\":\"orthographic\",\"eye\":[3,3,3],\"target\":[0,0,0],\"up\":[0,1,0]}}},\"metadata\":{\"notes\":\"temperature attr: int32, range 10\u201340, indexed; viridis scalar_field on principled material; orthographic camera at [3,3,3] for isometric view; validated webgl strict=true compile_check=true, zero diagnostics\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 28.883,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "missing-attribute-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "temperature",
+                      "scales": []
+                    },
+                    "colormap": "plasma",
+                    "domain": [
+                      10,
+                      40
+                    ]
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "temperature"
+            }
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\",\"scales\":[]},\"colormap\":\"plasma\",\"domain\":[10,40]}}},\"transforms\":[],\"name\":\"temperature\"}}},\"metadata\":{\"notes\":\"temperature attr confirmed via inspect_data (int32, range 10\u201340); principled material with scalar_field color mapped to plasma colormap; validated strict=true webgl compile_check=true with data binding data/scalar_surface.ply \u2014 valid, zero diagnostics\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 19.669,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "log-pressure": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": [
+                        {
+                          "kind": "log",
+                          "base": 10
+                        },
+                        {
+                          "kind": "normalize",
+                          "domain_min": -1,
+                          "domain_max": 2,
+                          "range_min": 0,
+                          "range_max": 1
+                        }
+                      ]
+                    },
+                    "colormap": "viridis",
+                    "legend": {
+                      "title": "Pressure (log\u2081\u2080)",
+                      "ticks": 5,
+                      "format": ".2g",
+                      "position": "right",
+                      "width": 180
+                    }
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "pressure-log"
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\",\"base\":10},{\"kind\":\"normalize\",\"domain_min\":-1,\"domain_max\":2,\"range_min\":0,\"range_max\":1}]},\"colormap\":\"viridis\",\"legend\":{\"title\":\"Pressure (log\u2081\u2080)\",\"ticks\":5,\"format\":\".2g\",\"position\":\"right\",\"width\":180}}}},\"transforms\":[],\"name\":\"pressure-log\"}}},\"metadata\":{\"notes\":\"pressure attr range 0.1\u2013100; log10 maps to -1\u20132, normalize maps that to [0,1]; viridis colormap with right-side colorbar legend; validated webgl strict+compile clean\"}}",
+        "metadata": {
+          "notes": "pressure attr range 0.1\u2013100; log10 maps to -1\u20132, normalize maps that to [0,1]; viridis colormap with right-side colorbar legend; validated webgl strict+compile clean",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 24.639
+        }
+      }
+    ],
+    "nonpositive-log-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "signed",
+                      "scales": [
+                        {
+                          "kind": "normalize",
+                          "domain_min": -1,
+                          "domain_max": 2,
+                          "range_min": 0,
+                          "range_max": 1
+                        }
+                      ]
+                    },
+                    "colormap": "coolwarm",
+                    "domain": null,
+                    "legend": {
+                      "title": "signed",
+                      "format": ".2g",
+                      "ticks": 5,
+                      "position": "right",
+                      "width": 180
+                    }
+                  }
+                },
+                "transforms": [],
+                "annotations": []
+              }
+            }
+          },
+          "scene": null
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"signed\",\"scales\":[{\"kind\":\"normalize\",\"domain_min\":-1,\"domain_max\":2,\"range_min\":0,\"range_max\":1}]},\"colormap\":\"coolwarm\",\"domain\":null,\"legend\":{\"title\":\"signed\",\"format\":\".2g\",\"ticks\":5,\"position\":\"right\",\"width\":180}}},\"transforms\":[],\"annotations\":[]}}},\"scene\":null},\"metadata\":{\"notes\":\"signed attr range [-1,2]; normalize scale maps linearly to [0,1] preserving negatives; coolwarm diverging colormap; no log scale; validated strict webgl OK\"}}",
+        "metadata": {
+          "notes": "signed attr range [-1,2]; normalize scale maps linearly to [0,1] preserving negatives; coolwarm diverging colormap; no log scale; validated strict webgl OK",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 23.161
+        }
+      }
+    ],
+    "nonfinite-field-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "signed",
+                      "scales": []
+                    },
+                    "colormap": "viridis",
+                    "domain": [
+                      -1,
+                      2
+                    ]
+                  }
+                }
+              },
+              "transforms": []
+            }
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"signed\",\"scales\":[]},\"colormap\":\"viridis\",\"domain\":[-1,2]}}},\"transforms\":[]}}},\"metadata\":{\"notes\":\"quality has 1 nonfinite value; signed (int32, range -1..2, all 4 values finite) chosen instead. scalar_field texture mapped to viridis colormap with explicit domain [-1,2]. Validated strict=true webgl compile_check=true: valid, no diagnostics.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 19.292,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "categorical-regions": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "region",
+                      "scales": []
+                    },
+                    "colormap": "set1",
+                    "categories": true,
+                    "legend": {
+                      "title": "Region",
+                      "position": "right",
+                      "width": 180,
+                      "ticks": 5,
+                      "format": ".3g",
+                      "category_labels": null,
+                      "units": null
+                    }
+                  },
+                  "roughness": 0.5,
+                  "metallic": 0
+                }
+              },
+              "transforms": [],
+              "name": "Regions"
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"region\",\"scales\":[]},\"colormap\":\"set1\",\"categories\":true,\"legend\":{\"title\":\"Region\",\"position\":\"right\",\"width\":180,\"ticks\":5,\"format\":\".3g\",\"category_labels\":null,\"units\":null}},\"roughness\":0.5,\"metallic\":0}},\"transforms\":[],\"name\":\"Regions\"}}},\"metadata\":{\"notes\":\"region attr int32 [0,1] on 2-facet mesh; categorical set1 colormap with right-side legend; validated webgl strict+compile clean\"}}",
+        "metadata": {
+          "notes": "region attr int32 [0,1] on 2-facet mesh; categorical set1 colormap with right-side legend; validated webgl strict+compile clean",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 20.441
+        }
+      }
+    ],
+    "wireframe-overlay": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "overlay",
+            "spec": {
+              "transforms": []
+            },
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "material": {
+                      "kind": "principled",
+                      "color": "ivory",
+                      "roughness": 0.4
+                    }
+                  },
+                  "transforms": [],
+                  "name": "Surface"
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "curve",
+                  "channels": {
+                    "material": {
+                      "kind": "diffuse",
+                      "reflectance": "black"
+                    },
+                    "size": {
+                      "kind": "size",
+                      "data": 0.005
+                    }
+                  },
+                  "transforms": [
+                    {
+                      "kind": "boundary"
+                    }
+                  ],
+                  "name": "Wireframe"
+                }
+              }
+            ]
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"overlay\",\"spec\":{\"transforms\":[]},\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":\"ivory\",\"roughness\":0.4}},\"transforms\":[],\"name\":\"Surface\"}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"curve\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":\"black\"},\"size\":{\"kind\":\"size\",\"data\":0.005}},\"transforms\":[{\"kind\":\"boundary\"}],\"name\":\"Wireframe\"}}]}},\"metadata\":{\"notes\":\"Overlay of surface (principled/ivory) + boundary-extracted edges (curve/black, size=0.005). boundary transform extracts mesh edges for wireframe. validate_spec strict+compile passed on webgl with data_bindings={data:scalar_surface.ply}. Data has attributes: constant, pressure, temperature, velocity \u2014 none used (plain color only).\"}}",
+        "metadata": {
+          "notes": "Overlay of surface (principled/ivory) + boundary-extracted edges (curve/black, size=0.005). boundary transform extracts mesh edges for wireframe. validate_spec strict+compile passed on webgl with data_bindings={data:scalar_surface.ply}. Data has attributes: constant, pressure, temperature, velocity \u2014 none used (plain color only).",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 32.883
+        }
+      }
+    ],
+    "velocity-glyphs": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "overlay",
+            "spec": {
+              "data": null,
+              "mark": null,
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": null,
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": null,
+              "annotations": []
+            },
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": null,
+                    "shape": null,
+                    "vector_field": null,
+                    "covariance": null,
+                    "material": {
+                      "two_sided": false,
+                      "back_side": null,
+                      "kind": "diffuse",
+                      "reflectance": 0.45
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [],
+                  "name": null,
+                  "annotations": []
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "curve",
+                  "channels": {
+                    "position": null,
+                    "normal": null,
+                    "size": null,
+                    "shape": null,
+                    "vector_field": {
+                      "kind": "vector_field",
+                      "data": {
+                        "name": "velocity",
+                        "scales": [
+                          {
+                            "kind": "uniform",
+                            "factor": 0.1
+                          }
+                        ],
+                        "unit": null
+                      },
+                      "refinement_level": 0,
+                      "style": null,
+                      "end_type": "arrow",
+                      "normalize": true
+                    },
+                    "covariance": null,
+                    "material": {
+                      "two_sided": false,
+                      "back_side": null,
+                      "kind": "diffuse",
+                      "reflectance": [
+                        0.9,
+                        0.35,
+                        0.1
+                      ]
+                    },
+                    "bump_map": null,
+                    "normal_map": null
+                  },
+                  "transforms": [],
+                  "name": null,
+                  "annotations": []
+                }
+              }
+            ]
+          },
+          "scene": null
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"overlay\",\"spec\":{\"data\":null,\"mark\":null,\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":null,\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]},\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"kind\":\"diffuse\",\"reflectance\":0.45},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"curve\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":{\"kind\":\"vector_field\",\"data\":{\"name\":\"velocity\",\"scales\":[{\"kind\":\"uniform\",\"factor\":0.1}],\"unit\":null},\"refinement_level\":0,\"style\":null,\"end_type\":\"arrow\",\"normalize\":true},\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"kind\":\"diffuse\",\"reflectance\":[0.9,0.35,0.1]},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]}}]},\"scene\":null},\"metadata\":{\"notes\":\"velocity attr is element=indexed (4 unique values, 6 corners); vector_field channel requires vertex or facet\u2014no available transform converts indexed to vertex. Spec is schema-valid: overlay of diffuse surface + curve mark with vector_field using velocity, uniform scale factor=0.1 for short glyphs, normalize=true for uniform length, end_type=arrow. Fails one semantic diagnostic (attribute.element indexed unsupported). Two repair rounds exhausted.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_compile_spec",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 249.06,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "point-pressure": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "point",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": []
+                    },
+                    "colormap": "fire"
+                  }
+                },
+                "size": {
+                  "kind": "size",
+                  "data": 0.01
+                }
+              },
+              "transforms": [],
+              "name": "pressure"
+            }
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"point\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[]},\"colormap\":\"fire\"}},\"size\":{\"kind\":\"size\",\"data\":0.01}},\"transforms\":[],\"name\":\"pressure\"}}},\"metadata\":{\"notes\":\"inspect_data failed (empty reshape); attribute 'pressure' taken from task spec. Validated strict+compile_check=true, webgl backend, no errors. Point mark with principled material, scalar_field color mapped via fire colormap.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 19.971,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "point-vector-size": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "point",
+              "channels": {
+                "size": {
+                  "kind": "size",
+                  "data": {
+                    "name": "velocity",
+                    "scales": [
+                      {
+                        "kind": "norm"
+                      },
+                      {
+                        "kind": "normalize",
+                        "range_min": 0.05,
+                        "range_max": 0.5
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"point\",\"channels\":{\"size\":{\"kind\":\"size\",\"data\":{\"name\":\"velocity\",\"scales\":[{\"kind\":\"norm\"},{\"kind\":\"normalize\",\"range_min\":0.05,\"range_max\":0.5}]}}}}}},\"metadata\":{\"notes\":\"inspect_data failed (empty reshape); used 'velocity' attribute per request. norm scale computes L2 magnitude from vector; normalize maps to [0.05,0.5] world-space size. Validated strict=true, compile_check=true, backend=webgl.\"}}",
+        "metadata": {
+          "notes": "inspect_data failed (empty reshape); used 'velocity' attribute per request. norm scale computes L2 magnitude from vector; normalize maps to [0.05,0.5] world-space size. Validated strict=true, compile_check=true, backend=webgl.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 42.077
+        }
+      }
+    ],
+    "plane-slice": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "transforms": [
+                {
+                  "kind": "clip",
+                  "normal": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure"
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "raw": "Valid. The clip transform uses `normal: [1, 0, 0]` and defaults `point` to `[0,0,0]`, which is exactly the x=0 plane retaining the positive half-space.\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"transforms\":[{\"kind\":\"clip\",\"normal\":[1,0,0]}],\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\"},\"colormap\":\"viridis\"}}}}}},\"metadata\":{\"notes\":\"ClipTransformSpec with normal=[1,0,0] and default point=[0,0,0] clips at x=0 retaining x>0 half-space; pressure scalar field mapped via viridis colormap; validated strict=true webgl compile_check=true.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 54.482,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "isolate-region": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "transforms": [
+                {
+                  "kind": "filter",
+                  "data": {
+                    "name": "region"
+                  },
+                  "condition": {
+                    "kind": "expression",
+                    "source": "value == 1"
+                  }
+                }
+              ],
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": "steelblue"
+                }
+              }
+            }
+          }
+        },
+        "raw": "The `region` attribute is stored as \"indexed\" (per-corner), which no available transform can promote to vertex/facet domain. All repair approaches exhausted (norm requires \u22652 channels; compute triggers runtime assertion on indexed; explode also rejects indexed). The filter spec is semantically correct; the limitation is in the PLY attribute storage.\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"transforms\":[{\"kind\":\"filter\",\"data\":{\"name\":\"region\"},\"condition\":{\"kind\":\"expression\",\"source\":\"value == 1\"}}],\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":\"steelblue\"}}}}},\"metadata\":{\"notes\":\"region attr is int32 indexed (per-corner) min=0 max=1; filter on value==1 is semantically correct but fails transform.filter.element validation because filter requires vertex/facet element; no available transform (norm needs \u22652ch, compute asserts on indexed, explode rejects indexed) can promote the domain; spec remains schema-valid but semantically invalid due to PLY storage format\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 210.289,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "before-after-comparison": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layout",
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "name": "Raw Surface"
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "name": "Temperature",
+                  "channels": {
+                    "material": {
+                      "kind": "principled",
+                      "color": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "temperature"
+                        },
+                        "colormap": "plasma"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "raw": "Valid on first attempt. Final spec:\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layout\",\"children\":[{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"name\":\"Raw Surface\"}},{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"name\":\"Temperature\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\"},\"colormap\":\"plasma\"}}}}}]}},\"metadata\":{\"notes\":\"Layout node splits two surface layers side-by-side along x-axis. Left: raw surface, default gray principled material. Right: temperature attribute (int32, range 10\u201340) mapped with plasma colormap. Data source is external id='data' bound to data/scalar_surface.ply. Validated webgl strict+compile: ok, no diagnostics.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 24.508,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "isometric-fit-camera": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": 0.7
+                }
+              },
+              "transforms": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                115.47,
+                115.47,
+                115.47
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.0
+              }
+            ],
+            "output": {
+              "width": 1280,
+              "height": 400,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":0.7}},\"transforms\":[]}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[115.47,115.47,115.47],\"target\":[0,0,0],\"up\":[0,1,0],\"fov\":35,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1],\"color\":\"white\",\"intensity\":2.0}],\"output\":{\"width\":1280,\"height\":400,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"Elongated strip [-50,50]\u00d7[-0.2,0.2] in XY, flat at Z=0. One 'stress' scalar attribute (0\u20131) not mapped. Camera eye=[115.47,115.47,115.47] along isometric [1,1,1] axis at distance ~200 units to fit \u00b150 X span with fov=35. Wide output (1280\u00d7400) matches elongated aspect. Validated strict=true, webgl, compile_check=true.\"}}",
+        "metadata": {
+          "notes": "Elongated strip [-50,50]\u00d7[-0.2,0.2] in XY, flat at Z=0. One 'stress' scalar attribute (0\u20131) not mapped. Camera eye=[115.47,115.47,115.47] along isometric [1,1,1] axis at distance ~200 units to fit \u00b150 X span with fov=35. Wide output (1280\u00d7400) matches elongated aspect. Validated strict=true, webgl, compile_check=true.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 32.238
+        }
+      }
+    ],
+    "orthographic-section": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "pressure",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "colormap": "viridis",
+                    "domain": null,
+                    "range": null,
+                    "categories": false,
+                    "reverse": false,
+                    "legend": true
+                  }
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": "orthographic-section",
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "orthographic",
+              "eye": [
+                0,
+                0,
+                5
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "near": 0.01,
+              "far": 10000.0,
+              "scale": 2.0
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.0
+              }
+            ],
+            "environment": null,
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ],
+              "sampler_seed": 0
+            }
+          }
+        },
+        "raw": "{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[],\"unit\":null},\"colormap\":\"viridis\",\"domain\":null,\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":true}},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":\"orthographic-section\",\"annotations\":[]}},\"scene\":{\"camera\":{\"kind\":\"orthographic\",\"eye\":[0,0,5],\"target\":[0,0,0],\"up\":[0,1,0],\"near\":0.01,\"far\":10000.0,\"scale\":2.0},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2.0}],\"environment\":null,\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\"],\"sampler_seed\":0}}},\"metadata\":{\"notes\":\"Surface has 4 vertices, 2 facets, bounds [-1,-1,0] to [1,1,0.2]; pressure attr [0.1,100.0] mapped via viridis diffuse material; orthographic camera eye=[0,0,5] looking -Z at origin, scale=2 covers mesh XY extents; directional light along -Z; validated strict webgl compile_check=true with no diagnostics.\"}}",
+        "metadata": {
+          "notes": "Surface has 4 vertices, 2 facets, bounds [-1,-1,0] to [1,1,0.2]; pressure attr [0.1,100.0] mapped via viridis diffuse material; orthographic camera eye=[0,0,5] looking -Z at origin, scale=2 covers mesh XY extents; directional light along -Z; validated strict webgl compile_check=true with no diagnostics.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 25.901
+        }
+      }
+    ],
+    "stress-extremum-camera": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": {
+                  "two_sided": false,
+                  "back_side": null,
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "stress",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "colormap": "plasma",
+                    "domain": [
+                      0.0,
+                      1.0
+                    ],
+                    "range": null,
+                    "categories": false,
+                    "reverse": false,
+                    "legend": true
+                  },
+                  "roughness": 0.4,
+                  "metallic": 0.0,
+                  "anisotropic": 0.0,
+                  "spec_trans": 0.0,
+                  "eta": 1.5,
+                  "spec_tint": 0.0,
+                  "sheen": 0.0,
+                  "sheen_tint": 0.0,
+                  "flatness": 0.0,
+                  "kind": "principled"
+                },
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": null,
+              "annotations": []
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                120,
+                30,
+                60
+              ],
+              "target": [
+                50,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 70.0,
+              "fov_axis": "smaller",
+              "near": 0.01,
+              "far": 10000.0
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2.0
+              }
+            ],
+            "environment": null,
+            "output": null
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":{\"two_sided\":false,\"back_side\":null,\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"stress\",\"scales\":[],\"unit\":null},\"colormap\":\"plasma\",\"domain\":[0.0,1.0],\"range\":null,\"categories\":false,\"reverse\":false,\"legend\":true},\"roughness\":0.4,\"metallic\":0.0,\"anisotropic\":0.0,\"spec_trans\":0.0,\"eta\":1.5,\"spec_tint\":0.0,\"sheen\":0.0,\"sheen_tint\":0.0,\"flatness\":0.0,\"kind\":\"principled\"},\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[120,30,60],\"target\":[50,0,0],\"up\":[0,0,1],\"fov\":70.0,\"fov_axis\":\"smaller\",\"near\":0.01,\"far\":10000.0},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1],\"color\":\"white\",\"intensity\":2.0}],\"environment\":null,\"output\":null}},\"metadata\":{\"notes\":\"elongated.ply: 4 vertices, 2 facets, x\u2208[-50,50]; stress attr indexed scalar min=0 max=1. Max stress (1.0) at x=50 end. Camera eye=[120,30,60] targets [50,0,0] with fov=70 to keep full mesh in view while framing the high-stress end. Plasma colormap over stress [0,1]. Validated webgl strict=true, compile_check=true, one repair round (widen fov + move eye back).\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec",
+            "mcp__hakowan_apply_patch"
+          ],
+          "duration_seconds": 46.398,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "unsupported-pass-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "isocontour",
+                    "num_contours": 8,
+                    "ratio": 0.85,
+                    "texture1": {
+                      "kind": "scalar_field",
+                      "data": {
+                        "name": "pressure",
+                        "scales": [
+                          {
+                            "kind": "log"
+                          }
+                        ]
+                      },
+                      "colormap": "plasma",
+                      "domain": null,
+                      "legend": {
+                        "title": "Pressure",
+                        "ticks": 5,
+                        "format": ".2g",
+                        "position": "right",
+                        "width": 160
+                      }
+                    },
+                    "texture2": {
+                      "kind": "scalar_field",
+                      "data": {
+                        "name": "pressure",
+                        "scales": [
+                          {
+                            "kind": "log"
+                          }
+                        ]
+                      },
+                      "colormap": [
+                        "#1a1a2e",
+                        "#16213e"
+                      ],
+                      "domain": null,
+                      "legend": false
+                    },
+                    "data": {
+                      "name": "pressure",
+                      "scales": [
+                        {
+                          "kind": "log"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "roughness": 0.3,
+                "metallic": 0.1
+              },
+              "transforms": [],
+              "name": "pressure-surface"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "perspective",
+              "eye": [
+                3,
+                3,
+                2.5
+              ],
+              "target": [
+                0,
+                0,
+                0.1
+              ],
+              "up": [
+                0,
+                0,
+                1
+              ],
+              "fov": 35
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  -1,
+                  -1,
+                  -1.5
+                ],
+                "color": "white",
+                "intensity": 2.5
+              }
+            ],
+            "output": {
+              "width": 1024,
+              "height": 800,
+              "background": "dark",
+              "passes": [
+                "beauty",
+                "depth"
+              ]
+            }
+          }
+        },
+        "raw": "Valid on first pass. Final spec:\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"isocontour\",\"num_contours\":8,\"ratio\":0.85,\"texture1\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\"}]},\"colormap\":\"plasma\",\"domain\":null,\"legend\":{\"title\":\"Pressure\",\"ticks\":5,\"format\":\".2g\",\"position\":\"right\",\"width\":160}},\"texture2\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\"}]},\"colormap\":[\"#1a1a2e\",\"#16213e\"],\"domain\":null,\"legend\":false},\"data\":{\"name\":\"pressure\",\"scales\":[{\"kind\":\"log\"}]}}},\"roughness\":0.3,\"metallic\":0.1},\"transforms\":[],\"name\":\"pressure-surface\"}},\"scene\":{\"camera\":{\"kind\":\"perspective\",\"eye\":[3,3,2.5],\"target\":[0,0,0.1],\"up\":[0,0,1],\"fov\":35},\"lights\":[{\"kind\":\"directional\",\"direction\":[-1,-1,-1.5],\"color\":\"white\",\"intensity\":2.5}],\"output\":{\"width\":1024,\"height\":800,\"background\":\"dark\",\"passes\":[\"beauty\",\"depth\"]}}},\"metadata\":{\"notes\":\"pressure attr log-scaled (range 0.1\u2013100) mapped via plasma isocontour (8 contours, ratio 0.85) on principled material (roughness 0.3, metallic 0.1); beauty+depth passes; directional light at 2.5 intensity; validated webgl strict=true compile_check=true OK\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 35.173,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "occluded-layers": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "overlay",
+            "spec": {
+              "data": null,
+              "mark": null,
+              "channels": {
+                "position": null,
+                "normal": null,
+                "size": null,
+                "shape": null,
+                "vector_field": null,
+                "covariance": null,
+                "material": null,
+                "bump_map": null,
+                "normal_map": null
+              },
+              "transforms": [],
+              "name": null,
+              "annotations": []
+            },
+            "children": [
+              {
+                "kind": "layer",
+                "spec": {
+                  "name": "front-surface",
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "material": {
+                      "kind": "principled",
+                      "color": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "pressure"
+                        },
+                        "colormap": "viridis"
+                      },
+                      "roughness": 0.4,
+                      "two_sided": false
+                    }
+                  },
+                  "transforms": [],
+                  "annotations": []
+                }
+              },
+              {
+                "kind": "layer",
+                "spec": {
+                  "name": "back-surface",
+                  "data": {
+                    "kind": "external",
+                    "id": "data",
+                    "roi_box": null
+                  },
+                  "mark": "surface",
+                  "channels": {
+                    "material": {
+                      "kind": "principled",
+                      "color": {
+                        "kind": "scalar_field",
+                        "data": {
+                          "name": "temperature"
+                        },
+                        "colormap": "plasma"
+                      },
+                      "roughness": 0.4,
+                      "two_sided": false,
+                      "back_side": {
+                        "kind": "diffuse",
+                        "reflectance": {
+                          "kind": "scalar_field",
+                          "data": {
+                            "name": "temperature"
+                          },
+                          "colormap": "plasma"
+                        }
+                      }
+                    }
+                  },
+                  "transforms": [],
+                  "annotations": []
+                }
+              }
+            ]
+          }
+        },
+        "raw": "Valid. Final answer:\n\n```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"overlay\",\"spec\":{\"data\":null,\"mark\":null,\"channels\":{\"position\":null,\"normal\":null,\"size\":null,\"shape\":null,\"vector_field\":null,\"covariance\":null,\"material\":null,\"bump_map\":null,\"normal_map\":null},\"transforms\":[],\"name\":null,\"annotations\":[]},\"children\":[{\"kind\":\"layer\",\"spec\":{\"name\":\"front-surface\",\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"pressure\"},\"colormap\":\"viridis\"},\"roughness\":0.4,\"two_sided\":false}},\"transforms\":[],\"annotations\":[]}},{\"kind\":\"layer\",\"spec\":{\"name\":\"back-surface\",\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\"},\"colormap\":\"plasma\"},\"roughness\":0.4,\"two_sided\":false,\"back_side\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"temperature\"},\"colormap\":\"plasma\"}}}},\"transforms\":[],\"annotations\":[]}}]}},\"metadata\":{\"notes\":\"Overlay of two named surface layers sharing external data id='data'. Layer 'front-surface' maps pressure\u2192viridis on front faces; layer 'back-surface' maps temperature\u2192plasma on front faces with a diffuse back_side material for the occluded back face. Both layers are named for WebGL layer_visibility inspection. Validated strict+compile against webgl backend.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 39.71,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "constant-field": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "principled",
+                  "color": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "constant",
+                      "scales": []
+                    },
+                    "colormap": "viridis",
+                    "domain": null
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "constant-field"
+            }
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"principled\",\"color\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"constant\",\"scales\":[]},\"colormap\":\"viridis\",\"domain\":null}}},\"transforms\":[],\"name\":\"constant-field\"}}},\"metadata\":{\"notes\":\"Uses the 'constant' attribute (int32, min=max=2, all identical). domain:null lets hakowan auto-detect [2,2] from actual data \u2014 no invented domain. Validates strict+compile_check on webgl with no diagnostics.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 22.023,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ],
+    "extreme-aspect-repair": [
+      {
+        "kind": "spec",
+        "value": {
+          "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+          "version": "1.1",
+          "root": {
+            "kind": "layer",
+            "spec": {
+              "data": {
+                "kind": "external",
+                "id": "data",
+                "roi_box": null
+              },
+              "mark": "surface",
+              "channels": {
+                "material": {
+                  "kind": "diffuse",
+                  "reflectance": {
+                    "kind": "scalar_field",
+                    "data": {
+                      "name": "stress",
+                      "scales": []
+                    },
+                    "colormap": "viridis"
+                  }
+                }
+              },
+              "transforms": [],
+              "name": "elongated"
+            }
+          },
+          "scene": {
+            "camera": {
+              "kind": "orthographic",
+              "eye": [
+                0,
+                0,
+                10
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "up": [
+                0,
+                1,
+                0
+              ],
+              "scale": 55,
+              "near": 0.01,
+              "far": 100
+            },
+            "lights": [
+              {
+                "kind": "directional",
+                "direction": [
+                  0,
+                  0,
+                  -1
+                ],
+                "color": "white",
+                "intensity": 2
+              }
+            ],
+            "environment": {
+              "enabled": false
+            },
+            "output": {
+              "width": 1200,
+              "height": 120,
+              "background": "dark",
+              "passes": [
+                "beauty"
+              ]
+            }
+          }
+        },
+        "raw": "```json\n{\"kind\":\"spec\",\"value\":{\"$schema\":\"https://hakowan.github.io/hakowan/schema/v1.json\",\"version\":\"1.1\",\"root\":{\"kind\":\"layer\",\"spec\":{\"data\":{\"kind\":\"external\",\"id\":\"data\",\"roi_box\":null},\"mark\":\"surface\",\"channels\":{\"material\":{\"kind\":\"diffuse\",\"reflectance\":{\"kind\":\"scalar_field\",\"data\":{\"name\":\"stress\",\"scales\":[]},\"colormap\":\"viridis\"}}},\"transforms\":[],\"name\":\"elongated\"}},\"scene\":{\"camera\":{\"kind\":\"orthographic\",\"eye\":[0,0,10],\"target\":[0,0,0],\"up\":[0,1,0],\"scale\":55,\"near\":0.01,\"far\":100},\"lights\":[{\"kind\":\"directional\",\"direction\":[0,0,-1],\"color\":\"white\",\"intensity\":2}],\"environment\":{\"enabled\":false},\"output\":{\"width\":1200,\"height\":120,\"background\":\"dark\",\"passes\":[\"beauty\"]}}},\"metadata\":{\"notes\":\"Bounds [-50,-0.2,0]\u2192[50,0.2,0]; aspect ~500:1. Orthographic camera scale=55 frames full X-extent with padding. Output 1200\u00d7120 matches aspect. stress attr (scalar 0\u20131) mapped via viridis. Validated strict webgl compile_check: valid=true, no diagnostics.\"}}\n```",
+        "metadata": {
+          "notes": "Model output was unusable and is preserved as an invalid candidate without retry.",
+          "host": "oh-my-pi",
+          "model": "anthropic/claude-sonnet-4-6",
+          "strict_mcp_only": true,
+          "disabled_builtin_tools": true,
+          "disabled_extensions": true,
+          "mcp_tools": [
+            "mcp__hakowan_inspect_data",
+            "mcp__hakowan_get_schema",
+            "mcp__hakowan_get_backends",
+            "mcp__hakowan_search_gallery",
+            "mcp__hakowan_validate_spec"
+          ],
+          "duration_seconds": 30.169,
+          "initial_parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+          "envelope_normalized": true,
+          "format_noncompliance": "Response wrapped canonical JSON in prose or Markdown; payload recovered deterministically without a model retry."
+        }
+      }
+    ]
+  },
+  "run_metadata": {
+    "date": "2026-09-21",
+    "host": "oh-my-pi",
+    "model": "anthropic/claude-sonnet-4-6",
+    "builtin_tools": "disabled via --no-tools",
+    "model_class": "Anthropic Claude Sonnet",
+    "isolation": "strict-mcp-only",
+    "skills": "disabled via --no-skills",
+    "rules": "disabled via --no-rules",
+    "mcp_transport": "stdio",
+    "case_count": 20,
+    "model_retries": 0,
+    "tool_calls": {
+      "mcp__hakowan_apply_patch": 14,
+      "mcp__hakowan_compile_spec": 13,
+      "mcp__hakowan_get_backends": 20,
+      "mcp__hakowan_get_schema": 20,
+      "mcp__hakowan_inspect_data": 20,
+      "mcp__hakowan_search_gallery": 22,
+      "mcp__hakowan_validate_spec": 31
+    },
+    "usage": {
+      "input": 140,
+      "output": 53553,
+      "cache_read": 1709799,
+      "premium_requests": 0,
+      "reported_cost": 4.532582699999999
+    },
+    "runs": {
+      "scalar-temperature": {
+        "exit_code": 0,
+        "duration_seconds": 28.883,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "missing-attribute-repair": {
+        "exit_code": 0,
+        "duration_seconds": 19.669,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "log-pressure": {
+        "exit_code": 0,
+        "duration_seconds": 24.639,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "nonpositive-log-repair": {
+        "exit_code": 0,
+        "duration_seconds": 23.161,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "nonfinite-field-repair": {
+        "exit_code": 0,
+        "duration_seconds": 19.292,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "categorical-regions": {
+        "exit_code": 0,
+        "duration_seconds": 20.441,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "wireframe-overlay": {
+        "exit_code": 0,
+        "duration_seconds": 32.883,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "velocity-glyphs": {
+        "exit_code": 0,
+        "duration_seconds": 249.06,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_compile_spec",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "point-pressure": {
+        "exit_code": 0,
+        "duration_seconds": 19.971,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "point-vector-size": {
+        "exit_code": 0,
+        "duration_seconds": 42.077,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "plane-slice": {
+        "exit_code": 0,
+        "duration_seconds": 54.482,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "isolate-region": {
+        "exit_code": 0,
+        "duration_seconds": 210.289,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "before-after-comparison": {
+        "exit_code": 0,
+        "duration_seconds": 24.508,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "isometric-fit-camera": {
+        "exit_code": 0,
+        "duration_seconds": 32.238,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "orthographic-section": {
+        "exit_code": 0,
+        "duration_seconds": 25.901,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": true
+      },
+      "stress-extremum-camera": {
+        "exit_code": 0,
+        "duration_seconds": 46.398,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec",
+          "mcp__hakowan_apply_patch"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "unsupported-pass-repair": {
+        "exit_code": 0,
+        "duration_seconds": 35.173,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "occluded-layers": {
+        "exit_code": 0,
+        "duration_seconds": 39.71,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "constant-field": {
+        "exit_code": 0,
+        "duration_seconds": 22.023,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      },
+      "extreme-aspect-repair": {
+        "exit_code": 0,
+        "duration_seconds": 30.169,
+        "tools": [
+          "mcp__hakowan_inspect_data",
+          "mcp__hakowan_get_schema",
+          "mcp__hakowan_get_backends",
+          "mcp__hakowan_search_gallery",
+          "mcp__hakowan_validate_spec"
+        ],
+        "stderr": "",
+        "parsed": false,
+        "parse_error": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      }
+    },
+    "direct_json_responses": 7,
+    "normalized_json_envelopes": 13,
+    "unusable_responses": 0,
+    "normalized_cases": [
+      "scalar-temperature",
+      "missing-attribute-repair",
+      "nonfinite-field-repair",
+      "velocity-glyphs",
+      "point-pressure",
+      "plane-slice",
+      "isolate-region",
+      "before-after-comparison",
+      "stress-extremum-camera",
+      "unsupported-pass-repair",
+      "occluded-layers",
+      "constant-field",
+      "extreme-aspect-repair"
+    ],
+    "provider_auto_retry_attempts": 0,
+    "cases_with_provider_auto_retries": 0,
+    "provider_auto_retries_by_case": {}
+  }
+}

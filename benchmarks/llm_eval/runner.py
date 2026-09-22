@@ -14,8 +14,13 @@ import hakowan as hkw
 from hakowan.spec.model import SCHEMA_VERSION
 from .datasets import dataset
 from .gallery import few_shots, load_gallery
-from .models import BenchmarkCase, BenchmarkReport, CandidateResponse
-from .providers import CandidateProvider, LiveProvider, ReferenceProvider, ReplayProvider
+from .models import BenchmarkCase, BenchmarkReport, CandidateResponse, StageResult
+from .providers import (
+    CandidateProvider,
+    LiveProvider,
+    ReferenceProvider,
+    ReplayProvider,
+)
 from .scoring import evaluate_candidate
 
 SUITE_VERSION = "1.0"
@@ -59,6 +64,24 @@ def _complete_spec(
     return hkw.patch_spec(candidate, operations).to_dict(), operations
 
 
+def _response_format(response: CandidateResponse) -> StageResult:
+    metadata = response.metadata.get("response_format")
+    if isinstance(metadata, dict):
+        status = str(metadata.get("status", "not_recorded"))
+        error = metadata.get("error")
+    elif response.metadata.get("envelope_normalized"):
+        status, error = "normalized_envelope", None
+    elif response.metadata.get("parse_error"):
+        status, error = "unusable", response.metadata["parse_error"]
+    else:
+        status, error = "not_recorded", None
+    return StageResult(
+        passed=status in {"direct_json", "not_recorded"},
+        message=str(error) if error else None,
+        details={"status": status},
+    )
+
+
 def run_case(
     case: BenchmarkCase,
     provider: CandidateProvider,
@@ -84,7 +107,11 @@ def run_case(
         case, candidate, observe=observe, patch_operations=operations
     )
     result = replace(
-        result, prompt=case.prompt, dataset=case.dataset, tags=case.tags
+        result,
+        prompt=case.prompt,
+        dataset=case.dataset,
+        tags=case.tags,
+        response_format=_response_format(response),
     )
     if result.final_pass or max_repairs <= 0:
         return replace(result, trace=tuple(trace))
@@ -115,6 +142,7 @@ def run_case(
                 last,
                 repair_attempts=attempt,
                 repair_success=False,
+                response_format=_response_format(response),
                 render=replace(
                     last.render, message=f"repair application failed: {exc}"
                 ),
@@ -130,6 +158,7 @@ def run_case(
             repaired,
             repair_attempts=attempt,
             repair_success=repaired.final_pass,
+            response_format=_response_format(response),
             trace=tuple(trace),
         )
         if repaired.final_pass:
@@ -185,6 +214,7 @@ def write_html_report(report: BenchmarkReport, path: str | Path) -> None:
             "<tr>"
             f"<td>{html.escape(result.case_id)}</td>"
             f"<td class='{status}'>{status}</td>"
+            f"<td>{html.escape(str(result.response_format.details.get('status', 'not_recorded')))}</td>"
             f"<td>{int(result.schema.passed)}</td>"
             f"<td>{int(result.semantic.passed)}</td>"
             f"<td>{int(result.compile.passed)}</td>"
@@ -208,10 +238,10 @@ th:first-child, td:first-child {{ text-align: left; }}
 .fail {{ color: #b00020; font-weight: 700; }}
 </style>
 <h1>Hakowan LLM evaluation</h1>
-<p>Model: <code>{html.escape(report.model)}</code> · Pass rate: {report.pass_rate:.1%}</p>
+<p>Model: <code>{html.escape(report.model)}</code> · Pass rate: {report.pass_rate:.1%} · Response format: {report.format_pass_rate:.1%}</p>
 <table>
-<thead><tr><th>Case</th><th>Final</th><th>Schema</th><th>Semantic</th><th>Compile</th><th>Render</th><th>Attribute</th><th>Grammar</th><th>Camera</th><th>Repairs</th><th>Patch</th></tr></thead>
-<tbody>{''.join(rows)}</tbody>
+<thead><tr><th>Case</th><th>Final</th><th>Format</th><th>Schema</th><th>Semantic</th><th>Compile</th><th>Render</th><th>Attribute</th><th>Grammar</th><th>Camera</th><th>Repairs</th><th>Patch</th></tr></thead>
+<tbody>{"".join(rows)}</tbody>
 </table>
 """
     Path(path).write_text(document, encoding="utf-8")
@@ -230,12 +260,20 @@ def _provider(args) -> CandidateProvider:
 def main(argv: list[str] | None = None) -> int:
     """Run the command-line benchmark."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", default="reference", help="reference, replay, or module:callable")
+    parser.add_argument(
+        "--provider", default="reference", help="reference, replay, or module:callable"
+    )
     parser.add_argument("--responses", help="Replay response JSON")
     parser.add_argument("--cases", help="Case JSON; defaults to bundled cases.json")
-    parser.add_argument("--case", action="append", dest="case_ids", help="Run one case ID; repeatable")
+    parser.add_argument(
+        "--case", action="append", dest="case_ids", help="Run one case ID; repeatable"
+    )
     parser.add_argument("--gallery", help="Path to hakowan-gallery checkout")
-    parser.add_argument("--observe", action="store_true", help="Run browser-backed camera occupancy scoring")
+    parser.add_argument(
+        "--observe",
+        action="store_true",
+        help="Run browser-backed camera occupancy scoring",
+    )
     parser.add_argument("--max-repairs", type=int, default=1)
     parser.add_argument("--json", default="llm-eval-report.json")
     parser.add_argument("--html", default="llm-eval-report.html")

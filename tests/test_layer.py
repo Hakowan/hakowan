@@ -24,6 +24,22 @@ class TestLayer:
         lyr = l1 + l2
         assert lyr._children == [l1, l2]
 
+    def test_chained_channels_override_same_slot_and_compose_other_slots(
+        self, triangle
+    ):
+        base = hkw.layer(triangle).mark("point").channel(size=0.1)
+        styled = base.channel(
+            size=0.2,
+            material=hkw.material.Diffuse("red"),
+        )
+
+        base_view = hkw.compile(base)[0]
+        styled_view = hkw.compile(styled)[0]
+
+        assert base_view.size_channel.data == 0.1
+        assert styled_view.size_channel.data == 0.2
+        assert isinstance(styled_view.material_channel, hkw.material.Diffuse)
+
     def test_juxtapose_operator(self):
         l1 = hkw.layer()
         l2 = hkw.layer()

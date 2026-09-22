@@ -112,6 +112,9 @@ class CaseResult:
     patch_minimality: float = 1.0
     diagnostics: tuple[dict[str, Any], ...] = ()
     candidate: dict[str, Any] | None = None
+    response_format: StageResult = field(
+        default_factory=lambda: StageResult(True, details={"status": "not_recorded"})
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-safe result mapping."""
@@ -137,8 +140,22 @@ class BenchmarkReport:
             else 0.0
         )
 
+    @property
+    def format_pass_rate(self) -> float:
+        """Return the fraction of responses obeying the direct JSON contract."""
+        return (
+            sum(result.response_format.passed for result in self.results)
+            / len(self.results)
+            if self.results
+            else 0.0
+        )
+
     def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-safe report with aggregate counts."""
+        """Return a JSON-safe report with aggregate and format counts."""
+        formats: dict[str, int] = {}
+        for result in self.results:
+            status = str(result.response_format.details.get("status", "not_recorded"))
+            formats[status] = formats.get(status, 0) + 1
         return {
             "suite_version": self.suite_version,
             "model": self.model,
@@ -147,5 +164,10 @@ class BenchmarkReport:
             "case_count": len(self.results),
             "passed": sum(result.final_pass for result in self.results),
             "pass_rate": self.pass_rate,
+            "format_passed": sum(
+                result.response_format.passed for result in self.results
+            ),
+            "format_pass_rate": self.format_pass_rate,
+            "response_formats": dict(sorted(formats.items())),
             "results": [result.to_dict() for result in self.results],
         }

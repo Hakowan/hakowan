@@ -106,6 +106,40 @@ def test_observe_captures_raw_passes_and_pick(playwright_browser, tmp_path):
     assert all(
         item["data_path"] for item in manifest["snapshots"] if item["pass"] != "beauty"
     )
+    evidence = manifest["evidence"]["views"]["front"]
+    assert 0.0 < evidence["occupancy"] < 1.0
+    assert evidence["visible_bounds"] is not None
+    assert evidence["layers"][0]["screen_fraction"] > 0.0
+    assert evidence["layers"][0]["projection"]["clipped_fraction"] == 0.0
+    assert evidence["layers"][0]["attributes"][0]["attribute"] == "temperature"
+    assert evidence["contrast"]["luminance_contrast"] > 0.0
+    assert isinstance(manifest["visual_diagnostics"], list)
+    assert manifest["contact_sheet_metadata"]["mime_type"] == "image/png"
+    assert len(manifest["contact_sheet_metadata"]["sha256"]) == 64
+    assert all(item["mime_type"] == "image/png" for item in manifest["snapshots"])
+    assert all(len(item["sha256"]) == 64 for item in manifest["snapshots"])
+
+
+def test_observe_uses_figure_camera_and_reports_low_occupancy(playwright_browser):
+    figure = hkw.figure(hkw.layer(_triangle())).camera(
+        "perspective",
+        eye=(0.5, 0.5, 100.0),
+        target=(0.5, 0.5, 0.0),
+        fov=35.0,
+    )
+
+    observation = hkw.observe(
+        figure,
+        passes=["beauty", "depth", "element_id", "layer_id"],
+        resolution=(64, 64),
+    )
+
+    assert {view for view, _ in observation.snapshots} == {"figure"}
+    assert observation.visual_evidence()["views"]["figure"]["occupancy"] < 0.02
+    assert any(
+        item.code in {"visual.frame_empty", "visual.occupancy_low"}
+        for item in observation.visual_diagnostics()
+    )
 
 
 def test_depth_and_normal_raw_data_without_id_sampling(playwright_browser):
