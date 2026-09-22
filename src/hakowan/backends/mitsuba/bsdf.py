@@ -257,15 +257,17 @@ def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair) -> dict[str
             "Mitsuba backend: root/tip hair gradient collapses to a single "
             "averaged color (no per-strand gradient)."
         )
-        mi_config["sigma_a"] = generate_color_config(
-            _hair_sigma_a_from_colors(gradient_colors, azimuthal_roughness)
-        )
+        mi_config["sigma_a"] = {
+            "type": "rgb",
+            "value": _hair_sigma_a_from_colors(gradient_colors, azimuthal_roughness),
+        }
     elif constant_color is not None:
         # A constant color overrides melanin: invert the desired reflectance to
         # a hair absorption coefficient (Chiang et al. 2016 "SigmaAFromReflectance").
-        mi_config["sigma_a"] = generate_color_config(
-            _hair_sigma_a_from_colors([constant_color], azimuthal_roughness)
-        )
+        mi_config["sigma_a"] = {
+            "type": "rgb",
+            "value": _hair_sigma_a_from_colors([constant_color], azimuthal_roughness),
+        }
     else:
         if isinstance(mat.color, Texture):
             logger.warning(

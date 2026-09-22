@@ -574,9 +574,7 @@ def test_blender_directional_light_and_environment_visibility():
     backend = BlenderBackend()
     backend._clear_scene()
     config = hkw.config()
-    config.emitters = [
-        Directional(direction=[0, 0, -1], color="red", intensity=2.5)
-    ]
+    config.emitters = [Directional(direction=[0, 0, -1], color="red", intensity=2.5)]
 
     backend._setup_lighting(config)
     lights = [obj.data for obj in bpy.context.scene.objects if obj.type == "LIGHT"]

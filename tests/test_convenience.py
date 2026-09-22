@@ -77,9 +77,7 @@ def test_glyph_vectors_overlays_scaled_arrow_field():
     mesh = _triangle()
 
     scene = hkw.compile(
-        hkw.layer(mesh).glyph_vectors(
-            "velocity", scale=0.5, size=0.02, normalize=True
-        )
+        hkw.layer(mesh).glyph_vectors("velocity", scale=0.5, size=0.02, normalize=True)
     )
     glyphs = scene[1]
     attribute = glyphs.vector_field_channel.data
@@ -135,9 +133,7 @@ def test_compare_labels_and_separates_layers():
     mesh = _triangle()
 
     scene = hkw.compile(
-        hkw.layer(mesh).compare(
-            hkw.layer(mesh), labels=("Before", "After"), gap=0.2
-        )
+        hkw.layer(mesh).compare(hkw.layer(mesh), labels=("Before", "After"), gap=0.2)
     )
 
     assert [view.name for view in scene] == ["Before", "After"]

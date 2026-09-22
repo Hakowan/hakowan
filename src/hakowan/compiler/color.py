@@ -105,9 +105,10 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
                 for index in range(count)
             ]
         else:
-            colors = [colormap(value).data for value in np.linspace(0.0, 1.0, 16)]
+            start, stop = tex.range if tex.range is not None else (0.0, 1.0)
+            colors = [colormap(value).data for value in np.linspace(start, stop, 16)]
         tex._legend_colors = tuple(
-            tuple(float(channel) for channel in color[:3]) for color in colors
+            (float(color[0]), float(color[1]), float(color[2])) for color in colors
         )
 
     if tex.colormap == "identity":

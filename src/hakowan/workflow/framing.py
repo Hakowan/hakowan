@@ -8,15 +8,15 @@ import lagrange
 import numpy as np
 import numpy.typing as npt
 
-from .compiler.compile import compile as compile_layer
-from .grammar.figure import (
+from ..compiler.compile import compile as compile_layer
+from ..grammar.figure import (
     Camera,
     OrthographicCamera,
     FovAxis,
     PerspectiveCamera,
     ThinLensCamera,
 )
-from .grammar.layer import Layer
+from ..grammar.layer import Layer
 
 DirectionPreset = Literal[
     "front", "back", "left", "right", "top", "bottom", "isometric"
@@ -227,7 +227,8 @@ def _camera_from_points(
         raise ValueError("Camera up must not be parallel to the viewing direction")
 
     radius = float(np.linalg.norm(points - target_array, axis=1).max(initial=0.0))
-    radius = max(radius, 1e-6)
+    if radius <= 1e-6:
+        radius = 1.0
     if projection == "orthographic":
         forward = -eye_direction
         right = np.cross(forward, up_array)
@@ -354,17 +355,26 @@ def resolve_camera(
         if axis not in (0, 1, 2):
             raise ValueError("Principal axis must be 0, 1, or 2")
         centered = points - points.mean(axis=0)
-        _, _, vectors = np.linalg.svd(centered, full_matrices=False)
-        if axis >= vectors.shape[0]:
+        _, singular_values, vectors = np.linalg.svd(centered, full_matrices=False)
+        if axis >= vectors.shape[0] or singular_values[axis] <= 1e-12:
             raise ValueError(
                 f"Principal axis {axis} is unavailable for this {len(points)}-point selection"
             )
+        if any(
+            other != axis
+            and np.isclose(
+                singular_values[axis], singular_values[other], rtol=1e-6, atol=1e-12
+            )
+            for other in range(len(singular_values))
+        ):
+            raise ValueError(f"Principal axis {axis} is not unique for this selection")
         principal = _canonical_axis(vectors[axis])
         if sign == "-":
             principal = -principal
         camera_direction = principal
-        candidate_up = _canonical_axis(vectors[(axis + 1) % len(vectors)])
-        up = candidate_up
+        if up is None:
+            world_axes = np.eye(3, dtype=np.float64)
+            up = world_axes[int(np.argmin(np.abs(world_axes @ principal)))]
     elif mode == "attribute_extremum":
         if attribute is None:
             raise ValueError("attribute_extremum framing requires attribute=")

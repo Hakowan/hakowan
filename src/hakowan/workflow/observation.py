@@ -21,14 +21,14 @@ import numpy as np
 import numpy.typing as npt
 from PIL import Image, ImageDraw
 
-from .backends import BackendName
-from .common.overlay import composite_overlays
-from .compiler import Scene, compile
-from .grammar.figure import Figure, OrthographicCamera
-from .grammar.layer import Layer
-from .grammar.mark import Mark
-from .setup import Config
-from .setup.sensor import Orthographic, Perspective
+from ..backends import BackendName
+from ..common.overlay import composite_overlays
+from ..compiler import Scene, compile
+from ..grammar.figure import Figure, OrthographicCamera
+from ..grammar.layer import Layer
+from ..grammar.mark import Mark
+from ..setup import Config
+from ..setup.sensor import Orthographic, Perspective
 from .validation import Diagnostic, validate
 from .observation_queries import (
     AttributeVisibility,
@@ -294,6 +294,7 @@ class Observation:
             depth,
             depth_snapshot.world_to_camera,
             depth_snapshot.projection,
+            mode=depth_snapshot.camera.mode,
         )
         normal = _normal_at(self.snapshots.get((view, "normal")), pixel)
         attributes = _attributes_at(self._scene, layer_id, element_id)
@@ -571,6 +572,16 @@ def _normal_from_image(image: Image.Image, world_to_camera: np.ndarray) -> np.nd
     return result.astype(np.float32)
 
 
+def _triangulate_observation_surfaces(scene: Scene) -> None:
+    """Match retained observation meshes to WebGL's rendered triangle IDs."""
+    for view in scene:
+        if view.mark is not Mark.Surface or view.data_frame is None:
+            continue
+        mesh = view.data_frame.mesh
+        if not mesh.is_triangle_mesh:
+            lagrange.triangulate_polygonal_facets(mesh)
+
+
 def _capture_sync(
     root: Layer,
     views: Sequence[str],
@@ -604,6 +615,7 @@ def _capture_sync(
     report = validate(root, backend="webgl", strict=False)
     report.raise_for_errors()
     scene = compile(root, preserve_attributes=True)
+    _triangulate_observation_surfaces(scene)
     summary = _scene_summary(scene, up_axis)
     resolved_cameras = {
         view: cameras[view]
@@ -626,8 +638,8 @@ def _capture_sync(
         fov_axis="y",
     )
     sync_playwright, playwright_error = _require_playwright()
-    from .backends.webgl import WebGLBackend
-    from .backends.webgl.assets import ensure_three_assets
+    from ..backends.webgl import WebGLBackend
+    from ..backends.webgl.assets import ensure_three_assets
 
     assets = ensure_three_assets("0.170.0")
     three_module_url = (assets / "build" / "three.module.js").resolve().as_uri()
@@ -1039,6 +1051,8 @@ def _unproject_pixel(
     depth: float,
     world_to_camera: np.ndarray,
     projection: np.ndarray,
+    *,
+    mode: ProjectionMode,
 ) -> np.ndarray:
     x, y = pixel
     width, height = resolution
@@ -1053,9 +1067,14 @@ def _unproject_pixel(
     )
     camera_point = np.linalg.inv(projection) @ ndc
     camera_point /= camera_point[3]
-    direction = camera_point[:3]
-    direction /= np.linalg.norm(direction)
-    camera_position = direction * (depth / max(-direction[2], 1e-12))
+    if mode == "orthographic":
+        camera_position = np.array(
+            [camera_point[0], camera_point[1], -depth], dtype=np.float64
+        )
+    else:
+        direction = camera_point[:3]
+        direction /= np.linalg.norm(direction)
+        camera_position = direction * (depth / max(-direction[2], 1e-12))
     world = np.linalg.inv(world_to_camera) @ np.array([*camera_position, 1.0])
     return world[:3] / world[3]
 

@@ -9,6 +9,7 @@ from PIL import Image
 
 import hakowan as hkw
 from hakowan.common.overlay import composite_overlay_file, composite_overlays
+from hakowan.common.colormap.named_colormaps import get_colormap
 from hakowan.compiler.overlay import CompiledAnnotation, CompiledLegend
 
 
@@ -72,9 +73,7 @@ def test_compile_collects_continuous_legend_and_annotation():
 
 def test_legend_domain_tracks_user_scale_pipeline():
     mesh = _scalar_mesh()
-    field = hkw.attribute(
-        "temperature", unit="K", scale=hkw.scale.Uniform(factor=2.0)
-    )
+    field = hkw.attribute("temperature", unit="K", scale=hkw.scale.Uniform(factor=2.0))
 
     scene = hkw.compile(
         hkw.layer(mesh).material("Diffuse", hkw.texture.ScalarField(field))
@@ -82,6 +81,32 @@ def test_legend_domain_tracks_user_scale_pipeline():
 
     assert scene.legends[0].domain == (20.0, 60.0)
     assert scene.legends[0].scale == ("uniform",)
+
+
+def test_legend_colors_follow_requested_colormap_range():
+    mesh = _scalar_mesh()
+    scene = hkw.compile(
+        hkw.layer(mesh).material(
+            "Diffuse",
+            hkw.texture.ScalarField(
+                "temperature", colormap="viridis", range=(0.25, 0.75)
+            ),
+        )
+    )
+    colormap = get_colormap("viridis")
+    assert colormap is not None
+    np.testing.assert_allclose(scene.legends[0].colors[0], colormap(0.25).data[:3])
+    np.testing.assert_allclose(scene.legends[0].colors[-1], colormap(0.75).data[:3])
+
+
+def test_unsupported_data_driven_hair_color_has_no_legend():
+    scene = hkw.compile(
+        hkw.layer(_scalar_mesh()).material(
+            "Hair", color=hkw.texture.ScalarField("temperature")
+        )
+    )
+
+    assert scene.legends == []
 
 
 def test_compile_collects_categorical_labels_and_deduplicates_overlay():
@@ -167,6 +192,12 @@ def test_raster_overlay_compositor_adds_panel_and_annotation(tmp_path):
     source.save(path)
     assert composite_overlay_file(path, [legend], [annotation])
     assert Image.open(path).size == (220, 80)
+    pcx_path = tmp_path / "overlay.pcx"
+    source.save(pcx_path)
+    assert composite_overlay_file(pcx_path, [legend], [annotation])
+    with Image.open(pcx_path) as encoded:
+        assert encoded.mode == "RGB"
+        assert encoded.size == (220, 80)
     assert not composite_overlay_file(tmp_path / "image.exr", [legend], [])
 
 
@@ -194,6 +225,21 @@ def test_webgl_embeds_semantic_overlay_metadata(tmp_path):
     assert '"text": "simulation A"' in html
     assert "buildSemanticOverlays()" in html
     assert "{{LEGENDS_JSON}}" not in html
+
+
+def test_webgl_escapes_html_and_inline_script_payloads(tmp_path):
+    script_payload = "</script><script>globalThis.hakowanInjected=true</script>"
+    title_payload = "</title><script>globalThis.hakowanTitleInjected=true</script>"
+    layer = hkw.layer(_scalar_mesh()).annotate(script_payload)
+    output = tmp_path / "viewer.html"
+
+    hkw.render(layer, filename=output, backend="webgl", title=title_payload)
+    html = output.read_text(encoding="utf-8")
+
+    assert script_payload not in html
+    assert "\\u003c/script\\u003e" in html
+    assert title_payload not in html
+    assert "&lt;/title&gt;" in html
 
 
 def test_overlay_schema_round_trip():

@@ -66,7 +66,7 @@ def _capture_legend_metadata(df: DataFrame, tex: ScalarField) -> None:
         tex._legend_values = tuple(float(value) for value in np.unique(values))
     else:
         tex._legend_domain = (
-            tuple(float(value) for value in tex.domain)
+            (float(tex.domain[0]), float(tex.domain[1]))
             if tex.domain is not None
             else (float(np.min(values)), float(np.max(values)))
         )

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import lagrange
 import numpy as np
 
-from .grammar.mark import Mark
+from ..grammar.mark import Mark
 from .validation import Diagnostic
 
 

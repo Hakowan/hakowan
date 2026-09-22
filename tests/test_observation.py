@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import importlib
 import json
 import sys
@@ -13,9 +14,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-import hakowan.observation as observation_module
+import hakowan.workflow.observation as observation_module
 from hakowan.backends.webgl import assets as asset_module
-from hakowan.validation import Diagnostic
+from hakowan.workflow.validation import Diagnostic
 
 import hakowan as hkw
 
@@ -243,6 +244,7 @@ def test_webgl_offline_bundle_loads_without_network(playwright_browser, tmp_path
         page.goto(output.resolve().as_uri(), wait_until="domcontentloaded")
         page.wait_for_function("window.__hakowan_loaded === true")
         assert page.evaluate("window.__hakowan.getCameraMode()") == "perspective"
+        assert page.evaluate("window.__hakowan.hasEnvironment()") is True
         browser.close()
 
 
@@ -337,8 +339,16 @@ def test_explicit_orthographic_camera_is_applied(playwright_browser):
         target=(0.0, 0.0, 0.0),
         up=(0.0, 1.0, 0.0),
         mode="orthographic",
+        scale=2.0,
     )
-    result = hkw.snapshot(hkw.layer(_triangle()), camera=camera, resolution=(40, 40))
+    observation = hkw.observe(
+        hkw.layer(_triangle()),
+        views=["ortho"],
+        passes=["depth", "element_id", "layer_id"],
+        cameras={"ortho": camera},
+        resolution=(40, 40),
+    )
+    result = observation.snapshot("ortho", "depth")
 
     assert result.camera == camera
     assert result.projection[3, 3] == pytest.approx(1.0)
@@ -347,6 +357,12 @@ def test_explicit_orthographic_camera_is_applied(playwright_browser):
         [0.0, 0.0, 0.0, 1.0],
         atol=1e-6,
     )
+    ids = observation.snapshot("ortho", "layer_id").data
+    assert ids is not None
+    y, x = np.argwhere(ids != observation_module.BACKGROUND_ID)[0]
+    hit = observation.pick("ortho", (int(x), int(y)))
+    assert hit is not None
+    assert hit.world_position[2] == pytest.approx(0.0, abs=1e-5)
 
 
 def test_snapshot_writes_raw_sidecar(playwright_browser, tmp_path):
@@ -515,6 +531,14 @@ def test_missing_playwright_has_actionable_error(monkeypatch):
 
 def test_asset_cache_download_reuse_and_safe_copy(monkeypatch, tmp_path):
     monkeypatch.setenv("HAKOWAN_CACHE_DIR", str(tmp_path / "cache"))
+    payload = b"// module"
+    manifest = {
+        "test": {
+            "build/three.module.js": hashlib.sha256(payload).hexdigest(),
+            "examples/jsm/loaders/EXRLoader.js": hashlib.sha256(payload).hexdigest(),
+        }
+    }
+    monkeypatch.setattr(asset_module, "_ASSET_MANIFEST", manifest)
 
     class Response:
         def __enter__(self):
@@ -523,8 +547,8 @@ def test_asset_cache_download_reuse_and_safe_copy(monkeypatch, tmp_path):
         def __exit__(self, *_args):
             return False
 
-        def read(self):
-            return b"// module"
+        def read(self, _size=-1):
+            return payload
 
     calls = []
 
@@ -534,8 +558,8 @@ def test_asset_cache_download_reuse_and_safe_copy(monkeypatch, tmp_path):
 
     monkeypatch.setattr(asset_module.urllib.request, "urlopen", urlopen)
     cache = asset_module.ensure_three_assets("test")
-    assert len(calls) == 4
-    assert all((cache / relative).is_file() for relative in asset_module._ASSETS)
+    assert len(calls) == 2
+    assert all((cache / relative).is_file() for relative in manifest["test"])
 
     calls.clear()
     assert asset_module.ensure_three_assets("test") == cache
@@ -549,8 +573,47 @@ def test_asset_cache_download_reuse_and_safe_copy(monkeypatch, tmp_path):
     assert marker.read_text(encoding="utf-8") == "keep"
 
 
+def test_offline_asset_manifest_includes_environment_loaders():
+    assets = asset_module._ASSET_MANIFEST["0.170.0"]
+    assert "examples/jsm/loaders/EXRLoader.js" in assets
+    assert "examples/jsm/loaders/RGBELoader.js" in assets
+    assert "examples/jsm/libs/fflate.module.js" in assets
+
+
+def test_asset_integrity_failure_is_actionable(monkeypatch, tmp_path):
+    monkeypatch.setenv("HAKOWAN_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(
+        asset_module,
+        "_ASSET_MANIFEST",
+        {"test": {"build/three.module.js": "0" * 64}},
+    )
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _size=-1):
+            return b"tampered"
+
+    monkeypatch.setattr(
+        asset_module.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: Response(),
+    )
+    with pytest.raises(asset_module.WebGLAssetError, match="integrity"):
+        asset_module.ensure_three_assets("test")
+
+
 def test_asset_download_failure_is_actionable(monkeypatch, tmp_path):
     monkeypatch.setenv("HAKOWAN_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(
+        asset_module,
+        "_ASSET_MANIFEST",
+        {"test": {"build/three.module.js": "0" * 64}},
+    )
     monkeypatch.setattr(
         asset_module.urllib.request,
         "urlopen",
@@ -559,7 +622,7 @@ def test_asset_download_failure_is_actionable(monkeypatch, tmp_path):
         ),
     )
     with pytest.raises(asset_module.WebGLAssetError, match="network access"):
-        asset_module.ensure_three_assets("missing")
+        asset_module.ensure_three_assets("test")
 
 
 def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
@@ -568,8 +631,8 @@ def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
     output = tmp_path / "turntable.png"
     calls = []
 
-    def fake_snapshot(_layer, *, filename, resolution, **_kwargs):
-        calls.append((Path(filename), resolution))
+    def fake_snapshot(_layer, *, filename, resolution, pass_name, **_kwargs):
+        calls.append((Path(filename), resolution, pass_name))
         Image.new("RGB", resolution, "white").save(filename)
 
     main_module = importlib.import_module("hakowan.__main__")
@@ -587,6 +650,7 @@ def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
             "--resolution",
             "24",
             "16",
+            "--depth",
             "--output",
             str(output),
             "--no-open",
@@ -596,7 +660,10 @@ def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
     main_module.main()
 
     assert len(calls) == 2
-    assert all(resolution == (24, 16) for _, resolution in calls)
+    assert all(
+        resolution == (24, 16) and pass_name == "depth"
+        for _, resolution, pass_name in calls
+    )
     assert output.with_suffix(".gif").is_file()
 
 

@@ -3,28 +3,28 @@
 See the [observation guide](../guide/observation.md) for view conventions,
 render-pass semantics, installation, offline assets, and pixel picking.
 
-::: hakowan.observation.snapshot
+::: hakowan.workflow.observation.snapshot
 
-::: hakowan.observation.observe
+::: hakowan.workflow.observation.observe
 
-::: hakowan.observation.CameraState
+::: hakowan.workflow.observation.CameraState
 
-::: hakowan.observation.Snapshot
+::: hakowan.workflow.observation.Snapshot
 
-::: hakowan.observation.Observation
+::: hakowan.workflow.observation.Observation
 
-::: hakowan.observation.PixelHit
+::: hakowan.workflow.observation.PixelHit
 
-::: hakowan.observation.SceneSummary
+::: hakowan.workflow.observation.SceneSummary
 
-::: hakowan.observation.LayerSummary
+::: hakowan.workflow.observation.LayerSummary
 
-::: hakowan.observation.RegionSummary
+::: hakowan.workflow.observation.RegionSummary
 
-::: hakowan.observation.LayerVisibility
+::: hakowan.workflow.observation.LayerVisibility
 
-::: hakowan.observation.AttributeVisibility
+::: hakowan.workflow.observation.AttributeVisibility
 
-::: hakowan.observation.OcclusionRecord
+::: hakowan.workflow.observation.OcclusionRecord
 
-::: hakowan.observation.ObservationError
+::: hakowan.workflow.observation.ObservationError

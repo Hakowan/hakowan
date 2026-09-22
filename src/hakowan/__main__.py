@@ -1118,6 +1118,25 @@ def main():
         cam_data = compute_camera_matrix(config)
         save_camera_matrix(cam_data, Path(args.camera_matrix))
 
+    turntable_pass = "beauty"
+    if args.turn_table and args.backend == "webgl":
+        requested_passes = [
+            name
+            for name, enabled in (
+                ("albedo", args.albedo),
+                ("depth", args.depth),
+                ("normal", args.shading_normal),
+                ("facet_id", args.facet_id),
+            )
+            if enabled
+        ]
+        if len(requested_passes) > 1:
+            raise SystemExit("WebGL turn-table supports at most one render pass.")
+        if requested_passes == ["facet_id"]:
+            raise SystemExit("WebGL turn-table does not support the facet_id pass.")
+        if requested_passes:
+            turntable_pass = requested_passes[0]
+
     if args.turn_table == 0:
         kwargs = {}
         if args.serialize:
@@ -1193,6 +1212,7 @@ def main():
                 if args.backend == "webgl":
                     hkw.snapshot(
                         layer,
+                        pass_name=turntable_pass,
                         camera=hkw.CameraState(
                             eye=tuple(float(value) for value in rotated_camera),
                             target=(0.0, 0.0, 0.0),

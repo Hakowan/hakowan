@@ -69,7 +69,7 @@ full `float32` depth and world normals.
 | `element_id` | deterministic false color | `uint32[H,W]` |
 | `layer_id` | deterministic false color | `uint32[H,W]` |
 
-ID pass background pixels use `hkw.observation.BACKGROUND_ID` (`2**32 - 1`).
+ID pass background pixels use `hkw.workflow.observation.BACKGROUND_ID` (`2**32 - 1`).
 For surface marks, `element_id` identifies the rendered triangle. For instanced
 point and curve geometry it identifies the rendered instance. Polygonal source
 facets may produce multiple rendered triangle IDs after triangulation.
@@ -249,9 +249,10 @@ hkw.render(
 ```
 
 This writes `viewer.html` and `viewer_assets/`. The first offline build downloads
-four version-pinned Three.js modules into Hakowan's cache; the generated bundle
-works without network access afterward. Keep the HTML and asset directory
-together.
+the pinned Three.js core, controls, geometry utilities, and environment-map
+loader dependencies into Hakowan's cache and verifies their SHA-256 digests.
+Subsequent bundles are copied from that cache and work without network access.
+Keep the HTML and asset directory together.
 
 ## Determinism and limitations
 

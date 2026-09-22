@@ -23,6 +23,8 @@ def _positions(values: Any, *, label: str = "positions") -> npt.NDArray[np.float
     array = np.asarray(values)
     if array.ndim != 2 or array.shape[1] not in (2, 3):
         raise ValueError(f"{label} must have shape (n, 2) or (n, 3); got {array.shape}")
+    if array.shape[0] == 0:
+        raise ValueError(f"{label} must contain at least one point")
     if not np.issubdtype(array.dtype, np.number):
         raise TypeError(f"{label} must be numeric; got dtype {array.dtype}")
     result = np.asarray(array, dtype=np.float64)
@@ -78,6 +80,8 @@ def _add_attribute(
         return
     if array.ndim == 1:
         array = array.reshape(-1, 1)
+    if np.issubdtype(array.dtype, np.bool_):
+        array = array.astype(np.uint8)
     mesh.create_attribute(
         str(name),
         element=element,

@@ -97,8 +97,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "{{THREE_MODULE_URL}}",
-    "three/addons/": "{{THREE_ADDONS_URL}}"
+    "three": {{THREE_MODULE_URL}},
+    "three/addons/": {{THREE_ADDONS_URL}}
   }
 }
 </script>
@@ -107,12 +107,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const GLB_DATA_URI = "{{GLB_DATA_URI}}";
+const GLB_DATA_URI = {{GLB_DATA_URI}};
 const INITIAL_EYE    = {{INITIAL_EYE}};
 const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
-let bgMode = "{{BG_MODE}}";
+let bgMode = {{BG_MODE}};
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
 const INITIAL_CAMERA_MODE = {{INITIAL_CAMERA_MODE}};
@@ -168,13 +168,9 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
-// Environment lighting is locked to the camera's full orientation: the light is
-// stationary in view space (a mirror reflects the same image from every angle),
-// with env-up kept on the camera up. Refreshed every frame.
+// Apply the backend-neutral environment orientation encoded by envmap_descriptor.
 let envRotationSupported = false; // three.js >= r163 exposes scene.environmentRotation
-const envAzimuth = (ENVMAP && typeof ENVMAP.azimuth === 'number') ? ENVMAP.azimuth : 0;
 const _envMat = new THREE.Matrix4();
-const _envOffset = new THREE.Matrix4();
 const _envEuler = new THREE.Euler();
 
 function setBackgroundMode(mode) {
@@ -312,27 +308,17 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function updateEnvRotation() {
-  // Lock the env to the camera's full orientation so the lighting is stationary
-  // in view space (a mirror reflects the same image from every angle). World env
-  // orientation is
-  //   E = R_camera · Ry(envAzimuth)
-  // where R_camera glues the whole frame to the camera, and Ry(envAzimuth) is a
-  // rotation about env-local +Y — which maps to the camera up — so env-up stays
-  // on the camera up (regardless of the scene's up axis) and the emitter's chosen
-  // feature sits at a fixed view-relative azimuth (also absorbing three.js's
-  // equirect seam offset).
-  //
-  // three.js samples the env at `envMapRotation * worldDir`, where the uniform is
-  // `makeRotationFromEuler(-scene.environmentRotation)` (each Euler component is
-  // negated to accommodate its left-handed frame). Sampling needs Eᵀ * worldDir,
-  // so we feed Eᵀ into the Euler and pre-negate to cancel three.js's flip.
-  if (!envRotationSupported) return;
-  _envMat.makeRotationFromQuaternion(camera.quaternion);  // R_camera (camera -> world)
-  if (envAzimuth) {
-    _envOffset.makeRotationY(envAzimuth);                 // about env-local Y (= camera up)
-    _envMat.multiply(_envOffset);
-  }
-  _envMat.transpose();                                     // Eᵀ
+  if (!envRotationSupported || !ENVMAP) return;
+  const m = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  _envMat.set(
+    m[0], m[1], m[2], 0,
+    m[3], m[4], m[5], 0,
+    m[6], m[7], m[8], 0,
+    0,    0,    0,    1,
+  );
+  // three.js negates environmentRotation internally. Transpose the desired
+  // world transform and pre-negate its Euler angles to supply its inverse.
+  _envMat.transpose();
   _envEuler.setFromRotationMatrix(_envMat);
   _envEuler.x *= -1; _envEuler.y *= -1; _envEuler.z *= -1;
   scene.environmentRotation.copy(_envEuler);
@@ -366,15 +352,15 @@ async function loadEnvmap() {
     if ('environmentIntensity' in scene) {
       scene.environmentIntensity = ENVMAP.scale;
     }
-    // Per-frame `updateEnvRotation()` orients the env from the camera up +
-    // azimuth (see there) using `ENVMAP.azimuth`. Requires three.js >= r163.
+    // Apply Mitsuba's align-y-to-up and azimuth transform from the descriptor.
+    // Requires three.js >= r163.
     if ('environmentRotation' in scene) {
       envRotationSupported = true;
       if (ENVMAP.background) {
         scene.background = envTexture;
         envBackground = envTexture;
       }
-      updateEnvRotation();  // set the initial orientation from the current camera
+      updateEnvRotation();
     } else if (ENVMAP.background) {
       scene.background = envTexture;
       envBackground = envTexture;
@@ -1498,6 +1484,7 @@ const onLoaded = (gltf) => {
   window.__hakowan = {
     THREE, scene, renderer, canvas, camera, controls, loadedRoot,
     perspCamera, orthoCamera,
+    hasEnvironment: () => scene.environment !== null,
     getCamera: () => camera,
     getCameraMode: () => cameraMode,
     setCameraMode,
@@ -1549,7 +1536,6 @@ const onError = (err) => {
 function animate() {
   resize();
   controls.update();
-  updateEnvRotation();  // keep the env light stationary relative to the camera
   if (currentPass === 'depth') updateDepthRange();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);

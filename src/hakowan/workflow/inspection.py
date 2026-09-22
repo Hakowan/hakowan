@@ -8,7 +8,7 @@ from typing import Any
 import lagrange
 import numpy as np
 
-from .grammar.dataframe import DataFrameLike, PositionColumns, to_dataframe
+from ..grammar.dataframe import DataFrameLike, PositionColumns, to_dataframe
 
 
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]

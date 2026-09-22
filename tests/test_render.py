@@ -15,7 +15,7 @@ if sys.platform == "win32" and os.environ.get("CI") == "true":
 
 pytest.importorskip("mitsuba", reason="mitsuba not installed")
 
-from hakowan.backends.mitsuba.render import generate_scene_config
+from hakowan.backends.mitsuba.render import generate_base_config, generate_scene_config
 
 
 class TestRender:
@@ -185,7 +185,10 @@ class TestBackSide:
     def test_hair_constant_color_config(self):
         # A constant RGB color inverts to a hair absorption coefficient; a blue
         # target absorbs red most (largest sigma_a) and blue least.
-        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.backends.mitsuba.bsdf import (
+            _hair_sigma_a_from_colors,
+            generate_hair_bsdf_config,
+        )
         from hakowan.grammar.channel.material import Hair
 
         cfg = generate_hair_bsdf_config(
@@ -194,6 +197,9 @@ class TestBackSide:
         assert "sigma_a" in cfg and "eumelanin" not in cfg
         sigma = list(cfg["sigma_a"]["value"])
         assert sigma[0] > sigma[2]  # red absorbed more than blue
+        assert sigma == pytest.approx(
+            _hair_sigma_a_from_colors([[0.15, 0.35, 0.95]], 0.3)
+        )
 
     def test_hair_gradient_collapses_to_average_color(self):
         # A root/tip gradient can't be per-strand in Mitsuba: it collapses to a
@@ -206,6 +212,16 @@ class TestBackSide:
             Hair(root_color=[0.02, 0.01, 0.005], tip_color=[0.9, 0.65, 0.3]),
         )
         assert "sigma_a" in cfg and "eumelanin" not in cfg
+
+    def test_environment_visibility_reaches_nested_mitsuba_integrator(self):
+        config = hkw.config()
+        config.depth = True
+        config.environment_visible = True
+
+        integrator = generate_base_config(config)["integrator"]
+
+        assert integrator["hide_emitters"] is False
+        assert integrator["integrator"]["hide_emitters"] is False
 
 
 class TestPointOrientation:

@@ -212,7 +212,7 @@ class Figure:
         if isinstance(camera, str):
             kind = camera
             if kind in {"fit", "principal_axis", "attribute_extremum", "section"}:
-                from ..framing import resolve_camera
+                from ..workflow.framing import resolve_camera
 
                 output = self.scene.output
                 kwargs.setdefault(
@@ -251,7 +251,7 @@ class Figure:
         Keyword arguments are forwarded to :func:`turntable_cameras`; output
         dimensions default to this Figure's declared output size.
         """
-        from ..framing import turntable_cameras
+        from ..workflow.framing import turntable_cameras
 
         output = self.scene.output
         kwargs.setdefault(
@@ -326,10 +326,22 @@ class Figure:
 
 
 def _validate_camera(eye, target, up, near: float, far: float) -> None:
-    if eye == target:
+    direction = tuple(float(target[i] - eye[i]) for i in range(3))
+    direction_norm_sq = sum(value * value for value in direction)
+    if direction_norm_sq <= 1e-20:
         raise ValueError("Camera eye and target must differ.")
-    if sum(value * value for value in up) <= 1e-20:
+    up_norm_sq = sum(float(value) * float(value) for value in up)
+    if up_norm_sq <= 1e-20:
         raise ValueError("Camera up vector must be non-zero.")
+    cross = (
+        direction[1] * up[2] - direction[2] * up[1],
+        direction[2] * up[0] - direction[0] * up[2],
+        direction[0] * up[1] - direction[1] * up[0],
+    )
+    if sum(value * value for value in cross) <= 1e-12 * direction_norm_sq * up_norm_sq:
+        raise ValueError(
+            "Camera up vector must not be parallel to the viewing direction."
+        )
     if near <= 0.0 or far <= near:
         raise ValueError("Camera clipping planes require 0 < near < far.")
 

@@ -103,7 +103,9 @@ def test_patch_can_promote_layer_spec_to_figure():
 
 def test_patch_spec_returns_validated_immutable_model():
     mesh = _mesh()
-    spec = hkw.to_spec(hkw.figure(hkw.layer(mesh)).output(width=100), data_ids={id(mesh): "mesh"})
+    spec = hkw.to_spec(
+        hkw.figure(hkw.layer(mesh)).output(width=100), data_ids={id(mesh): "mesh"}
+    )
     before = copy.deepcopy(spec.to_dict())
 
     updated = hkw.patch_spec(

@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from ..compiler.overlay import CompiledAnnotation, CompiledLegend
+from .image_io import _write
 
 
 def _font(size: int):
@@ -161,9 +162,7 @@ def composite_overlay_file(
         return False
     with Image.open(filename) as source:
         result = composite_overlays(source, legends, annotations, background)
-    if filename.suffix.lower() in {".jpg", ".jpeg"}:
-        result = result.convert("RGB")
-    result.save(filename)
+    _write(result, filename)
     return True
 
 

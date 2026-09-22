@@ -9,8 +9,8 @@ from typing import Any, Literal
 import lagrange
 import numpy as np
 
-from .backends import BackendCapabilities, BackendName, get_backend_capabilities
-from .grammar.channel import (
+from ..backends import BackendCapabilities, BackendName, get_backend_capabilities
+from ..grammar.channel import (
     BumpMap,
     Channel,
     Covariance,
@@ -21,13 +21,13 @@ from .grammar.channel import (
     Size,
     VectorField,
 )
-from .grammar.channel.material import Hair, Material
-from .grammar.dataframe import DataFrame
-from .grammar.layer import Layer
-from .grammar.mark import Mark
-from .grammar.scale import Attribute, Custom, Log, Norm as NormScale, Scale
-from .grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Texture
-from .grammar.transform import (
+from ..grammar.channel.material import Hair, Material
+from ..grammar.dataframe import DataFrame
+from ..grammar.layer import Layer
+from ..grammar.mark import Mark
+from ..grammar.scale import Attribute, Custom, Log, Norm as NormScale, Scale
+from ..grammar.texture import Checkerboard, Image, Isocontour, ScalarField, Texture
+from ..grammar.transform import (
     Boundary,
     Compute,
     Explode,
@@ -243,7 +243,7 @@ def _perspective_tangents(camera: Any, width: int, height: int) -> tuple[float, 
 def _projected_bounds(
     points: np.ndarray, camera: Any
 ) -> tuple[float, float, float, float] | None:
-    from .grammar.figure import OrthographicCamera
+    from ..grammar.figure import OrthographicCamera
 
     x, y, depth = _camera_coordinates(points, camera)
     visible = (depth >= camera.near) & (depth <= camera.far)
@@ -344,7 +344,7 @@ def _validate_compiled_scene(scene: Any, figure: Any, validator: "_Validator") -
             hint=f"Increase far above {max_depth:.4g} or move the camera closer.",
         )
 
-    from .grammar.figure import OrthographicCamera
+    from ..grammar.figure import OrthographicCamera
 
     output = figure.scene.output
     width = output.width if output is not None else 1024
@@ -971,7 +971,7 @@ def validate(
     """
     figure = None
     if not isinstance(root, Layer):
-        from .grammar.figure import Figure
+        from ..grammar.figure import Figure
 
         if not isinstance(root, Figure):
             raise TypeError(f"Expected a Layer or Figure, got {type(root)!r}")
@@ -996,7 +996,7 @@ def validate(
         )
     validator = _Validator(capabilities, strict)
     if figure is not None:
-        from .grammar.figure import ThinLensCamera
+        from ..grammar.figure import ThinLensCamera
 
         if (
             isinstance(figure.scene.camera, ThinLensCamera)
@@ -1040,7 +1040,7 @@ def validate(
         item.severity == "error" for item in validator.diagnostics
     ):
         try:
-            from .compiler import compile as compile_layer
+            from ..compiler import compile as compile_layer
 
             scene = compile_layer(root, preserve_attributes=True)
             _validate_compiled_scene(scene, figure, validator)

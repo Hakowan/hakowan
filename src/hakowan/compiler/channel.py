@@ -33,7 +33,7 @@ from ..grammar.channel.curvestyle import Bend
 from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, to_attribute
-from ..grammar.texture import Texture, Uniform, Image
+from ..grammar.texture import Image, ScalarField, Texture, Uniform
 
 import numpy as np
 
@@ -245,9 +245,13 @@ def _process_material(view: View, df: DataFrame, mat: Material):
             # Nothing to do.
             pass
         case Hair():
-            # ``color`` (when set) overrides melanin and may be data-driven.
+            # Backends cannot render data-driven hair color. Resolve it only so
+            # validation can inspect the attribute, without publishing a legend
+            # for a mapping that will not appear in the rendered result.
             if isinstance(mat.color, Texture):
                 tex = mat.color
+                if isinstance(tex, ScalarField):
+                    tex.legend = False
                 view._active_attributes += apply_texture(df, tex, view.uv_attribute)
                 view.uv_attribute = tex._uv
                 apply_colormap(df, tex)

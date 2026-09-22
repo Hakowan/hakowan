@@ -49,16 +49,26 @@ def test_inspect_loads_mesh_file(triangle, tmp_path):
 
 
 def test_inspect_loads_point_cloud_attributes_from_file(tmp_path):
-    mesh = lagrange.SurfaceMesh()
-    mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))
-    mesh.create_attribute(
-        "pressure",
-        element=lagrange.AttributeElement.Vertex,
-        usage=lagrange.AttributeUsage.Scalar,
-        initial_values=np.array([1.0, 3.0]),
-    )
     path = tmp_path / "points.ply"
-    lagrange.io.save_mesh(path, mesh)
+    path.write_text(
+        "\n".join(
+            [
+                "ply",
+                "format ascii 1.0",
+                "element vertex 2",
+                "property float x",
+                "property float y",
+                "property float z",
+                "property float pressure",
+                "element face 0",
+                "property list uchar int vertex_indices",
+                "end_header",
+                "0 0 0 1",
+                "1 0 0 3",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
     summary = hkw.inspect(path)
 

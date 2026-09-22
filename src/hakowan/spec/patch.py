@@ -13,7 +13,7 @@ from pydantic import ValidationError as PydanticValidationError
 from ..backends import BackendName
 from ..grammar.figure import Figure
 from ..grammar.layer import Layer
-from ..validation import ValidationReport, validate
+from ..workflow.validation import ValidationReport, validate
 from .codec import (
     DataIds,
     DataResolver,

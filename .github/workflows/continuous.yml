@@ -18,6 +18,14 @@ jobs:
         with:
           cache: true
 
+      - name: Install Chromium and system dependencies
+        if: runner.os == 'Linux'
+        run: pixi run -e full playwright install --with-deps chromium
+
+      - name: Install Chromium
+        if: runner.os != 'Linux'
+        run: pixi run -e full playwright install chromium
+
       # Lint, format check and type check are platform-independent, so run once.
       - name: Lint
         if: matrix.os == 'ubuntu-latest'

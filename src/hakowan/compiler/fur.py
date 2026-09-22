@@ -376,7 +376,7 @@ def _build_surface_strands(
     n = len(face_ids)
     npts = segments + 1
     pos = np.empty((n, npts, 3), dtype=np.float64)
-    max_steps = max(4 * segments, 64)
+    max_steps = max(4 * segments, int(num_faces), 64)
 
     for k in range(n):
         fi = int(face_ids[k])

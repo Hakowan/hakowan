@@ -46,6 +46,42 @@ _FUNCTIONS: dict[str, Callable[..., Any]] = {
     "norm": np.linalg.norm,
 }
 _NAMES = frozenset({"value", "x", "y", "z", "true", "false", "null"})
+_MAX_RESULT_ITEMS = 4096
+_MAX_INTEGER_BITS = 4096
+
+
+def _bounded_result(value: Any) -> Any:
+    """Reject values whose construction could exhaust process resources."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value.bit_length() > _MAX_INTEGER_BITS:
+            raise ExpressionError("Expression integer result is too large.")
+    elif isinstance(value, (str, bytes, list, tuple)):
+        if len(value) > _MAX_RESULT_ITEMS:
+            raise ExpressionError("Expression sequence result is too large.")
+    elif isinstance(value, np.ndarray) and value.size > _MAX_RESULT_ITEMS:
+        raise ExpressionError("Expression array result is too large.")
+    return value
+
+
+def _binary(node: ast.BinOp, context: dict[str, Any]) -> Any:
+    """Evaluate one binary operation after rejecting explosive operands."""
+    left = _evaluate(node.left, context)
+    right = _evaluate(node.right, context)
+    if isinstance(node.op, ast.Mult) and (
+        isinstance(left, (str, bytes, list, tuple))
+        or isinstance(right, (str, bytes, list, tuple))
+    ):
+        raise ExpressionError("Sequence repetition is not allowed.")
+    if (
+        isinstance(node.op, ast.Pow)
+        and isinstance(left, (int, np.integer))
+        and isinstance(right, (int, np.integer))
+        and right > 0
+        and abs(int(left)) > 1
+        and abs(int(left)).bit_length() * int(right) > _MAX_INTEGER_BITS
+    ):
+        raise ExpressionError("Expression integer result is too large.")
+    return _bounded_result(_BINARY[type(node.op)](left, right))
 
 
 def _context(value: Any) -> dict[str, Any]:
@@ -81,9 +117,7 @@ def _evaluate(node: ast.AST, context: dict[str, Any]) -> Any:
     if isinstance(node, ast.Tuple):
         return tuple(_evaluate(item, context) for item in node.elts)
     if isinstance(node, ast.BinOp) and type(node.op) in _BINARY:
-        return _BINARY[type(node.op)](
-            _evaluate(node.left, context), _evaluate(node.right, context)
-        )
+        return _binary(node, context)
     if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY:
         return _UNARY[type(node.op)](_evaluate(node.operand, context))
     if isinstance(node, ast.BoolOp):
@@ -139,8 +173,9 @@ def compile_expression(source: str) -> Callable[[Any], Any]:
         raise ExpressionError("Expression exceeds the 1024-character limit.")
     try:
         tree = ast.parse(source, mode="eval")
-    except SyntaxError as exc:
-        raise ExpressionError(f"Invalid expression: {exc.msg}") from exc
+    except (SyntaxError, ValueError) as exc:
+        message = exc.msg if isinstance(exc, SyntaxError) else str(exc)
+        raise ExpressionError(f"Invalid expression: {message}") from exc
 
     # Validate immediately so malformed specifications fail before execution.
     _validate(tree)
@@ -189,6 +224,16 @@ def _validate(node: ast.AST) -> None:
                 raise ExpressionError("Exponent must be a numeric literal.")
             if abs(child.right.value) > 16:
                 raise ExpressionError("Exponent magnitude must not exceed 16.")
+            if any(isinstance(item, ast.Pow) for item in ast.walk(child.left)):
+                raise ExpressionError("Chained exponentiation is not allowed.")
+        if isinstance(child, ast.BinOp) and isinstance(child.op, ast.Mult):
+            operands = (child.left, child.right)
+            if any(
+                isinstance(item, (ast.List, ast.Tuple))
+                or (isinstance(item, ast.Constant) and isinstance(item.value, str))
+                for item in operands
+            ):
+                raise ExpressionError("Sequence repetition is not allowed.")
         if isinstance(child, ast.Call):
             if not isinstance(child.func, ast.Name) or child.func.id not in _FUNCTIONS:
                 raise ExpressionError(

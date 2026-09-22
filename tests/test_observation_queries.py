@@ -10,6 +10,17 @@ from PIL import Image
 import hakowan as hkw
 
 
+@pytest.fixture(scope="module")
+def playwright_browser():
+    playwright = pytest.importorskip("playwright.sync_api")
+    try:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(headless=True)
+            browser.close()
+    except playwright.Error as exc:
+        pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+
+
 def _point_mesh(points, values):
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(np.asarray(points, dtype=np.float64))
@@ -32,8 +43,8 @@ def _synthetic_observation():
         name="second",
     ).mark("point")
     scene = hkw.compile(first + second, preserve_attributes=True)
-    layer = np.full((4, 6), hkw.observation.BACKGROUND_ID, dtype=np.uint32)
-    element = np.full_like(layer, hkw.observation.BACKGROUND_ID)
+    layer = np.full((4, 6), hkw.workflow.observation.BACKGROUND_ID, dtype=np.uint32)
+    element = np.full_like(layer, hkw.workflow.observation.BACKGROUND_ID)
     depth = np.full((4, 6), np.nan, dtype=np.float32)
     layer[1:3, 1:3] = 0
     element[1, 1] = 0
@@ -72,8 +83,8 @@ def _synthetic_observation():
             radius=1.0,
             up_axis="y",
             layers=(
-                hkw.observation.LayerSummary(0, "first", "point", 3, 0),
-                hkw.observation.LayerSummary(1, "second", "point", 2, 0),
+                hkw.workflow.observation.LayerSummary(0, "first", "point", 3, 0),
+                hkw.workflow.observation.LayerSummary(1, "second", "point", 2, 0),
             ),
         ),
         _scene=scene,
@@ -147,7 +158,7 @@ def test_region_requires_id_passes_and_unambiguous_view():
     image = Image.new("RGBA", (6, 4), "black")
     observation.snapshots[("right", "layer_id")] = hkw.Snapshot(
         image=image,
-        data=np.full((4, 6), hkw.observation.BACKGROUND_ID, dtype=np.uint32),
+        data=np.full((4, 6), hkw.workflow.observation.BACKGROUND_ID, dtype=np.uint32),
         view="right",
         pass_name="layer_id",
     )
@@ -175,7 +186,43 @@ def _triangle(z, scale):
     return mesh
 
 
-def test_browser_observation_queries_and_manifest():
+def test_polygonal_observation_uses_rendered_triangle_ids(playwright_browser):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [-1.0, -1.0, 0.0],
+                [1.0, -1.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [-1.0, 1.0, 0.0],
+            ]
+        )
+    )
+    mesh.add_polygon(np.array([0, 1, 2, 3], dtype=np.uint32))
+    mesh.create_attribute(
+        "quality",
+        element=lagrange.AttributeElement.Facet,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([[7.0]]),
+    )
+
+    observation = hkw.observe(
+        hkw.layer(mesh),
+        views=["front"],
+        passes=["depth", "element_id", "layer_id"],
+        resolution=(48, 48),
+    )
+    visibility = observation.visible_elements(view="front")[0]
+    extrema = observation.attribute_extrema("quality", layer=0, view="front")[0]
+
+    assert visibility.total_element_count == 2
+    assert visibility.visible_element_ids == (0, 1)
+    assert extrema.sample_count == 2
+    assert extrema.minimum == pytest.approx(7.0)
+    assert extrema.maximum == pytest.approx(7.0)
+
+
+def test_browser_observation_queries_and_manifest(playwright_browser):
     front_mesh = _triangle(1.0, 1.0)
     front_mesh.create_attribute(
         "stress",

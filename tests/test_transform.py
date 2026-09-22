@@ -572,6 +572,44 @@ class TestFurCompiler:
             assert 0.0 <= tip[2] <= max_rise  # gentle, bounded lift
             assert tip[0] > root[0] + 1e-9  # flows along +x
 
+    def test_follow_surface_reaches_requested_length_on_dense_mesh(self):
+        count = 600
+        mesh = lagrange.SurfaceMesh()
+        for index in range(count + 1):
+            x = index * 0.01
+            mesh.add_vertex([x, 0.0, 0.0])
+            mesh.add_vertex([x, 0.05, 0.0])
+        for index in range(count):
+            a, b, c, d = 2 * index, 2 * index + 1, 2 * index + 2, 2 * index + 3
+            mesh.add_triangle(a, c, d)
+            mesh.add_triangle(a, d, b)
+        mesh.create_attribute(
+            "vec",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.tile(np.array([1.0, 0.0, 0.0]), (mesh.num_facets, 1)),
+        )
+
+        requested_length = 2.0
+        out = _compute_fur(
+            mesh,
+            "vec",
+            n=1,
+            segments=6,
+            length=requested_length,
+            lift=0.0,
+            curl=0.0,
+            follow_surface=True,
+            randomness=0.0,
+            seed=0,
+        )
+        vertices = np.asarray(out.vertices)
+        strand_ids = np.asarray(out.attribute(STRAND_ID_ATTR).data).reshape(-1)
+        points = vertices[strand_ids == 0]
+        arc_length = float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
+
+        assert arc_length >= 0.9 * requested_length
+
     def test_follow_surface_lift_zero_stays_on_surface_with_randomness(self):
         # With lift=0/curl=0, randomness must not push strands off the surface:
         # lift/curl vary multiplicatively, so on a flat grid every point stays

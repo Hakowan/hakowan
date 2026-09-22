@@ -106,6 +106,8 @@ def test_scene_model_validation():
         hkw.PerspectiveCamera(eye=(0, 0, 0), target=(0, 0, 0))
     with pytest.raises(ValueError, match="non-zero"):
         hkw.DirectionalLight(direction=(0, 0, 0))
+    with pytest.raises(ValueError, match="parallel"):
+        hkw.PerspectiveCamera(eye=(0, 0, 5), target=(0, 0, 0), up=(0, 0, 1))
     with pytest.raises(ValueError, match="positive"):
         hkw.OutputSettings(width=0)
     with pytest.raises(ValueError, match="duplicates"):

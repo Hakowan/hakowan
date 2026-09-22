@@ -269,6 +269,9 @@ def test_expression_filter_executes_without_eval():
         "[x for x in value]",
         "open('/tmp/file')",
         "value ** 100",
+        "([0] * 16) * 16",
+        "(9 ** 16) ** 16",
+        "value\x00",
     ],
 )
 def test_expression_rejects_unsafe_syntax(source):

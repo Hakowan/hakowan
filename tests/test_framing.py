@@ -37,13 +37,9 @@ def _direction(camera):
 
 
 def test_fit_camera_frames_scene_and_resolves_to_concrete_camera():
-    layer = hkw.layer(
-        np.array([[-4.0, -1.0, 0.0], [4.0, -1.0, 0.0], [0.0, 2.0, 0.0]])
-    )
+    layer = hkw.layer(np.array([[-4.0, -1.0, 0.0], [4.0, -1.0, 0.0], [0.0, 2.0, 0.0]]))
 
-    figure = hkw.figure(layer).camera(
-        "fit", direction="front", margin=0.1, fov=30
-    )
+    figure = hkw.figure(layer).camera("fit", direction="front", margin=0.1, fov=30)
     camera = figure.scene.camera
 
     assert isinstance(camera, hkw.PerspectiveCamera)
@@ -58,7 +54,9 @@ def test_fit_camera_targets_named_layer():
     right = hkw.layer(np.array([[9.0, 0.0, 0.0], [10.0, 1.0, 0.0]]), name="right")
     root = left + right
     scene = hkw.compile(root)
-    expected = (_world_points(scene[0]).min(axis=0) + _world_points(scene[0]).max(axis=0)) / 2
+    expected = (
+        _world_points(scene[0]).min(axis=0) + _world_points(scene[0]).max(axis=0)
+    ) / 2
 
     figure = hkw.figure(root).camera("fit", layer="left", direction="front")
 
@@ -78,9 +76,11 @@ def test_fit_camera_accepts_explicit_bounds():
 def test_principal_axis_camera_tracks_longest_axis():
     points = np.array([[-5.0, 0.0, 0.0], [0.0, 0.1, 0.0], [5.0, 0.0, 0.0]])
 
-    camera = hkw.figure(hkw.layer(points)).camera(
-        "principal_axis", axis=0, sign="+"
-    ).scene.camera
+    camera = (
+        hkw.figure(hkw.layer(points))
+        .camera("principal_axis", axis=0, sign="+")
+        .scene.camera
+    )
 
     assert _direction(camera)[0] == pytest.approx(1.0)
     assert abs(_direction(camera)[1]) < 1e-8
@@ -95,9 +95,13 @@ def test_attribute_extremum_targets_matching_vertex():
     layer = hkw.layer(mesh, name="sample")
     expected = _world_points(hkw.compile(layer, preserve_attributes=True)[0])[1]
 
-    camera = hkw.figure(layer).camera(
-        "attribute_extremum", attribute="stress", extremum="max", direction="front"
-    ).scene.camera
+    camera = (
+        hkw.figure(layer)
+        .camera(
+            "attribute_extremum", attribute="stress", extremum="max", direction="front"
+        )
+        .scene.camera
+    )
 
     np.testing.assert_allclose(camera.target, expected)
 
@@ -111,17 +115,21 @@ def test_component_selection_fits_only_requested_points():
     world = _world_points(hkw.compile(layer, preserve_attributes=True)[0])
     expected = (world[:2].min(axis=0) + world[:2].max(axis=0)) / 2
 
-    camera = hkw.figure(layer).camera(
-        "fit", component=("component", 0), direction="front"
-    ).scene.camera
+    camera = (
+        hkw.figure(layer)
+        .camera("fit", component=("component", 0), direction="front")
+        .scene.camera
+    )
 
     np.testing.assert_allclose(camera.target, expected)
 
 
 def test_section_camera_targets_plane_and_looks_along_normal():
-    camera = hkw.figure(hkw.layer(np.eye(3))).camera(
-        "section", normal=(0, 0, 1), offset=0.25, projection="orthographic"
-    ).scene.camera
+    camera = (
+        hkw.figure(hkw.layer(np.eye(3)))
+        .camera("section", normal=(0, 0, 1), offset=0.25, projection="orthographic")
+        .scene.camera
+    )
 
     assert isinstance(camera, hkw.OrthographicCamera)
     assert np.dot(camera.target, [0, 0, 1]) == pytest.approx(0.25)
@@ -156,7 +164,7 @@ def test_orthographic_scale_round_trips_and_reaches_webgl(tmp_path):
     html = output.read_text(encoding="utf-8")
 
     assert restored.scene.camera.scale == pytest.approx(figure.scene.camera.scale)
-    assert "const INITIAL_CAMERA_MODE = \"orthographic\"" in html
+    assert 'const INITIAL_CAMERA_MODE = "orthographic"' in html
     assert f"const INITIAL_ORTHO_SCALE = {figure.scene.camera.scale}" in html
     json.loads(spec.to_json())
 
@@ -172,3 +180,25 @@ def test_framing_rejects_invalid_selections():
         figure.camera("section")
     with pytest.raises(ValueError, match="positive"):
         figure.turntable(count=0)
+
+
+def test_framing_handles_zero_extent_and_rejects_ambiguous_axes():
+    point = hkw.figure(hkw.layer(np.array([[0.0, 0.0, 0.0]])))
+    camera = point.camera("fit").scene.camera
+    assert camera is not None
+    assert camera.near < camera.far
+
+    symmetric = hkw.figure(
+        hkw.layer(
+            np.array(
+                [
+                    [-1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, -1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ]
+            )
+        )
+    )
+    with pytest.raises(ValueError, match="not unique"):
+        symmetric.camera("principal_axis", axis=0)

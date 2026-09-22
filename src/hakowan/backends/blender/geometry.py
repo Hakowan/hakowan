@@ -875,10 +875,11 @@ class _GeometryMixin(_MaterialMixin):
         # Radius: an explicit size channel wins, otherwise the baked taper.
         if view.size_channel is not None:
             size = self._extract_size(view)
+            size_array = np.asarray(size, dtype=np.float64)
             radius = (
-                np.full(len(vertices), float(size))
-                if np.isscalar(size)
-                else np.asarray(size, dtype=np.float64)
+                np.full(len(vertices), float(size_array.item()))
+                if size_array.ndim == 0
+                else size_array
             )
         elif mesh_data.has_attribute(STRAND_RADIUS_ATTR):
             radius = np.asarray(

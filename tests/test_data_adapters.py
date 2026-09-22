@@ -47,6 +47,24 @@ def test_pandas_dataframe_infers_positions_and_imports_numeric_columns():
     )
 
 
+def test_pandas_dataframe_preserves_boolean_columns_as_integer_attributes():
+    pandas = pytest.importorskip("pandas")
+    table = pandas.DataFrame(
+        {
+            "x": [0.0, 1.0],
+            "y": [0.0, 1.0],
+            "z": [0.0, 0.0],
+            "selected": [True, False],
+        }
+    )
+
+    frame = hkw.dataframe.to_dataframe(table)
+
+    np.testing.assert_array_equal(
+        _attribute(frame.mesh, "selected").reshape(-1), [1, 0]
+    )
+
+
 def test_pandas_dataframe_accepts_explicit_position_columns():
     pandas = pytest.importorskip("pandas")
     table = pandas.DataFrame(
@@ -69,9 +87,7 @@ def test_pandas_dataframe_accepts_explicit_position_columns():
 
 def test_inspect_accepts_tabular_input():
     pandas = pytest.importorskip("pandas")
-    table = pandas.DataFrame(
-        {"x": [0.0, 1.0], "y": [0.0, 1.0], "value": [2.0, 4.0]}
-    )
+    table = pandas.DataFrame({"x": [0.0, 1.0], "y": [0.0, 1.0], "value": [2.0, 4.0]})
 
     summary = hkw.inspect(table)
 
@@ -87,9 +103,7 @@ def test_xarray_dataset_adapter_uses_point_dimension():
 
     class Dataset:
         def __init__(self):
-            self.data_vars = {
-                "velocity": Variable([[1, 0, 0], [0, 1, 0]])
-            }
+            self.data_vars = {"velocity": Variable([[1, 0, 0], [0, 1, 0]])}
             self.coords = {
                 "x": Variable([0.0, 1.0]),
                 "y": Variable([2.0, 3.0]),
@@ -178,3 +192,8 @@ def test_adapter_rejects_ambiguous_or_invalid_positions():
         hkw.layer(np.ones((3, 4)))
     with pytest.raises(ValueError, match="finite"):
         hkw.layer(np.array([[0.0, np.nan, 0.0]]))
+
+
+def test_adapter_rejects_empty_positions():
+    with pytest.raises(ValueError, match="at least one point"):
+        hkw.layer(np.zeros((0, 3)))

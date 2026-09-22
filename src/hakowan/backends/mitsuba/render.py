@@ -63,12 +63,25 @@ def _camera_axis_cosine(shape: tuple[int, ...], sensor: Any) -> np.ndarray:
     return cos.astype(np.float32)
 
 
+def _show_emitters(integrator: dict[str, Any]) -> None:
+    """Make emitters visible through nested Mitsuba integrators."""
+    current = integrator
+    while True:
+        current["hide_emitters"] = False
+        nested = current.get("integrator")
+        if not isinstance(nested, dict):
+            return
+        current = nested
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
     sensor_config = generate_sensor_config(config.sensor)
     sensor_config["film"] = generate_film_config(config.film)
     sensor_config["sampler"] = generate_sampler_config(config.sampler)
     integrator_config = generate_integrator_config(config.integrator)
+    if config.environment_visible:
+        _show_emitters(integrator_config)
 
     mi_config = {
         "type": "scene",

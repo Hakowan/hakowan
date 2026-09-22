@@ -23,8 +23,15 @@ from .grammar.figure import (
 )
 
 from .compiler import compile
-from .inspection import AttributeSummary, DataSummary, inspect
-from .validation import Diagnostic, ValidationError, ValidationReport, validate
+from .workflow import (
+    AttributeSummary,
+    DataSummary,
+    Diagnostic,
+    ValidationError,
+    ValidationReport,
+    validate,
+    inspect,
+)
 from .spec import (
     FigureSpec,
     SpecConversionError,
@@ -46,7 +53,7 @@ from .render import (
     set_default_backend,
     list_backends,
 )
-from .observation import (
+from .workflow import (
     AttributeVisibility,
     CameraState,
     LayerVisibility,
