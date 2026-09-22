@@ -691,7 +691,7 @@ class _Validator:
                 generated,
                 f"{path}.data",
                 channels=mesh.dimension,
-                elements=frozenset({"vertex", "facet"}),
+                elements=frozenset({"vertex", "facet", "indexed"}),
             )
         elif isinstance(channel, Covariance):
             self._check_attribute(

@@ -35,6 +35,7 @@ from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, to_attribute
 from ..grammar.texture import Image, ScalarField, Texture, Uniform
 
+import lagrange
 import numpy as np
 
 ### Public API
@@ -117,6 +118,37 @@ def _preprocess_channels(view: View):
     # apply their own fallback size where a numeric value is required.
 
 
+def _materialize_indexed_vector_field(df: DataFrame, attr: Attribute) -> None:
+    """Average a corner-indexed vector field onto source vertices."""
+    mesh = df.mesh
+    if not mesh.is_attribute_indexed(attr.name):
+        return
+    indexed = mesh.indexed_attribute(attr.name)
+    values = np.asarray(indexed.values.data, dtype=np.float64)
+    indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+    if values.ndim != 2 or values.shape[1] != mesh.dimension:
+        raise ValueError(
+            f"Indexed vector field {attr.name!r} must have {mesh.dimension} channels."
+        )
+    sums = np.zeros((mesh.num_vertices, mesh.dimension), dtype=np.float64)
+    counts = np.zeros(mesh.num_vertices, dtype=np.int64)
+    for facet in range(mesh.num_facets):
+        begin = mesh.get_facet_corner_begin(facet)
+        size = mesh.get_facet_size(facet)
+        vertices = np.asarray(mesh.get_facet_vertices(facet), dtype=np.uint32)
+        np.add.at(sums, vertices, values[indices[begin : begin + size]])
+        np.add.at(counts, vertices, 1)
+    counts[counts == 0] = 1
+    name = unique_name(mesh, f"_vertex_{attr.name}")
+    mesh.create_attribute(
+        name,
+        element=lagrange.AttributeElement.Vertex,
+        usage=indexed.usage,
+        initial_values=sums / counts[:, None],
+    )
+    attr.name = name
+
+
 def _process_channels(view: View):
     assert view.data_frame is not None
     df = view.data_frame
@@ -143,6 +175,7 @@ def _process_channels(view: View):
         assert isinstance(view.vector_field_channel, VectorField)
         assert isinstance(view.vector_field_channel.data, Attribute)
         attr = view.vector_field_channel.data
+        _materialize_indexed_vector_field(df, attr)
         if view.vector_field_channel.normalize:
             _normalize_vector_field(df, attr)
         compute_scaled_attribute(df, attr)

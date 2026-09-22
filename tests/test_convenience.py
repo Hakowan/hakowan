@@ -107,6 +107,31 @@ def test_glyph_vectors_overlays_scaled_arrow_field():
     np.testing.assert_allclose(np.linalg.norm(values, axis=1), 0.5)
 
 
+def test_glyph_vectors_materializes_indexed_vector_attributes():
+    mesh = _triangle()
+    mesh.delete_attribute("velocity")
+    mesh.create_attribute(
+        "velocity",
+        element=lagrange.AttributeElement.Indexed,
+        usage=lagrange.AttributeUsage.Vector,
+        initial_values=np.array([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]),
+        initial_indices=np.array([0, 1, 2], dtype=np.uint32),
+    )
+
+    layer = hkw.layer(mesh).glyph_vectors(
+        "velocity", scale=0.5, normalize=True, overlay=False
+    )
+    report = hkw.validate(layer, strict=True)
+    view = hkw.compile(layer)[0]
+    attribute = view.vector_field_channel.data
+
+    assert report.valid
+    assert attribute._internal_name is not None
+    assert not view.data_frame.mesh.is_attribute_indexed(attribute._internal_name)
+    values = np.asarray(view.data_frame.mesh.attribute(attribute._internal_name).data)
+    np.testing.assert_allclose(np.linalg.norm(values, axis=1), 0.5)
+
+
 def test_slice_clips_without_mutating_source():
     mesh = _triangle()
 
