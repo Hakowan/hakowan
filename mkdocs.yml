@@ -69,21 +69,21 @@ nav:
 - Home: index.md
 - User guide:
   - Grammar: guide/grammar.md
-  - Figure and scene: guide/figure.md
   - Data: guide/data.md
-  - Mark: guide/mark.md
-  - Channel: guide/channel.md
-  - Transform: guide/transform.md
   - Attribute: guide/attribute.md
   - Scale: guide/scale.md
-  - Material: guide/material.md
-  - Legends and annotations: guide/overlay.md
+  - Mark: guide/mark.md
   - Texture: guide/texture.md
+  - Material: guide/material.md
+  - Channel: guide/channel.md
+  - Transform: guide/transform.md
   - Layer: guide/layer.md
+  - Figure and scene: guide/figure.md
+  - Legends and annotations: guide/overlay.md
+  - Configuration: guide/config.md
   - Compile: guide/compile.md
   - Backend: guide/backend.md
   - Snapshot and observation: guide/observation.md
-  - Configuration: guide/config.md
 - Specification:
   - Overview: guide/schema.md
   - Python API: api/spec.md
