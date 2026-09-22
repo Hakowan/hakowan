@@ -866,12 +866,15 @@ class _Validator:
                 info = self._check_attribute(
                     transform.data, mesh, generated, f"{path}.data"
                 )
-                if info is not None and info.element not in {"vertex", "facet"}:
+                supported = {"vertex", "facet"}
+                if mark is Mark.Surface:
+                    supported.add("indexed")
+                if info is not None and info.element not in supported:
                     self.issue(
                         "transform.filter.element",
                         f"{path}.data",
                         f"Filter does not support '{info.element}' attributes.",
-                        hint="Filter with a vertex or facet attribute, or convert the attribute domain first.",
+                        hint=f"Supported elements for {mark.name}: {sorted(supported)}",
                     )
                 if info is not None and mark is Mark.Curve and info.element == "vertex":
                     self.issue(

@@ -23,6 +23,39 @@ class TestTransform:
         assert t.condition(0)
         assert t._child is None
 
+    def test_filter_accepts_indexed_scalar_labels_on_surfaces(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [2.0, 0.0, 0.0],
+                    [3.0, 0.0, 0.0],
+                    [2.0, 1.0, 0.0],
+                ]
+            )
+        )
+        mesh.add_triangles(np.array([[0, 1, 2], [3, 4, 5]], dtype=np.uint32))
+        mesh.create_attribute(
+            "region",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([[0], [1]], dtype=np.int32),
+            initial_indices=np.array([0, 0, 0, 1, 1, 1], dtype=np.uint32),
+        )
+        layer = hkw.layer(mesh).transform(
+            transform.Filter(data="region", condition=lambda value: value == 1)
+        )
+
+        report = hkw.validate(layer)
+        result = hkw.compile(layer)[0].data_frame.mesh
+
+        assert report.valid
+        assert result.num_facets == 1
+        assert np.min(np.asarray(result.vertices)[:, 0]) >= 2.0
+
     def test_chaining_and_copy(self):
         attr0 = scale.Attribute(name="index")
         t0 = transform.Filter(data=attr0, condition=lambda x: True)

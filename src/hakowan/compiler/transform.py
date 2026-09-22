@@ -83,9 +83,29 @@ def _apply_filter_transform(view: View, transform: Filter):
     assert mesh.has_attribute(attr_name), (
         f"Attribute {attr_name} does not exist in data"
     )
+    if mesh.is_attribute_indexed(attr_name):
+        if view.mark is not Mark.Surface:
+            raise RuntimeError("Indexed filtering is supported only for Surface marks.")
+        indexed = mesh.indexed_attribute(attr_name)
+        values = np.asarray(indexed.values.data)
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        indexed_keep = np.zeros(mesh.num_facets, dtype=bool)
+        for facet in range(mesh.num_facets):
+            begin = mesh.get_facet_corner_begin(facet)
+            size = mesh.get_facet_size(facet)
+            indexed_keep[facet] = all(
+                bool(transform.condition(values[index]))
+                for index in indices[begin : begin + size]
+            )
+        selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[indexed_keep]
+        df.mesh = lagrange.extract_submesh(
+            mesh,
+            selected_facets=selected_facets,
+            map_attributes=True,
+        )
+        return
     attr = mesh.attribute(attr_name)
     keep = [transform.condition(value) for value in attr.data]
-
     match attr.element_type:
         case lagrange.AttributeElement.Facet:
             selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[keep]
