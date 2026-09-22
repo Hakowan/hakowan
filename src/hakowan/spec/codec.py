@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -92,6 +93,38 @@ FunctionResolver = (
 )
 DataIds = Mapping[int, str] | Callable[[Any], str]
 DataResolver = Mapping[str, DataFrameLike] | Callable[[str], DataFrameLike]
+
+
+def _runtime_children(value: Any):
+    if isinstance(value, Layer):
+        yield from value._children
+        yield from value._spec.channels
+        if value._spec.transform is not None:
+            yield value._spec.transform
+        return
+    if not is_dataclass(value):
+        return
+    for descriptor in fields(value):
+        if descriptor.name.startswith("_") and descriptor.name != "_child":
+            continue
+        child = getattr(value, descriptor.name)
+        if isinstance(child, Mapping):
+            yield from child.values()
+        elif isinstance(child, (list, tuple)):
+            yield from child
+        else:
+            yield child
+
+
+def _ensure_runtime_nesting(value: Layer | Figure) -> None:
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        current, depth = stack.pop()
+        if depth > sm.MAX_SPEC_NESTING:
+            raise SpecConversionError(
+                f"Specification nesting exceeds {sm.MAX_SPEC_NESTING} levels."
+            )
+        stack.extend((child, depth + 1) for child in _runtime_children(current))
 
 
 def _json_value(value: Any, path: str) -> Any:
@@ -1339,6 +1372,7 @@ def to_spec(
     function_ids: FunctionIds | None = None,
 ) -> sm.FigureSpec:
     """Convert a runtime Layer or Figure into a canonical specification."""
+    _ensure_runtime_nesting(value)
     if isinstance(value, Figure):
         return sm.FigureSpec(
             version="1.1",
@@ -1458,6 +1492,7 @@ def from_spec(
     base_dir: str | Path | None = None,
 ) -> Layer | Figure:
     """Build a runtime Layer or Figure from a canonical specification."""
+    sm._ensure_spec_nesting(spec)
     parsed = (
         spec if isinstance(spec, sm.FigureSpec) else sm.FigureSpec.model_validate(spec)
     )

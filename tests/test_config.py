@@ -2,6 +2,8 @@ import pytest
 
 from hakowan import config
 from hakowan.setup.integrator import AOV, Path
+from hakowan.grammar.channel.material import Hair
+from hakowan.setup.emitter import Directional, Envmap, Point
 
 
 class TestConfigDefaults:
@@ -21,6 +23,31 @@ class TestConfigDefaults:
     def test_integrator_is_path_by_default(self):
         cfg = config()
         assert isinstance(cfg.integrator, Path)
+
+
+class TestDirectModelValidation:
+    def test_emitters_reject_invalid_vectors_and_intensities(self):
+        with pytest.raises(ValueError, match="non-zero"):
+            Directional(direction=[0.0, 0.0, 0.0])
+        with pytest.raises(TypeError, match="numeric"):
+            Point(color="red", intensity="blue")
+        with pytest.raises(ValueError, match="non-negative"):
+            Point(intensity=-1.0)
+        with pytest.raises(ValueError, match="non-zero"):
+            Envmap(up=[0.0, 0.0, 0.0])
+
+    def test_config_rejects_invalid_background_on_init_and_assignment(self):
+        with pytest.raises(ValueError, match="background"):
+            config(background="blue")  # type: ignore[arg-type]
+        cfg = config()
+        with pytest.raises(ValueError, match="background"):
+            cfg.background = "blue"  # type: ignore[assignment]
+
+    def test_hair_rejects_out_of_range_physical_parameters(self):
+        with pytest.raises(ValueError, match="color_variation"):
+            Hair(color_variation=1.1)
+        with pytest.raises(ValueError, match="melanin"):
+            Hair(eumelanin=-0.1)
 
 
 class TestRenderPassesInterface:

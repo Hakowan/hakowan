@@ -243,7 +243,7 @@ def _compute_fur(
     # Bake child/clump settings (constant across vertices) for the Blender
     # backend's Geometry Nodes child-hair modifier. Only when children are asked
     # for, so guide-only fur carries no extra attributes.
-    if children > 1:
+    if children > 0:
         num_v = out_mesh.num_vertices
         if spread is None:
             spread = 0.15 * length

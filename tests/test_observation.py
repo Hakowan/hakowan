@@ -199,6 +199,12 @@ def test_snapshot_rejects_unknown_view_and_pass():
         hkw.snapshot(layer, view="diagonal")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="Unknown pass"):
         hkw.snapshot(layer, pass_name="wireframe")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="Invalid view label"):
+        hkw.observe(
+            layer,
+            views=["../escape"],
+            cameras={"../escape": hkw.CameraState((0, 0, 4), (0, 0, 0), (0, 1, 0))},
+        )
 
 
 def test_webgl_offline_bundle_uses_local_modules(monkeypatch, tmp_path):
@@ -623,6 +629,20 @@ def test_asset_download_failure_is_actionable(monkeypatch, tmp_path):
     )
     with pytest.raises(asset_module.WebGLAssetError, match="network access"):
         asset_module.ensure_three_assets("test")
+
+
+def test_cli_missing_normal_is_actionable(monkeypatch, tmp_path):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, _triangle())
+    main_module = importlib.import_module("hakowan.__main__")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["hakowan", str(mesh_path), "--normal", "missing"],
+    )
+
+    with pytest.raises(SystemExit, match="Normal attribute 'missing' not found"):
+        main_module.main()
 
 
 def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):

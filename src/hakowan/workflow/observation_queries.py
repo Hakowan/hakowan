@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from numbers import Integral
 from typing import TYPE_CHECKING, Any
 
 import lagrange
@@ -210,8 +211,9 @@ def region(
     if layer_data.shape != element_data.shape:
         raise ValueError("layer_id and element_id pass dimensions do not match")
     height, width = layer_data.shape
-    if not all(isinstance(value, int) for value in (x0, y0, x1, y1)):
+    if not all(isinstance(value, Integral) for value in (x0, y0, x1, y1)):
         raise TypeError("Region bounds must be integers")
+    x0, y0, x1, y1 = (int(value) for value in (x0, y0, x1, y1))
     if not (0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height):
         raise ValueError(
             f"Region {(x0, y0, x1, y1)} is outside the {width}x{height} observation"

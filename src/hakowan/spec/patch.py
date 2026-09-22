@@ -23,7 +23,7 @@ from .codec import (
     from_spec,
     to_spec,
 )
-from .model import FigureSpec
+from .model import FigureSpec, _ensure_spec_nesting
 
 
 class PatchOperation(TypedDict):
@@ -190,14 +190,20 @@ def patch_spec(
         PatchError: If an operation or final schema is invalid.
 
     """
-    document = copy.deepcopy(
-        spec.to_dict() if isinstance(spec, FigureSpec) else dict(spec)
-    )
+    try:
+        _ensure_spec_nesting(spec)
+        document = copy.deepcopy(
+            spec.to_dict() if isinstance(spec, FigureSpec) else dict(spec)
+        )
+    except (RecursionError, ValueError) as exc:
+        raise PatchError(PatchFailure("patch.conversion", "", str(exc))) from exc
     for index, operation in enumerate(operations):
         path = operation.get("path") if isinstance(operation, Mapping) else None
         try:
+            if isinstance(operation, Mapping) and "value" in operation:
+                _ensure_spec_nesting(operation["value"])
             document = _apply_one(document, operation)
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+        except (KeyError, IndexError, RecursionError, TypeError, ValueError) as exc:
             raise PatchError(
                 PatchFailure(
                     code="patch.operation",
@@ -348,7 +354,13 @@ def patch(
         )
     except PatchError:
         raise
-    except (KeyError, SpecConversionError, TypeError, ValueError) as exc:
+    except (
+        KeyError,
+        RecursionError,
+        SpecConversionError,
+        TypeError,
+        ValueError,
+    ) as exc:
         raise PatchError(PatchFailure("patch.conversion", "", str(exc))) from exc
     if semantic:
         report = validate(result, backend=backend, strict=strict)

@@ -222,3 +222,9 @@ class Hair(Material):
     root_color: ColorLike | None = None
     tip_color: ColorLike | None = None
     color_variation: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.eumelanin < 0.0 or self.pheomelanin < 0.0:
+            raise ValueError("Hair melanin concentrations must be non-negative.")
+        if not 0.0 <= self.color_variation <= 1.0:
+            raise ValueError("Hair.color_variation must be in [0, 1].")

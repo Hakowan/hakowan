@@ -78,8 +78,8 @@ mapping and performs schema validation only. It always returns an immutable
 
 | Field | Required | Value |
 |---|---:|---|
-| `$schema` | yes | `https://hakowan.github.io/hakowan/schema/v1.json` |
-| `version` | yes | `1.0` or `1.1`; new output uses `1.1` |
+| `$schema` | no | Defaults to `https://hakowan.github.io/hakowan/schema/v1.json` |
+| `version` | no | Defaults to `1.1`; accepted values are `1.0` and `1.1` |
 | `root` | yes | A composition node |
 | `scene` | no | Figure-level camera, lights, environment, and output intent (`1.1`) |
 
@@ -440,10 +440,11 @@ semantically significant.
 
 ## Version compatibility
 
-Versions `1.0` and `1.1` are accepted. Version 1.0 contains the layer tree;
+Versions `1.0` and `1.1` are accepted. Version 1.0 contains only the layer tree;
 version 1.1 adds the optional scene block and is the default for `Figure`
 serialization. Loading a 1.0 document remains backward-compatible and returns a
-`Layer`. Loading a document with scene settings returns a `Figure`. Unknown
+`Layer`. A 1.0 document containing `scene` is rejected rather than interpreted
+as 1.1. Loading a 1.1 document with scene settings returns a `Figure`. Unknown
 versions, fields, and variants are rejected rather than migrated implicitly.
 
 ## Unsupported serialization cases

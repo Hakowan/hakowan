@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeAlias
 
@@ -11,6 +12,28 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 SCHEMA_VERSION = "1.1"
 SCHEMA_URL = "https://hakowan.github.io/hakowan/schema/v1.json"
+MAX_SPEC_NESTING = 64
+
+
+def _ensure_spec_nesting(value: Any) -> None:
+    """Reject recursive specification structures before conversion recurses."""
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        current, depth = stack.pop()
+        if depth > MAX_SPEC_NESTING:
+            raise ValueError(
+                f"Specification nesting exceeds {MAX_SPEC_NESTING} levels."
+            )
+        children: Iterable[Any]
+        if isinstance(current, BaseModel):
+            children = (getattr(current, name) for name in type(current).model_fields)
+        elif isinstance(current, Mapping):
+            children = current.values()
+        elif isinstance(current, (list, tuple)):
+            children = iter(current)
+        else:
+            continue
+        stack.extend((child, depth + 1) for child in children)
 
 
 class SpecModel(BaseModel):
@@ -674,12 +697,25 @@ class SceneSettingsSpec(SpecModel):
 class FigureSpec(SpecModel):
     """Canonical versioned Hakowan visualization specification."""
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_nesting(cls, value: Any) -> Any:
+        _ensure_spec_nesting(value)
+        return value
+
     schema_url: Literal["https://hakowan.github.io/hakowan/schema/v1.json"] = Field(
         default="https://hakowan.github.io/hakowan/schema/v1.json", alias="$schema"
     )
     version: Literal["1.0", "1.1"] = "1.1"
     root: NodeSpec
     scene: SceneSettingsSpec | None = None
+
+    @model_validator(mode="after")
+    def validate_version_features(self) -> "FigureSpec":
+        """Reject fields introduced after the declared schema version."""
+        if self.version == "1.0" and self.scene is not None:
+            raise ValueError("FigureSpec version 1.0 does not support scene settings.")
+        return self
 
     def to_dict(self) -> dict[str, Any]:
         """Return the complete JSON-safe document, including defaults and nulls."""

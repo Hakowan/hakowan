@@ -170,7 +170,7 @@ A point emitter radiates from a world-space position.
 
 ```py
 l = hkw.setup.emitter.Point(
-    position=[0, 0, 5], color="warmwhite", intensity=20
+    position=[0, 0, 5], color="#ffe4b5", intensity=20
 )
 config.emitters.append(l)
 ```

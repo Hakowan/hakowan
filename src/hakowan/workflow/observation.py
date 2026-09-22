@@ -69,6 +69,17 @@ PASS_NAMES: tuple[PassName, ...] = (
 BACKGROUND_ID = np.uint32(0xFFFFFFFF)
 
 
+def _validate_artifact_label(value: str, kind: str) -> None:
+    if (
+        not value
+        or value in {".", ".."}
+        or "/" in value
+        or "\\" in value
+        or "\x00" in value
+    ):
+        raise ValueError(f"Invalid {kind} label {value!r} for observation artifacts.")
+
+
 def _file_sha256(path: Path | None) -> str | None:
     if path is None or not path.is_file():
         return None
@@ -228,6 +239,8 @@ class Observation:
         output = Path(directory)
         output.mkdir(parents=True, exist_ok=True)
         for (view, pass_name), item in self.snapshots.items():
+            _validate_artifact_label(view, "view")
+            _validate_artifact_label(pass_name, "pass")
             path = output / f"{view}_{pass_name}.png"
             item.image.save(path)
             object.__setattr__(item, "path", path)
@@ -598,6 +611,10 @@ def _capture_sync(
         raise ValueError("At least one view is required.")
     if not passes:
         raise ValueError("At least one pass is required.")
+    for view in views:
+        _validate_artifact_label(view, "view")
+    for pass_name in passes:
+        _validate_artifact_label(pass_name, "pass")
     width, height = resolution
     if width <= 0 or height <= 0:
         raise ValueError(f"Resolution must be positive, got {resolution}.")
@@ -667,6 +684,7 @@ def _capture_sync(
                     device_scale_factor=1,
                 )
                 page = context.new_page()
+                page.set_default_timeout(int(timeout * 1000))
                 page.goto(
                     html_path.resolve().as_uri(),
                     wait_until="domcontentloaded",

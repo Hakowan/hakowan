@@ -31,6 +31,7 @@ def _mesh_with_fields():
 def test_schema_is_versioned_json_schema():
     schema = hkw.schema()
 
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["$id"] == "https://hakowan.github.io/hakowan/schema/v1.json"
     assert schema["properties"]["version"]["default"] == "1.1"
     assert set(schema["properties"]["version"]["enum"]) == {"1.0", "1.1"}
@@ -303,6 +304,28 @@ def test_unknown_fields_and_kinds_are_rejected():
     payload["version"] = "2.0"
     with pytest.raises(ValidationError):
         FigureSpec.model_validate(payload)
+
+    payload["version"] = "1.0"
+    payload["root"]["spec"] = {}
+    payload["scene"] = {"camera": {"kind": "perspective"}}
+    with pytest.raises(ValidationError, match="does not support scene"):
+        FigureSpec.model_validate(payload)
+
+
+def test_specification_nesting_is_bounded():
+    root: dict = {"kind": "layer", "spec": {}}
+    for _ in range(70):
+        root = {"kind": "inherit", "spec": {}, "child": root}
+
+    with pytest.raises(ValidationError, match="nesting exceeds"):
+        FigureSpec.model_validate({"version": "1.0", "root": root})
+
+    mesh = _mesh_with_fields()
+    layer = hkw.layer(mesh)
+    for index in range(70):
+        layer = layer.name(f"layer-{index}")
+    with pytest.raises(hkw.SpecConversionError, match="nesting exceeds"):
+        hkw.to_spec(layer, data_ids={id(mesh): "mesh"})
 
 
 def test_duplicate_channels_are_rejected_at_canonical_boundary():

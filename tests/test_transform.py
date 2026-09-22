@@ -4,7 +4,12 @@ import hakowan.compiler
 from hakowan import transform, scale
 from hakowan.compiler.transform import principal_axes_affine_matrix
 from hakowan.compiler.streamline import _compute_streamlines
-from hakowan.compiler.fur import _compute_fur, STRAND_ID_ATTR, STRAND_RADIUS_ATTR
+from hakowan.compiler.fur import (
+    FUR_CHILDREN_ATTR,
+    STRAND_ID_ATTR,
+    STRAND_RADIUS_ATTR,
+    _compute_fur,
+)
 import copy
 import lagrange
 import numpy as np
@@ -526,6 +531,15 @@ class TestFurCompiler:
             assert r[0] == pytest.approx(0.05)
             assert r[-1] == pytest.approx(0.0)
             assert np.all(np.diff(r) <= 1e-12)  # monotonically non-increasing
+
+    @pytest.mark.parametrize("children", [0, 1, 2])
+    def test_child_count_is_preserved(self, children):
+        out = _compute_fur(self._make_grid_mesh(), "vec", n=2, children=children)
+
+        assert out.has_attribute(FUR_CHILDREN_ATTR) is (children > 0)
+        if children > 0:
+            values = np.asarray(out.attribute(FUR_CHILDREN_ATTR).data).reshape(-1)
+            np.testing.assert_array_equal(values, children)
 
     def test_strands_lift_off_surface_and_flow_along_field(self):
         # Flat grid (normal +z), field +x, no randomness => deterministic shape.

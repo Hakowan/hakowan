@@ -151,6 +151,19 @@ def test_schema_failure_reports_json_pointer_and_is_atomic():
     assert original.scene.camera.fov < 180
 
 
+def test_patch_rejects_excessive_nesting():
+    mesh = _mesh()
+    spec = hkw.to_spec(hkw.layer(mesh), data_ids={id(mesh): "mesh"})
+    root: dict = {"kind": "layer", "spec": {}}
+    for _ in range(70):
+        root = {"kind": "inherit", "spec": {}, "child": root}
+
+    with pytest.raises(hkw.PatchError, match="nesting exceeds") as caught:
+        hkw.patch_spec(spec, [{"op": "replace", "path": "/root", "value": root}])
+
+    assert caught.value.failure.code == "patch.operation"
+
+
 def test_semantic_failure_exposes_validation_report_and_is_atomic():
     mesh = _mesh()
     original = hkw.layer(mesh).mark("point").channel(size="value")

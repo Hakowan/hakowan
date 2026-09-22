@@ -59,6 +59,11 @@ class Config:
     environment_visible: bool = False
     background: Literal["light", "dark"] | None = None
 
+    def __setattr__(self, name, value):
+        if name == "background" and value not in {None, "light", "dark"}:
+            raise ValueError("Config.background must be 'light', 'dark', or None.")
+        object.__setattr__(self, name, value)
+
     def z_up(self) -> None:
         """Update configuration for z-up coordinate system."""
         self.sensor.location = np.array([0, -5, 0])

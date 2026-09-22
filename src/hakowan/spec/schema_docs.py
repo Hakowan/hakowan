@@ -406,6 +406,16 @@ def _canonical_model_name(name: str) -> str:
 def enrich_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Add complete human-facing descriptions and examples to generated schema."""
     result = deepcopy(schema)
+    result["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    result.setdefault("allOf", []).append(
+        {
+            "if": {
+                "properties": {"version": {"const": "1.0"}},
+                "required": ["version"],
+            },
+            "then": {"properties": {"scene": {"type": "null"}}},
+        }
+    )
     result["description"] = (
         "Canonical, versioned Hakowan 3D visualization specification. Unknown "
         "fields and unknown discriminated variants are rejected."

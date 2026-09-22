@@ -408,9 +408,8 @@ class Layer:
         visited from root to leaf and the first channel for each slot wins.
         Therefore a later fluent call overrides the same slot on the wrapped
         child, while unrelated slots compose. With ``in_place=True``, channels
-        append directly to the current node in keyword order; an earlier channel
-        of the same kind remains effective and validation reports the shadowed
-        duplicate.
+        append directly to the current node in keyword order and the earlier
+        channel of the same kind remains effective.
 
         Args:
             position: Position channel or attribute reference.
@@ -685,6 +684,7 @@ class Layer:
     ) -> "Layer":
         """Juxtapose this layer and ``other`` with optional labels.
 
+        Labels name WebGL layer controls; static backends do not draw them.
         This shorthand delegates to :meth:`juxtapose` and preserves the
         canonical layout representation.
         """

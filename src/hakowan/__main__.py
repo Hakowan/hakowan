@@ -452,7 +452,8 @@ def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
-    assert len(layers) > 0, "No valid layers found in scene"
+    if not layers:
+        raise SystemExit("No valid layers found in scene")
     return np.sum(layers)
 
 
@@ -658,9 +659,10 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
             )
-            assert len(color_attr_ids) > 0, (
-                "No color attributes found in mesh for vertex_color material"
-            )
+            if not color_attr_ids:
+                raise SystemExit(
+                    "No color attributes found in mesh for vertex_color material"
+                )
             color_attr_id = color_attr_ids[0]
             if mesh.is_attribute_indexed(color_attr_id):
                 color_attr_id = lagrange.map_attribute(
@@ -730,7 +732,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             )
         case "uv":
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-            assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
+            if not uv_ids:
+                raise SystemExit("No UV attributes found in mesh for uv material")
             uv_id = uv_ids[0]
             uv_name = mesh.get_attribute_name(uv_id)
             base = hkw.layer(mesh)
@@ -774,7 +777,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                     )
             else:
                 texture_file = Path(args.material)
-                assert texture_file.is_file(), f"Texture file {texture_file} not found"
+                if not texture_file.is_file():
+                    raise SystemExit(f"Texture file {texture_file} not found")
                 layer = layer.material(
                     "Principled",
                     hkw.texture.Image(
@@ -785,7 +789,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 )
 
     if args.point_cloud:
-        assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
+        if args.comp:
+            raise SystemExit("--point-cloud and --comp options are mutually exclusive")
         layer = layer.mark("Point").channel(size=args.point_size)
 
     if args.comp:
@@ -817,9 +822,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         layer = layer.transform(hkw.transform.Compute(facet_normal="face_normal"))
         normal_attr = "face_normal"
     elif args.normal is not None:
-        assert mesh.has_attribute(args.normal), (
-            f"Normal attribute '{args.normal}' not found in mesh"
-        )
+        if not mesh.has_attribute(args.normal):
+            raise SystemExit(f"Normal attribute '{args.normal}' not found in mesh")
         normal_attr = args.normal
 
     if normal_attr is not None:
@@ -841,7 +845,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
 
     if args.seams:
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-        assert len(uv_ids) > 0, "No UV attributes found in mesh for seams rendering"
+        if not uv_ids:
+            raise SystemExit("No UV attributes found in mesh for seams rendering")
         uv_id = uv_ids[0]
         uv_name = mesh.get_attribute_name(uv_id)
         base = hkw.layer(mesh)

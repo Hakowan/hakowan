@@ -110,6 +110,10 @@ def test_region_reports_background_layers_elements_bounds_and_depth():
     assert first.projected_bounds is None
     assert first.depth_range == pytest.approx((2.0, 2.5))
     json.dumps(summary.to_dict())
+    numpy_bounds = observation.region(
+        np.int64(0), np.int64(0), np.int64(4), np.int64(4), view="front"
+    )
+    assert numpy_bounds.to_dict() == summary.to_dict()
 
     assert "visual.camera_clipping" in {
         item.code for item in observation.visual_diagnostics()

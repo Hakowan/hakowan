@@ -143,7 +143,8 @@ comparison = before.compare(
 )
 ```
 
-`compare()` is a labeled convenience over `juxtapose()`.
+`compare()` is a convenience over `juxtapose()`. Labels name layers in the
+interactive WebGL controls; static Blender and Mitsuba images do not draw them.
 
 ## Layer composition
 
