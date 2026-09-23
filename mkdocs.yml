@@ -8,12 +8,13 @@ theme:
   code:
     fold:
       enabled: true
-      lines: 24
+      lines: 20
   name: materialx
   icon:
     repo: fontawesome/brands/github
   features:
     - navigation.footer
+    - navigation.indexes
     - search.highlight
     - content.code.copy
     - content.action.agents
