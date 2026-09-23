@@ -126,9 +126,9 @@ def parse_args():
     )
     parser.add_argument(
         "--wire-thickness",
-        help="Wireframe/seam thickness relative to bbox diagonal",
+        help="Wireframe/seam diameter relative to the compiled scene diagonal",
         type=float,
-        default=0.0005,
+        default=0.005,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
@@ -838,9 +838,9 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         layer = layer.transform(hkw.transform.UVMesh())
 
     if args.wireframe:
-        w = layer.mark("Curve").material("Diffuse", "black")
-        w = w.channel(size=args.wire_thickness * bbox_diag)
-        layer = layer + w
+        layer = layer.show_edges(
+            width=args.wire_thickness, width_space="scene", name="Wireframe"
+        )
 
     if args.seams:
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
@@ -853,7 +853,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             base.transform(hkw.transform.Boundary(attributes=[uv_name]))
             .mark("Curve")
             .material("Diffuse", "black")
-            .channel(size=args.wire_thickness * bbox_diag)
+            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="scene"))
         )
         layer = layer + seams
 
@@ -890,7 +890,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                         end_type="arrow",
                         normalize=True,
                     ),
-                    size=args.wire_thickness * bbox_diag,
+                    size=hkw.channel.Size(data=args.wire_thickness, space="scene"),
                 )
             )
         else:
@@ -908,7 +908,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 )
                 .mark("Curve")
                 .material("Diffuse", args.streamline_color)
-                .channel(size=args.wire_thickness * bbox_diag)
+                .channel(size=hkw.channel.Size(data=args.wire_thickness, space="scene"))
             )
         layer = layer + vf_layer
 
