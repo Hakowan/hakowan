@@ -126,9 +126,9 @@ def parse_args():
     )
     parser.add_argument(
         "--wire-thickness",
-        help="Wireframe/seam diameter relative to the compiled scene diagonal",
+        help="Wireframe, seam, and field-line diameter in pixels",
         type=float,
-        default=0.005,
+        default=1.5,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
@@ -839,7 +839,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
 
     if args.wireframe:
         layer = layer.show_edges(
-            width=args.wire_thickness, width_space="scene", name="Wireframe"
+            width=args.wire_thickness, width_space="screen", name="Wireframe"
         )
 
     if args.seams:
@@ -853,7 +853,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             base.transform(hkw.transform.Boundary(attributes=[uv_name]))
             .mark("Curve")
             .material("Diffuse", "black")
-            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="scene"))
+            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="screen"))
         )
         layer = layer + seams
 
@@ -890,7 +890,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                         end_type="arrow",
                         normalize=True,
                     ),
-                    size=hkw.channel.Size(data=args.wire_thickness, space="scene"),
+                    size=hkw.channel.Size(data=args.wire_thickness, space="screen"),
                 )
             )
         else:
@@ -908,7 +908,9 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 )
                 .mark("Curve")
                 .material("Diffuse", args.streamline_color)
-                .channel(size=hkw.channel.Size(data=args.wire_thickness, space="scene"))
+                .channel(
+                    size=hkw.channel.Size(data=args.wire_thickness, space="screen")
+                )
             )
         layer = layer + vf_layer
 
