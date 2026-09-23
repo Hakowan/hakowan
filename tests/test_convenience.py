@@ -103,6 +103,29 @@ def test_show_edges_overlays_surface_and_curve():
 
     default_scene = hkw.compile(hkw.layer(mesh).show_edges())
     assert default_scene[1].size_channel.data == pytest.approx(0.005)
+    assert default_scene[1].size_channel.space == "scene"
+    scale = float(
+        np.cbrt(abs(np.linalg.det(default_scene[1].global_transform[:3, :3])))
+    )
+    default_scene.resolve_size_spaces(hkw.config())
+    assert default_scene[1].size_channel.space == "world"
+    assert default_scene[1].size_channel.data * scale == pytest.approx(0.005)
+
+    screen_scene = hkw.compile(
+        hkw.layer(mesh).show_edges(width=2.0, width_space="screen")
+    )
+    screen_scale = float(
+        np.cbrt(abs(np.linalg.det(screen_scene[1].global_transform[:3, :3])))
+    )
+    config = hkw.config()
+    screen_scene.resolve_size_spaces(config)
+    distance = np.linalg.norm(
+        np.asarray(config.sensor.location) - np.asarray(config.sensor.target)
+    )
+    pixel_size = (
+        2 * distance * np.tan(np.radians(config.sensor.fov) / 2) / config.film.height
+    )
+    assert screen_scene[1].size_channel.data * screen_scale == pytest.approx(pixel_size)
 
 
 def test_glyph_vectors_overlays_scaled_arrow_field():

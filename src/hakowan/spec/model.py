@@ -360,6 +360,7 @@ class NormalChannelSpec(SpecModel):
 class SizeChannelSpec(SpecModel):
     kind: Literal["size"] = "size"
     data: float | AttributeSpec
+    space: Literal["world", "scene", "screen"] = "world"
 
 
 class ShapeChannelSpec(SpecModel):

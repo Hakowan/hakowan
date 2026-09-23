@@ -100,6 +100,7 @@ FIELD_DESCRIPTIONS = {
     "format": "Python numeric format specifier used for legend labels.",
     "category_labels": "Optional mapping from stringified category values to labels.",
     "width": "Raster legend panel width in pixels.",
+    "space": "Size coordinate space: world radius, scene-relative diameter fraction, or screen-pixel diameter.",
     "text": "Annotation text.",
     "font_size": "Annotation font size in pixels.",
     "anchor": "Horizontal annotation anchor relative to its position.",

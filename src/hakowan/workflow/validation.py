@@ -672,18 +672,27 @@ class _Validator:
             self._check_attribute(
                 channel.data, mesh, generated, f"{path}.data", channels=mesh.dimension
             )
-        elif isinstance(channel, Size) and not isinstance(channel.data, (int, float)):
-            info = self._check_attribute(channel.data, mesh, generated, f"{path}.data")
-            has_norm = isinstance(channel.data, Attribute) and isinstance(
-                channel.data.scale, NormScale
-            )
-            if info is not None and info.channels != 1 and not has_norm:
+        elif isinstance(channel, Size):
+            if channel.space != "world" and not isinstance(channel.data, (int, float)):
                 self.issue(
-                    "channel.size.scalar_required",
+                    "channel.size.relative_constant_required",
                     f"{path}.data",
-                    f"Size requires scalar data, but attribute has {info.channels} channels.",
-                    hint="Use hkw.norm(field) to map vector magnitude to size.",
+                    "Scene- and screen-relative sizes require a numeric constant.",
                 )
+            if not isinstance(channel.data, (int, float)):
+                info = self._check_attribute(
+                    channel.data, mesh, generated, f"{path}.data"
+                )
+                has_norm = isinstance(channel.data, Attribute) and isinstance(
+                    channel.data.scale, NormScale
+                )
+                if info is not None and info.channels != 1 and not has_norm:
+                    self.issue(
+                        "channel.size.scalar_required",
+                        f"{path}.data",
+                        f"Size requires scalar data, but attribute has {info.channels} channels.",
+                        hint="Use hkw.norm(field) to map vector magnitude to size.",
+                    )
         elif isinstance(channel, VectorField):
             self._check_attribute(
                 channel.data,

@@ -757,7 +757,8 @@ def _channels_to_spec(
                 if isinstance(channel.data, (int, float))
                 else _attribute_to_spec(
                     channel.data, function_ids, f"{channel_path}.data"
-                )
+                ),
+                space=channel.space,
             )
         elif isinstance(channel, Shape):
             result[name] = sm.ShapeChannelSpec(
@@ -844,9 +845,12 @@ def _channels_from_spec(
         data = channels.size.data
         result.append(
             Size(
-                float(data)
-                if isinstance(data, (int, float))
-                else _attribute_from_spec(data, resolver, f"{path}.size.data")
+                data=(
+                    float(data)
+                    if isinstance(data, (int, float))
+                    else _attribute_from_spec(data, resolver, f"{path}.size.data")
+                ),
+                space=channels.size.space,
             )
         )
     if channels.shape:

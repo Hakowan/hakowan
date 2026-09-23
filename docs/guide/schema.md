@@ -300,7 +300,7 @@ rejected at the canonical boundary instead of relying on runtime shadowing.
 |---|---|---|---|
 | `position` | `position` | `data` | all |
 | `normal` | `normal` | `data` | surface |
-| `size` | `size` | `data` constant or attribute | point, curve |
+| `size` | `size` | `data` constant or attribute, `space=world` | point, curve |
 | `shape` | `shape` | `base_shape=sphere`, `orientation=null` | point |
 | `vector_field` | `vector_field` | `data`, `refinement_level=0`, `style=null`, `end_type=point`, `normalize=false` | curve |
 | `covariance` | `covariance` | `data`, `full=false` | point |

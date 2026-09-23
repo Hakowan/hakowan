@@ -654,6 +654,7 @@ def _capture_sync(
         fov=first_camera.fov,
         fov_axis="y",
     )
+    scene.resolve_size_spaces(render_config)
     sync_playwright, playwright_error = _require_playwright()
     from ..backends.webgl import WebGLBackend
     from ..backends.webgl.assets import ensure_three_assets

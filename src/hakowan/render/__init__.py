@@ -108,6 +108,7 @@ def render(
 
     # Compile the layer tree after resolving the figure wrapper.
     scene = compile(runtime_layer)
+    scene.resolve_size_spaces(config)
     logger.info("Compilation done")
     # Get backend and render
     backend_name = resolve_backend_name(backend)

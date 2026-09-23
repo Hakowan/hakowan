@@ -72,9 +72,11 @@ ch = hkw.channel.Normal(data = "attr_name")
 
 ![Origamix rabbit](../images/star.svg){: align="right" style="width:200px"}
 
-`Size` channel represents the size of 3D marks. It is only relevant to `Point` and `Curve` marks.
-For `Point` mark, size represents the radius of the point mark. For `Curve` mark, size represents
-the radius of the curves.
+`Size` controls point and curve radius. `space="world"` uses input geometry
+units. `space="scene"` interprets a constant value as visible diameter relative
+to the compiled scene or ROI-box diagonal. `space="screen"` interprets a
+constant as pixel diameter at the camera target plane; perspective depth can
+still change the apparent width away from that plane.
 
 On the simple star example to the right, the vertex valence of the graph is mapped to the size
 channel of the points. The edges are of uniform size.
@@ -94,7 +96,8 @@ ch = hkw.channel.Size(data = "attr_name")
 ch = hkw.channel.Size(data = 0.1)
 ```
 
-Note that `Size` channel uses the same unit as the `Position` channel.
+Attribute-driven size is supported in world space. Scene- and screen-relative
+sizes require a numeric constant.
 
 To scale marks by the magnitude of a vector field, pass a [`hkw.norm()`](attribute.md#the-norm-shorthand)
 attribute as the size data:

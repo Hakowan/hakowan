@@ -566,15 +566,15 @@ class Layer:
         *,
         color: ColorLike = "black",
         width: float = 0.005,
+        width_space: Literal["world", "scene", "screen"] = "scene",
         name: str | None = "Edges",
     ) -> "Layer":
-        """Overlay mesh edges as a named curve layer of constant color and width."""
+        """Overlay mesh edges with world-, scene-, or screen-relative width."""
         if width <= 0.0:
             raise ValueError("Edge width must be positive")
-        edges = (
-            self.mark(Mark.Curve)
-            .channel(size=width)
-            .channel(material=Diffuse(reflectance=color))
+        edges = self.mark(Mark.Curve).channel(
+            size=Size(data=width, space=width_space),
+            material=Diffuse(reflectance=color),
         )
         if name is not None:
             edges = edges.name(name)

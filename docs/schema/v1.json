@@ -4811,6 +4811,17 @@
           "description": "Discriminator selecting the concrete specification variant.",
           "title": "Kind",
           "type": "string"
+        },
+        "space": {
+          "default": "world",
+          "description": "Size coordinate space: world radius, scene-relative diameter fraction, or screen-pixel diameter.",
+          "enum": [
+            "world",
+            "scene",
+            "screen"
+          ],
+          "title": "Space",
+          "type": "string"
         }
       },
       "required": [

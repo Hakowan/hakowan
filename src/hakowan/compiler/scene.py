@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING
 
 from .view import View
 from ..grammar.layer import LayoutOptions
+from ..setup.sensor import Orthographic, Perspective
 
 if TYPE_CHECKING:
     from .overlay import CompiledAnnotation, CompiledLegend
+    from ..setup import Config
 
 
 @dataclass
@@ -251,3 +253,54 @@ class Scene:
 
         for view in self.views:
             view.global_transform = global_transform @ view.global_transform
+
+    def resolve_size_spaces(self, config: "Config") -> None:
+        """Resolve scene-relative and screen-pixel sizes to world-space radii."""
+        sensor = config.sensor
+        aspect = config.film.width / config.film.height
+        if isinstance(sensor, Orthographic):
+            world_per_pixel = float(sensor.scale) / config.film.height
+        else:
+            assert isinstance(sensor, Perspective)
+            half = np.radians(float(sensor.fov)) * 0.5
+            axis = sensor.fov_axis
+            if (
+                axis == "y"
+                or (axis == "smaller" and aspect >= 1)
+                or (axis == "larger" and aspect < 1)
+            ):
+                half_y = half
+            elif axis == "diagonal":
+                half_y = np.arctan(np.tan(half) / np.sqrt(aspect * aspect + 1.0))
+            else:
+                half_y = np.arctan(np.tan(half) / aspect)
+            distance = float(
+                np.linalg.norm(
+                    np.asarray(sensor.location, dtype=float)
+                    - np.asarray(sensor.target, dtype=float)
+                )
+            )
+            world_per_pixel = (
+                2.0 * distance * float(np.tan(half_y)) / config.film.height
+            )
+
+        for view in self.views:
+            size = view.size_channel
+            if size is None or size.space == "world":
+                continue
+            if not isinstance(size.data, (int, float)):
+                raise ValueError(
+                    f"Size space {size.space!r} requires a constant numeric size."
+                )
+            scale = float(np.cbrt(abs(np.linalg.det(view.global_transform[:3, :3]))))
+            if scale <= 1e-12:
+                raise ValueError(
+                    "Cannot resolve size through a singular scene transform."
+                )
+            normalized_radius = (
+                float(size.data)
+                if size.space == "scene"
+                else float(size.data) * world_per_pixel * 0.5
+            )
+            size.data = normalized_radius / scale
+            size.space = "world"

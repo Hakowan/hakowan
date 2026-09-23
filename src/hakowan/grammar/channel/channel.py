@@ -56,14 +56,17 @@ class Normal(Channel):
 class Size(Channel):
     """Map a scalar attribute or constant to point/curve glyph size.
 
-    Sizes use the input geometry's units.
+    ``world`` values are radii in input geometry units. ``scene`` values are
+    visible diameter fractions of the compiled scene bounding-box diagonal.
+    ``screen`` values are visible diameters in output pixels.
 
     Attributes:
-        data (AttributeLike | float): The attribute or value used to encode the size field.
-
+        data: Attribute or constant size value.
+        space: World, scene-relative, or screen-pixel sizing.
     """
 
     data: AttributeLike | float
+    space: Literal["world", "scene", "screen"] = "world"
 
 
 @dataclass(slots=True)

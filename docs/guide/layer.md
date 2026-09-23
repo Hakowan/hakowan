@@ -95,8 +95,10 @@ with_edges = colored.show_edges(color="black")
 ```
 
 `show_edges()` returns the original visualization overlaid with a curve-mark
-view of the same data. The input layer is not modified.
-The default edge width is `0.005`; pass `width=` to override it.
+view of the same data. The default `width=0.005` and `width_space="scene"`
+produce a diameter equal to 0.5% of the compiled scene or ROI-box diagonal.
+Use `width_space="screen"` for pixel diameter or `"world"` for the legacy
+object-space radius behavior.
 
 ### Add vector glyphs
 
