@@ -13,7 +13,6 @@ theme:
   icon:
     repo: fontawesome/brands/github
   features:
-    - navigation.sections
     - navigation.footer
     - search.highlight
     - content.code.copy
@@ -76,6 +75,7 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+      toc_depth: 3
   - attr_list
   - footnotes
   - md_in_html
