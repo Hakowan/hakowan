@@ -565,7 +565,7 @@ class Layer:
         self,
         *,
         color: ColorLike = "black",
-        width: float = 0.01,
+        width: float = 0.005,
         name: str | None = "Edges",
     ) -> "Layer":
         """Overlay mesh edges as a named curve layer of constant color and width."""

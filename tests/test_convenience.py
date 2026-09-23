@@ -101,6 +101,9 @@ def test_show_edges_overlays_surface_and_curve():
     assert scene[1].size_channel.data == pytest.approx(0.03)
     assert scene[1].material_channel.reflectance == "red"
 
+    default_scene = hkw.compile(hkw.layer(mesh).show_edges())
+    assert default_scene[1].size_channel.data == pytest.approx(0.005)
+
 
 def test_glyph_vectors_overlays_scaled_arrow_field():
     mesh = _triangle()

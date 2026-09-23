@@ -91,11 +91,12 @@ the scalar attribute name or element domain is not known.
 ### Overlay mesh edges
 
 ```py
-with_edges = colored.show_edges(color="black", width=0.01)
+with_edges = colored.show_edges(color="black")
 ```
 
 `show_edges()` returns the original visualization overlaid with a curve-mark
 view of the same data. The input layer is not modified.
+The default edge width is `0.005`; pass `width=` to override it.
 
 ### Add vector glyphs
 
