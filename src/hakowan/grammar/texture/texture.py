@@ -121,10 +121,10 @@ class ScalarField(Texture):
 
     Attributes:
         data (AttributeLike): The attribute to convert to a color field.
-        colormap (str | list[ColorLike]): The colormap to use. Accepts a hakowan
-            built-in name (e.g. ``"viridis"``, ``"turbo"``, ``"set1"``), any
-            `colorcet <https://colorcet.holoviz.org>`_ palette name (e.g.
-            ``"fire"``, ``"rainbow"``, ``"CET_L16"``, ``"glasbey"``), the special
+        colormap (str | list[ColorLike] | None): The colormap to use. When
+            omitted, continuous fields use ``"viridis"`` and categorical fields
+            use ``"set1"``. Accepts a Hakowan built-in name, any `colorcet
+            <https://colorcet.holoviz.org>`_ palette name, the special
             ``"identity"`` pass-through, or an explicit list of colors.
         domain (tuple[float, float]): The domain of the attribute to map to the colormap.
         range (tuple[float, float]): The range of the colormap to map the attribute to.
@@ -138,12 +138,17 @@ class ScalarField(Texture):
     """
 
     data: AttributeLike
-    colormap: str | list[ColorLike] = "viridis"
+    colormap: str | list[ColorLike] | None = None
     domain: tuple[float, float] | None = None
     range: tuple[float, float] | None = None
     categories: bool = False
     reverse: bool = False
     legend: bool | Legend = True
+
+    def __post_init__(self) -> None:
+        """Resolve the palette default from continuous versus categorical intent."""
+        if self.colormap is None:
+            self.colormap = "set1" if self.categories else "viridis"
 
     # Populated on the compiler's deep-copied texture instance.
     _legend_domain: tuple[float, float] | None = None

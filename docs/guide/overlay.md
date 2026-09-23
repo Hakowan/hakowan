@@ -55,7 +55,6 @@ Set `categories=True` to emit one swatch per unique value:
 ```py
 texture = hkw.texture.ScalarField(
     "component",
-    colormap="set1",
     categories=True,
     legend=hkw.Legend(
         title="Component",

@@ -56,10 +56,10 @@ t = hkw.texture.ScalarField(data="temperature")
 | Field | Type | Meaning |
 |-------|------|---------|
 | data | AttributeLike | Scalar attribute to visualize |
-| colormap | str \| list | Built-in or [colorcet](https://colorcet.holoviz.org) name, `"identity"`, or explicit colors; default `"viridis"` |
+| colormap | str \| list \| None | Built-in or [colorcet](https://colorcet.holoviz.org) name, `"identity"`, or explicit colors; defaults to `"viridis"` for continuous fields and `"set1"` when `categories=True` |
 | domain | tuple \| None | Input domain; inferred from finite data when omitted |
 | range | tuple \| None | Subrange of the colormap; full range when omitted |
-| categories | bool | Treat values as discrete categories |
+| categories | bool | Treat values as discrete categories and use `"set1"` by default |
 | reverse | bool | Reverse colormap direction |
 | legend | bool \| Legend | Automatic by default; `False` suppresses it |
 

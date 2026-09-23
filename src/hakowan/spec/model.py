@@ -207,6 +207,16 @@ class ScalarFieldTextureSpec(SpecModel):
     reverse: bool = False
     legend: bool | LegendSpec = True
 
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_colormap_default(cls, value: Any) -> Any:
+        """Use a qualitative default for categorical fields when omitted."""
+        if isinstance(value, Mapping) and value.get("colormap") is None:
+            result = dict(value)
+            result["colormap"] = "set1" if result.get("categories") else "viridis"
+            return result
+        return value
+
 
 TextureSpec = Annotated[
     UniformTextureSpec

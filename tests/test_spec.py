@@ -28,6 +28,31 @@ def _mesh_with_fields():
     return mesh
 
 
+def test_categorical_spec_uses_qualitative_colormap_when_omitted():
+    spec = FigureSpec.model_validate(
+        {
+            "root": {
+                "kind": "layer",
+                "spec": {
+                    "channels": {
+                        "material": {
+                            "kind": "diffuse",
+                            "reflectance": {
+                                "kind": "scalar_field",
+                                "data": {"name": "region"},
+                                "categories": True,
+                            },
+                        }
+                    }
+                },
+            }
+        }
+    ).to_dict()
+
+    field = spec["root"]["spec"]["channels"]["material"]["reflectance"]
+    assert field["colormap"] == "set1"
+
+
 def test_schema_is_versioned_json_schema():
     schema = hkw.schema()
 

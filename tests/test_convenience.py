@@ -78,6 +78,19 @@ def test_color_by_serializes_to_minimal_canonical_scalar_field():
     assert material["reflectance"]["legend"] is True
 
 
+def test_color_by_uses_qualitative_default_for_categories():
+    mesh = _triangle()
+
+    spec = hkw.to_spec(
+        hkw.layer(mesh).color_by("temperature", categories=True),
+        data_ids={id(mesh): "mesh"},
+    ).to_dict()
+
+    field = spec["root"]["spec"]["channels"]["material"]["reflectance"]
+    assert field["categories"] is True
+    assert field["colormap"] == "set1"
+
+
 def test_show_edges_overlays_surface_and_curve():
     mesh = _triangle()
 

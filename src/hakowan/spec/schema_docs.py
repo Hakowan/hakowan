@@ -165,7 +165,7 @@ FIELD_DESCRIPTIONS = {
     "whiteness": "Blend amount toward white, from zero to one.",
     "ratio": "Relative width of the first isocontour region.",
     "num_contours": "Number of contour repetitions per unit scalar interval.",
-    "colormap": "Built-in palette name, colorcet palette name, identity, or explicit color list.",
+    "colormap": "Built-in palette name, colorcet palette name, identity, or explicit color list. Defaults to set1 for categories and viridis otherwise.",
     "categories": "Whether values are discrete categories rather than continuous quantities.",
     "reverse": "Whether to reverse colormap direction.",
     "two_sided": "Whether the material renders both surface orientations.",

@@ -331,7 +331,7 @@ positions additionally accept a number, named/hex color string, or numeric list.
 | `image` | `path`, `uv=null`, `raw=false`, `saturation=1`, `whiteness=0` | Image sampled through UV coordinates. |
 | `checkerboard` | `uv=null`, `texture1=0.8`, `texture2=0.2`, `size=8` | Alternating UV-space textures. |
 | `isocontour` | `data`, `ratio=0.1`, `texture1=0.4`, `texture2=0.2`, `num_contours=8` | Scalar contour bands. |
-| `scalar_field` | `data`, `colormap=viridis`, `domain=null`, `range=null`, `categories=false`, `reverse=false`, `legend=true` | Scalar-to-color mapping with an automatic legend. |
+| `scalar_field` | `data`, `colormap=viridis` (`set1` when `categories=true`), `domain=null`, `range=null`, `categories=false`, `reverse=false`, `legend=true` | Scalar-to-color mapping with an automatic legend. |
 
 
 `legend` may be `false`, `true`, or an object with `title`, `units`, `ticks`,

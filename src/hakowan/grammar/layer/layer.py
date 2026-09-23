@@ -534,7 +534,7 @@ class Layer:
         self,
         attribute: AttributeLike,
         *,
-        colormap: str | list[ColorLike] = "viridis",
+        colormap: str | list[ColorLike] | None = None,
         domain: tuple[float, float] | None = None,
         range: tuple[float, float] | None = None,
         categories: bool = False,

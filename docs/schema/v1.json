@@ -4569,7 +4569,7 @@
             }
           ],
           "default": "viridis",
-          "description": "Built-in palette name, colorcet palette name, identity, or explicit color list.",
+          "description": "Built-in palette name, colorcet palette name, identity, or explicit color list. Defaults to set1 for categories and viridis otherwise.",
           "title": "Colormap"
         },
         "data": {

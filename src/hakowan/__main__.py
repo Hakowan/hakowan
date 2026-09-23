@@ -749,7 +749,6 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 scalar_texture = hkw.texture.ScalarField(
                     args.material,
                     categories=args.categorical,
-                    colormap="set1" if args.categorical else "viridis",
                 )
 
                 if args.isoline:
