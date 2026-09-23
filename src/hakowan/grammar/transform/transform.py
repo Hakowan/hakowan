@@ -250,31 +250,35 @@ class Boundary(Transform):
 
 @dataclass(slots=True, kw_only=True)
 class Streamline(Transform):
-    """Replace a surface with streamlines traced along a vector or cross field.
+    """Replace a triangular surface with traced vector- or cross-field curves.
 
-    The output is a vertex-only mesh whose 2-vertex polygonal faces encode line
-    segments along the streamlines, suitable for the ``curve`` mark.  A per-vertex
-    ``int32`` attribute named by ``id_attr_name`` identifies which streamline
-    each point belongs to.
+    Hakowan resolves facet, vertex, corner, and indexed three-channel fields to
+    one tangent direction per facet. Vertex fields use Levi-Civita transport and
+    symmetry-aware averaging (1-RoSy for vectors, 4-RoSy for cross fields);
+    corner and indexed fields use arithmetic facet averaging. Traces cross
+    triangle edges exactly and parallel-transport directions between facets.
+
+    The output mesh stores streamline points as vertices and consecutive line
+    segments as two-vertex facets. A per-vertex ``int32`` attribute named by
+    ``id_attr_name`` identifies each streamline.
 
     Attributes:
-        vec_field: The per-facet vector field attribute name.  Vertex- or corner-
-            domain attributes are averaged to per-facet first.
-        n: Number of blue-noise seed faces to sample.  Default 50.
-        cross_field: Treat the field as 4-RoSy cross field.  Default True.
-        length: Maximum object-space length per half-trace (measured on the
-            data-frame mesh, before any layer-level affine transforms).  Tracing
-            stops once the accumulated length exceeds this value.  ``None`` means
-            no limit (trace until mesh boundary).  Default None.
-        seed: RNG seed passed to blue-noise sampling.  Default 0.
-        min_length: Discard streamlines shorter than this many sample points.
-            Default 3.
-        max_steps: Maximum number of edge-crossing steps per half-trace (a hard
-            cap that bounds work on periodic fields, independent of ``length``).
-            ``None`` (default) uses half the number of facets.
-        id_attr_name: Name of the per-vertex streamline-id attribute on the
-            output mesh.  Default ``_hakowan_streamline_id``.
-
+        vec_field: Three-channel vector attribute. Facet values are used
+            directly; other supported domains are converted to facets.
+        n: Number of blue-noise seed facets. Default 50. Ordinary fields produce
+            up to ``n`` bidirectional streamlines; cross fields produce up to
+            ``2 * n`` by tracing both orthogonal axes.
+        cross_field: Treat the field as 4-RoSy. Default True.
+        length: Maximum object-space length per half-trace, measured before
+            layer-level affine transforms. A complete bidirectional trace can
+            approach twice this length. ``None`` traces until a boundary or
+            another termination condition. Default None.
+        seed: RNG seed passed to blue-noise sampling. Default 0.
+        min_length: Minimum retained sample-point count. Default 3.
+        max_steps: Edge-crossing cap per half-trace. ``None`` uses half the
+            number of facets.
+        id_attr_name: Output per-vertex streamline-ID attribute name. Default
+            ``_hakowan_streamline_id``.
     """
 
     vec_field: AttributeLike

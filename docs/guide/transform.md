@@ -152,44 +152,80 @@ transforms, matching the behavior of the [PrincipalAxes transform](#principalaxe
 
 ## Streamline transform
 
-Streamline transform replaces the mesh with surface streamlines traced from a per-facet vector
-field or 4-RoSy cross field. The output is a vertex-only mesh whose 2-vertex polylines encode
-streamline segments, suitable for the `Curve` mark.
+`Streamline` replaces a triangulated surface with curves traced through a
+tangent vector field. It supports ordinary vector fields and four-fold
+rotationally symmetric (4-RoSy) cross fields. The resulting mesh contains
+polyline vertices and two-vertex facets suitable for the `Curve` mark.
 
 ```py
-# Trace 100 streamlines from a per-facet vector field attribute "velocity".
-tr = hkw.transform.Streamline(vec_field="velocity", n=100, cross_field=False)
-
-# Visualize as curves.
-l = hkw.layer(mesh).transform(tr).mark("Curve").channel(size=0.005)
+streamlines = (
+    hkw.layer(mesh)
+    .transform(
+        hkw.transform.Streamline(
+            vec_field="velocity",
+            cross_field=False,
+            n=100,
+        )
+    )
+    .mark("Curve")
+    .channel(size=hkw.channel.Size(data=0.5, space="screen"))
+)
 ```
 
-Vertex- or corner-domain vector attributes are automatically averaged to per-facet before tracing.
-Seeds are placed via blue-noise sampling for even surface coverage.
+### Input field domains
 
-Key parameters:
+The input must be a three-channel vector attribute on a triangular surface.
+Hakowan resolves every supported domain to one tangent direction per facet:
 
-* `n` — number of seed faces (default 50).
-* `cross_field` — treat the input as a 4-RoSy cross field (default `True`). Set `False` for
-  ordinary vector fields.
-* `length` — maximum world-space length per half-trace; `None` means trace until the mesh boundary.
-* `seed` — RNG seed for the blue-noise sampler.
-* `min_length` — discard streamlines with fewer than this many sample points (default 3).
-* `max_steps` — hard cap on edge-crossing steps per half-trace, bounding work on periodic
-  fields independently of `length`; `None` (default) uses half the number of facets.
-* `id_attr_name` — name of the per-vertex streamline-id attribute on the output mesh.
+| Attribute domain | Conversion before tracing |
+|---|---|
+| `facet` | Used directly, then projected into the facet tangent plane. |
+| `vertex` | Levi-Civita transported into each facet frame and symmetry-aware averaged; ordinary fields use 1-RoSy averaging and cross fields use 4-RoSy averaging. |
+| `corner` | The three corner vectors are arithmetically averaged per triangle. |
+| `indexed` | Indexed corner values are expanded and arithmetically averaged per triangle. |
 
-Each output vertex carries an integer streamline id under `id_attr_name`, useful for coloring
-individual streamlines:
+Corner and indexed cross fields do not currently receive the symmetry-aware
+transport used for vertex fields. Prefer facet or vertex storage when field
+representatives can differ by sign or quarter-turn.
+
+### Tracing behavior
+
+Seeds are selected by area-aware blue-noise sampling. Each seed is traced in
+both directions through exact triangle-edge crossings. Directions are parallel
+transported between adjacent facet tangent frames. For a cross field, the
+transported direction snaps to the closest of four equivalent arms, and Hakowan
+traces both orthogonal bidirectional axes. A request for `n` seeds can therefore
+produce up to `n` ordinary streamlines or `2 * n` cross-field streamlines.
+
+Zero directions, missing forward crossings, mesh boundaries, the length limit,
+and the step limit can terminate a trace. The surface must already be
+triangulated.
+
+### Length and limits
+
+| Parameter | Meaning |
+|---|---|
+| `n=50` | Number of sampled seed facets. |
+| `cross_field=True` | Interpret the input as a 4-RoSy field; use `False` for an ordinary vector field. |
+| `length=None` | Maximum object-space length **per half-trace**. `None` traces until a boundary or another termination condition. A complete forward-plus-backward streamline can approach `2 * length`. |
+| `seed=0` | Deterministic seed for sampling fallback. |
+| `min_length=3` | Minimum retained sample-point count. |
+| `max_steps=None` | Edge-crossing cap per half-trace; `None` uses half the facet count. |
+| `id_attr_name="_hakowan_streamline_id"` | Per-vertex integer attribute identifying each output streamline. |
+
+`length` is measured on the data-frame mesh before layer-level affine
+transforms. It is not a fraction of the bounding box. To use a relative limit,
+compute the object-space value explicitly from the input bounds.
+
+The output streamline ID can drive categorical color:
 
 ```py
-tr = hkw.transform.Streamline(vec_field="velocity", n=200)
-l = (
-    hkw.layer(mesh)
-    .transform(tr)
-    .mark("Curve")
-    .channel(size=0.003)
-    .channel(material=hkw.material.Diffuse(color="_hakowan_streamline_id"))
+streamlines = streamlines.material(
+    "Diffuse",
+    hkw.texture.ScalarField(
+        "_hakowan_streamline_id",
+        categories=True,
+    ),
 )
 ```
 
