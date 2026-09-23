@@ -126,9 +126,9 @@ def parse_args():
     )
     parser.add_argument(
         "--wire-thickness",
-        help="Wireframe, seam, and field-line diameter in pixels",
+        help="Wireframe, seam, and field-line diameter in pixels (default: 0.5)",
         type=float,
-        default=1.5,
+        default=0.5,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
