@@ -569,7 +569,13 @@ class Layer:
         width_space: Literal["world", "scene", "screen"] = "scene",
         name: str | None = "Edges",
     ) -> "Layer":
-        """Overlay mesh edges with world-, scene-, or screen-relative width."""
+        """Overlay mesh edges with an explicit thickness value space.
+
+        ``width`` is visible diameter for ``scene`` and ``screen`` spaces. In
+        ``scene`` space it is a fraction of the compiled scene or ROI-box
+        diagonal; in ``screen`` space it is pixels at the camera target plane.
+        ``world`` retains the legacy radius-in-geometry-units behavior.
+        """
         if width <= 0.0:
             raise ValueError("Edge width must be positive")
         edges = self.mark(Mark.Curve).channel(

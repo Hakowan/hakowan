@@ -72,18 +72,25 @@ ch = hkw.channel.Normal(data = "attr_name")
 
 ![Origamix rabbit](../images/star.svg){: align="right" style="width:200px"}
 
-`Size` controls point and curve radius. `space="world"` uses input geometry
-units. `space="scene"` interprets a constant value as visible diameter relative
-to the compiled scene or ROI-box diagonal. `space="screen"` interprets a
-constant as pixel diameter at the camera target plane; perspective depth can
-still change the apparent width away from that plane.
+`Size` controls point and curve thickness. The numeric value has different
+units according to `space`:
+
+| `space` | Numeric value | Result |
+|---|---|---|
+| `"world"` | Radius in input geometry units | Diameter is `2 * data`; scales with geometry transforms. |
+| `"scene"` | Diameter divided by the compiled scene or ROI-box diagonal | `data=0.005` gives a diameter equal to 0.5% of that diagonal. |
+| `"screen"` | Diameter in output pixels | Exact at the camera target plane; perspective depth changes apparent width away from it. |
+
+The default `Size.space` is `"world"` for compatibility. High-level edge
+helpers can choose a different space explicitly.
 
 On the simple star example to the right, the vertex valence of the graph is mapped to the size
 channel of the points. The edges are of uniform size.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The size attribute |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] \| float | Attribute or constant value interpreted according to `space` |
+| `space` | `"world"` \| `"scene"` \| `"screen"` | Coordinate system and units for `data` |
 
 ```py
 # To specify an attribute as the size channel data:
@@ -92,8 +99,14 @@ ch = hkw.channel.Size(data = hkw.attribute(name = "attr_name"))
 # Shorthand. Same as above
 ch = hkw.channel.Size(data = "attr_name")
 
-# To assign constant size field
-ch = hkw.channel.Size(data = 0.1)
+# Constant world-space radius: 0.1 geometry units.
+world = hkw.channel.Size(data=0.1, space="world")
+
+# Constant scene-relative diameter: 0.5% of the scene/ROI diagonal.
+scene = hkw.channel.Size(data=0.005, space="scene")
+
+# Constant screen-space diameter: 0.5 pixels at the target plane.
+screen = hkw.channel.Size(data=0.5, space="screen")
 ```
 
 Attribute-driven size is supported in world space. Scene- and screen-relative

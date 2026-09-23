@@ -91,14 +91,23 @@ the scalar attribute name or element domain is not known.
 ### Overlay mesh edges
 
 ```py
+# Default: diameter is 0.5% of the scene or ROI-box diagonal.
 with_edges = colored.show_edges(color="black")
+
+# Half-pixel diameter at the camera target plane.
+pixel_edges = colored.show_edges(width=0.5, width_space="screen")
+
+# Legacy object-space radius; visible diameter is twice this value.
+world_edges = colored.show_edges(width=0.005, width_space="world")
 ```
 
 `show_edges()` returns the original visualization overlaid with a curve-mark
-view of the same data. The default `width=0.005` and `width_space="scene"`
-produce a diameter equal to 0.5% of the compiled scene or ROI-box diagonal.
-Use `width_space="screen"` for pixel diameter or `"world"` for the legacy
-object-space radius behavior.
+view of the same data. Its `width` always describes visible diameter in
+`"scene"` and `"screen"` spaces, but retains radius semantics in legacy
+`"world"` space.
+
+The CLI uses screen space: `--wire-thickness 0.5` means a 0.5-pixel diameter.
+
 
 ### Add vector glyphs
 
