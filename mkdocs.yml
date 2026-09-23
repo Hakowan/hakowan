@@ -1,17 +1,23 @@
 site_name: Hakowan - A 3D Data Visualization Grammar
+site_url: https://hakowan.github.io/hakowan/
 
 repo_url: https://github.com/Hakowan/hakowan
+edit_uri: blob/main/docs/
 
 theme:
+  code:
+    fold:
+      enabled: true
+      lines: 24
   name: materialx
   icon:
     repo: fontawesome/brands/github
   features:
     - navigation.sections
     - navigation.footer
-    - search.suggest
     - search.highlight
     - content.code.copy
+    - content.action.agents
     - content.footnote.tooltips
     - toc.follow
   logo: images/hakowan_logo.svg
@@ -48,7 +54,14 @@ plugins:
           show_root_toc_entry: false
           preload_modules:
           - hakowan
-- search
+- search:
+    provider: pagefind
+    pagefind:
+      options:
+        excerptLength: 40
+        ranking:
+          metaWeights:
+            title: 8.0
 
 
 markdown_extensions:
