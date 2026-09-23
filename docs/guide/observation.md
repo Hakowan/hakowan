@@ -4,6 +4,40 @@ Hakowan can produce deterministic raster evidence for automated inspection,
 vision models, regression checks, and publication workflows. The default path
 uses the existing WebGL scene through headless Chromium.
 
+## Mental model
+
+Hakowan separates visualization intent from captured evidence:
+
+```text
+Figure ──capture one view/pass──▶ Snapshot
+   │
+   └──capture several views/passes──▶ Observation
+```
+
+- A [`Figure`](figure.md) is the visualization definition: its layer tree plus
+  camera, lighting, environment, and output intent. It is neither an image nor
+  evidence that the result is visible.
+- A `Snapshot` is one raster for one resolved camera and one render pass. It
+  carries the image together with camera matrices, bounds, optional raw pass
+  data, diagnostics, paths, and hashes.
+- An `Observation` is a collection of snapshots plus scene-level evidence. It
+  adds a contact sheet, scene and layer summaries, a manifest, and queries for
+  picking, visibility, visible attribute ranges, and occlusion.
+
+| Goal | API | Result |
+|---|---|---|
+| Save one user-facing PNG | `snapshot(..., pass_name="beauty")` | One `Snapshot` and PNG |
+| Capture one analytical pass | `snapshot(..., pass_name="depth")` | One `Snapshot`, PNG, and raw NumPy array |
+| Inspect several views or passes | `observe(...)` | One `Observation` containing many snapshots |
+| Build visual evidence for an agent or regression check | `observe(...)` | Contact sheet, manifest, diagnostics, and queryable pass data |
+| Create an interactive browser viewer | `render(..., backend="webgl")` | HTML, not an observation |
+
+Use `snapshot()` when the required camera and pass are already known. Use
+`observe()` when choosing a view, checking visibility, or comparing multiple
+passes is part of the task. Both compile the same `Layer` or `Figure`; neither
+changes the visualization definition.
+
+
 ## Installation
 
 ```sh
@@ -259,7 +293,14 @@ This writes `viewer.html` and `viewer_assets/`. The first offline build download
 the pinned Three.js core, controls, geometry utilities, and environment-map
 loader dependencies into Hakowan's cache and verifies their SHA-256 digests.
 Subsequent bundles are copied from that cache and work without network access.
-Keep the HTML and asset directory together.
+Keep the HTML and asset directory together. Because browsers block JavaScript
+modules loaded from `file://`, serve the directory over HTTP:
+
+```sh
+python -m http.server --directory /path/to/output 8000
+```
+
+Then open `http://127.0.0.1:8000/viewer.html`.
 
 ## Determinism and limitations
 

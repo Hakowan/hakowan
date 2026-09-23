@@ -53,6 +53,17 @@ hkw.render(temperature, filename="temperature.html")
 Use `hkw.inspect("mesh.ply")` first when the available attribute names are not
 already known.
 
+For a deterministic static image, install `hakowan[observe]` and capture a
+beauty snapshot:
+
+```py
+figure = hkw.figure(temperature).camera("fit", direction="isometric")
+hkw.snapshot(figure, filename="temperature.png")
+```
+
+Use [`hkw.observe()`](guide/observation.md) when the task needs several views,
+render passes, visual diagnostics, or machine-readable visibility evidence.
+
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:
 
