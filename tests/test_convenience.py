@@ -296,7 +296,7 @@ def test_grid_normalizes_cells_across_full_and_ragged_rows():
     layers = []
     for index, scale in enumerate((1.0, 2.0, 4.0)):
         mesh = _triangle()
-        mesh.vertices *= scale
+        mesh.vertices = np.asarray(mesh.vertices) * scale
         layers.append(hkw.layer(mesh).name(str(index)))
 
     scene = hkw.compile(hkw.grid(layers, columns=2, normalize=True))
