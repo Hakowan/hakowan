@@ -240,7 +240,7 @@ def generate_rough_dielectric_bsdf_config(
     return mi_config
 
 
-def generate_hair_bsdf_config(mesh: lagrange.SurfaceMesh, mat: Hair) -> dict[str, Any]:
+def generate_hair_bsdf_config(mat: Hair) -> dict[str, Any]:
     azimuthal_roughness = 0.3
     mi_config: dict[str, Any] = {
         "type": "hair",
@@ -392,7 +392,7 @@ def _generate_single_bsdf(
             return generate_dielectric_bsdf_config(mesh, mat)
         case Hair():
             assert not is_primitive
-            return generate_hair_bsdf_config(mesh, mat)
+            return generate_hair_bsdf_config(mat)
         case _:
             raise NotImplementedError(f"Unknown material type: {type(mat)}")
 
