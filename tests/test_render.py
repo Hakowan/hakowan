@@ -52,9 +52,6 @@ class TestRender:
     def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
         from PIL import Image
 
-        config = hkw.config()
-        config.film.width = 64
-        config.film.height = 160
         layer = (
             hkw.layer(triangle)
             .material(
@@ -66,12 +63,15 @@ class TestRender:
             )
             .annotate("Mitsuba", background="black")
         )
+        figure = hkw.figure(layer).output(width=200, height=160)
         output = tmp_path / "overlay.png"
 
-        hkw.render(layer, config, filename=output, backend="mitsuba")
+        hkw.render(figure, filename=output, backend="mitsuba")
 
         with Image.open(output) as image:
-            assert image.size == (184, 160)
+            assert image.size == (200, 160)
+            assert image.mode == "RGBA"
+            assert np.asarray(image)[:, :80, 3].min() == 0
 
     @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
     def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):

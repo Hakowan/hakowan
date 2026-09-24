@@ -4,6 +4,9 @@ site_url: https://hakowan.github.io/hakowan/
 repo_url: https://github.com/Hakowan/hakowan
 edit_uri: blob/main/docs/
 
+hooks:
+  - mkdocs_hooks.py
+
 theme:
   code:
     fold:

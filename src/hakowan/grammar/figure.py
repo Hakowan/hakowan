@@ -128,11 +128,11 @@ class Environment:
 
 @dataclass(frozen=True, slots=True)
 class OutputSettings:
-    """Semantic image dimensions, background, passes, and sampler seed."""
+    """Semantic image dimensions, optional raster background, passes, and seed."""
 
     width: int = 1024
     height: int = 800
-    background: Literal["light", "dark"] = "dark"
+    background: Literal["light", "dark"] | None = None
     passes: tuple[RenderPassName, ...] = ("beauty",)
     sampler_seed: int = 0
 

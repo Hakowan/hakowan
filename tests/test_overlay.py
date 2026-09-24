@@ -182,23 +182,55 @@ def test_raster_overlay_compositor_adds_panel_and_annotation(tmp_path):
         background=(0.0, 0.0, 0.0),
         padding=3,
     )
-    source = Image.new("RGB", (100, 80), "navy")
+    source = Image.new("RGB", (200, 80), "navy")
 
     result = composite_overlays(source, [legend], [annotation])
 
-    assert result.size == (220, 80)
-    assert np.asarray(result)[:, 100:].std() > 0
+    assert result.size == (200, 80)
+    assert np.asarray(result)[:, 80:].std() > 0
     path = tmp_path / "overlay.png"
     source.save(path)
     assert composite_overlay_file(path, [legend], [annotation])
-    assert Image.open(path).size == (220, 80)
+    assert Image.open(path).size == (200, 80)
     pcx_path = tmp_path / "overlay.pcx"
     source.save(pcx_path)
     assert composite_overlay_file(pcx_path, [legend], [annotation])
     with Image.open(pcx_path) as encoded:
         assert encoded.mode == "RGB"
-        assert encoded.size == (220, 80)
+        assert encoded.size == (200, 80)
     assert not composite_overlay_file(tmp_path / "image.exr", [legend], [])
+
+
+def test_raster_overlay_preserves_transparent_render_background(tmp_path):
+    legend = CompiledLegend(
+        title="Value",
+        units=None,
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 1.0),
+        labels=("0", "1"),
+        colors=((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
+        position="right",
+        width=80,
+        scale=(),
+    )
+    source = Image.new("RGBA", (200, 120), (255, 0, 0, 0))
+    source.putpixel((5, 5), (255, 0, 0, 255))
+
+    result = composite_overlays(source, [legend], [])
+
+    assert result.size == source.size
+    assert result.getpixel((0, 0))[3] == 0
+    assert result.getpixel((5, 5)) == (255, 0, 0, 255)
+    assert result.getpixel((120, 0))[3] == 255
+
+    path = tmp_path / "transparent.png"
+    source.save(path)
+    assert composite_overlay_file(path, [legend], [])
+    with Image.open(path) as encoded:
+        assert encoded.mode == "RGBA"
+        assert encoded.size == source.size
+        assert encoded.getpixel((0, 0))[3] == 0
 
 
 def test_webgl_embeds_semantic_overlay_metadata(tmp_path):

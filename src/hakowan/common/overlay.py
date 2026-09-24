@@ -80,7 +80,7 @@ def _draw_legend_panel(
                 draw.text((40, tick_y - 7), label, fill="black", font=label_font)
             y += bar_height + 22
         y += 10
-    return panel
+    return panel.crop((0, 0, width, min(y + 2, height)))
 
 
 def _draw_annotations(
@@ -123,25 +123,27 @@ def composite_overlays(
     annotations: Sequence[CompiledAnnotation],
     background: str | None = None,
 ) -> Image.Image:
-    """Return an image with legend side panels and screen annotations."""
+    """Overlay legend panels and screen annotations within the source image."""
     source = image.convert("RGBA")
+    if background is None:
+        output = source.copy()
+    else:
+        canvas_color = (
+            (18, 18, 18, 255) if background == "dark" else (255, 255, 255, 255)
+        )
+        output = Image.new("RGBA", source.size, canvas_color)
+        output.alpha_composite(source)
+
     left = [legend for legend in legends if legend.position == "left"]
     right = [legend for legend in legends if legend.position == "right"]
-    left_width = max((legend.width for legend in left), default=0)
-    right_width = max((legend.width for legend in right), default=0)
-    canvas_color = "white" if background != "dark" else (18, 18, 18, 255)
-    output = Image.new(
-        "RGBA", (left_width + source.width + right_width, source.height), canvas_color
-    )
     if left:
-        output.paste(_draw_legend_panel(left, left_width, source.height), (0, 0))
-    output.alpha_composite(source, (left_width, 0))
+        width = min(max(legend.width for legend in left), source.width)
+        output.paste(_draw_legend_panel(left, width, source.height), (0, 0))
     if right:
-        output.paste(
-            _draw_legend_panel(right, right_width, source.height),
-            (left_width + source.width, 0),
-        )
-    _draw_annotations(output, annotations, left_width, source.width)
+        width = min(max(legend.width for legend in right), source.width)
+        panel = _draw_legend_panel(right, width, source.height)
+        output.paste(panel, (source.width - width, 0))
+    _draw_annotations(output, annotations, 0, source.width)
     return output
 
 

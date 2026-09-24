@@ -114,6 +114,14 @@ def test_scene_model_validation():
         hkw.OutputSettings(passes=("beauty", "beauty"))
 
 
+def test_output_settings_preserve_raster_transparency_by_default():
+    output = hkw.OutputSettings()
+    figure = hkw.figure(hkw.layer(_triangle())).output(width=320, height=200)
+
+    assert output.background is None
+    assert figure.to_config().background is None
+
+
 def test_figure_render_uses_scene_settings_and_explicit_config_wins(tmp_path):
     figure = (
         hkw.figure(hkw.layer(_triangle()))

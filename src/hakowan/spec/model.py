@@ -683,7 +683,7 @@ class EnvironmentSpec(SpecModel):
 class OutputSettingsSpec(SpecModel):
     width: int = Field(default=1024, gt=0)
     height: int = Field(default=800, gt=0)
-    background: Literal["light", "dark"] = "dark"
+    background: Literal["light", "dark"] | None = None
     passes: tuple[Literal["beauty", "albedo", "depth", "normal", "facet_id"], ...] = (
         "beauty",
     )

@@ -275,7 +275,10 @@ FIELD_OVERRIDES = {
         "scale",
     ): "Full vertical world-space extent of the orthographic view.",
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
-    ("OutputSettingsSpec", "background"): "Initial light or dark background mode.",
+    ("OutputSettingsSpec", "background"): (
+        "Optional opaque light or dark raster background; null preserves "
+        "backend transparency. WebGL falls back to its dark viewer background."
+    ),
     (
         "ClipTransformSpec",
         "normal",
@@ -410,7 +413,7 @@ ROOT_EXAMPLE = {
         "output": {
             "width": 1024,
             "height": 800,
-            "background": "dark",
+            "background": None,
             "passes": ["beauty"],
             "sampler_seed": 0,
         },

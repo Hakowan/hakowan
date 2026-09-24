@@ -122,14 +122,17 @@ compiled.
 | Backend/output | Behavior |
 |---|---|
 | WebGL viewer | HTML/CSS legend panels and annotations over the interactive canvas. |
-| `snapshot()` / `observe()` beauty pass | Pillow-composited overlays; legend panels extend the image left or right. |
-| Mitsuba LDR file | Pillow-composited after rendering. The in-memory Mitsuba tensor remains the uncomposited render. |
-| Blender LDR file | Pillow-composited after rendering and format conversion. |
+| `snapshot()` / `observe()` beauty pass | Pillow-composited overlays within the original image bounds. |
+| Mitsuba LDR file | Pillow-composited within the rendered image after rendering. The in-memory Mitsuba tensor remains uncomposited. |
+| Blender LDR file | Pillow-composited within the rendered image after format conversion. |
 | EXR/HDR files | Overlay is skipped with a warning because raster text cannot be represented faithfully. |
 | Diagnostic passes | No overlays; raw depth, normal, and ID dimensions stay aligned. |
 
-For a right-side legend of width 180, a `512×512` beauty image becomes
-`692×512`. Raw diagnostic pass arrays retain the requested `512×512` dimensions.
+Raster legends do not change the requested output dimensions. A left or right
+legend is drawn over that edge of the beauty image using an opaque panel cropped
+to the legend content. Pixels outside that rectangle retain the original render,
+including its alpha values. An explicit light or dark raster background override
+still flattens transparent render pixels before overlays are drawn.
 
 ## Observation manifests
 

@@ -834,7 +834,7 @@ def _capture_context(
             and not explicit_config
             and figure.scene.output is not None
         ):
-            background = figure.scene.output.background
+            background = figure.scene.output.background or "dark"
         else:
             background = "dark"
     return runtime_layer, config, resolution, background, explicit_config

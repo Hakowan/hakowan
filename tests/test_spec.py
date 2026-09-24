@@ -61,6 +61,14 @@ def test_schema_is_versioned_json_schema():
     assert schema["properties"]["version"]["default"] == "1.1"
     assert set(schema["properties"]["version"]["enum"]) == {"1.0", "1.1"}
     assert schema["additionalProperties"] is False
+    background_schema = schema["$defs"]["OutputSettingsSpec"]["properties"][
+        "background"
+    ]
+    assert background_schema["default"] is None
+    assert {item.get("type") for item in background_schema["anyOf"]} == {
+        "string",
+        "null",
+    }
     assert len(schema["$defs"]) > 40
     json.dumps(schema)
     assert schema["description"]

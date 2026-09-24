@@ -3184,14 +3184,21 @@
       "description": "Semantic output resolution, background, passes, and deterministic seed.",
       "properties": {
         "background": {
-          "default": "dark",
-          "description": "Initial light or dark background mode.",
-          "enum": [
-            "light",
-            "dark"
+          "anyOf": [
+            {
+              "enum": [
+                "light",
+                "dark"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Background",
-          "type": "string"
+          "default": null,
+          "description": "Optional opaque light or dark raster background; null preserves backend transparency. WebGL falls back to its dark viewer background.",
+          "title": "Background"
         },
         "height": {
           "default": 800,
@@ -5722,7 +5729,7 @@
           }
         ],
         "output": {
-          "background": "dark",
+          "background": null,
           "height": 800,
           "passes": [
             "beauty"

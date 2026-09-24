@@ -2,40 +2,46 @@
 
 <div class="grid cards" markdown>
 
-- [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side.png?raw=true)](examples/ipc.md)
+- [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side_10.webp?raw=true)](examples/ipc.md)
 
-- [![Scalable Locally Injective Mappings](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Slim/results/fig3.png?raw=true)](examples/slim.md)
+- [![Scalable Locally Injective Maps](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Slim/results/fig3.webp?raw=true)](examples/slim.md)
 
-- [![Layout Embedding via Combinatorial Optimization](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Layout/results/pig_embedded.png?raw=true)](examples/layout.md)
+- [![Layout Embedding](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Layout/results/pig_embedded.webp?raw=true)](examples/layout.md)
 
-- [![The Heat Method](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.png?raw=true)](examples/heat.md)
+- [![The Heat Method](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.webp?raw=true)](examples/heat.md)
 
-- [![Tetrahedral Meshing in the Wild](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/TetWild/results/bust.png?raw=true)](examples/tetwild.md)
+- [![TetWild Cutaway](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/TetWild/results/bust.webp?raw=true)](examples/tetwild.md)
 
-- [![Neral Skeleton](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.png?raw=true)](examples/skeleton.md)
+- [![Surface Skeleton](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.webp?raw=true)](examples/skeleton.md)
 
-- [![3D Freehand Sketch](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/designer2_guitar_01_rough_dark.png?raw=true#only-light) ](examples/sketch.md)[![3D Freehand Sketch](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/designer2_guitar_01_rough_light.png?raw=true#only-dark)](examples/sketch.md)
+- [![Reconstructed 3D Sketches](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/Prof2task2_guitar_01_rough_dark.webp?raw=true#only-light)](examples/sketch.md)[![Reconstructed 3D Sketches](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/Prof2task2_guitar_01_rough_light.webp?raw=true#only-dark)](examples/sketch.md)
 
-- [![Powell Sabin Tet Subdivision](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin_explode.png?raw=true)](examples/powell-sabin.md)
+- [![Powell-Sabin Splines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin.webp?raw=true)](examples/powell-sabin.md)
 
-- [![Topographic Map](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.png?raw=true)](examples/elevation.md)
+- [![Elevation Map](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.webp?raw=true)](examples/elevation.md)
 
-- [![Deformation](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.png?raw=true)](examples/deformation.md)
+- [![Mesh Deformation](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.webp?raw=true)](examples/deformation.md)
 
-- [![Penny](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Penny/results/penny.png?raw=true)](examples/penny.md)
+- [![Penny](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Penny/results/penny.webp?raw=true)](examples/penny.md)
 
-- [![SPH](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.png?raw=true)](examples/sph.md)
+- [![Smoothed Particle Hydrodynamics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_010_all.webp?raw=true)](examples/sph.md)
 
-- [![Mean Curvature Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flow/results/bust.png?raw=true)](examples/flow.md)
+- [![Mean Curvature Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flow/results/bust.webp?raw=true)](examples/flow.md)
 
-- [![Developability of Triangle Meshes](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Developable/results/mask_3.png?raw=true)](examples/developable.md)
+- [![Developable Surface Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Developable/results/mask_0.webp?raw=true)](examples/developable.md)
 
-- [![Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_top.png?raw=true)](examples/components.md)
+- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_front.webp?raw=true)](examples/components.md)
 
-- [![Fibers](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.png?raw=true)](examples/fibers.md)
+- [![Fiber Curves](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.webp?raw=true)](examples/fibers.md)
 
-- [![Moon](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
+- [![Moon](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Moon/results/moon.webp?raw=true)](examples/moon.md)
 
-- [![Face](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Face/results/face_uv.png?raw=true)](examples/face.md)
+- [![Face Texture and UV Layout](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Face/results/face.webp?raw=true)](examples/face.md)
+
+- [![Cross-Field Streamlines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/CrossField/results/shark_stream_lines.webp?raw=true)](examples/cross-field.md)
+
+- [![Spot](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Spot/results/spot_wireframe.webp?raw=true)](examples/spot.md)
+
+- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
 
 </div>
