@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import os
 import re
+import sys
 
 import lagrange
 import numpy as np
@@ -210,6 +212,10 @@ def test_figure_schema_1_1_round_trip_and_relative_environment(tmp_path):
     assert round_trip.to_json(canonical=True) == spec.to_json(canonical=True)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" and os.environ.get("CI") == "true",
+    reason="Mitsuba/Dr.Jit crashes during Python shutdown on Windows CI",
+)
 def test_mitsuba_directional_light_translation():
     pytest.importorskip("mitsuba")
     from hakowan.backends.mitsuba.emitter import generate_emitter_config
