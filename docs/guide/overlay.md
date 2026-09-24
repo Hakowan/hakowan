@@ -129,10 +129,11 @@ compiled.
 | Diagnostic passes | No overlays; raw depth, normal, and ID dimensions stay aligned. |
 
 Raster legends do not change the requested output dimensions. A left or right
-legend is drawn over that edge of the beauty image using an opaque panel cropped
-to the legend content. Pixels outside that rectangle retain the original render,
-including its alpha values. An explicit light or dark raster background override
-still flattens transparent render pixels before overlays are drawn.
+legend is drawn over that edge of the beauty image with an eight-pixel inset.
+The panel uses the same rounded corners and semi-transparent dark background as
+the WebGL legend. Pixels outside that rounded rectangle retain the original
+render, including its alpha values. An explicit light or dark raster background
+override still flattens transparent render pixels before overlays are drawn.
 
 ## Observation manifests
 

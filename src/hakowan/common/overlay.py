@@ -43,44 +43,56 @@ def _gradient(
 def _draw_legend_panel(
     legends: Sequence[CompiledLegend], width: int, height: int
 ) -> Image.Image:
-    panel = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(panel)
+    content = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(content)
     title_font = _font(14)
     label_font = _font(12)
+    text_color = (238, 238, 238, 255)
+    muted_color = (187, 187, 187, 255)
+    outline_color = (204, 204, 204, 255)
     y = 12
     for legend in legends:
         title = legend.title + (f" ({legend.units})" if legend.units else "")
-        draw.text((12, y), title, fill="black", font=title_font)
+        draw.text((12, y), title, fill=text_color, font=title_font)
         y += 24
         if legend.scale:
             draw.text(
                 (12, y),
                 " → ".join(legend.scale),
-                fill=(80, 80, 80),
+                fill=muted_color,
                 font=label_font,
             )
             y += 18
         if legend.categories:
             for label, color in zip(legend.labels, legend.colors):
                 draw.rectangle(
-                    (12, y + 2, 28, y + 18), fill=_rgb(color), outline="black"
+                    (12, y + 2, 28, y + 18),
+                    fill=(*_rgb(color), 255),
+                    outline=outline_color,
                 )
-                draw.text((36, y + 2), label, fill="black", font=label_font)
+                draw.text((36, y + 2), label, fill=text_color, font=label_font)
                 y += 22
         else:
             bar_height = max(80, min(180, height - y - 40))
-            bar = _gradient(legend.colors, 18, bar_height)
-            panel.paste(bar, (12, y))
-            draw.rectangle((12, y, 30, y + bar_height), outline="black")
+            bar = _gradient(legend.colors, 18, bar_height).convert("RGBA")
+            content.alpha_composite(bar, (12, y))
+            draw.rectangle((12, y, 30, y + bar_height), outline=outline_color)
             count = max(len(legend.labels), 1)
             for index, label in enumerate(reversed(legend.labels)):
                 fraction = index / max(count - 1, 1)
                 tick_y = int(round(y + fraction * bar_height))
-                draw.line((30, tick_y, 35, tick_y), fill="black")
-                draw.text((40, tick_y - 7), label, fill="black", font=label_font)
+                draw.line((30, tick_y, 35, tick_y), fill=outline_color)
+                draw.text((40, tick_y - 7), label, fill=text_color, font=label_font)
             y += bar_height + 22
         y += 10
-    return panel.crop((0, 0, width, min(y + 2, height)))
+
+    panel_height = min(y + 2, height)
+    panel = Image.new("RGBA", (width, panel_height), (0, 0, 0, 0))
+    ImageDraw.Draw(panel).rounded_rectangle(
+        (0, 0, width - 1, panel_height - 1), radius=4, fill=(0, 0, 0, 148)
+    )
+    panel.alpha_composite(content.crop((0, 0, width, panel_height)))
+    return panel
 
 
 def _draw_annotations(
@@ -136,13 +148,17 @@ def composite_overlays(
 
     left = [legend for legend in legends if legend.position == "left"]
     right = [legend for legend in legends if legend.position == "right"]
+    margin = 8 if source.width > 16 and source.height > 16 else 0
+    available_width = source.width - 2 * margin
+    available_height = source.height - 2 * margin
     if left:
-        width = min(max(legend.width for legend in left), source.width)
-        output.paste(_draw_legend_panel(left, width, source.height), (0, 0))
+        width = min(max(legend.width for legend in left), available_width)
+        panel = _draw_legend_panel(left, width, available_height)
+        output.alpha_composite(panel, (margin, margin))
     if right:
-        width = min(max(legend.width for legend in right), source.width)
-        panel = _draw_legend_panel(right, width, source.height)
-        output.paste(panel, (source.width - width, 0))
+        width = min(max(legend.width for legend in right), available_width)
+        panel = _draw_legend_panel(right, width, available_height)
+        output.alpha_composite(panel, (source.width - width - margin, margin))
     _draw_annotations(output, annotations, 0, source.width)
     return output
 

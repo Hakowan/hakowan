@@ -222,7 +222,8 @@ def test_raster_overlay_preserves_transparent_render_background(tmp_path):
     assert result.size == source.size
     assert result.getpixel((0, 0))[3] == 0
     assert result.getpixel((5, 5)) == (255, 0, 0, 255)
-    assert result.getpixel((120, 0))[3] == 255
+    assert result.getpixel((112, 8))[3] == 0
+    assert result.getpixel((120, 16))[3] == 148
 
     path = tmp_path / "transparent.png"
     source.save(path)
