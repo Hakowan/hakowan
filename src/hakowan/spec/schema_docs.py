@@ -236,7 +236,7 @@ FIELD_DESCRIPTIONS = {
     "clump": "Strength with which child-hair tips converge on guides.",
     "spread": "Child-hair root scatter radius; null selects an automatic value.",
     "axis": "World axis along which layout children are placed.",
-    "gap": "Spacing between layout cells as a fraction of mean cell diameter.",
+    "gap": "Signed spacing between layout cells as a fraction of mean cell diameter; negative values move cells closer together.",
 }
 
 
@@ -247,6 +247,10 @@ FIELD_OVERRIDES = {
     ): "Normalized image position with origin at the top-left.",
     ("AnnotationSpec", "color"): "Annotation text color.",
     ("LegendSpec", "position"): "Side on which the legend panel is placed.",
+    (
+        "LayoutNodeSpec",
+        "reverse",
+    ): "Whether layout children are placed in decreasing axis order.",
     ("LegendSpec", "format"): "Python numeric format specifier for tick labels.",
     ("AttributeSpec", "unit"): "Optional physical unit shown in legends and manifests.",
     (

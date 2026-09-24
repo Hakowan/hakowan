@@ -1216,6 +1216,7 @@ def _node_to_spec(
             axis=("x", "y", "z")[layer._layout.axis],
             gap=layer._layout.gap,
             normalize=layer._layout.normalize,
+            reverse=layer._layout.reverse,
             children=children,
         )
     if len(children) == 1:
@@ -1484,6 +1485,7 @@ def _node_from_spec(
                 axis={"x": 0, "y": 1, "z": 2}[node.axis],
                 gap=node.gap,
                 normalize=node.normalize,
+                reverse=node.reverse,
             )
     return layer
 

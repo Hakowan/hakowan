@@ -5,7 +5,7 @@ __version__ = "0.6.0"
 from .common import logger
 from .setup import Config as config
 from .grammar import dataframe, mark, channel, scale, texture, transform
-from .grammar.layer import Layer as layer
+from .grammar.layer import Layer as layer, grid
 from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
@@ -141,6 +141,7 @@ __all__ = [
     "texture",
     "transform",
     "layer",
+    "grid",
     "attribute",
     "material",
     "norm",

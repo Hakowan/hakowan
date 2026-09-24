@@ -167,6 +167,31 @@ comparison = before.compare(
 `compare()` is a convenience over `juxtapose()`. Labels name layers in the
 interactive WebGL controls; static Blender and Mitsuba images do not draw them.
 
+### Arrange layers in a grid
+
+`hkw.grid()` wraps a flat, row-major sequence without manually nesting
+horizontal and vertical juxtaposition nodes:
+
+```py
+matrix = hkw.grid(
+    [distance_0, distance_1, distance_2, surface_0, surface_1, surface_2],
+    columns=3,
+    column_axis="x",
+    row_axis="z",
+    row_gap=0.1,
+    column_gap=0.05,
+    normalize=True,
+)
+```
+
+Specify exactly one of `columns` or `rows`. The first input row appears at the
+top, and a ragged final row is centered. `gap` sets both directions by default;
+`row_gap` and `column_gap` override either direction independently. Gap values
+may be negative to move adjacent views closer together or make them overlap.
+`normalize=True` gives every input layer a common scale before packing. The
+result is an ordinary composed `Layer`, so it serializes and renders through
+the same paths as nested `juxtapose()` calls.
+
 ## Layer composition
 
 In the following example, we will demonstrate the idea of _layer composition_.
@@ -218,6 +243,9 @@ comparison = base.juxtapose(
     normalize=True,  # scale each cell to equal size before placing
 )
 ```
+
+Gap values may be negative when the default bounding-sphere separation leaves
+more space than the composition needs.
 
 Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+`, `|`, and
 `&` combine freely:

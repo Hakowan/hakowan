@@ -583,8 +583,9 @@ class LayoutNodeSpec(SpecModel):
     kind: Literal["layout"] = "layout"
     spec: LayerPropertiesSpec = Field(default_factory=LayerPropertiesSpec)
     axis: Literal["x", "y", "z"] = "x"
-    gap: float = Field(default=0.05, ge=0.0)
+    gap: float = 0.05
     normalize: bool = False
+    reverse: bool = False
     children: tuple["NodeSpec", ...] = Field(min_length=2)
 
 

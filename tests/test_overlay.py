@@ -83,6 +83,57 @@ def test_legend_domain_tracks_user_scale_pipeline():
     assert scene.legends[0].scale == ("uniform",)
 
 
+def test_legend_domain_uses_declared_normalize_output_range():
+    mesh = _scalar_mesh()
+    field = hkw.attribute(
+        "temperature",
+        scale=hkw.scale.Normalize(
+            domain_min=0.0,
+            domain_max=100.0,
+            range_min=0.0,
+            range_max=1.0,
+        ),
+    )
+
+    scene = hkw.compile(
+        hkw.layer(mesh).material("Diffuse", hkw.texture.ScalarField(field))
+    )
+
+    assert scene.legends[0].domain == (0.0, 1.0)
+    assert scene.legends[0].values == (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+def test_normalize_domain_controls_colormap_coordinates():
+    mesh = _scalar_mesh()
+    colormap = get_colormap("viridis")
+    assert colormap is not None
+
+    def compile_colors(domain_max):
+        field = hkw.attribute(
+            "temperature",
+            scale=hkw.scale.Normalize(
+                domain_min=0.0,
+                domain_max=domain_max,
+                range_min=0.0,
+                range_max=1.0,
+            ),
+        )
+        view = hkw.compile(
+            hkw.layer(mesh).material("Diffuse", hkw.texture.ScalarField(field))
+        )[0]
+        color_id = view.data_frame.mesh.get_matching_attribute_id(
+            usage=lagrange.AttributeUsage.Color
+        )
+        return np.asarray(view.data_frame.mesh.attribute(color_id).data)
+
+    wide = compile_colors(100.0)
+    narrow = compile_colors(30.0)
+
+    np.testing.assert_allclose(wide[0], colormap(0.1).data)
+    np.testing.assert_allclose(narrow[0], colormap(1.0 / 3.0).data)
+    assert not np.allclose(wide, narrow)
+
+
 def test_legend_colors_follow_requested_colormap_range():
     mesh = _scalar_mesh()
     scene = hkw.compile(

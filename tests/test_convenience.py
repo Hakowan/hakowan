@@ -220,6 +220,127 @@ def test_compare_labels_and_separates_layers():
     assert scene[0].bbox[1, 0] < scene[1].bbox[0, 0]
 
 
+def test_grid_wraps_row_major_and_centers_ragged_row():
+    mesh = _triangle()
+    layers = [hkw.layer(mesh).name(str(index)) for index in range(5)]
+
+    scene = hkw.compile(hkw.grid(layers, columns=3, row_axis="y"))
+    assert [view.name for view in scene] == [str(index) for index in range(5)]
+    centers = {view.name: view.bbox.mean(axis=0) for view in scene}
+
+    assert centers["0"][0] < centers["1"][0] < centers["2"][0]
+    assert centers["3"][0] < centers["4"][0]
+    assert centers["0"][1] > centers["3"][1]
+    assert np.mean([centers[str(i)][0] for i in range(3)]) == pytest.approx(
+        np.mean([centers[str(i)][0] for i in range(3, 5)])
+    )
+
+    rows_scene = hkw.compile(hkw.grid(layers, rows=2, row_axis="y"))
+    rows_centers = {view.name: view.bbox.mean(axis=0) for view in rows_scene}
+    for name in centers:
+        np.testing.assert_allclose(rows_centers[name], centers[name])
+
+
+def test_grid_controls_row_and_column_spacing_independently():
+    mesh = _triangle()
+    layers = [hkw.layer(mesh).name(str(index)) for index in range(4)]
+
+    scene = hkw.compile(hkw.grid(layers, columns=2, row_gap=0.1, column_gap=0.5))
+    centers = {view.name: view.bbox.mean(axis=0) for view in scene}
+    column_distance = abs(centers["1"][0] - centers["0"][0])
+    row_distance = abs(centers["0"][1] - centers["2"][1])
+    assert column_distance / row_distance == pytest.approx(1.5 / 1.1)
+
+    shared = hkw.compile(hkw.grid(layers, columns=2, gap=0.2))
+    explicit = hkw.compile(hkw.grid(layers, columns=2, row_gap=0.2, column_gap=0.2))
+    for shared_view, explicit_view in zip(shared, explicit):
+        np.testing.assert_allclose(shared_view.bbox, explicit_view.bbox)
+
+
+def test_negative_juxtaposition_gap_reduces_spacing_and_serializes():
+    mesh = _triangle()
+    zero_gap = hkw.layer(mesh).juxtapose(hkw.layer(mesh), gap=0.0)
+    negative_gap = hkw.layer(mesh).juxtapose(hkw.layer(mesh), gap=-0.25)
+
+    spec = hkw.to_spec(negative_gap, data_ids={id(mesh): "mesh"})
+    assert spec.root.gap == -0.25
+
+    zero_centers = [view.bbox.mean(axis=0) for view in hkw.compile(zero_gap)]
+    negative_centers = [view.bbox.mean(axis=0) for view in hkw.compile(negative_gap)]
+    assert abs(negative_centers[1][0] - negative_centers[0][0]) < abs(
+        zero_centers[1][0] - zero_centers[0][0]
+    )
+
+
+def test_grid_accepts_negative_row_and_column_gaps():
+    mesh = _triangle()
+    layers = [hkw.layer(mesh).name(str(index)) for index in range(4)]
+    zero_gap = hkw.grid(layers, columns=2, gap=0.0)
+    negative_gap = hkw.grid(
+        layers, columns=2, row_gap=-0.2, column_gap=-0.3
+    )
+
+    hkw.to_spec(negative_gap, data_ids={id(mesh): "mesh"})
+    zero_centers = {
+        view.name: view.bbox.mean(axis=0) for view in hkw.compile(zero_gap)
+    }
+    negative_centers = {
+        view.name: view.bbox.mean(axis=0) for view in hkw.compile(negative_gap)
+    }
+
+    assert abs(negative_centers["1"][0] - negative_centers["0"][0]) < abs(
+        zero_centers["1"][0] - zero_centers["0"][0]
+    )
+    assert abs(negative_centers["2"][1] - negative_centers["0"][1]) < abs(
+        zero_centers["2"][1] - zero_centers["0"][1]
+    )
+
+
+def test_grid_normalizes_cells_across_full_and_ragged_rows():
+    layers = []
+    for index, scale in enumerate((1.0, 2.0, 4.0)):
+        mesh = _triangle()
+        mesh.vertices *= scale
+        layers.append(hkw.layer(mesh).name(str(index)))
+
+    scene = hkw.compile(hkw.grid(layers, columns=2, normalize=True))
+    radii = []
+    for view in scene:
+        points = np.asarray(view.data_frame.mesh.vertices)
+        transform = view.global_transform
+        world = (transform[:3, :3] @ points.T).T + transform[:3, 3]
+        radii.append(np.linalg.norm(world - world.mean(axis=0), axis=1).max())
+
+    np.testing.assert_allclose(radii, radii[0])
+
+
+def test_grid_round_trips_as_standard_layout_nodes():
+    mesh = _triangle()
+    layer = hkw.grid(
+        [hkw.layer(mesh).name(str(index)) for index in range(3)],
+        columns=2,
+        row_axis="z",
+    )
+
+    spec = hkw.to_spec(layer, data_ids={id(mesh): "mesh"})
+    restored = hkw.from_spec(spec, data_resolver={"mesh": mesh})
+
+    assert hkw.to_spec(restored, data_ids={id(mesh): "mesh"}).to_json(
+        canonical=True
+    ) == spec.to_json(canonical=True)
+
+
+def test_grid_rejects_ambiguous_or_invalid_extents():
+    layer = hkw.layer(_triangle())
+
+    with pytest.raises(ValueError, match="exactly one"):
+        hkw.grid([layer])
+    with pytest.raises(ValueError, match="exactly one"):
+        hkw.grid([layer], columns=1, rows=1)
+    with pytest.raises(ValueError, match="positive integers"):
+        hkw.grid([layer], columns=0)
+
+
 def test_convenience_expansions_round_trip_canonically():
     mesh = _triangle()
     layer = hkw.layer(mesh).color_by("temperature").show_edges(width=0.02)

@@ -2,7 +2,7 @@
 
 <div class="grid cards" markdown>
 
-- [![Mean Curvature Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flow/results/bust.webp?raw=true)](examples/flow.md)
+- [![Mean Curvature Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flow/results/bust_comp.webp?raw=true)](examples/flow.md)
 
 - [![Spot](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Spot/results/spot_wireframe.webp?raw=true)](examples/spot.md)
 

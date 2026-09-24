@@ -148,13 +148,17 @@ class Scene:
         cursor = 0.0
         all_views: list[View] = []
         all_cells: list[tuple[npt.NDArray, float]] = []
-        for (cv, cells), (lo, hi) in zip(child_groups, reaches):
+        groups_with_reaches = list(zip(child_groups, reaches))
+        if options.reverse:
+            groups_with_reaches.reverse()
+        for (cv, cells), (lo, hi) in groups_with_reaches:
             offset = np.zeros(3)
             offset[axis] = cursor - lo
             self._translate_views(cv, offset)
             all_views.extend(cv)
             all_cells.extend((c + offset, rad) for c, rad in cells)
             cursor += (hi - lo) + gap_distance
+
         total = cursor - gap_distance if child_groups else 0.0
 
         # Recentre the packed group at the origin along the layout axis.

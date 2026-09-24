@@ -1027,45 +1027,6 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
     return layer
 
 
-def grid_layout(layers: list["hkw.layer"], up_axis: str) -> "hkw.layer":
-    """Arrange ``layers`` in a grid (at most 3 columns) facing the camera.
-
-    Columns are laid out along X; rows are stacked along ``up_axis`` (the screen
-    vertical, so the grid faces the camera). Column count is ``min(N, 3)``, so up
-    to 3 meshes share a single row and 4-6 meshes fill a 2-row grid (6 meshes give
-    a 2x3 grid). Rows are emitted top-to-bottom (the first mesh sits top-left). A
-    ragged last row centers itself for free, courtesy of the recursive
-    juxtaposition layout in the compiler.
-
-    Parameters:
-        layers (list[hkw.layer]): One styled layer per input mesh.
-        up_axis (str): Screen-vertical axis to stack rows along ("y" or "z").
-
-    Returns:
-        hkw.layer: The composited grid layer (or the lone layer if N == 1).
-    """
-    if len(layers) == 1:
-        return layers[0]
-
-    # ``layers`` are pre-normalized to unit size by ``build_layer`` (see the
-    # ``normalize`` path), so every cell — including a lone mesh in a ragged
-    # row — is already the same size. The juxtaposition just packs them; no
-    # per-cell ``normalize`` is needed (and using it would re-shrink whole rows
-    # unevenly when row counts differ, e.g. a full row of 3 vs a ragged 2).
-    cols = min(len(layers), 3)
-    rows = [layers[i : i + cols] for i in range(0, len(layers), cols)]
-    row_layers = [
-        row[0] if len(row) == 1 else row[0].juxtapose(*row[1:], axis="x")
-        for row in rows
-    ]
-    # Stack rows top-to-bottom: juxtapose packs in increasing-axis order, so
-    # reverse the rows to place the first one at the top.
-    row_layers.reverse()
-    if len(row_layers) == 1:
-        return row_layers[0]
-    return row_layers[0].juxtapose(*row_layers[1:], axis=up_axis)  # type: ignore[arg-type]
-
-
 def main():
     """
     Entry point for the command-line interface for mesh rendering.
@@ -1096,7 +1057,11 @@ def main():
         build_layer(args, mesh_path, normalize=normalize)
         for mesh_path in args.input_mesh
     ]
-    layer = grid_layout(layers, up_axis="z" if args.z_up else "y")
+    layer = hkw.grid(
+        layers,
+        columns=min(len(layers), 3),
+        row_axis="z" if args.z_up else "y",
+    )
 
     config = hkw.config()
     [config.film.width, config.film.height] = args.resolution

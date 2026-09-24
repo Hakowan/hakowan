@@ -2533,8 +2533,7 @@
         },
         "gap": {
           "default": 0.05,
-          "description": "Spacing between layout cells as a fraction of mean cell diameter.",
-          "minimum": 0.0,
+          "description": "Signed spacing between layout cells as a fraction of mean cell diameter; negative values move cells closer together.",
           "title": "Gap",
           "type": "number"
         },
@@ -2549,6 +2548,12 @@
           "default": false,
           "description": "Whether vectors or layout cells are normalized before use.",
           "title": "Normalize",
+          "type": "boolean"
+        },
+        "reverse": {
+          "default": false,
+          "description": "Whether layout children are placed in decreasing axis order.",
+          "title": "Reverse",
           "type": "boolean"
         },
         "spec": {

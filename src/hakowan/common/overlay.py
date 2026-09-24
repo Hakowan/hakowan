@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Sequence
 
@@ -12,11 +13,23 @@ from ..compiler.overlay import CompiledAnnotation, CompiledLegend
 from .image_io import _write
 
 
-def _font(size: int):
-    try:
-        return ImageFont.truetype("DejaVuSans.ttf", size=size)
-    except OSError:
-        return ImageFont.load_default(size=size)
+@lru_cache(maxsize=None)
+def _font(size: int) -> ImageFont.FreeTypeFont:
+    # Pillow's built-in Aileron fallback is soft at small annotation sizes.
+    # Prefer each platform's native UI font, then the common Linux font.
+    candidates = (
+        "/System/Library/Fonts/SFNS.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "DejaVuSans.ttf",
+    )
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(candidate, size=size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
 
 
 def _rgb(color: tuple[float, float, float]) -> tuple[int, int, int]:

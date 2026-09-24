@@ -29,7 +29,14 @@ from ..channel.material import (
     ThinDielectric,
     ThinPrincipled,
 )
-from ..transform import Transform, Affine, Clip, Compute, Filter
+from ..transform import (
+    Transform,
+    Affine,
+    Clip,
+    Compute,
+    Filter,
+    Normalize as NormalizeTransform,
+)
 from ..scale import (
     Attribute,
     AttributeLike,
@@ -109,6 +116,7 @@ class LayoutOptions:
     axis: int = 0  # layout axis: 0 = x, 1 = y, 2 = z
     gap: float = 0.05  # spacing between cells, as a fraction of mean cell diameter
     normalize: bool = False  # scale each cell to equal size before placing
+    reverse: bool = False  # place children in decreasing axis order
 
 
 @dataclass(kw_only=True, slots=True)
@@ -201,8 +209,8 @@ class Layer:
             *others (Layer): The other layer(s) to place beside this one.
             axis (int | str, optional): Layout axis, ``"x"`` / ``"y"`` / ``"z"``
                 (or ``0`` / ``1`` / ``2``).
-            gap (float, optional): Spacing between cells, as a fraction of the
-                mean cell diameter.
+            gap (float, optional): Signed spacing between cells, as a fraction of
+                the mean cell diameter. Negative values move cells closer together.
             normalize (bool, optional): If ``True``, scale each cell to equal
                 size before placing them; otherwise preserve true relative scale.
 
@@ -838,3 +846,79 @@ class Layer:
             f'<iframe srcdoc="{escaped}" width="100%" height="500"'
             f' style="border:none;"></iframe>'
         )
+
+
+def grid(
+    layers: Sequence[Layer],
+    *,
+    columns: int | None = None,
+    rows: int | None = None,
+    column_axis: int | Literal["x", "y", "z"] = "x",
+    row_axis: int | Literal["x", "y", "z"] = "y",
+    gap: float = 0.05,
+    row_gap: float | None = None,
+    column_gap: float | None = None,
+    normalize: bool = False,
+) -> Layer:
+    """Arrange a flat sequence of layers into a row-major grid.
+
+    Exactly one of ``columns`` or ``rows`` determines where the input sequence
+    wraps. Rows are displayed from top to bottom, and a ragged final row is
+    centered on the column axis. The result contains only ordinary transform
+    and juxtaposition nodes, so it uses the standard layer serialization and
+    backend paths.
+
+    Args:
+        layers: Layers in row-major order.
+        columns: Maximum number of cells per row.
+        rows: Maximum number of rows; column count is inferred.
+        column_axis: Axis along which each row is packed.
+        row_axis: Axis along which rows are stacked.
+        gap: Default signed spacing for both directions, as a fraction of mean
+            cell size. Negative values move cells closer together.
+        row_gap: Optional signed spacing override between rows.
+        column_gap: Optional signed spacing override between columns.
+        normalize: Normalize each input layer before packing so cells have a
+            common scale, including cells in a ragged final row.
+
+    Returns:
+        A standard composed layer containing the grid.
+    """
+    cells = list(layers)
+    if not cells:
+        raise ValueError("grid() requires at least one layer")
+    if not all(isinstance(cell, Layer) for cell in cells):
+        raise TypeError("grid() inputs must all be Layer instances")
+    if (columns is None) == (rows is None):
+        raise ValueError("grid() requires exactly one of columns or rows")
+
+    extent = columns if columns is not None else rows
+    if isinstance(extent, bool) or not isinstance(extent, int) or extent <= 0:
+        raise ValueError("grid() rows and columns must be positive integers")
+
+    if rows is not None:
+        columns = (len(cells) + rows - 1) // rows
+    assert columns is not None
+    resolved_row_gap = gap if row_gap is None else row_gap
+    resolved_column_gap = gap if column_gap is None else column_gap
+
+    if normalize and len(cells) > 1:
+        cells = [cell.transform(NormalizeTransform()) for cell in cells]
+
+    row_cells = [cells[i : i + columns] for i in range(0, len(cells), columns)]
+    row_layers = [
+        row[0]
+        if len(row) == 1
+        else row[0].juxtapose(*row[1:], axis=column_axis, gap=resolved_column_gap)
+        for row in row_cells
+    ]
+    if len(row_layers) == 1:
+        return row_layers[0]
+
+    result = row_layers[0].juxtapose(
+        *row_layers[1:], axis=row_axis, gap=resolved_row_gap
+    )
+
+    assert result._layout is not None
+    result._layout.reverse = True
+    return result

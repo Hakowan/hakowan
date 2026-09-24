@@ -32,6 +32,20 @@ def apply_texture(
     return r
 
 
+def _terminal_normalized_domain(scale: Scale | None) -> tuple[float, float] | None:
+    """Return the scalar output range when the user scale ends in Normalize."""
+    if scale is None:
+        return None
+    while scale._child is not None:
+        scale = scale._child
+    if not isinstance(scale, Normalize):
+        return None
+    bounds = np.asarray([scale.range_min, scale.range_max], dtype=np.float64)
+    if bounds.shape != (2,) or not np.all(np.isfinite(bounds)):
+        return None
+    return float(bounds.min()), float(bounds.max())
+
+
 def _capture_legend_metadata(df: DataFrame, tex: ScalarField) -> None:
     if tex.legend is False or tex.colormap == "identity":
         return
@@ -65,15 +79,21 @@ def _capture_legend_metadata(df: DataFrame, tex: ScalarField) -> None:
     if tex.categories:
         tex._legend_values = tuple(float(value) for value in np.unique(values))
     else:
+        declared_domain = _terminal_normalized_domain(
+            tex.data.scale if isinstance(tex.data.scale, Scale) else None
+        )
         tex._legend_domain = (
             (float(tex.domain[0]), float(tex.domain[1]))
             if tex.domain is not None
-            else (float(np.min(values)), float(np.max(values)))
+            else declared_domain or (float(np.min(values)), float(np.max(values)))
         )
 
 
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     tex.data = to_attribute(tex.data)
+    normalized_domain = _terminal_normalized_domain(
+        tex.data.scale if isinstance(tex.data.scale, Scale) else None
+    )
     _capture_legend_metadata(df, tex)
 
     if tex.domain is not None:
@@ -96,6 +116,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
         )
         if tex.domain is not None:
             normalize_scale.domain_min, normalize_scale.domain_max = tex.domain
+        elif normalized_domain is not None:
+            normalize_scale.domain_min, normalize_scale.domain_max = normalized_domain
 
         if tex.data.scale is not None:
             assert isinstance(tex.data.scale, Scale)
