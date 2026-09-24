@@ -200,10 +200,15 @@ def _trimesh_mesh(data: Any) -> lagrange.SurfaceMesh:
 
 
 def _mesh_file(path: Path) -> lagrange.SurfaceMesh:
-    mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
+    try:
+        mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
+    except RuntimeError:
+        # Lagrange may fail while stitching point clouds because they have no
+        # corners. Loading without stitching preserves their vertex attributes.
+        return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
     if mesh.num_facets == 0:
-        # Lagrange's vertex stitching converts point-cloud vertex attributes to
-        # empty indexed attributes because there are no corners to reindex.
+        # Vertex stitching converts point-cloud vertex attributes to empty
+        # indexed attributes because there are no corners to reindex.
         return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
     return mesh
 

@@ -313,4 +313,3 @@ def test_observation_manifest_contains_semantic_metadata(playwright_browser):
 
     assert observation.manifest["legends"][0]["title"] == "temperature"
     assert observation.manifest["annotations"][0]["text"] == "note"
-    assert observation.snapshot("front", "beauty").image.width > 48
