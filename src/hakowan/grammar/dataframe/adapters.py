@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, TypeAlias
@@ -200,12 +201,13 @@ def _trimesh_mesh(data: Any) -> lagrange.SurfaceMesh:
 
 
 def _mesh_file(path: Path) -> lagrange.SurfaceMesh:
-    try:
-        mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
-    except RuntimeError:
-        # Lagrange may fail while stitching point clouds because they have no
-        # corners. Loading without stitching preserves their vertex attributes.
-        return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
+    if sys.platform == "win32":
+        # Lagrange leaves the process with a failing exit code after catching
+        # its point-cloud stitching assertion, so avoid invoking that path.
+        mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
+        if mesh.num_facets == 0:
+            return mesh
+    mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
     if mesh.num_facets == 0:
         # Vertex stitching converts point-cloud vertex attributes to empty
         # indexed attributes because there are no corners to reindex.
