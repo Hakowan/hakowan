@@ -95,6 +95,25 @@ class TestRender:
                 bsdf["base_color"]["value"], [expected] * 3, rtol=0, atol=1e-7
             )
 
+    def test_mitsuba_checkerboard_size_is_cell_count(self, triangle):
+        import mitsuba as mi
+        from hakowan.backends.mitsuba.texture import generate_checker_board_config
+
+        checker = hkw.texture.Checkerboard(
+            texture1=hkw.texture.Uniform(color="white"),
+            texture2=hkw.texture.Uniform(color="black"),
+            size=4,
+        )
+        texture = mi.load_dict(generate_checker_board_config(triangle, checker, True))
+
+        samples = []
+        for u in (0.125, 0.375, 0.625, 0.875):
+            interaction = mi.SurfaceInteraction3f()
+            interaction.uv = mi.Point2f(u, 0.125)
+            samples.append(float(texture.eval(interaction)[0]))
+
+        np.testing.assert_allclose(samples, [1.0, 0.0, 1.0, 0.0])
+
     @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
     def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):
         """Non-EXR output is encoded by Pillow, so any Pillow format works."""

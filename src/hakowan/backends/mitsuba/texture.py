@@ -89,7 +89,9 @@ def generate_checker_board_config(
     assert isinstance(tex.texture1, Texture)
     assert isinstance(tex.texture2, Texture)
     assert tex.size > 0
-    s = tex.size
+    # Mitsuba's procedural texture contains two cells per UV period. Hakowan's
+    # ``size`` is the total cell count across [0, 1], matching the WebGL bake.
+    s = tex.size / 2
     mi_config: dict[str, Any] = {
         "type": "checkerboard",
         "color0": generate_texture_config(mesh, tex.texture1, is_color),
