@@ -111,7 +111,7 @@ def test_unsupported_data_driven_hair_color_has_no_legend():
 
 def test_compile_collects_categorical_labels_and_deduplicates_overlay():
     mesh = _scalar_mesh()
-    legend = hkw.Legend(category_labels={"10.0": "cold", "20.0": "warm"})
+    legend = hkw.Legend(category_labels={"10": "cold", "20": "compact", "20.0": "warm"})
     base = (
         hkw.layer(mesh)
         .material(
@@ -221,6 +221,7 @@ def test_raster_overlay_preserves_transparent_render_background(tmp_path):
 
     assert result.size == source.size
     assert result.getpixel((0, 0))[3] == 0
+    assert 0 < result.getpixel((113, 8))[3] < 148
     assert result.getpixel((5, 5)) == (255, 0, 0, 255)
     assert result.getpixel((112, 8))[3] == 0
     assert result.getpixel((120, 16))[3] == 148

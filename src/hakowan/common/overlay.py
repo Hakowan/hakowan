@@ -40,6 +40,21 @@ def _gradient(
     return Image.fromarray(result)
 
 
+def _rounded_panel(width: int, height: int) -> Image.Image:
+    scale = 4
+    mask = Image.new("L", (width * scale, height * scale), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (0, 0, width * scale - 1, height * scale - 1),
+        radius=4 * scale,
+        fill=255,
+    )
+    mask = mask.resize((width, height), Image.Resampling.LANCZOS)
+    mask = mask.point(lambda value: round(value * 148 / 255))
+    panel = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    panel.putalpha(mask)
+    return panel
+
+
 def _draw_legend_panel(
     legends: Sequence[CompiledLegend], width: int, height: int
 ) -> Image.Image:
@@ -87,10 +102,7 @@ def _draw_legend_panel(
         y += 10
 
     panel_height = min(y + 2, height)
-    panel = Image.new("RGBA", (width, panel_height), (0, 0, 0, 0))
-    ImageDraw.Draw(panel).rounded_rectangle(
-        (0, 0, width - 1, panel_height - 1), radius=4, fill=(0, 0, 0, 148)
-    )
+    panel = _rounded_panel(width, panel_height)
     panel.alpha_composite(content.crop((0, 0, width, panel_height)))
     return panel
 

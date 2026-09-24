@@ -51,6 +51,15 @@ def _format(value: float, spec: str) -> str:
         return f"{value:.3g}"
 
 
+def _category_label(value: float, settings: Legend) -> str:
+    fallback = _format(value, settings.format)
+    if not settings.category_labels:
+        return fallback
+    return settings.category_labels.get(
+        str(value), settings.category_labels.get(format(value, "g"), fallback)
+    )
+
+
 def _compiled_legend(texture: ScalarField) -> CompiledLegend | None:
     if texture.legend is False or texture._legend_colors is None:
         return None
@@ -61,12 +70,7 @@ def _compiled_legend(texture: ScalarField) -> CompiledLegend | None:
     units = settings.units or getattr(attribute, "unit", None)
     if texture.categories:
         values = texture._legend_values or ()
-        labels = tuple(
-            settings.category_labels.get(str(value), _format(value, settings.format))
-            if settings.category_labels
-            else _format(value, settings.format)
-            for value in values
-        )
+        labels = tuple(_category_label(value, settings) for value in values)
         colors = texture._legend_colors[: len(values)]
         domain = None
     else:

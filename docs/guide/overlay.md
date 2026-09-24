@@ -59,14 +59,16 @@ texture = hkw.texture.ScalarField(
     legend=hkw.Legend(
         title="Component",
         category_labels={
-            "0.0": "Body",
-            "1.0": "Handle",
-            "2.0": "Fastener",
+            "0": "Body",
+            "1": "Handle",
+            "2": "Fastener",
         },
     ),
 )
 ```
 
+Integer-valued categories accept compact keys such as `"0"`; exact float keys
+such as `"0.0"` remain supported and take precedence when both are present.
 Unmapped categories use the configured numeric format.
 
 ## Scale metadata
