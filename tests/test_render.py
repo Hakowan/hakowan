@@ -73,6 +73,28 @@ class TestRender:
             assert image.mode == "RGBA"
             assert np.asarray(image)[:, :80, 3].min() == 0
 
+    def test_mitsuba_point_scalar_colors_are_decoded_once(self, triangle):
+        from hakowan.common.color import srgb_to_linear
+
+        layer = (
+            hkw.layer(triangle)
+            .mark("Point")
+            .material(
+                "Principled",
+                hkw.texture.ScalarField("vertex_data", colormap=["#808080", "#808080"]),
+            )
+        )
+
+        scene_config = generate_scene_config(hkw.compile(layer))
+        expected = srgb_to_linear(128 / 255)
+        for shape in scene_config.values():
+            bsdf = next(
+                value for key, value in shape.items() if key.startswith("bsdf_")
+            )
+            np.testing.assert_allclose(
+                bsdf["base_color"]["value"], [expected] * 3, rtol=0, atol=1e-7
+            )
+
     @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
     def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):
         """Non-EXR output is encoded by Pillow, so any Pillow format works."""
