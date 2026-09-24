@@ -6,19 +6,19 @@
 
 - [![Spot](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Spot/results/spot_wireframe.webp?raw=true)](examples/spot.md)
 
-- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_front.webp?raw=true)](examples/components.md)
-
 - [![Layout Embedding](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Layout/results/pig_embedded.webp?raw=true)](examples/layout.md)
-
-- [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side_10.webp?raw=true)](examples/ipc.md)
-
-- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
 
 - [![The Heat Method](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.webp?raw=true)](examples/heat.md)
 
-- [![Smoothed Particle Hydrodynamics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_010_all.webp?raw=true)](examples/sph.md)
-
 - [![Cross-Field Streamlines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/CrossField/results/shark_stream_lines.webp?raw=true)](examples/cross-field.md)
+
+- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
+
+- [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side_10.webp?raw=true)](examples/ipc.md)
+
+- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_top.webp?raw=true)](examples/components.md)
+
+- [![Smoothed Particle Hydrodynamics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.webp?raw=true)](examples/sph.md)
 
 - [![Surface Skeleton](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.webp?raw=true)](examples/skeleton.md)
 
