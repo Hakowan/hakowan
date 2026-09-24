@@ -8,7 +8,7 @@ from ..backends import (
     set_default_backend,
     list_backends,
 )
-from ..compiler import compile
+from ..compiler import compile, prepare_scene
 from ..grammar import layer
 from ..grammar.figure import Figure
 from ..setup import Config
@@ -107,8 +107,7 @@ def render(
         config = Config()
 
     # Compile the layer tree after resolving the figure wrapper.
-    scene = compile(runtime_layer)
-    scene.resolve_size_spaces(config)
+    scene = prepare_scene(compile(runtime_layer), config)
     logger.info("Compilation done")
     # Get backend and render
     backend_name = resolve_backend_name(backend)
@@ -186,7 +185,12 @@ def _manifest_for(
     supported = {p.name for p in backend_impl.SUPPORTED_PASSES}
     interactive = backend_impl.PASS_DELIVERY == "interactive"
     for name in sorted(config.render_passes & supported):
-        manifest[name] = "interactive" if interactive else aov_path(main, name)
+        if interactive:
+            manifest[name] = "interactive"
+            continue
+        output = aov_path(main, name)
+        if output.is_file():
+            manifest[name] = output
     return manifest
 
 

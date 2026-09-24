@@ -49,6 +49,25 @@ class TestRender:
         assert result.path == out
         assert out.exists() and out.stat().st_size > 0
 
+    def test_mitsuba_derives_requested_passes_without_mutating_config(
+        self, triangle, tmp_path
+    ):
+        config = hkw.config()
+        config.film.width = 16
+        config.film.height = 16
+        config.render_passes = {"albedo"}
+        integrator = config.integrator
+        output = tmp_path / "passes.png"
+
+        result = hkw.render(
+            hkw.layer(triangle), config, filename=output, backend="mitsuba"
+        )
+
+        albedo = tmp_path / "passes_albedo.png"
+        assert config.integrator is integrator
+        assert albedo.is_file()
+        assert result.outputs["albedo"] == albedo
+
     def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
         from PIL import Image
 

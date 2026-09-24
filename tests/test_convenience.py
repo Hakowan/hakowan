@@ -107,7 +107,7 @@ def test_show_edges_overlays_surface_and_curve():
     scale = float(
         np.cbrt(abs(np.linalg.det(default_scene[1].global_transform[:3, :3])))
     )
-    default_scene.resolve_size_spaces(hkw.config())
+    hkw.prepare_scene(default_scene, hkw.config())
     assert default_scene[1].size_channel.space == "world"
     assert default_scene[1].size_channel.data * scale == pytest.approx(0.005)
 
@@ -118,7 +118,7 @@ def test_show_edges_overlays_surface_and_curve():
         np.cbrt(abs(np.linalg.det(screen_scene[1].global_transform[:3, :3])))
     )
     config = hkw.config()
-    screen_scene.resolve_size_spaces(config)
+    hkw.prepare_scene(screen_scene, config)
     distance = np.linalg.norm(
         np.asarray(config.sensor.location) - np.asarray(config.sensor.target)
     )
@@ -276,14 +276,10 @@ def test_grid_accepts_negative_row_and_column_gaps():
     mesh = _triangle()
     layers = [hkw.layer(mesh).name(str(index)) for index in range(4)]
     zero_gap = hkw.grid(layers, columns=2, gap=0.0)
-    negative_gap = hkw.grid(
-        layers, columns=2, row_gap=-0.2, column_gap=-0.3
-    )
+    negative_gap = hkw.grid(layers, columns=2, row_gap=-0.2, column_gap=-0.3)
 
     hkw.to_spec(negative_gap, data_ids={id(mesh): "mesh"})
-    zero_centers = {
-        view.name: view.bbox.mean(axis=0) for view in hkw.compile(zero_gap)
-    }
+    zero_centers = {view.name: view.bbox.mean(axis=0) for view in hkw.compile(zero_gap)}
     negative_centers = {
         view.name: view.bbox.mean(axis=0) for view in hkw.compile(negative_gap)
     }

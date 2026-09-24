@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import tempfile
+import urllib.error
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin, urlsplit
 from urllib.request import urlopen
@@ -12,60 +14,159 @@ _GALLERY_README = re.compile(
     r'gallery/(?P<recipe>[^/]+)/README\.md)"\s*$',
     re.MULTILINE,
 )
+_GALLERY_REVISION = "a1b57e61b8c1c0db2d5f2f1a9b6369c71c284cdd"
+_MAX_GALLERY_FILE_BYTES = 128 * 1024 * 1024
+_MAX_README_BYTES = 2 * 1024 * 1024
+_RAW_MAIN_URL = re.compile(
+    r"https://github\.com/(?:Hakowan|qnzhou)/hakowan-gallery/raw/main/"
+)
 _MARKDOWN_LINK = re.compile(r"(?<!!)\[([^]]+)]\(([^)]+)\)")
+_MARKDOWN_IMAGE = re.compile(r"!\[([^]]*)]\(([^)]+)\)")
+_HTML_IMAGE = re.compile(
+    r'(?P<prefix><img\b[^>]*?\bsrc=["\'])(?P<target>[^"\']+)(?P<suffix>["\'])',
+    re.IGNORECASE,
+)
+_LOCAL_SUFFIXES = frozenset(
+    {".html", ".json", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".avif"}
+)
 
-_GALLERY_DEMOS: dict[PurePosixPath, str] = {}
+_GALLERY_FILES: dict[PurePosixPath, str] = {}
 
 
-def _gallery_demo_path(target: str, recipe: str) -> PurePosixPath | None:
+def _gallery_asset_path(
+    target: str, recipe: str | None
+) -> tuple[str, PurePosixPath] | None:
     parsed = urlsplit(target)
-    if parsed.path.endswith(".html"):
+    relative_path = ""
+    resolved_recipe = recipe
+    if not parsed.netloc and recipe is not None:
+        relative_path = parsed.path
+    elif parsed.netloc:
+        if parsed.netloc.lower() not in {
+            "github.com",
+            "raw.githubusercontent.com",
+            "qnzhou.github.io",
+            "hakowan.github.io",
+        }:
+            return None
         prefixes = (
-            f"/qnzhou/hakowan-gallery/blob/main/gallery/{recipe}/",
-            f"/Hakowan/hakowan-gallery/blob/main/gallery/{recipe}/",
-            f"/qnzhou/hakowan-gallery/raw/main/gallery/{recipe}/",
-            f"/Hakowan/hakowan-gallery/raw/main/gallery/{recipe}/",
-            f"/hakowan-gallery/gallery/{recipe}/",
+            "/qnzhou/hakowan-gallery/blob/main/gallery/",
+            "/Hakowan/hakowan-gallery/blob/main/gallery/",
+            "/qnzhou/hakowan-gallery/raw/main/gallery/",
+            "/Hakowan/hakowan-gallery/raw/main/gallery/",
+            "/qnzhou/hakowan-gallery/main/gallery/",
+            "/Hakowan/hakowan-gallery/main/gallery/",
+            "/hakowan-gallery/gallery/",
         )
-        if not parsed.netloc:
-            relative_path = parsed.path
-        else:
-            relative_path = next(
-                (parsed.path.removeprefix(prefix) for prefix in prefixes if parsed.path.startswith(prefix)),
-                "",
-            )
-        path = PurePosixPath(relative_path)
-        if relative_path and not path.is_absolute() and ".." not in path.parts:
-            return path
-    return None
+        gallery_path = next(
+            (
+                parsed.path.removeprefix(prefix)
+                for prefix in prefixes
+                if parsed.path.startswith(prefix)
+            ),
+            "",
+        )
+        parts = PurePosixPath(gallery_path).parts
+        if len(parts) >= 2:
+            resolved_recipe, relative_path = parts[0], "/".join(parts[1:])
+
+    path = PurePosixPath(relative_path)
+    if (
+        resolved_recipe is None
+        or not relative_path
+        or path.is_absolute()
+        or ".." in path.parts
+        or path.suffix.lower() not in _LOCAL_SUFFIXES
+    ):
+        return None
+    return resolved_recipe, path
 
 
-def _resolve_gallery_links(markdown: str, recipe: str, site_path: str) -> str:
+def _local_gallery_target(
+    target: str, recipe: str | None, site_path: str
+) -> str | None:
+    asset = _gallery_asset_path(target, recipe)
+    if asset is None:
+        return None
+    resolved_recipe, asset_path = asset
+    directory = (
+        "gallery-demos" if asset_path.suffix.lower() == ".html" else "gallery-assets"
+    )
+    output_path = PurePosixPath(directory, resolved_recipe, asset_path)
+    _GALLERY_FILES[output_path] = (
+        "https://raw.githubusercontent.com/Hakowan/hakowan-gallery/"
+        f"{_GALLERY_REVISION}/gallery/{resolved_recipe}/{asset_path.as_posix()}"
+    )
+    fragment = urlsplit(target).fragment
+    suffix = f"#{fragment}" if fragment else ""
+    return f"{site_path}/{output_path.as_posix()}{suffix}"
+
+
+def _resolve_gallery_links(markdown: str, recipe: str | None, site_path: str) -> str:
     source_base_url = (
-        "https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/"
-        f"{recipe}/"
+        "https://github.com/Hakowan/hakowan-gallery/blob/"
+        f"{_GALLERY_REVISION}/gallery/{recipe}/"
+        if recipe is not None
+        else ""
     )
 
-    def replace(match: re.Match[str]) -> str:
-        label, target = match.groups()
-        demo_path = _gallery_demo_path(target, recipe)
-        if demo_path is not None:
-            output_path = PurePosixPath("gallery-demos", recipe, demo_path)
-            _GALLERY_DEMOS[output_path] = (
-                "https://raw.githubusercontent.com/Hakowan/hakowan-gallery/"
-                f"main/gallery/{recipe}/{demo_path}"
-            )
-            return f"[{label}]({site_path}/{output_path.as_posix()})"
+    def rewrite_target(target: str) -> str:
+        local = _local_gallery_target(target, recipe, site_path)
+        if local is not None:
+            return local
         if target.startswith(("https://", "http://", "mailto:", "#", "/")):
-            return match.group(0)
-        return f"[{label}]({urljoin(source_base_url, target)})"
+            return target
+        return urljoin(source_base_url, target) if source_base_url else target
 
-    return _MARKDOWN_LINK.sub(replace, markdown)
+    markdown = _HTML_IMAGE.sub(
+        lambda match: (
+            f"{match.group('prefix')}{rewrite_target(match.group('target'))}"
+            f"{match.group('suffix')}"
+        ),
+        markdown,
+    )
+    markdown = _MARKDOWN_IMAGE.sub(
+        lambda match: f"![{match.group(1)}]({rewrite_target(match.group(2))})",
+        markdown,
+    )
+    return _MARKDOWN_LINK.sub(
+        lambda match: f"[{match.group(1)}]({rewrite_target(match.group(2))})",
+        markdown,
+    )
+
+
+def _download(url: str, max_bytes: int) -> bytes:
+    """Download one pinned gallery file with a strict size bound."""
+    try:
+        with urlopen(url, timeout=120) as response:
+            payload = response.read(max_bytes + 1)
+    except (OSError, urllib.error.URLError) as exc:
+        raise RuntimeError(f"Cannot download gallery file {url}: {exc}") from exc
+    if len(payload) > max_bytes:
+        raise RuntimeError(f"Gallery file exceeds {max_bytes} bytes: {url}")
+    return payload
+
+
+def _download_to(url: str, destination: Path) -> None:
+    """Atomically write one bounded gallery download to the built site."""
+    payload = _download(url, _MAX_GALLERY_FILE_BYTES)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=destination.parent, delete=False
+        ) as output:
+            output.write(payload)
+            temporary = Path(output.name)
+        temporary.replace(destination)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
 
 
 def on_config(config: dict[str, object]) -> dict[str, object]:
-    """Reset discovered demos before each build."""
-    _GALLERY_DEMOS.clear()
+    """Reset discovered gallery files before each build."""
+    _GALLERY_FILES.clear()
     return config
 
 
@@ -74,18 +175,22 @@ def on_page_markdown(markdown: str, config: dict[str, object], **_: object) -> s
     site_path = urlsplit(str(config["site_url"])).path.rstrip("/")
 
     def replace(match: re.Match[str]) -> str:
-        with urlopen(match.group("url"), timeout=30) as response:
-            remote_markdown = response.read().decode("utf-8")
+        source_url = (
+            "https://raw.githubusercontent.com/Hakowan/hakowan-gallery/"
+            f"{_GALLERY_REVISION}/gallery/{match.group('recipe')}/README.md"
+        )
+        remote_markdown = _download(source_url, _MAX_README_BYTES).decode("utf-8")
         return _resolve_gallery_links(remote_markdown, match.group("recipe"), site_path)
 
-    return _GALLERY_README.sub(replace, markdown)
+    markdown = _GALLERY_README.sub(replace, markdown)
+    pinned_raw = f"https://github.com/Hakowan/hakowan-gallery/raw/{_GALLERY_REVISION}/"
+    markdown = _RAW_MAIN_URL.sub(pinned_raw, markdown)
+    return _resolve_gallery_links(markdown, None, site_path)
 
 
 def on_post_build(config: dict[str, object], **_: object) -> None:
-    """Copy referenced standalone gallery demos into the generated site."""
+    """Copy referenced gallery demos, images, and JSON into the generated site."""
     site_dir = Path(str(config["site_dir"]))
-    for output_path, source_url in _GALLERY_DEMOS.items():
+    for output_path, source_url in _GALLERY_FILES.items():
         destination = site_dir.joinpath(*output_path.parts)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with urlopen(source_url, timeout=120) as response:
-            destination.write_bytes(response.read())
+        _download_to(source_url, destination)

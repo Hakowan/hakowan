@@ -68,21 +68,39 @@ class _StubFileBackend(RenderBackend):
 
 
 class TestManifest:
-    def test_file_backend_maps_passes_to_paths(self):
+    def test_file_backend_reports_existing_pass_paths(self, tmp_path):
         cfg = hkw.config()
         cfg.render_passes = {"albedo", "normal"}
-        m = _manifest_for(_StubFileBackend(), cfg, "viz.png")
-        assert m["main"] == Path("viz.png")
-        assert m["albedo"] == Path("viz_albedo.png")
-        assert m["normal"] == Path("viz_normal.png")
-        assert "depth" not in m  # not requested
+        main = tmp_path / "viz.png"
+        main.touch()
+        rp.aov_path(main, "albedo").touch()
+        rp.aov_path(main, "normal").touch()
 
-    def test_unsupported_pass_omitted_from_manifest(self):
+        manifest = _manifest_for(_StubFileBackend(), cfg, main)
+
+        assert manifest["main"] == main
+        assert manifest["albedo"] == rp.aov_path(main, "albedo")
+        assert manifest["normal"] == rp.aov_path(main, "normal")
+
+    def test_file_backend_omits_requested_output_not_produced(self, tmp_path):
         cfg = hkw.config()
-        cfg.render_passes = {"albedo", "facet_id"}  # facet_id unsupported here
-        m = _manifest_for(_StubFileBackend(), cfg, "viz.png")
-        assert "facet_id" not in m
-        assert m["albedo"] == Path("viz_albedo.png")
+        cfg.render_passes = {"albedo"}
+        main = tmp_path / "viz.png"
+        main.touch()
+
+        assert _manifest_for(_StubFileBackend(), cfg, main) == {"main": main}
+
+    def test_unsupported_pass_omitted_from_manifest(self, tmp_path):
+        cfg = hkw.config()
+        cfg.render_passes = {"albedo", "facet_id"}
+        main = tmp_path / "viz.png"
+        main.touch()
+        rp.aov_path(main, "albedo").touch()
+
+        manifest = _manifest_for(_StubFileBackend(), cfg, main)
+
+        assert "facet_id" not in manifest
+        assert manifest["albedo"] == rp.aov_path(main, "albedo")
 
     def test_none_filename_yields_empty_manifest(self):
         cfg = hkw.config()

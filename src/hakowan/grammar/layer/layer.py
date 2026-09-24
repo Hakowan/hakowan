@@ -831,11 +831,13 @@ class Layer:
                 "<pre>Install pygltflib for inline preview: pip install pygltflib</pre>"
             )
         try:
-            from ...compiler.compile import compile as _compile
+            from ...compiler import compile as _compile
+            from ...compiler import prepare_scene
             from ...setup.config import Config
 
-            scene = _compile(self)
-            html_str = WebGLBackend().html_string(scene, Config())
+            config = Config()
+            scene = prepare_scene(_compile(self), config)
+            html_str = WebGLBackend().html_string(scene, config)
         except Exception as exc:
             return f"<pre>hakowan preview error: {exc}</pre>"
 

@@ -104,3 +104,28 @@ class TestLayer:
         assert isinstance(ch, hkw.channel.Normal)
         assert isinstance(ch.data, hkw.attribute)
         assert ch.data.name == mesh.get_attribute_name(attr_id)
+
+    def test_notebook_preview_prepares_configuration_dependent_sizes(
+        self, triangle, monkeypatch
+    ):
+        from hakowan.backends.webgl import WebGLBackend
+
+        observed = {}
+
+        def html_string(_backend, scene, _config):
+            observed["space"] = scene[0].size_channel.space
+            observed["size"] = scene[0].size_channel.data
+            return "<!DOCTYPE html>"
+
+        monkeypatch.setattr(WebGLBackend, "html_string", html_string)
+        layer = (
+            hkw.layer(triangle)
+            .mark("point")
+            .channel(size=hkw.channel.Size(10.0, space="screen"))
+        )
+
+        html = layer._repr_html_()
+
+        assert observed["space"] == "world"
+        assert observed["size"] < 1.0
+        assert "iframe" in html

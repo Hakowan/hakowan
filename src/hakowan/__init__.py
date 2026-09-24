@@ -22,7 +22,7 @@ from .grammar.figure import (
     ThinLensCamera,
 )
 
-from .compiler import compile
+from .compiler import compile, prepare_scene
 from .workflow import (
     AttributeSummary,
     DataSummary,
@@ -146,6 +146,7 @@ __all__ = [
     "material",
     "norm",
     "compile",
+    "prepare_scene",
     "render",
     "RenderResult",
     "set_default_backend",

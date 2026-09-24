@@ -487,24 +487,28 @@ class TestEndToEnd:
         assert len(x_translations) == 2
         assert abs(x_translations[0] - x_translations[1]) > 0.5
 
-    def test_juxtapose_tags_nodes_with_distinct_cells(self, tmp_path):
-        # Each cell's nodes carry a `hakowan_cell` extra so the interactive viewer
-        # can rotate each comparison cell about its own centre.
+    def test_juxtapose_tags_are_stable_across_equivalent_layouts(self, tmp_path):
+        # Stable tags keep equivalent rendered artifacts deterministic while
+        # still giving each independently rotatable cell a distinct identity.
         sphere = _make_icosphere()
-        a = hkw.layer(sphere).mark(hkw.mark.Surface)
-        b = hkw.layer(sphere).mark(hkw.mark.Surface)
-        out_path = tmp_path / "cells.html"
-        hkw.render(a | b, filename=str(out_path), backend="webgl")
-        gltf = pygltflib.GLTF2().load_from_bytes(
-            _decode_glb_from_html(out_path.read_text())
-        )
-        cells = [
-            n.extras["hakowan_cell"]
-            for n in gltf.nodes
-            if n.mesh is not None and n.extras and "hakowan_cell" in n.extras
-        ]
-        assert len(cells) == 2
-        assert cells[0] != cells[1]
+
+        def render_tags(index):
+            a = hkw.layer(sphere).mark(hkw.mark.Surface)
+            b = hkw.layer(sphere).mark(hkw.mark.Surface)
+            out_path = tmp_path / f"cells-{index}.html"
+            hkw.render(a | b, filename=str(out_path), backend="webgl")
+            gltf = pygltflib.GLTF2().load_from_bytes(
+                _decode_glb_from_html(out_path.read_text())
+            )
+            return [
+                node.extras["hakowan_cell"]
+                for node in gltf.nodes
+                if node.mesh is not None
+                and node.extras
+                and "hakowan_cell" in node.extras
+            ]
+
+        assert render_tags(0) == render_tags(1) == ["0.0", "0.1"]
 
     def test_overlay_nodes_have_no_cell_tag(self, tmp_path):
         # Without `|`, nodes are untagged (the viewer treats them as one group).

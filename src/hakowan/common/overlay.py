@@ -14,7 +14,7 @@ from .image_io import _write
 
 
 @lru_cache(maxsize=None)
-def _font(size: int) -> ImageFont.FreeTypeFont:
+def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     # Pillow's built-in Aileron fallback is soft at small annotation sizes.
     # Prefer each platform's native UI font, then the common Linux font.
     candidates = (

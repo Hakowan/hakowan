@@ -73,7 +73,7 @@ class TestRenderPassesInterface:
         cfg.render_passes = set()
         assert cfg.render_passes == set()
 
-    def test_render_passes_is_set_type(self):
+    def test_render_passes_deduplicate_values(self):
         cfg = config()
         cfg.render_passes = {"albedo", "albedo"}  # duplicates should collapse
         assert len(cfg.render_passes) == 1
@@ -147,79 +147,37 @@ class TestBooleanAliases:
         assert cfg.render_passes == {"albedo", "depth", "normal", "facet_id"}
 
 
-class TestAovSync:
-    """Verify that __sync_aovs keeps Config.integrator consistent with render_passes."""
+class TestRenderPassState:
+    """Render-pass intent stays independent from backend-native configuration."""
 
-    def test_albedo_creates_aov_integrator(self):
+    def test_render_passes_are_immutable(self):
         cfg = config()
-        cfg.albedo = True
-        assert isinstance(cfg.integrator, AOV)
-        assert "albedo:albedo" in cfg.integrator.aovs
+        cfg.render_passes = {"albedo"}
 
-    def test_depth_creates_aov_integrator(self):
-        cfg = config()
-        cfg.depth = True
-        assert isinstance(cfg.integrator, AOV)
-        assert "depth:depth" in cfg.integrator.aovs
+        assert isinstance(cfg.render_passes, frozenset)
+        with pytest.raises(AttributeError):
+            cfg.render_passes.add("depth")  # type: ignore[attr-defined]
+        assert cfg.render_passes == {"albedo"}
 
-    def test_normal_creates_aov_integrator(self):
+    def test_pass_requests_do_not_mutate_integrator(self):
         cfg = config()
-        cfg.normal = True
-        assert isinstance(cfg.integrator, AOV)
-        assert "sh_normal:sh_normal" in cfg.integrator.aovs
+        integrator = cfg.integrator
 
-    def test_facet_id_does_not_create_aov(self):
-        """facet_id is Blender-only and has no Mitsuba AOV counterpart."""
-        cfg = config()
-        cfg.facet_id = True
-        assert isinstance(cfg.integrator, Path)
-
-    def test_multiple_passes_all_in_aov(self):
-        cfg = config()
         cfg.albedo = True
         cfg.depth = True
         cfg.normal = True
-        assert isinstance(cfg.integrator, AOV)
-        aovs = cfg.integrator.aovs
-        assert "albedo:albedo" in aovs
-        assert "depth:depth" in aovs
-        assert "sh_normal:sh_normal" in aovs
 
-    def test_remove_one_pass_updates_aov(self):
-        cfg = config()
-        cfg.albedo = True
-        cfg.depth = True
-        cfg.albedo = False
-        assert isinstance(cfg.integrator, AOV)
-        assert "depth:depth" in cfg.integrator.aovs
-        assert "albedo:albedo" not in cfg.integrator.aovs
-
-    def test_remove_all_passes_strips_aov_wrapper(self):
-        cfg = config()
-        cfg.albedo = True
-        cfg.albedo = False
+        assert cfg.integrator is integrator
         assert isinstance(cfg.integrator, Path)
 
-    def test_bulk_assign_syncs_aov(self):
+    def test_integrator_replacement_does_not_change_pass_requests(self):
         cfg = config()
         cfg.render_passes = {"albedo", "normal"}
-        assert isinstance(cfg.integrator, AOV)
-        assert "albedo:albedo" in cfg.integrator.aovs
-        assert "sh_normal:sh_normal" in cfg.integrator.aovs
-        assert "depth:depth" not in cfg.integrator.aovs
 
-    def test_bulk_assign_empty_strips_aov(self):
-        cfg = config()
-        cfg.albedo = True
-        cfg.render_passes = set()
-        assert isinstance(cfg.integrator, Path)
+        cfg.integrator = AOV(aovs=["custom:depth"], integrator=Path())
 
-    def test_aov_preserves_base_integrator(self):
-        """The inner integrator of the AOV wrapper should be the original Path."""
-        cfg = config()
-        cfg.albedo = True
-        assert isinstance(cfg.integrator, AOV)
-        assert isinstance(cfg.integrator.integrator, Path)
+        assert cfg.render_passes == {"albedo", "normal"}
+        assert cfg.integrator.aovs == ["custom:depth"]
 
 
 class TestCoordinateSystemHelpers:

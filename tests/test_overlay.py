@@ -124,7 +124,7 @@ def test_normalize_domain_controls_colormap_coordinates():
         color_id = view.data_frame.mesh.get_matching_attribute_id(
             usage=lagrange.AttributeUsage.Color
         )
-        return np.asarray(view.data_frame.mesh.attribute(color_id).data)
+        return np.asarray(view.data_frame.mesh.attribute(color_id).data).copy()
 
     wide = compile_colors(100.0)
     narrow = compile_colors(30.0)

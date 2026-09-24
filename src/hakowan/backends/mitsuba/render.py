@@ -10,7 +10,8 @@ from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
 from ...common.overlay import composite_overlay_file
 from ...compiler import Scene, View
 from ...setup import Config
-from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
+from ...setup.integrator import AOV, Integrator
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, RENDER_PASSES, aov_path
 from ...grammar import mark
 from .. import RenderBackend
 
@@ -74,12 +75,38 @@ def _show_emitters(integrator: dict[str, Any]) -> None:
         current = nested
 
 
+def _effective_aovs(config: Config) -> list[str]:
+    """Merge explicit Mitsuba AOVs with requested semantic render passes."""
+    result = list(config.integrator.aovs) if isinstance(config.integrator, AOV) else []
+    for render_pass in RENDER_PASSES.values():
+        aov = render_pass.mitsuba_aov
+        if (
+            render_pass.name in config.render_passes
+            and aov is not None
+            and aov not in result
+        ):
+            result.append(aov)
+    return result
+
+
+def _effective_integrator(config: Config) -> Integrator:
+    """Build the render-local integrator without mutating Config."""
+    aovs = _effective_aovs(config)
+    if isinstance(config.integrator, AOV):
+        if aovs == config.integrator.aovs:
+            return config.integrator
+        return AOV(aovs=aovs, integrator=config.integrator.integrator)
+    if aovs:
+        return AOV(aovs=aovs, integrator=config.integrator)
+    return config.integrator
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
     sensor_config = generate_sensor_config(config.sensor)
     sensor_config["film"] = generate_film_config(config.film)
     sensor_config["sampler"] = generate_sampler_config(config.sampler)
-    integrator_config = generate_integrator_config(config.integrator)
+    integrator_config = generate_integrator_config(_effective_integrator(config))
     if config.environment_visible:
         _show_emitters(integrator_config)
 
@@ -191,8 +218,8 @@ def ensure_variant() -> None:
 class MitsubaBackend(RenderBackend):
     """Mitsuba rendering backend."""
 
-    # facet_id has no Mitsuba AOV counterpart; the other passes ride the AOV
-    # integrator (see Config.__sync_aovs and the channel slicing in render()).
+    # facet_id has no Mitsuba AOV counterpart; other requested passes are
+    # derived into a render-local AOV integrator.
     SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
     def render(
@@ -256,18 +283,15 @@ class MitsubaBackend(RenderBackend):
         depth_offset: int | None = None
         normal_offset: int | None = None
 
-        from ...setup.integrator import AOV as AOVIntegrator
-
-        if isinstance(config.integrator, AOVIntegrator):
-            _offset = 4
-            for aov_str in config.integrator.aovs:
-                if aov_str == "albedo:albedo":
-                    albedo_offset = _offset
-                elif aov_str == "depth:depth":
-                    depth_offset = _offset
-                elif aov_str == "sh_normal:sh_normal":
-                    normal_offset = _offset
-                _offset += _aov_width.get(aov_str, 1)
+        _offset = 4
+        for aov_str in _effective_aovs(config):
+            if aov_str == "albedo:albedo":
+                albedo_offset = _offset
+            elif aov_str == "depth:depth":
+                depth_offset = _offset
+            elif aov_str == "sh_normal:sh_normal":
+                normal_offset = _offset
+            _offset += _aov_width.get(aov_str, 1)
 
         if config.albedo:
             if albedo_offset is None:
