@@ -371,6 +371,38 @@ def test_explicit_orthographic_camera_is_applied(playwright_browser):
     assert hit.world_position[2] == pytest.approx(0.0, abs=1e-5)
 
 
+def test_orthographic_camera_preserves_screen_space_mark_size(playwright_browser):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertex([0.0, 0.0, 0.0])
+    layer = (
+        hkw.layer(mesh)
+        .mark("point")
+        .channel(size=hkw.channel.Size(10.0, space="screen"))
+    )
+
+    def captured_width(scale):
+        camera = hkw.CameraState(
+            eye=(0.0, 0.0, 4.0),
+            target=(0.0, 0.0, 0.0),
+            up=(0.0, 1.0, 0.0),
+            mode="orthographic",
+            scale=scale,
+        )
+        snapshot = hkw.snapshot(
+            layer,
+            camera=camera,
+            pass_name="layer_id",
+            resolution=(80, 80),
+        )
+        assert snapshot.data is not None
+        occupied = np.argwhere(snapshot.data != observation_module.BACKGROUND_ID)
+        return int(occupied[:, 1].max() - occupied[:, 1].min() + 1)
+
+    # Screen-space sizes are camera-scale independent. A perspective sizing
+    # sensor would make the second capture roughly half as wide.
+    assert captured_width(2.0) == pytest.approx(captured_width(4.0), abs=1)
+
+
 def test_snapshot_writes_raw_sidecar(playwright_browser, tmp_path):
     output = tmp_path / "depth.png"
     result = hkw.snapshot(

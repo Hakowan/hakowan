@@ -526,6 +526,30 @@ def _camera_state_from_config(config: Config) -> CameraState:
     )
 
 
+def _sensor_from_camera_state(camera: CameraState):
+    """Build the sizing sensor matching the browser capture projection."""
+    if camera.mode == "orthographic":
+        if camera.scale is None or camera.scale <= 0:
+            raise ValueError("Orthographic CameraState.scale must be positive.")
+        return Orthographic(
+            location=list(camera.eye),
+            target=list(camera.target),
+            up=list(camera.up),
+            near_clip=camera.near,
+            far_clip=camera.far,
+            scale=camera.scale,
+        )
+    return Perspective(
+        location=list(camera.eye),
+        target=list(camera.target),
+        up=list(camera.up),
+        near_clip=camera.near,
+        far_clip=camera.far,
+        fov=camera.fov,
+        fov_axis="y",
+    )
+
+
 def _require_playwright():
     try:
         from playwright.sync_api import Error as PlaywrightError
@@ -645,15 +669,7 @@ def _capture_sync(
     render_config.film.width = width
     render_config.film.height = height
     first_camera = resolved_cameras[views[0]]
-    render_config.sensor = Perspective(
-        location=list(first_camera.eye),
-        target=list(first_camera.target),
-        up=list(first_camera.up),
-        near_clip=first_camera.near,
-        far_clip=first_camera.far,
-        fov=first_camera.fov,
-        fov_axis="y",
-    )
+    render_config.sensor = _sensor_from_camera_state(first_camera)
     prepare_scene(scene, render_config)
     sync_playwright, playwright_error = _require_playwright()
     from ..backends.webgl import WebGLBackend

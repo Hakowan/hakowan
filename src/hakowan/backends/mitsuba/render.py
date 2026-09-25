@@ -271,27 +271,25 @@ class MitsubaBackend(RenderBackend):
         # data; without one, image_layers already has exactly 4 channels.
         image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
 
-        # Compute per-pass channel offsets by walking the AOV list in order.
-        # Mitsuba lays out AOV channels sequentially after the 4 RGBA channels.
-        # Known widths: RGB AOVs contribute 3 channels, scalar AOVs 1 channel.
-        _aov_width = {
-            "albedo:albedo": 3,
-            "depth:depth": 1,
-            "sh_normal:sh_normal": 3,
-        }
-        albedo_offset: int | None = None
-        depth_offset: int | None = None
-        normal_offset: int | None = None
+        # Ask Mitsuba for the actual flattened channel layout. This remains
+        # correct when callers prepend custom scalar, vector, or UV AOVs.
+        channel_names = list(mi_scene.integrator().aov_names())
 
-        _offset = 4
-        for aov_str in _effective_aovs(config):
-            if aov_str == "albedo:albedo":
-                albedo_offset = _offset
-            elif aov_str == "depth:depth":
-                depth_offset = _offset
-            elif aov_str == "sh_normal:sh_normal":
-                normal_offset = _offset
-            _offset += _aov_width.get(aov_str, 1)
+        def channel_offset(name: str) -> int | None:
+            # Semantic AOVs are appended after explicit AOVs. Search backwards
+            # so a caller reusing a reserved label cannot shadow our pass.
+            return next(
+                (
+                    index
+                    for index in range(len(channel_names) - 1, -1, -1)
+                    if channel_names[index] == name
+                ),
+                None,
+            )
+
+        albedo_offset = channel_offset("albedo.R")
+        depth_offset = channel_offset("depth.T")
+        normal_offset = channel_offset("sh_normal.X")
 
         if config.albedo:
             if albedo_offset is None:

@@ -176,7 +176,15 @@ def inspect(data: DataFrameLike, *, positions: PositionColumns = None) -> DataSu
     mesh, source = _load_data(data, positions)
     if mesh.num_vertices:
         vertices = np.asarray(mesh.vertices, dtype=np.float64)
-        bounds = [np.min(vertices, axis=0).tolist(), np.max(vertices, axis=0).tolist()]
+        finite_vertices = vertices[np.all(np.isfinite(vertices), axis=1)]
+        bounds = (
+            [
+                np.min(finite_vertices, axis=0).tolist(),
+                np.max(finite_vertices, axis=0).tolist(),
+            ]
+            if finite_vertices.size
+            else None
+        )
     else:
         bounds = None
 

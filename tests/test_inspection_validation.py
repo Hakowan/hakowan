@@ -28,6 +28,35 @@ def test_inspect_returns_json_safe_geometry_and_attribute_statistics(triangle):
     json.dumps(payload)
 
 
+def test_inspect_bounds_ignore_nonfinite_vertices_and_remain_json_safe():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [0.0, 1.0, 2.0],
+                [2.0, 3.0, 4.0],
+                [np.nan, 5.0, 6.0],
+                [7.0, np.inf, 8.0],
+            ]
+        )
+    )
+
+    summary = hkw.inspect(mesh)
+
+    assert summary.bounds == [[0.0, 1.0, 2.0], [2.0, 3.0, 4.0]]
+    json.dumps(summary.to_dict(), allow_nan=False)
+
+
+def test_inspect_omits_bounds_without_finite_vertices():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertex([np.nan, np.inf, -np.inf])
+
+    summary = hkw.inspect(mesh)
+
+    assert summary.bounds is None
+    json.dumps(summary.to_dict(), allow_nan=False)
+
+
 def test_inspect_reports_indexed_value_and_element_counts(triangle):
     uv = hkw.inspect(triangle).attribute("uv")
 

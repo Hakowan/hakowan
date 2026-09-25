@@ -68,6 +68,31 @@ class TestRender:
         assert albedo.is_file()
         assert result.outputs["albedo"] == albedo
 
+    def test_mitsuba_custom_vector_aov_does_not_shift_albedo(self, triangle, tmp_path):
+        from PIL import Image
+        from hakowan.setup.integrator import AOV, Path
+
+        config = hkw.config()
+        config.film.width = 32
+        config.film.height = 32
+        config.integrator = AOV(aovs=["position:position"], integrator=Path())
+        config.albedo = True
+        output = tmp_path / "custom-aov.png"
+
+        hkw.render(
+            hkw.layer(triangle).material("Diffuse", "red"),
+            config,
+            filename=output,
+            backend="mitsuba",
+        )
+
+        pixels = np.asarray(
+            Image.open(tmp_path / "custom-aov_albedo.png").convert("RGBA")
+        )
+        opaque = pixels[..., 3] > 250
+        assert np.all(pixels[opaque, 0] >= 253)
+        assert np.all(pixels[opaque, 1:3] == 0)
+
     def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
         from PIL import Image
 
