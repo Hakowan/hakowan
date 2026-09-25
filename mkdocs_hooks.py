@@ -71,11 +71,18 @@ def _gallery_asset_path(
             resolved_recipe, relative_path = parts[0], "/".join(parts[1:])
 
     path = PurePosixPath(relative_path)
+    recipe_is_safe = (
+        resolved_recipe is not None
+        and resolved_recipe not in {"", ".", ".."}
+        and "/" not in resolved_recipe
+        and "\\" not in resolved_recipe
+    )
     if (
-        resolved_recipe is None
+        not recipe_is_safe
         or not relative_path
         or path.is_absolute()
         or ".." in path.parts
+        or "\\" in relative_path
         or path.suffix.lower() not in _LOCAL_SUFFIXES
     ):
         return None

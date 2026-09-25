@@ -207,6 +207,10 @@ def test_annotation_validation_and_shorthand():
     ]
     with pytest.raises(ValueError, match="position"):
         hkw.Annotation("outside", position=(2.0, 0.0))
+    with pytest.raises(ValueError, match="exactly two"):
+        hkw.Annotation("short", position=(0.5,))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="exactly two"):
+        hkw.Annotation("long", position=(0.2, 0.3, 0.4))  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="ticks"):
         hkw.Legend(ticks=1)
 

@@ -65,6 +65,22 @@ def test_gallery_page_image_is_localized_and_keeps_display_fragment():
     )
 
 
+@pytest.mark.parametrize("recipe", ["..", ".", "..\\outside", "nested/recipe"])
+def test_gallery_asset_rejects_unsafe_recipe(recipe):
+    mkdocs_hooks._GALLERY_FILES.clear()
+
+    assert mkdocs_hooks._gallery_asset_path("results/image.webp", recipe) is None
+    assert (
+        mkdocs_hooks._local_gallery_target("results/image.webp", recipe, "/hakowan")
+        is None
+    )
+    assert mkdocs_hooks._GALLERY_FILES == {}
+
+
+def test_gallery_asset_rejects_windows_style_path_traversal():
+    assert mkdocs_hooks._gallery_asset_path("results\\..\\outside.webp", "Flow") is None
+
+
 def test_remaining_remote_snippets_are_pinned_to_gallery_revision():
     markdown = (
         '--8<-- "https://github.com/Hakowan/hakowan-gallery/raw/main/'

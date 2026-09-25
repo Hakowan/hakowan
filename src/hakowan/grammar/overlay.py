@@ -63,6 +63,10 @@ class Annotation:
         """Validate annotation text, normalized position, and pixel sizes."""
         if not self.text:
             raise ValueError("Annotation.text must not be empty.")
+        if len(self.position) != 2:
+            raise ValueError(
+                "Annotation.position must contain exactly two coordinates."
+            )
         if not all(0.0 <= value <= 1.0 for value in self.position):
             raise ValueError("Annotation.position values must be in [0, 1].")
         if self.font_size <= 0:
