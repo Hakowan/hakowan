@@ -117,19 +117,23 @@ class GLTFBuilder:
 
     def add_image_texture(
         self,
-        png_bytes: bytes,
+        image_bytes: bytes,
         *,
+        mime_type: str = "image/png",
         mag_filter: int = _FILTER_LINEAR,
         min_filter: int = _FILTER_LINEAR_MIPMAP_LINEAR,
     ) -> int:
-        """Embed a PNG image as a glTF texture and return the texture index.
+        """Embed a PNG or WebP image as a glTF texture and return its index.
 
         Each call appends its own sampler so procedural textures (e.g. a 2×2
         checker) can request NEAREST / non-mipmap filtering without affecting
-        photo textures.
+        photo textures. WebP images use the required ``EXT_texture_webp``
+        extension because core glTF texture sources only support PNG and JPEG.
         """
-        view_idx = self._add_buffer_view(png_bytes, target=None)
-        image = pygltflib.Image(mimeType="image/png", bufferView=view_idx)
+        if mime_type not in {"image/png", "image/webp"}:
+            raise ValueError(f"Unsupported glTF image MIME type: {mime_type!r}")
+        view_idx = self._add_buffer_view(image_bytes, target=None)
+        image = pygltflib.Image(mimeType=mime_type, bufferView=view_idx)
         self._gltf.images.append(image)
         image_idx = len(self._gltf.images) - 1
 
@@ -143,7 +147,14 @@ class GLTFBuilder:
         )
         sampler_idx = len(self._gltf.samplers) - 1
 
-        texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
+        if mime_type == "image/webp":
+            texture = pygltflib.Texture(
+                sampler=sampler_idx,
+                extensions={"EXT_texture_webp": {"source": image_idx}},
+            )
+            self._register_required_extension("EXT_texture_webp")
+        else:
+            texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
         self._gltf.textures.append(texture)
         return len(self._gltf.textures) - 1
 

@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
-from PIL import Image as PILImage, ImageEnhance
+from PIL import Image as PILImage, ImageEnhance, features as PILFeatures
 
 from ...common import logger
 from ...common.color import linear_to_srgb, srgb_to_linear, srgb_to_linear_array
@@ -233,22 +233,34 @@ def _back_base_color(mat: Material) -> list[float]:
     return _reflectance_to_base_color(reflectance)[:3]
 
 
-def _load_image_as_png_bytes(image: Image) -> bytes:
+def _encode_lossless_image(img: PILImage.Image) -> tuple[bytes, str]:
+    """Encode lossless WebP when available, otherwise guaranteed PNG."""
+    buf = io.BytesIO()
+    if PILFeatures.check("webp"):
+        img.save(buf, format="WEBP", lossless=True, method=6, exact=True)
+        return buf.getvalue(), "image/webp"
+    img.save(buf, format="PNG")
+    return buf.getvalue(), "image/png"
+
+
+def _load_image_bytes(image: Image) -> tuple[bytes, str]:
     path = Path(image.filename)
-    img = PILImage.open(path).convert("RGBA")
+    with PILImage.open(path) as source:
+        has_alpha = source.mode in {"RGBA", "LA"} or "transparency" in source.info
+        img = source.convert("RGBA" if has_alpha else "RGB")
+    if img.mode == "RGBA" and img.getchannel("A").getextrema() == (255, 255):
+        img = img.convert("RGB")
     if image.saturation != 1.0:
         img = ImageEnhance.Color(img).enhance(image.saturation)
     if image.whiteness != 0.0:
-        white = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
-        img = PILImage.blend(img.convert("RGBA"), white, alpha=image.whiteness)
+        white = PILImage.new(img.mode, img.size, (255,) * len(img.getbands()))
+        img = PILImage.blend(img, white, alpha=image.whiteness)
     # hakowan stores UVs with V=0 at the bottom of the image (OBJ
     # convention — Mitsuba compensates via ``to_uv = diag(1, -1, 1)``).
     # glTF/three.js samples with V=0 at the top, so we flip the image
     # vertically here to match without touching the UV buffer.
     img = img.transpose(PILImage.Transpose.FLIP_TOP_BOTTOM)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+    return _encode_lossless_image(img)
 
 
 def _bake_checkerboard_png(
@@ -316,8 +328,10 @@ def _apply_image_or_checker(
     """Attach a baseColorTexture (and optional UV transform) if applicable."""
     if isinstance(reflectance, Image):
         try:
-            png_bytes = _load_image_as_png_bytes(reflectance)
-            pbr["baseColorTextureIndex"] = builder.add_image_texture(png_bytes)
+            image_bytes, mime_type = _load_image_bytes(reflectance)
+            pbr["baseColorTextureIndex"] = builder.add_image_texture(
+                image_bytes, mime_type=mime_type
+            )
         except Exception as e:
             logger.warning(
                 f"WebGL backend: failed to embed image texture "
@@ -397,10 +411,10 @@ def _mesh_uv_world_scale(mesh: Any) -> tuple[float, float] | None:
     return sum_du / sum_w, sum_dv / sum_w
 
 
-def _height_to_normal_map_png(
+def _height_to_normal_map(
     height: Image, scale: float, dp_du: float, dp_dv: float
-) -> bytes:
-    """Convert a height (bump) texture into a tangent-space normal map PNG.
+) -> tuple[bytes, str]:
+    """Convert a height texture into a tangent-space normal map image.
 
     three.js's ``bumpMap`` finite-differences the height in *screen* space,
     which reads far weaker than Mitsuba's analytic UV-space gradient and loses
@@ -439,9 +453,7 @@ def _height_to_normal_map_png(
         [nx * inv * 0.5 + 0.5, ny * inv * 0.5 + 0.5, nz * inv * 0.5 + 0.5], axis=-1
     )
     rgb8 = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
-    buf = io.BytesIO()
-    PILImage.fromarray(rgb8).save(buf, format="PNG")
-    return buf.getvalue()
+    return _encode_lossless_image(PILImage.fromarray(rgb8))
 
 
 def _apply_bump_map(
@@ -483,10 +495,12 @@ def _apply_bump_map(
         )
         return
     try:
-        png_bytes = _height_to_normal_map_png(
+        image_bytes, mime_type = _height_to_normal_map(
             texture, float(bump_map.scale), uv_scale[0], uv_scale[1]
         )
-        pbr["normalTextureIndex"] = builder.add_image_texture(png_bytes)
+        pbr["normalTextureIndex"] = builder.add_image_texture(
+            image_bytes, mime_type=mime_type
+        )
         pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
@@ -509,8 +523,10 @@ def _apply_normal_map(
         )
         return
     try:
-        png_bytes = _load_image_as_png_bytes(texture)
-        pbr["normalTextureIndex"] = builder.add_image_texture(png_bytes)
+        image_bytes, mime_type = _load_image_bytes(texture)
+        pbr["normalTextureIndex"] = builder.add_image_texture(
+            image_bytes, mime_type=mime_type
+        )
         pbr["normalScale"] = 1.0
     except Exception as e:
         logger.warning(
