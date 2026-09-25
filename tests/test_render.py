@@ -13,7 +13,7 @@ if sys.platform == "win32" and os.environ.get("CI") == "true":
         allow_module_level=True,
     )
 
-pytest.importorskip("mitsuba", reason="mitsuba not installed")
+mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
 
 from hakowan.backends.mitsuba.render import generate_base_config, generate_scene_config
 
@@ -67,6 +67,32 @@ class TestRender:
         assert config.integrator is integrator
         assert albedo.is_file()
         assert result.outputs["albedo"] == albedo
+
+    def test_mitsuba_aov_names_include_beauty_prefix(self, triangle):
+        from hakowan.backends.mitsuba.render import ensure_variant
+        from hakowan.setup.integrator import AOV, Path
+
+        ensure_variant()
+        config = hkw.config()
+        config.integrator = AOV(aovs=["position:position"], integrator=Path())
+        config.albedo = True
+        scene_config = generate_base_config(config)
+        scene_config |= generate_scene_config(hkw.compile(hkw.layer(triangle)))
+
+        scene = mi.load_dict(scene_config)
+
+        assert list(scene.integrator().aov_names()) == [
+            "integrator.R",
+            "integrator.G",
+            "integrator.B",
+            "integrator.A",
+            "position.X",
+            "position.Y",
+            "position.Z",
+            "albedo.R",
+            "albedo.G",
+            "albedo.B",
+        ]
 
     def test_mitsuba_custom_vector_aov_does_not_shift_albedo(self, triangle, tmp_path):
         from PIL import Image
