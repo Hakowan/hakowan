@@ -128,7 +128,10 @@ def _beauty_rgba_indexes(
             f"({', '.join(missing)}). Set AOV.integrator to a beauty integrator; "
             "None selects a path tracer."
         )
-    return tuple(channel_names.index(name) for name in _BEAUTY_CHANNEL_NAMES)
+    red, green, blue, alpha = (
+        channel_names.index(name) for name in _BEAUTY_CHANNEL_NAMES
+    )
+    return (red, green, blue, alpha)
 
 
 def generate_base_config(config: Config) -> dict:
