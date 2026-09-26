@@ -63,7 +63,8 @@ class AOV(Integrator):
 
     Attributes:
         aovs: List of AOVs to render.
-        integrator: Integrator to use for rendering AOVs.
+        integrator: Beauty integrator evaluated with the AOV channels. ``None``
+            selects a path tracer so the output remains an RGBA image.
 
     Note:
         See

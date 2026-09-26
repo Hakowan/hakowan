@@ -119,6 +119,69 @@ class TestRender:
         assert np.all(pixels[opaque, 0] >= 253)
         assert np.all(pixels[opaque, 1:3] == 0)
 
+    def test_bare_aov_beauty_is_rgba_not_auxiliary_channels(self, triangle, tmp_path):
+        """AOV.integrator defaults to None and must not be read as color.
+
+        Mitsuba omits integrator.R/G/B/A unless a nested integrator is set.
+        Treating channels 0-3 as RGBA then returns position data, including
+        negative components.
+        """
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import _beauty_rgba_indexes
+        from hakowan.setup.integrator import AOV
+
+        assert _beauty_rgba_indexes(
+            [
+                "integrator.R",
+                "integrator.G",
+                "integrator.B",
+                "integrator.A",
+                "position.X",
+                "position.Y",
+                "position.Z",
+            ],
+            7,
+        ) == (0, 1, 2, 3)
+        assert _beauty_rgba_indexes([], 4) == (0, 1, 2, 3)
+        with pytest.raises(RuntimeError, match="no beauty"):
+            _beauty_rgba_indexes(["position.X", "position.Y", "position.Z"], 3)
+
+        config = hkw.config()
+        config.film.width = 32
+        config.film.height = 32
+        config.integrator = AOV(aovs=["position:position"])
+        config.albedo = True
+        output = tmp_path / "bare-aov.png"
+        scene_config = generate_base_config(config)
+        scene_config |= generate_scene_config(hkw.compile(hkw.layer(triangle)))
+        names = list(mi.load_dict(scene_config).integrator().aov_names())
+        assert names[:4] == [
+            "integrator.R",
+            "integrator.G",
+            "integrator.B",
+            "integrator.A",
+        ]
+
+        result = hkw.render(
+            hkw.layer(triangle).material("Diffuse", "red"),
+            config,
+            filename=output,
+            backend="mitsuba",
+        )
+        beauty = np.asarray(result.image)
+        assert beauty.shape == (32, 32, 4)
+        assert float(np.min(beauty)) >= -1e-5
+        opaque = beauty[..., 3] > 0.5
+        assert np.any(opaque)
+        assert float(beauty[opaque, 0].min()) > float(beauty[opaque, 1:3].max())
+
+        pixels = np.asarray(
+            Image.open(tmp_path / "bare-aov_albedo.png").convert("RGBA")
+        )
+        albedo_opaque = pixels[..., 3] > 250
+        assert np.all(pixels[albedo_opaque, 0] >= 253)
+        assert np.all(pixels[albedo_opaque, 1:3] == 0)
+
     def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
         from PIL import Image
 

@@ -101,6 +101,36 @@ def _effective_integrator(config: Config) -> Integrator:
     return config.integrator
 
 
+_BEAUTY_CHANNEL_NAMES = ("integrator.R", "integrator.G", "integrator.B", "integrator.A")
+
+
+def _beauty_rgba_indexes(
+    channel_names: list[str], channel_count: int
+) -> tuple[int, int, int, int]:
+    """Return image indexes of the RGBA beauty block.
+
+    ``aov_names()`` lists every image channel in order. A nested beauty
+    integrator contributes ``integrator.R/G/B/A`` at those indexes; they are
+    already absolute, so do not add another four-channel prefix. A plain render
+    has an empty name list and four RGBA channels. Auxiliary names with no
+    beauty block are not a color image.
+    """
+    if not channel_names:
+        if channel_count < 4:
+            raise RuntimeError(
+                f"Mitsuba beauty image has {channel_count} channels; expected RGBA."
+            )
+        return (0, 1, 2, 3)
+    missing = [name for name in _BEAUTY_CHANNEL_NAMES if name not in channel_names]
+    if missing:
+        raise RuntimeError(
+            "Mitsuba AOV output has no beauty channels "
+            f"({', '.join(missing)}). Set AOV.integrator to a beauty integrator; "
+            "None selects a path tracer."
+        )
+    return tuple(channel_names.index(name) for name in _BEAUTY_CHANNEL_NAMES)
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
     sensor_config = generate_sensor_config(config.sensor)
@@ -266,14 +296,15 @@ class MitsubaBackend(RenderBackend):
         logger.info("Rendering done")
         image_layers = image
 
-        # Always extract the main RGBA image from the first 4 channels.
-        # When an AOV integrator is active the remaining channels hold pass
-        # data; without one, image_layers already has exactly 4 channels.
-        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
-
-        # Ask Mitsuba for the actual flattened channel layout. This remains
-        # correct when callers prepend custom scalar, vector, or UV AOVs.
+        # Beauty channels are named by Mitsuba. A nested integrator contributes
+        # integrator.R/G/B/A at absolute image indexes; do not add another
+        # four-channel prefix. Auxiliary names with no beauty block are not RGBA.
         channel_names = list(mi_scene.integrator().aov_names())
+        beauty_r, beauty_g, beauty_b, beauty_a = _beauty_rgba_indexes(
+            channel_names, int(image_layers.shape[-1])
+        )
+        image = image_layers[:, :, mi.ArrayXi([beauty_r, beauty_g, beauty_b, beauty_a])]
+        beauty_alpha = np.array(image_layers[:, :, beauty_a])
 
         def channel_offset(name: str) -> int | None:
             # Semantic AOVs are appended after explicit AOVs. Search backwards
@@ -305,7 +336,7 @@ class MitsubaBackend(RenderBackend):
                 # conductor albedo isn't available from this AOV — the Blender
                 # backend reads the Glossy Color pass for that.)
                 albedo = np.array(image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2])])
-                fg = np.array(image_layers[:, :, 3]) > 0.5
+                fg = beauty_alpha > 0.5
                 if fg.any() and float(albedo[fg].max()) > 1.5:
                     logger.warning(
                         "Albedo pass: BSDF reflectance exceeds [0, 1] (max "
@@ -315,7 +346,7 @@ class MitsubaBackend(RenderBackend):
                         "albedo of such materials."
                     )
                 albedo = np.clip(albedo, 0.0, 1.0)
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 albedo_image = mi.TensorXf(
                     np.concatenate([albedo, alpha[:, :, None]], axis=2)
                 )
@@ -326,7 +357,7 @@ class MitsubaBackend(RenderBackend):
                     "Depth pass requested but no depth AOV found in integrator"
                 )
             else:
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 depth = np.array(image_layers[:, :, depth_offset])
                 # Mitsuba's ``depth`` AOV is the ray distance (camera → hit),
                 # which carries a radial/perspective falloff: even a flat plane
@@ -372,7 +403,7 @@ class MitsubaBackend(RenderBackend):
                 # [0, 1] (out = N * 0.5 + 0.5) so an 8-bit image keeps the
                 # negative half instead of clamping it to black — matching the
                 # Blender backend's normal pass.
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 nx = np.array(image_layers[:, :, o])
                 ny = np.array(image_layers[:, :, o + 1])
                 nz = np.array(image_layers[:, :, o + 2])
