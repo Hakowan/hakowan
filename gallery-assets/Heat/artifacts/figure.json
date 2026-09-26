@@ -1,0 +1,145 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "child": {
+      "kind": "layer",
+      "spec": {
+        "annotations": [],
+        "channels": {
+          "bump_map": null,
+          "covariance": null,
+          "material": null,
+          "normal": null,
+          "normal_map": null,
+          "position": null,
+          "shape": null,
+          "size": null,
+          "vector_field": null
+        },
+        "data": {
+          "kind": "mesh_file",
+          "path": "data/bunny_heat.ply",
+          "roi_box": null
+        },
+        "mark": null,
+        "name": null,
+        "transforms": []
+      }
+    },
+    "kind": "inherit",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": {
+          "anisotropic": 0.0,
+          "back_side": null,
+          "color": {
+            "data": {
+              "name": "dist",
+              "scales": [],
+              "unit": null
+            },
+            "kind": "isocontour",
+            "num_contours": 100,
+            "ratio": 0.9,
+            "texture1": {
+              "categories": false,
+              "colormap": "fire",
+              "data": {
+                "name": "dist",
+                "scales": [],
+                "unit": null
+              },
+              "domain": [
+                0.0,
+                0.12
+              ],
+              "kind": "scalar_field",
+              "legend": {
+                "category_labels": null,
+                "format": ".3g",
+                "position": "right",
+                "ticks": 5,
+                "title": "Geodesic distance",
+                "units": null,
+                "width": 180
+              },
+              "range": null,
+              "reverse": true
+            },
+            "texture2": {
+              "categories": false,
+              "colormap": [
+                "white",
+                "lightgray"
+              ],
+              "data": {
+                "name": "dist",
+                "scales": [],
+                "unit": null
+              },
+              "domain": [
+                0.0,
+                0.12
+              ],
+              "kind": "scalar_field",
+              "legend": false,
+              "range": null,
+              "reverse": false
+            }
+          },
+          "eta": 1.5,
+          "flatness": 0.0,
+          "kind": "principled",
+          "metallic": 0.0,
+          "roughness": 0.5,
+          "sheen": 0.0,
+          "sheen_tint": 0.0,
+          "spec_tint": 0.0,
+          "spec_trans": 0.0,
+          "two_sided": false
+        },
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        1.2,
+        3.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "environment": null,
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

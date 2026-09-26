@@ -1,0 +1,223 @@
+{
+  "ball": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 1064216,
+        "finite_count": 1064216,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 1064216
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 1064216,
+        "finite_count": 1064216,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 1064216
+      }
+    ],
+    "bounds": [
+      [
+        0.049952748133660914,
+        -0.00018581616324540601,
+        -0.00018638828503947003
+      ],
+      [
+        0.11999957917679499,
+        0.10009177421422802,
+        0.10018572572858103
+      ]
+    ],
+    "corner_count": 3192648,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 1064216,
+    "source": "data/10.obj",
+    "vertex_count": 532110
+  },
+  "plate": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 644,
+        "finite_count": 644,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 644
+      },
+      {
+        "channels": 3,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 1932,
+        "finite_count": 432,
+        "indexed": true,
+        "maximum": [
+          0.997602532875321,
+          0.9940047017948287,
+          0.9940047017948287
+        ],
+        "minimum": [
+          -0.997602532875321,
+          -0.9940047017948287,
+          -0.9940047017948287
+        ],
+        "name": "normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -0.997602532875321,
+            -0.9940047017948287,
+            -0.9940047017948287
+          ],
+          "0.25": [
+            -0.46556707169065903,
+            -0.5289315803234824,
+            -0.4655670716906588
+          ],
+          "0.5": [
+            0.0,
+            1.0408340855860843e-16,
+            0.0
+          ],
+          "0.75": [
+            0.46556707169065903,
+            0.5289315803234822,
+            0.46556707169065753
+          ],
+          "1": [
+            0.997602532875321,
+            0.9940047017948287,
+            0.9940047017948287
+          ]
+        },
+        "usage": "normal",
+        "value_count": 432
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 644,
+        "finite_count": 644,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 644
+      },
+      {
+        "channels": 2,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 1932,
+        "finite_count": 366,
+        "indexed": true,
+        "maximum": [
+          0.6925008179278886,
+          0.6731252044819727
+        ],
+        "minimum": [
+          0.0,
+          0.3268747955180283
+        ],
+        "name": "texcoord",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            0.0,
+            0.3268747955180283
+          ],
+          "0.25": [
+            0.33470577261908585,
+            0.3341406505602467
+          ],
+          "0.5": [
+            0.3462504089639443,
+            0.3365626022409864
+          ],
+          "0.75": [
+            0.6816020353645608,
+            0.665859349439754
+          ],
+          "1": [
+            0.6925008179278886,
+            0.6731252044819727
+          ]
+        },
+        "usage": "uv",
+        "value_count": 366
+      }
+    ],
+    "bounds": [
+      [
+        0.12009999990500508,
+        -0.004999999701976787,
+        -0.004999999701976787
+      ],
+      [
+        0.1241000000949949,
+        0.10499999970197678,
+        0.10499999970197678
+      ]
+    ],
+    "corner_count": 1932,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 644,
+    "source": "data/plate2.obj",
+    "vertex_count": 324
+  }
+}

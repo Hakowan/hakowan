@@ -1,0 +1,67 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 5752,
+        "finite_count": 5752,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 5752
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 5752,
+        "finite_count": 5752,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 5752
+      }
+    ],
+    "bounds": [
+      [
+        -1.12892,
+        -1.52493,
+        -0.973707
+      ],
+      [
+        1.12892,
+        1.52493,
+        0.973707
+      ]
+    ],
+    "corner_count": 17256,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 5752,
+    "source": "data/mask_triangulated.obj",
+    "vertex_count": 2959
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "child": {
+      "child": {
+        "child": {
+          "kind": "layer",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": {
+              "kind": "mesh_file",
+              "path": "data/penny.glb",
+              "roi_box": null
+            },
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": [
+            {
+              "component": null,
+              "facet_normal": null,
+              "kind": "compute",
+              "normal": "normal",
+              "vertex_normal": null,
+              "x": null,
+              "y": null,
+              "z": "depth"
+            }
+          ]
+        }
+      },
+      "kind": "inherit",
+      "spec": {
+        "annotations": [],
+        "channels": {
+          "bump_map": null,
+          "covariance": null,
+          "material": null,
+          "normal": null,
+          "normal_map": null,
+          "position": null,
+          "shape": null,
+          "size": null,
+          "vector_field": null
+        },
+        "data": null,
+        "mark": null,
+        "name": "Penny",
+        "transforms": []
+      }
+    },
+    "kind": "inherit",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": {
+          "alpha": 0.1,
+          "back_side": null,
+          "distribution": "beckmann",
+          "kind": "rough_conductor",
+          "material": "Cu",
+          "two_sided": false
+        },
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "environment": null,
+    "lights": null,
+    "output": {
+      "background": "dark",
+      "height": 800,
+      "passes": [
+        "beauty",
+        "albedo",
+        "depth",
+        "normal"
+      ],
+      "sampler_seed": 0,
+      "width": 1024
+    }
+  },
+  "version": "1.1"
+}

@@ -1,0 +1,137 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 208353,
+        "finite_count": 34834,
+        "indexed": true,
+        "maximum": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "minimum": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "name": "Vertex_Color",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "0.25": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "0.5": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "0.75": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "1": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "usage": "color",
+        "value_count": 34834
+      },
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 208353,
+        "finite_count": 34834,
+        "indexed": true,
+        "maximum": 0.18637203949681908,
+        "minimum": 0.0,
+        "name": "dist",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0621461909163136,
+          "0.5": 0.08918361434618916,
+          "0.75": 0.11842405577358993,
+          "1": 0.18637203949681908
+        },
+        "usage": "scalar",
+        "value_count": 34834
+      },
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 69451,
+        "finite_count": 69451,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 69451
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 69451,
+        "finite_count": 69451,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 69451
+      }
+    ],
+    "bounds": [
+      [
+        -0.09469000000000001,
+        0.032986999999999995,
+        -0.061874
+      ],
+      [
+        0.061009,
+        0.187321,
+        0.058800000000000005
+      ]
+    ],
+    "corner_count": 208353,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 69451,
+    "source": "data/bunny_heat.ply",
+    "vertex_count": 34834
+  }
+}

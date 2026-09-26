@@ -1,0 +1,88 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 2,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 12288,
+        "finite_count": 2112,
+        "indexed": true,
+        "maximum": [
+          0.984375,
+          1.0
+        ],
+        "minimum": [
+          0.015625,
+          0.5
+        ],
+        "name": "Vertex_UV_0",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            0.015625,
+            0.5
+          ],
+          "0.25": [
+            0.26171875,
+            0.625
+          ],
+          "0.5": [
+            0.5,
+            0.75
+          ],
+          "0.75": [
+            0.73828125,
+            0.875
+          ],
+          "1": [
+            0.984375,
+            1.0
+          ]
+        },
+        "usage": "uv",
+        "value_count": 2112
+      },
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "facet",
+        "element_count": 4096,
+        "finite_count": 4096,
+        "indexed": false,
+        "maximum": 2.0,
+        "minimum": 0.0,
+        "name": "label",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 1.0,
+          "1": 2.0
+        },
+        "usage": "scalar",
+        "value_count": 4096
+      }
+    ],
+    "bounds": [
+      [
+        -1.0,
+        -1.0,
+        -3.0
+      ],
+      [
+        4.0,
+        1.0,
+        2.0
+      ]
+    ],
+    "corner_count": 12288,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 4096,
+    "source": "data/cylinder_1.msh",
+    "vertex_count": 2112
+  }
+}

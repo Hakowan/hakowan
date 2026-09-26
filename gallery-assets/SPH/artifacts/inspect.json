@@ -1,0 +1,202 @@
+{
+  "emitter": {
+    "attributes": [
+      {
+        "channels": 2,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 1512,
+        "finite_count": 392,
+        "indexed": true,
+        "maximum": [
+          1.0,
+          1.0
+        ],
+        "minimum": [
+          0.0,
+          0.01000000536441803
+        ],
+        "name": "Vertex_UV_0",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            0.0,
+            0.01000000536441803
+          ],
+          "0.25": [
+            0.25,
+            0.4197056293487549
+          ],
+          "0.5": [
+            0.5,
+            0.5
+          ],
+          "0.75": [
+            0.75,
+            1.0
+          ],
+          "1": [
+            1.0,
+            1.0
+          ]
+        },
+        "usage": "uv",
+        "value_count": 392
+      }
+    ],
+    "bounds": [
+      [
+        -0.25,
+        1.4000000953674316,
+        -0.25
+      ],
+      [
+        0.25,
+        3.5999996662139893,
+        0.25
+      ]
+    ],
+    "corner_count": 1512,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 504,
+    "source": "data/emitter.msh",
+    "vertex_count": 256
+  },
+  "particles": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 9984,
+        "finite_count": 9984,
+        "indexed": false,
+        "maximum": 1006.9085083007812,
+        "minimum": 499.2750244140625,
+        "name": "density",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 499.2750244140625,
+          "0.25": 963.7799682617188,
+          "0.5": 1000.1277465820312,
+          "0.75": 1001.201904296875,
+          "1": 1006.9085083007812
+        },
+        "usage": "scalar",
+        "value_count": 9984
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "vertex",
+        "element_count": 9984,
+        "finite_count": 9984,
+        "indexed": false,
+        "maximum": 9983,
+        "minimum": 0,
+        "name": "id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 2495.75,
+          "0.5": 4991.5,
+          "0.75": 7487.25,
+          "1": 9983.0
+        },
+        "usage": "scalar",
+        "value_count": 9984
+      },
+      {
+        "channels": 3,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 9984,
+        "finite_count": 9984,
+        "indexed": false,
+        "maximum": [
+          9.290946006774902,
+          9.299905776977539,
+          9.901061058044434
+        ],
+        "minimum": [
+          -8.906408309936523,
+          -9.409149169921875,
+          -9.30923843383789
+        ],
+        "name": "velocity",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -8.906408309936523,
+            -9.409149169921875,
+            -9.30923843383789
+          ],
+          "0.25": [
+            -0.9423893094062805,
+            -5.818380355834961,
+            -0.9708874225616455
+          ],
+          "0.5": [
+            1.2079664202246931e-06,
+            -0.1744789034128189,
+            -0.0
+          ],
+          "0.75": [
+            0.9415233135223389,
+            5.2233123779296875,
+            0.9528087377548218
+          ],
+          "1": [
+            9.290946006774902,
+            9.299905776977539,
+            9.901061058044434
+          ]
+        },
+        "usage": "vector",
+        "value_count": 9984
+      },
+      {
+        "channels": 1,
+        "dtype": "int64",
+        "element": "vertex",
+        "element_count": 9984,
+        "finite_count": 9984,
+        "indexed": false,
+        "maximum": 9983,
+        "minimum": 0,
+        "name": "vtkOriginalPointIds",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 2495.75,
+          "0.5": 4991.5,
+          "0.75": 7487.25,
+          "1": 9983.0
+        },
+        "usage": "scalar",
+        "value_count": 9984
+      }
+    ],
+    "bounds": [
+      [
+        -0.44430041313171387,
+        2.0471606254577637,
+        -0.4484522342681885
+      ],
+      [
+        0.44443655014038086,
+        2.888725996017456,
+        0.44838351011276245
+      ]
+    ],
+    "corner_count": 0,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 0,
+    "source": null,
+    "vertex_count": 9984
+  }
+}

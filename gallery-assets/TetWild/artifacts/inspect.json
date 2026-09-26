@@ -1,0 +1,24 @@
+{
+  "tetrahedral": {
+    "attributes": [],
+    "bounds": [
+      [
+        0.0006901828370615148,
+        -2.182194292545319,
+        1.2699995105392377
+      ],
+      [
+        28.600742333197815,
+        19.725656248644334,
+        54.68353879526036
+      ]
+    ],
+    "corner_count": 61248,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 20416,
+    "source": null,
+    "vertex_count": 18559
+  }
+}

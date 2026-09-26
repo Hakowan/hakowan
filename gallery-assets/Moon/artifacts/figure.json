@@ -1,0 +1,204 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "child": {
+      "child": {
+        "child": {
+          "child": {
+            "kind": "layer",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": {
+                "kind": "mesh_file",
+                "path": "data/moon.ply",
+                "roi_box": null
+              },
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": "Moon",
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": {
+              "kind": "bump_map",
+              "scale": 0.1,
+              "texture": {
+                "kind": "image",
+                "path": "data/ldem_16_uint.jpg",
+                "raw": false,
+                "saturation": 1.0,
+                "uv": null,
+                "whiteness": 0.0
+              }
+            },
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      "kind": "inherit",
+      "spec": {
+        "annotations": [],
+        "channels": {
+          "bump_map": null,
+          "covariance": null,
+          "material": {
+            "anisotropic": 0.0,
+            "back_side": null,
+            "color": {
+              "kind": "image",
+              "path": "data/lroc_color_poles_8k.jpg",
+              "raw": false,
+              "saturation": 1.0,
+              "uv": null,
+              "whiteness": 0.0
+            },
+            "eta": 1.5,
+            "flatness": 0.0,
+            "kind": "principled",
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "sheen": 0.0,
+            "sheen_tint": 0.0,
+            "spec_tint": 0.0,
+            "spec_trans": 0.0,
+            "two_sided": false
+          },
+          "normal": null,
+          "normal_map": null,
+          "position": null,
+          "shape": null,
+          "size": null,
+          "vector_field": null
+        },
+        "data": null,
+        "mark": null,
+        "name": null,
+        "transforms": []
+      }
+    },
+    "kind": "inherit",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": null,
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": [
+        {
+          "kind": "affine",
+          "matrix": [
+            [
+              6.123233995736766e-17,
+              1.0,
+              0.0
+            ],
+            [
+              -1.0,
+              6.123233995736766e-17,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        -3.0,
+        0.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "environment": {
+      "enabled": true,
+      "path": null,
+      "rotation": 180.0,
+      "scale": 1.0,
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "visible": false
+    },
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

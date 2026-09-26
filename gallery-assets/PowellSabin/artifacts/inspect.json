@@ -1,0 +1,95 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "float64",
+        "element": "facet",
+        "element_count": 96,
+        "finite_count": 96,
+        "indexed": false,
+        "maximum": [
+          1.0,
+          0.8660254037844387,
+          0.8164965809277263
+        ],
+        "minimum": [
+          -1.0,
+          -0.9428090415820635,
+          -1.0
+        ],
+        "name": "Facet_Normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -1.0,
+            -0.9428090415820635,
+            -1.0
+          ],
+          "0.25": [
+            -0.5,
+            -0.36084391824351647,
+            -0.20412414523193145
+          ],
+          "0.5": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "0.75": [
+            0.5,
+            0.47140452079103173,
+            0.33333333333333337
+          ],
+          "1": [
+            1.0,
+            0.8660254037844387,
+            0.8164965809277263
+          ]
+        },
+        "usage": "normal",
+        "value_count": 96
+      },
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "indexed",
+        "element_count": 288,
+        "finite_count": 96,
+        "indexed": true,
+        "maximum": 3,
+        "minimum": 0,
+        "name": "vertex_label",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.75,
+          "0.5": 1.5,
+          "0.75": 2.25,
+          "1": 3.0
+        },
+        "usage": "scalar",
+        "value_count": 96
+      }
+    ],
+    "bounds": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.8660254037844386,
+        0.8164965809277261
+      ]
+    ],
+    "corner_count": 288,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 96,
+    "source": "data/powell_sabin.ply",
+    "vertex_count": 96
+  }
+}

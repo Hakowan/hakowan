@@ -1,0 +1,109 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 2928,
+        "finite_count": 2928,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 2928
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 2928,
+        "finite_count": 2928,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 2928
+      },
+      {
+        "channels": 2,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 11712,
+        "finite_count": 3225,
+        "indexed": true,
+        "maximum": [
+          0.989055,
+          1.00065
+        ],
+        "minimum": [
+          -0.05224210000000001,
+          0.11117500000000001
+        ],
+        "name": "texcoord",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -0.05224210000000001,
+            0.11117500000000001
+          ],
+          "0.25": [
+            0.31433000000000005,
+            0.31400600000000006
+          ],
+          "0.5": [
+            0.6364390000000001,
+            0.47106400000000004
+          ],
+          "0.75": [
+            0.8206290000000002,
+            0.7032700000000001
+          ],
+          "1": [
+            0.989055,
+            1.00065
+          ]
+        },
+        "usage": "uv",
+        "value_count": 3225
+      }
+    ],
+    "bounds": [
+      [
+        -0.471552,
+        -0.7367840000000001,
+        -0.6689090000000002
+      ],
+      [
+        0.471552,
+        0.9536460000000001,
+        1.049
+      ]
+    ],
+    "corner_count": 11712,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 2928,
+    "source": "data/spot_quadrangulated.obj",
+    "vertex_count": 2930
+  }
+}

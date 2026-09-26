@@ -1,0 +1,6518 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "children": [
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-0",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.6509803921568628,
+                0.807843137254902,
+                0.8901960784313725
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-1",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.592156862745098,
+                0.7703703703703704,
+                0.8697167755991284
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-2",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5333333333333334,
+                0.7328976034858388,
+                0.8492374727668845
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-3",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.4745098039215687,
+                0.6954248366013073,
+                0.8287581699346405
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-4",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.41568627450980394,
+                0.6579520697167756,
+                0.8082788671023965
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-5",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.3568627450980392,
+                0.620479302832244,
+                0.7877995642701525
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-6",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.29803921568627456,
+                0.5830065359477125,
+                0.7673202614379084
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-7",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.23921568627450987,
+                0.5455337690631809,
+                0.7468409586056645
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-8",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.18039215686274512,
+                0.5080610021786492,
+                0.7263616557734205
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-9",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.12156862745098039,
+                0.47058823529411764,
+                0.7058823529411765
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-10",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.18562091503267975,
+                0.5154684095860567,
+                0.6875816993464052
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-11",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.249673202614379,
+                0.5603485838779956,
+                0.669281045751634
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-12",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.31372549019607837,
+                0.6052287581699347,
+                0.6509803921568628
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-13",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.37777777777777777,
+                0.6501089324618736,
+                0.6326797385620915
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-14",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.441830065359477,
+                0.6949891067538125,
+                0.6143790849673203
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-15",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5058823529411763,
+                0.7398692810457517,
+                0.596078431372549
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-16",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5699346405228758,
+                0.7847494553376906,
+                0.5777777777777777
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-17",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.6339869281045751,
+                0.8296296296296296,
+                0.5594771241830065
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-18",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.6980392156862745,
+                0.8745098039215686,
+                0.5411764705882353
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-19",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.6427015250544662,
+                0.8470588235294118,
+                0.5002178649237472
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-20",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5873638344226579,
+                0.8196078431372549,
+                0.45925925925925914
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-21",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5320261437908498,
+                0.7921568627450981,
+                0.41830065359477137
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-22",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.4766884531590415,
+                0.7647058823529412,
+                0.37734204793028325
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-23",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.42135076252723325,
+                0.7372549019607844,
+                0.33638344226579525
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-24",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.36601307189542487,
+                0.7098039215686275,
+                0.29542483660130725
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-25",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.3106753812636166,
+                0.6823529411764706,
+                0.2544662309368192
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-26",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.25533769063180833,
+                0.6549019607843137,
+                0.2135076252723312
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-27",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.2,
+                0.6274509803921569,
+                0.17254901960784313
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-28",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.28714596949891036,
+                0.6248366013071895,
+                0.22004357298474927
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-29",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.3742919389978211,
+                0.6222222222222222,
+                0.26753812636165564
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-30",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.4614379084967317,
+                0.6196078431372549,
+                0.31503267973856197
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-31",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.5485838779956425,
+                0.6169934640522876,
+                0.3625272331154683
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-32",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.6357298474945532,
+                0.6143790849673203,
+                0.41002178649237464
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-33",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.7228758169934643,
+                0.611764705882353,
+                0.4575163398692812
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-34",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.8100217864923747,
+                0.6091503267973856,
+                0.5050108932461873
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-35",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.8971677559912856,
+                0.6065359477124183,
+                0.5525054466230939
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-36",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.984313725490196,
+                0.6039215686274509,
+                0.6
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-37",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9738562091503268,
+                0.5481481481481478,
+                0.5455337690631805
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-38",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9633986928104574,
+                0.4923747276688452,
+                0.49106753812636156
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-39",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9529411764705881,
+                0.43660130718954215,
+                0.43660130718954215
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-40",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9424836601307189,
+                0.38082788671023954,
+                0.3821350762527232
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-41",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9320261437908497,
+                0.3250544662309369,
+                0.32766884531590423
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-42",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9215686274509804,
+                0.26928104575163425,
+                0.2732026143790852
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-43",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9111111111111111,
+                0.2135076252723312,
+                0.21873638344226584
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-44",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9006535947712417,
+                0.15773420479302858,
+                0.16427015250544685
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-45",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.8901960784313725,
+                0.10196078431372549,
+                0.10980392156862745
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-46",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9015250544662308,
+                0.17385620915032654,
+                0.14596949891067523
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-47",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9128540305010894,
+                0.24575163398692818,
+                0.18213507625272335
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-48",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9241830065359476,
+                0.3176470588235292,
+                0.21830065359477113
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-49",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9355119825708061,
+                0.38954248366013083,
+                0.25446623093681925
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-50",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9468409586056645,
+                0.46143790849673194,
+                0.29063180827886703
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-51",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9581699346405229,
+                0.5333333333333335,
+                0.32679738562091515
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-52",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9694989106753812,
+                0.6052287581699346,
+                0.36296296296296293
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-53",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9808278867102398,
+                0.6771241830065362,
+                0.39912854030501105
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-54",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9921568627450981,
+                0.7490196078431373,
+                0.43529411764705883
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-55",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9930283224400872,
+                0.7211328976034859,
+                0.3869281045751636
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-56",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9938997821350762,
+                0.6932461873638347,
+                0.3385620915032683
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-57",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9947712418300654,
+                0.6653594771241831,
+                0.2901960784313727
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-58",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9956427015250545,
+                0.6374727668845318,
+                0.24183006535947743
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-59",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9965141612200437,
+                0.6095860566448802,
+                0.1934640522875818
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-60",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9973856209150327,
+                0.5816993464052289,
+                0.14509803921568654
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-61",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9982570806100218,
+                0.5538126361655774,
+                0.0967320261437909
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-62",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                0.9991285403050109,
+                0.525925925925926,
+                0.04836601307189564
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "id": "fiber-63",
+                  "kind": "external",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.3,
+                "kind": "size"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "back_side": null,
+              "diffuse_reflectance": [
+                1.0,
+                0.4980392156862745,
+                0.0
+              ],
+              "kind": "plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      }
+    ],
+    "kind": "overlay",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": null,
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "environment": null,
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

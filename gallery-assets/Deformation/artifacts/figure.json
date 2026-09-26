@@ -1,0 +1,1140 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "axis": "x",
+    "children": [
+      {
+        "axis": "x",
+        "children": [
+          {
+            "axis": "x",
+            "children": [
+              {
+                "child": {
+                  "children": [
+                    {
+                      "child": {
+                        "child": {
+                          "child": {
+                            "kind": "layer",
+                            "spec": {
+                              "annotations": [],
+                              "channels": {
+                                "bump_map": null,
+                                "covariance": null,
+                                "material": null,
+                                "normal": null,
+                                "normal_map": null,
+                                "position": null,
+                                "shape": null,
+                                "size": null,
+                                "vector_field": null
+                              },
+                              "data": null,
+                              "mark": null,
+                              "name": null,
+                              "transforms": []
+                            }
+                          },
+                          "kind": "inherit",
+                          "spec": {
+                            "annotations": [],
+                            "channels": {
+                              "bump_map": null,
+                              "covariance": null,
+                              "material": null,
+                              "normal": null,
+                              "normal_map": null,
+                              "position": null,
+                              "shape": null,
+                              "size": null,
+                              "vector_field": null
+                            },
+                            "data": null,
+                            "mark": null,
+                            "name": "Handles",
+                            "transforms": []
+                          }
+                        },
+                        "kind": "inherit",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": {
+                              "alpha": 0.1,
+                              "back_side": null,
+                              "diffuse_reflectance": "steelblue",
+                              "distribution": "beckmann",
+                              "kind": "rough_plastic",
+                              "specular_reflectance": 1.0,
+                              "two_sided": false
+                            },
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": null,
+                        "transforms": [
+                          {
+                            "condition": {
+                              "kind": "expression",
+                              "source": "value in (1, 2)"
+                            },
+                            "data": {
+                              "name": "label",
+                              "scales": [],
+                              "unit": null
+                            },
+                            "kind": "filter"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "child": {
+                        "child": {
+                          "child": {
+                            "kind": "layer",
+                            "spec": {
+                              "annotations": [],
+                              "channels": {
+                                "bump_map": null,
+                                "covariance": null,
+                                "material": null,
+                                "normal": null,
+                                "normal_map": null,
+                                "position": null,
+                                "shape": null,
+                                "size": null,
+                                "vector_field": null
+                              },
+                              "data": null,
+                              "mark": null,
+                              "name": null,
+                              "transforms": []
+                            }
+                          },
+                          "kind": "inherit",
+                          "spec": {
+                            "annotations": [],
+                            "channels": {
+                              "bump_map": null,
+                              "covariance": null,
+                              "material": null,
+                              "normal": null,
+                              "normal_map": null,
+                              "position": null,
+                              "shape": null,
+                              "size": null,
+                              "vector_field": null
+                            },
+                            "data": null,
+                            "mark": null,
+                            "name": "Deformed region",
+                            "transforms": []
+                          }
+                        },
+                        "kind": "inherit",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": {
+                              "back_side": null,
+                              "kind": "conductor",
+                              "material": "Hg",
+                              "two_sided": false
+                            },
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": null,
+                        "transforms": [
+                          {
+                            "condition": {
+                              "kind": "expression",
+                              "source": "value == 0"
+                            },
+                            "data": {
+                              "name": "label",
+                              "scales": [],
+                              "unit": null
+                            },
+                            "kind": "filter"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "kind": "overlay",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": null,
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": null,
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": {
+                    "kind": "mesh_file",
+                    "path": "data/cylinder_1.msh",
+                    "roi_box": null
+                  },
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              },
+              {
+                "child": {
+                  "children": [
+                    {
+                      "child": {
+                        "child": {
+                          "child": {
+                            "kind": "layer",
+                            "spec": {
+                              "annotations": [],
+                              "channels": {
+                                "bump_map": null,
+                                "covariance": null,
+                                "material": null,
+                                "normal": null,
+                                "normal_map": null,
+                                "position": null,
+                                "shape": null,
+                                "size": null,
+                                "vector_field": null
+                              },
+                              "data": null,
+                              "mark": null,
+                              "name": null,
+                              "transforms": []
+                            }
+                          },
+                          "kind": "inherit",
+                          "spec": {
+                            "annotations": [],
+                            "channels": {
+                              "bump_map": null,
+                              "covariance": null,
+                              "material": null,
+                              "normal": null,
+                              "normal_map": null,
+                              "position": null,
+                              "shape": null,
+                              "size": null,
+                              "vector_field": null
+                            },
+                            "data": null,
+                            "mark": null,
+                            "name": "Handles",
+                            "transforms": []
+                          }
+                        },
+                        "kind": "inherit",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": {
+                              "alpha": 0.1,
+                              "back_side": null,
+                              "diffuse_reflectance": "steelblue",
+                              "distribution": "beckmann",
+                              "kind": "rough_plastic",
+                              "specular_reflectance": 1.0,
+                              "two_sided": false
+                            },
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": null,
+                        "transforms": [
+                          {
+                            "condition": {
+                              "kind": "expression",
+                              "source": "value in (1, 2)"
+                            },
+                            "data": {
+                              "name": "label",
+                              "scales": [],
+                              "unit": null
+                            },
+                            "kind": "filter"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "child": {
+                        "child": {
+                          "child": {
+                            "kind": "layer",
+                            "spec": {
+                              "annotations": [],
+                              "channels": {
+                                "bump_map": null,
+                                "covariance": null,
+                                "material": null,
+                                "normal": null,
+                                "normal_map": null,
+                                "position": null,
+                                "shape": null,
+                                "size": null,
+                                "vector_field": null
+                              },
+                              "data": null,
+                              "mark": null,
+                              "name": null,
+                              "transforms": []
+                            }
+                          },
+                          "kind": "inherit",
+                          "spec": {
+                            "annotations": [],
+                            "channels": {
+                              "bump_map": null,
+                              "covariance": null,
+                              "material": null,
+                              "normal": null,
+                              "normal_map": null,
+                              "position": null,
+                              "shape": null,
+                              "size": null,
+                              "vector_field": null
+                            },
+                            "data": null,
+                            "mark": null,
+                            "name": "Deformed region",
+                            "transforms": []
+                          }
+                        },
+                        "kind": "inherit",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": {
+                              "back_side": null,
+                              "kind": "conductor",
+                              "material": "Hg",
+                              "two_sided": false
+                            },
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": null,
+                        "transforms": [
+                          {
+                            "condition": {
+                              "kind": "expression",
+                              "source": "value == 0"
+                            },
+                            "data": {
+                              "name": "label",
+                              "scales": [],
+                              "unit": null
+                            },
+                            "kind": "filter"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "kind": "overlay",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": null,
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": null,
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": {
+                    "kind": "mesh_file",
+                    "path": "data/cylinder_2.msh",
+                    "roi_box": null
+                  },
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              }
+            ],
+            "gap": 0.05,
+            "kind": "layout",
+            "normalize": false,
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          {
+            "child": {
+              "children": [
+                {
+                  "child": {
+                    "child": {
+                      "child": {
+                        "kind": "layer",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": null,
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": "Handles",
+                        "transforms": []
+                      }
+                    },
+                    "kind": "inherit",
+                    "spec": {
+                      "annotations": [],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": {
+                          "alpha": 0.1,
+                          "back_side": null,
+                          "diffuse_reflectance": "steelblue",
+                          "distribution": "beckmann",
+                          "kind": "rough_plastic",
+                          "specular_reflectance": 1.0,
+                          "two_sided": false
+                        },
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": null,
+                    "transforms": [
+                      {
+                        "condition": {
+                          "kind": "expression",
+                          "source": "value in (1, 2)"
+                        },
+                        "data": {
+                          "name": "label",
+                          "scales": [],
+                          "unit": null
+                        },
+                        "kind": "filter"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "child": {
+                      "child": {
+                        "kind": "layer",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": null,
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": null,
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": null,
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": "Deformed region",
+                        "transforms": []
+                      }
+                    },
+                    "kind": "inherit",
+                    "spec": {
+                      "annotations": [],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": {
+                          "back_side": null,
+                          "kind": "conductor",
+                          "material": "Hg",
+                          "two_sided": false
+                        },
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": null,
+                    "transforms": [
+                      {
+                        "condition": {
+                          "kind": "expression",
+                          "source": "value == 0"
+                        },
+                        "data": {
+                          "name": "label",
+                          "scales": [],
+                          "unit": null
+                        },
+                        "kind": "filter"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "kind": "overlay",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": null,
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": {
+                "kind": "mesh_file",
+                "path": "data/cylinder_3.msh",
+                "roi_box": null
+              },
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          }
+        ],
+        "gap": 0.05,
+        "kind": "layout",
+        "normalize": false,
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "children": [
+            {
+              "child": {
+                "child": {
+                  "child": {
+                    "kind": "layer",
+                    "spec": {
+                      "annotations": [],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": null,
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": "Handles",
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": {
+                      "alpha": 0.1,
+                      "back_side": null,
+                      "diffuse_reflectance": "steelblue",
+                      "distribution": "beckmann",
+                      "kind": "rough_plastic",
+                      "specular_reflectance": 1.0,
+                      "two_sided": false
+                    },
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": null,
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              },
+              "kind": "inherit",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": null,
+                "mark": null,
+                "name": null,
+                "transforms": [
+                  {
+                    "condition": {
+                      "kind": "expression",
+                      "source": "value in (1, 2)"
+                    },
+                    "data": {
+                      "name": "label",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "kind": "filter"
+                  }
+                ]
+              }
+            },
+            {
+              "child": {
+                "child": {
+                  "child": {
+                    "kind": "layer",
+                    "spec": {
+                      "annotations": [],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": null,
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": "Deformed region",
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": {
+                      "back_side": null,
+                      "kind": "conductor",
+                      "material": "Hg",
+                      "two_sided": false
+                    },
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": null,
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              },
+              "kind": "inherit",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": null,
+                "mark": null,
+                "name": null,
+                "transforms": [
+                  {
+                    "condition": {
+                      "kind": "expression",
+                      "source": "value == 0"
+                    },
+                    "data": {
+                      "name": "label",
+                      "scales": [],
+                      "unit": null
+                    },
+                    "kind": "filter"
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "overlay",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": {
+            "kind": "mesh_file",
+            "path": "data/cylinder_4.msh",
+            "roi_box": null
+          },
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      }
+    ],
+    "gap": 0.05,
+    "kind": "layout",
+    "normalize": false,
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": null,
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        -3.0,
+        0.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "environment": {
+      "enabled": true,
+      "path": null,
+      "rotation": 180.0,
+      "scale": 1.0,
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "visible": false
+    },
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

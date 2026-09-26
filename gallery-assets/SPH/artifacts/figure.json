@@ -1,0 +1,336 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "children": [
+      {
+        "child": {
+          "child": {
+            "child": {
+              "child": {
+                "child": {
+                  "child": {
+                    "kind": "layer",
+                    "spec": {
+                      "annotations": [],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": null,
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": "Fluid 010",
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": null,
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": {
+                    "id": "particles",
+                    "kind": "external",
+                    "roi_box": [
+                      [
+                        -1.223,
+                        -0.5,
+                        -1.226
+                      ],
+                      [
+                        1.224,
+                        4.0,
+                        1.222
+                      ]
+                    ]
+                  },
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              },
+              "kind": "inherit",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": null,
+                "mark": "point",
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": {
+                  "data": 0.01,
+                  "kind": "size",
+                  "space": "world"
+                },
+                "vector_field": null
+              },
+              "data": null,
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": {
+                "anisotropic": 0.0,
+                "back_side": null,
+                "color": {
+                  "categories": false,
+                  "colormap": "viridis",
+                  "data": {
+                    "name": "speed",
+                    "scales": [],
+                    "unit": null
+                  },
+                  "domain": [
+                    0.0,
+                    10.0
+                  ],
+                  "kind": "scalar_field",
+                  "legend": false,
+                  "range": null,
+                  "reverse": false
+                },
+                "eta": 1.5,
+                "flatness": 0.0,
+                "kind": "principled",
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "sheen": 0.0,
+                "sheen_tint": 0.0,
+                "spec_tint": 0.0,
+                "spec_trans": 0.0,
+                "two_sided": false
+              },
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": [
+            {
+              "data": {
+                "name": "velocity",
+                "scales": [],
+                "unit": null
+              },
+              "kind": "norm",
+              "norm_attr_name": "speed",
+              "order": 2
+            }
+          ]
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "kind": "layer",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": {
+                "kind": "mesh_file",
+                "path": "data/emitter.msh",
+                "roi_box": null
+              },
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": "Emitter",
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": {
+              "alpha": 0.1,
+              "back_side": null,
+              "diffuse_reflectance": "Ivory",
+              "distribution": "beckmann",
+              "kind": "rough_plastic",
+              "specular_reflectance": 1.0,
+              "two_sided": false
+            },
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      }
+    ],
+    "kind": "overlay",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": null,
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "environment": null,
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

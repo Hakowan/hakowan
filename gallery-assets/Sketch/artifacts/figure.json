@@ -1,0 +1,181 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "child": {
+      "child": {
+        "child": {
+          "child": {
+            "kind": "layer",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": {
+                "id": "sketch",
+                "kind": "external",
+                "roi_box": null
+              },
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": "curve",
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": {
+              "data": 0.0005,
+              "kind": "size"
+            },
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": null,
+          "transforms": []
+        }
+      },
+      "kind": "inherit",
+      "spec": {
+        "annotations": [],
+        "channels": {
+          "bump_map": null,
+          "covariance": null,
+          "material": null,
+          "normal": null,
+          "normal_map": null,
+          "position": null,
+          "shape": null,
+          "size": null,
+          "vector_field": null
+        },
+        "data": null,
+        "mark": null,
+        "name": null,
+        "transforms": [
+          {
+            "kind": "affine",
+            "matrix": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "kind": "inherit",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": {
+          "back_side": null,
+          "diffuse_reflectance": "#0C0609",
+          "kind": "plastic",
+          "specular_reflectance": 1.0,
+          "two_sided": false
+        },
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        1.5,
+        -1.5,
+        1.5
+      ],
+      "far": 10000.0,
+      "fov": 28.8415,
+      "fov_axis": "smaller",
+      "kind": "perspective",
+      "near": 0.01,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "environment": {
+      "enabled": true,
+      "path": null,
+      "rotation": 180.0,
+      "scale": 1.0,
+      "up": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "visible": false
+    },
+    "lights": null,
+    "output": null
+  },
+  "version": "1.1"
+}

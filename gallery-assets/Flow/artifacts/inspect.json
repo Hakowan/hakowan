@@ -1,0 +1,132 @@
+{
+  "final-surface": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 299988,
+        "finite_count": 50000,
+        "indexed": true,
+        "maximum": 0.22055658520979685,
+        "minimum": -0.4006508590602077,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -0.4006508590602077,
+          "0.25": -0.009781174450308046,
+          "0.5": 0.0017250690446223302,
+          "0.75": 0.016918224827873557,
+          "1": 0.22055658520979685
+        },
+        "usage": "scalar",
+        "value_count": 50000
+      },
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 299988,
+        "finite_count": 50000,
+        "indexed": true,
+        "maximum": 2.649592193317391,
+        "minimum": 5.275399393945034e-06,
+        "name": "dist",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 5.275399393945034e-06,
+          "0.25": 0.09985136861055388,
+          "0.5": 0.21200485318038892,
+          "0.75": 0.39182750437257213,
+          "1": 2.649592193317391
+        },
+        "usage": "scalar",
+        "value_count": 50000
+      }
+    ],
+    "bounds": [
+      [
+        0.7498578661339698,
+        -1.6212238607747926,
+        1.270005081054664
+      ],
+      [
+        27.876234482946135,
+        19.031072585597443,
+        54.08589357808466
+      ]
+    ],
+    "corner_count": 299988,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 99996,
+    "source": "data/flow_09.ply",
+    "vertex_count": 50000
+  },
+  "initial-surface": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 299988,
+        "finite_count": 50000,
+        "indexed": true,
+        "maximum": 6.846246164826612,
+        "minimum": -2.916146905700782,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -2.916146905700782,
+          "0.25": -0.027415906679111465,
+          "0.5": -0.00042520803874798556,
+          "0.75": 0.019261204720450634,
+          "1": 6.846246164826612
+        },
+        "usage": "scalar",
+        "value_count": 50000
+      },
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 299988,
+        "finite_count": 50000,
+        "indexed": true,
+        "maximum": 0.29546681341565817,
+        "minimum": 3.059828875573178e-10,
+        "name": "dist",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 3.059828875573178e-10,
+          "0.25": 0.010407628593872384,
+          "0.5": 0.02401635371959094,
+          "0.75": 0.05366833496054104,
+          "1": 0.29546681341565817
+        },
+        "usage": "scalar",
+        "value_count": 50000
+      }
+    ],
+    "bounds": [
+      [
+        0.12697327383101512,
+        -2.104503932698622,
+        1.269999773943808
+      ],
+      [
+        28.4650330430453,
+        19.634428223423043,
+        54.59593935926403
+      ]
+    ],
+    "corner_count": 299988,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 99996,
+    "source": "data/flow_00.ply",
+    "vertex_count": 50000
+  }
+}
