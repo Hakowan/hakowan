@@ -146,6 +146,180 @@ class TestImageTexture:
         assert "UVMap" in mesh.uv_layers.keys()
 
 
+class TestFur:
+    def _fur_view(self, n=8, segments=5):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 0.0, 0.0])
+        mesh.add_vertex([1.0, 1.0, 0.0])
+        mesh.add_vertex([0.0, 1.0, 0.0])
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        mesh.create_attribute(
+            "flow",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(
+                [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+            ),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .transform(
+                hkw.transform.Fur(vec_field="flow", n=n, segments=segments, seed=1)
+            )
+            .mark("curve")
+            .material("Hair")
+        )
+        return list(hkw.compiler.compile(layer))[0]
+
+    def test_fur_creates_native_hair_curves(self):
+        n, segments = 8, 5
+        view = self._fur_view(n=n, segments=segments)
+        backend = BlenderBackend()
+        backend._clear_scene()
+        backend._create_view_object(view, 0)
+
+        # Fur is rendered as a native hair-Curves datablock (Cycles hair
+        # primitives), not a beveled mesh-tube CURVE.
+        assert "fur_000" in bpy.data.hair_curves
+        curves = bpy.data.hair_curves["fur_000"]
+        assert len(curves.curves) == n
+        assert len(curves.points) == n * (segments + 1)
+        assert curves.attributes.get("radius") is not None
+
+        # The Hair BSDF material is assigned to the object.
+        obj = bpy.data.objects["fur_000"]
+        assert len(obj.data.materials) == 1
+        mat_nodes = obj.data.materials[0].node_tree.nodes
+        assert any(node.type == "BSDF_HAIR_PRINCIPLED" for node in mat_nodes)
+
+    def test_fur_children_geometry_nodes_expand_strands(self):
+        n, segments, children = 6, 5, 8
+        mesh = lagrange.SurfaceMesh()
+        for v in ([0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]):
+            mesh.add_vertex([float(c) for c in v])
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        mesh.create_attribute(
+            "flow",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(
+                [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+            ),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .transform(
+                hkw.transform.Fur(
+                    vec_field="flow",
+                    n=n,
+                    segments=segments,
+                    children=children,
+                    clump=0.6,
+                    seed=1,
+                )
+            )
+            .mark("curve")
+            .material("Hair")
+        )
+        view = list(hkw.compiler.compile(layer))[0]
+        backend = BlenderBackend()
+        backend._clear_scene()
+        backend._create_view_object(view, 0)
+
+        obj = bpy.data.objects["fur_000"]
+        # A Geometry Nodes modifier is attached ...
+        assert any(m.type == "NODES" for m in obj.modifiers)
+        # ... the base data still holds only the guide strands ...
+        assert len(bpy.data.hair_curves["fur_000"].curves) == n
+        # ... but the evaluated geometry expands to n * children hairs.
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        evaluated = obj.evaluated_get(depsgraph)
+        assert len(evaluated.data.curves) == n * children
+
+    def _fur_hair_nodes(self, **mat_kwargs):
+        mesh = lagrange.SurfaceMesh()
+        for v in ([0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]):
+            mesh.add_vertex([float(c) for c in v])
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_triangle(0, 2, 3)
+        mesh.create_attribute(
+            "flow",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(
+                [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64
+            ),
+        )
+        mesh.create_attribute(
+            "s",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0.2, 0.8], dtype=np.float64),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .transform(hkw.transform.Fur(vec_field="flow", n=6, seed=1))
+            .mark("curve")
+            .material("Hair", **mat_kwargs)
+        )
+        view = list(hkw.compiler.compile(layer))[0]
+        backend = BlenderBackend()
+        backend._clear_scene()
+        backend._create_view_object(view, 0)
+        return bpy.data.objects["fur_000"].data.materials[0].node_tree.nodes
+
+    def _hair_bsdf(self, nodes):
+        return next(n for n in nodes if n.type == "BSDF_HAIR_PRINCIPLED")
+
+    def test_fur_hair_constant_rgb_color(self):
+        # A constant RGB color uses the COLOR parametrization with the (linear)
+        # color; blue channel dominates for a blue input.
+        bsdf = self._hair_bsdf(self._fur_hair_nodes(color=[0.15, 0.35, 0.95]))
+        assert bsdf.parametrization == "COLOR"
+        rgba = list(bsdf.inputs["Color"].default_value)
+        assert rgba[2] > rgba[0]  # blue > red
+
+    def test_fur_hair_data_color_falls_back_to_melanin(self):
+        # A data-driven color isn't supported by the hair renderer -> melanin.
+        bsdf = self._hair_bsdf(
+            self._fur_hair_nodes(
+                color=hkw.texture.ScalarField(data="s", colormap="viridis")
+            )
+        )
+        assert bsdf.parametrization == "MELANIN"
+
+    def test_fur_hair_root_tip_gradient(self):
+        # A root/tip gradient builds a Hair Info -> ColorRamp -> Color graph.
+        nodes = self._fur_hair_nodes(
+            root_color=[0.05, 0.02, 0.01], tip_color=[0.9, 0.65, 0.3]
+        )
+        bsdf = self._hair_bsdf(nodes)
+        assert bsdf.parametrization == "COLOR"
+        assert bsdf.inputs["Color"].is_linked
+        assert any(n.type == "HAIR_INFO" for n in nodes)
+        ramp = next(n for n in nodes if n.type == "VALTORGB")
+        # Ramp endpoints hold the (linear) root and tip colors: dark -> light.
+        root_v = sum(ramp.color_ramp.elements[0].color[:3])
+        tip_v = sum(ramp.color_ramp.elements[1].color[:3])
+        assert tip_v > root_v
+
+    def test_fur_hair_color_variation_adds_huesaturation(self):
+        # Per-strand variation on a constant color inserts a Hue/Sat/Value node
+        # driven by the Hair Info random output.
+        nodes = self._fur_hair_nodes(color=[0.4, 0.25, 0.13], color_variation=0.5)
+        assert any(n.type == "HUE_SAT" for n in nodes)
+        assert any(n.type == "HAIR_INFO" for n in nodes)
+
+    def test_fur_hair_melanin_variation_sets_random_color(self):
+        # Variation with the melanin parametrization uses the BSDF Random Color.
+        bsdf = self._hair_bsdf(self._fur_hair_nodes(color_variation=0.3))
+        assert bsdf.parametrization == "MELANIN"
+        assert bsdf.inputs["Random Color"].default_value == pytest.approx(0.3)
+
+
 class TestSmoke:
     @pytest.mark.skipif(
         os.environ.get("CI") == "true",
@@ -167,6 +341,39 @@ class TestSmoke:
             blender_engine="BLENDER_EEVEE",
         )
         assert out.exists() and out.stat().st_size > 0
+
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true",
+        reason="headless Blender render not supported in CI",
+    )
+    def test_blender_composites_semantic_overlays(self, triangle, tmp_path):
+        config = hkw.config()
+        config.film.width = 64
+        config.film.height = 160
+        config.sampler.sample_count = 1
+        layer = (
+            hkw.layer(triangle)
+            .material(
+                "Diffuse",
+                hkw.texture.ScalarField(
+                    hkw.attribute("vertex_data", unit="m"),
+                    legend=hkw.Legend(title="Distance", width=120),
+                ),
+            )
+            .annotate("Blender", background="black")
+        )
+        output = tmp_path / "overlay.png"
+
+        hkw.render(
+            layer,
+            config,
+            filename=output,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+
+        with PILImage.open(output) as image:
+            assert image.size == (184, 160)
 
     def _smoke_layer(self, triangle):
         config = hkw.config()
@@ -359,3 +566,24 @@ class TestBackSide:
         # but the mix structure is still built.
         assert any(n.type == "MIX_SHADER" for n in nodes)
         assert sum(1 for n in nodes if n.type == "BSDF_PRINCIPLED") == 2
+
+
+def test_blender_directional_light_and_environment_visibility():
+    from hakowan.setup.emitter import Directional
+
+    backend = BlenderBackend()
+    backend._clear_scene()
+    config = hkw.config()
+    config.emitters = [Directional(direction=[0, 0, -1], color="red", intensity=2.5)]
+
+    backend._setup_lighting(config)
+    lights = [obj.data for obj in bpy.context.scene.objects if obj.type == "LIGHT"]
+    assert len(lights) == 1
+    assert lights[0].type == "SUN"
+    assert lights[0].energy == pytest.approx(2.5)
+    assert tuple(lights[0].color) == pytest.approx((1.0, 0.0, 0.0))
+
+    backend._setup_render_settings(
+        config, engine="BLENDER_EEVEE", environment_visible=True
+    )
+    assert not bpy.context.scene.render.film_transparent

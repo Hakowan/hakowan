@@ -13,9 +13,9 @@ if sys.platform == "win32" and os.environ.get("CI") == "true":
         allow_module_level=True,
     )
 
-pytest.importorskip("mitsuba", reason="mitsuba not installed")
+mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
 
-from hakowan.backends.mitsuba.render import generate_scene_config
+from hakowan.backends.mitsuba.render import generate_base_config, generate_scene_config
 
 
 class TestRender:
@@ -48,6 +48,204 @@ class TestRender:
         assert tuple(result.image.shape[:2]) == (16, 16)
         assert result.path == out
         assert out.exists() and out.stat().st_size > 0
+
+    def test_mitsuba_derives_requested_passes_without_mutating_config(
+        self, triangle, tmp_path
+    ):
+        config = hkw.config()
+        config.film.width = 16
+        config.film.height = 16
+        config.render_passes = {"albedo"}
+        integrator = config.integrator
+        output = tmp_path / "passes.png"
+
+        result = hkw.render(
+            hkw.layer(triangle), config, filename=output, backend="mitsuba"
+        )
+
+        albedo = tmp_path / "passes_albedo.png"
+        assert config.integrator is integrator
+        assert albedo.is_file()
+        assert result.outputs["albedo"] == albedo
+
+    def test_mitsuba_aov_names_include_beauty_prefix(self, triangle):
+        from hakowan.backends.mitsuba.render import ensure_variant
+        from hakowan.setup.integrator import AOV, Path
+
+        ensure_variant()
+        config = hkw.config()
+        config.integrator = AOV(aovs=["position:position"], integrator=Path())
+        config.albedo = True
+        scene_config = generate_base_config(config)
+        scene_config |= generate_scene_config(hkw.compile(hkw.layer(triangle)))
+
+        scene = mi.load_dict(scene_config)
+
+        assert list(scene.integrator().aov_names()) == [
+            "integrator.R",
+            "integrator.G",
+            "integrator.B",
+            "integrator.A",
+            "position.X",
+            "position.Y",
+            "position.Z",
+            "albedo.R",
+            "albedo.G",
+            "albedo.B",
+        ]
+
+    def test_mitsuba_custom_vector_aov_does_not_shift_albedo(self, triangle, tmp_path):
+        from PIL import Image
+        from hakowan.setup.integrator import AOV, Path
+
+        config = hkw.config()
+        config.film.width = 32
+        config.film.height = 32
+        config.integrator = AOV(aovs=["position:position"], integrator=Path())
+        config.albedo = True
+        output = tmp_path / "custom-aov.png"
+
+        hkw.render(
+            hkw.layer(triangle).material("Diffuse", "red"),
+            config,
+            filename=output,
+            backend="mitsuba",
+        )
+
+        pixels = np.asarray(
+            Image.open(tmp_path / "custom-aov_albedo.png").convert("RGBA")
+        )
+        opaque = pixels[..., 3] > 250
+        assert np.all(pixels[opaque, 0] >= 253)
+        assert np.all(pixels[opaque, 1:3] == 0)
+
+    def test_bare_aov_beauty_is_rgba_not_auxiliary_channels(self, triangle, tmp_path):
+        """AOV.integrator defaults to None and must not be read as color.
+
+        Mitsuba omits integrator.R/G/B/A unless a nested integrator is set.
+        Treating channels 0-3 as RGBA then returns position data, including
+        negative components.
+        """
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import _beauty_rgba_indexes
+        from hakowan.setup.integrator import AOV
+
+        assert _beauty_rgba_indexes(
+            [
+                "integrator.R",
+                "integrator.G",
+                "integrator.B",
+                "integrator.A",
+                "position.X",
+                "position.Y",
+                "position.Z",
+            ],
+            7,
+        ) == (0, 1, 2, 3)
+        assert _beauty_rgba_indexes([], 4) == (0, 1, 2, 3)
+        with pytest.raises(RuntimeError, match="no beauty"):
+            _beauty_rgba_indexes(["position.X", "position.Y", "position.Z"], 3)
+
+        config = hkw.config()
+        config.film.width = 32
+        config.film.height = 32
+        config.integrator = AOV(aovs=["position:position"])
+        config.albedo = True
+        output = tmp_path / "bare-aov.png"
+        scene_config = generate_base_config(config)
+        scene_config |= generate_scene_config(hkw.compile(hkw.layer(triangle)))
+        names = list(mi.load_dict(scene_config).integrator().aov_names())
+        assert names[:4] == [
+            "integrator.R",
+            "integrator.G",
+            "integrator.B",
+            "integrator.A",
+        ]
+
+        result = hkw.render(
+            hkw.layer(triangle).material("Diffuse", "red"),
+            config,
+            filename=output,
+            backend="mitsuba",
+        )
+        beauty = np.asarray(result.image)
+        assert beauty.shape == (32, 32, 4)
+        assert float(np.min(beauty)) >= -1e-5
+        opaque = beauty[..., 3] > 0.5
+        assert np.any(opaque)
+        assert float(beauty[opaque, 0].min()) > float(beauty[opaque, 1:3].max())
+
+        pixels = np.asarray(
+            Image.open(tmp_path / "bare-aov_albedo.png").convert("RGBA")
+        )
+        albedo_opaque = pixels[..., 3] > 250
+        assert np.all(pixels[albedo_opaque, 0] >= 253)
+        assert np.all(pixels[albedo_opaque, 1:3] == 0)
+
+    def test_mitsuba_composites_semantic_overlays(self, triangle, tmp_path):
+        from PIL import Image
+
+        layer = (
+            hkw.layer(triangle)
+            .material(
+                "Diffuse",
+                hkw.texture.ScalarField(
+                    hkw.attribute("vertex_data", unit="m"),
+                    legend=hkw.Legend(title="Distance", width=120),
+                ),
+            )
+            .annotate("Mitsuba", background="black")
+        )
+        figure = hkw.figure(layer).output(width=200, height=160)
+        output = tmp_path / "overlay.png"
+
+        hkw.render(figure, filename=output, backend="mitsuba")
+
+        with Image.open(output) as image:
+            assert image.size == (200, 160)
+            assert image.mode == "RGBA"
+            assert np.asarray(image)[:, :80, 3].min() == 0
+
+    def test_mitsuba_point_scalar_colors_are_decoded_once(self, triangle):
+        from hakowan.common.color import srgb_to_linear
+
+        layer = (
+            hkw.layer(triangle)
+            .mark("Point")
+            .material(
+                "Principled",
+                hkw.texture.ScalarField("vertex_data", colormap=["#808080", "#808080"]),
+            )
+        )
+
+        scene_config = generate_scene_config(hkw.compile(layer))
+        expected = srgb_to_linear(128 / 255)
+        for shape in scene_config.values():
+            bsdf = next(
+                value for key, value in shape.items() if key.startswith("bsdf_")
+            )
+            np.testing.assert_allclose(
+                bsdf["base_color"]["value"], [expected] * 3, rtol=0, atol=1e-7
+            )
+
+    def test_mitsuba_checkerboard_size_is_cell_count(self, triangle):
+        import mitsuba as mi
+        from hakowan.backends.mitsuba.texture import generate_checker_board_config
+
+        checker = hkw.texture.Checkerboard(
+            texture1=hkw.texture.Uniform(color="white"),
+            texture2=hkw.texture.Uniform(color="black"),
+            size=4,
+        )
+        texture = mi.load_dict(generate_checker_board_config(triangle, checker, True))
+
+        samples = []
+        for u in (0.125, 0.375, 0.625, 0.875):
+            interaction = mi.SurfaceInteraction3f()
+            interaction.uv = mi.Point2f(u, 0.125)
+            samples.append(float(texture.eval(interaction)[0]))
+
+        np.testing.assert_allclose(samples, [1.0, 0.0, 1.0, 0.0])
 
     @pytest.mark.parametrize("ext", [".png", ".webp", ".jpg", ".tif", ".bmp"])
     def test_mitsuba_writes_pillow_formats(self, triangle, tmp_path, ext):
@@ -148,3 +346,130 @@ class TestBackSide:
         view = hkw.compiler.compile(layer)[0]
         config = generate_bsdf_config(view, is_primitive=True)
         assert config["type"] == "diffuse"
+
+    def test_hair_melanin_config(self):
+        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(Hair())
+        assert cfg["type"] == "hair"
+        assert "eumelanin" in cfg and "pheomelanin" in cfg
+        assert "sigma_a" not in cfg
+
+    def test_hair_constant_color_config(self):
+        # A constant RGB color inverts to a hair absorption coefficient; a blue
+        # target absorbs red most (largest sigma_a) and blue least.
+        from hakowan.backends.mitsuba.bsdf import (
+            _hair_sigma_a_from_colors,
+            generate_hair_bsdf_config,
+        )
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(Hair(color=[0.15, 0.35, 0.95]))
+        assert "sigma_a" in cfg and "eumelanin" not in cfg
+        sigma = list(cfg["sigma_a"]["value"])
+        assert sigma[0] > sigma[2]  # red absorbed more than blue
+        assert sigma == pytest.approx(
+            _hair_sigma_a_from_colors([[0.15, 0.35, 0.95]], 0.3)
+        )
+
+    def test_hair_gradient_collapses_to_average_color(self):
+        # A root/tip gradient can't be per-strand in Mitsuba: it collapses to a
+        # single averaged absorption (still overriding melanin).
+        from hakowan.backends.mitsuba.bsdf import generate_hair_bsdf_config
+        from hakowan.grammar.channel.material import Hair
+
+        cfg = generate_hair_bsdf_config(
+            Hair(root_color=[0.02, 0.01, 0.005], tip_color=[0.9, 0.65, 0.3])
+        )
+        assert "sigma_a" in cfg and "eumelanin" not in cfg
+
+    def test_environment_visibility_reaches_nested_mitsuba_integrator(self):
+        config = hkw.config()
+        config.depth = True
+        config.environment_visible = True
+
+        integrator = generate_base_config(config)["integrator"]
+
+        assert integrator["hide_emitters"] is False
+        assert integrator["integrator"]["hide_emitters"] is False
+
+
+class TestPointOrientation:
+    """Point-cloud discs oriented by a normal field.
+
+    Regression: PCD-imported normals are frequently *not* unit length (observed
+    magnitudes up to ~1400). ``rotation`` used to assume unit inputs, so a
+    non-unit normal became a huge scale/shear instead of a rotation, producing
+    giant degenerate disc triangles that made Mitsuba's BVH pathologically slow
+    (an effective hang). The orientation transform must stay a bounded rotation.
+    """
+
+    @staticmethod
+    def _matrix(transform) -> np.ndarray:
+        return np.array(transform.matrix).reshape(4, 4)
+
+    def test_rotation_normalizes_non_unit_inputs(self):
+        from hakowan.backends.mitsuba.utils import rotation
+
+        z = np.array([0.0, 0.0, 1.0])
+        rng = np.random.default_rng(0)
+        for _ in range(64):
+            direction = rng.standard_normal(3)
+            direction /= np.linalg.norm(direction)
+            scaled = direction * rng.uniform(0.01, 1400.0)
+            R = rotation(z, scaled)[:3, :3]
+            # A genuine rotation: orthonormal, det 1, and maps +Z onto the
+            # *normalized* target direction regardless of the input magnitude.
+            np.testing.assert_allclose(R.T @ R, np.eye(3), atol=1e-6)
+            assert abs(np.linalg.det(R) - 1.0) < 1e-6
+            np.testing.assert_allclose(R @ z, direction, atol=1e-6)
+
+    def test_rotation_flips_antiparallel(self):
+        from hakowan.backends.mitsuba.utils import rotation
+
+        z = np.array([0.0, 0.0, 1.0])
+        R = rotation(z, np.array([0.0, 0.0, -7.0]))[:3, :3]
+        np.testing.assert_allclose(R @ z, [0.0, 0.0, -1.0], atol=1e-6)
+        assert abs(np.linalg.det(R) - 1.0) < 1e-6
+
+    def test_disc_transform_bounded_for_non_unit_normals(self):
+        # Build a point cloud whose normals have wildly varying magnitude and
+        # confirm every generated disc carries a bounded (radius-scaled) linear
+        # transform — never the ~magnitude-scaled blowup that caused the hang.
+        radius = 0.5
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float64))
+        normals = np.array(
+            [[0.0, 0.0, 1000.0], [300.0, 400.0, 0.0], [0.0, 0.0, -1400.0]],
+            dtype=np.float64,
+        )
+        mesh.create_attribute(
+            "normal",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Normal,
+            initial_values=normals,
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Point)
+            .channel(
+                size=radius,
+                shape=hkw.channel.Shape(base_shape="disk", orientation="normal"),
+            )
+        )
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+        discs = [s for s in scene_config.values() if s.get("type") == "ply"]
+        assert len(discs) == mesh.num_vertices
+        for shape in discs:
+            linear = self._matrix(shape["to_world"])[:3, :3]
+            column_scales = np.linalg.norm(linear, axis=0)
+            # A correct disc transform is rotation × uniform scale: all three
+            # column norms are equal and, once divided out, the remainder is
+            # orthonormal. The pre-fix bug fed the un-normalized normal straight
+            # into the Rodrigues terms, yielding an anisotropic ~magnitude-scaled
+            # shear (hundreds of times larger) that fails both checks.
+            scale = column_scales.mean()
+            np.testing.assert_allclose(column_scales, scale, rtol=1e-4)
+            R = linear / scale
+            np.testing.assert_allclose(R.T @ R, np.eye(3), atol=1e-4)

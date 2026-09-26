@@ -58,6 +58,140 @@ Lastly, it is also possible to directly specify the components as arguments to `
 base = hkw.layer("shape.obj", mark=hkw.mark.Point)
 ```
 
+## Task-oriented helpers
+
+Common visualization intents have concise methods. Each method expands into the
+same marks, channels, textures, transforms, and composition nodes described by
+the core grammar, so serialization and backend behavior remain unchanged.
+
+### Color by a scalar attribute
+
+The default workflow needs only the data and attribute name. Hakowan infers the
+domain and supplies `viridis` plus an automatic legend:
+
+```py
+colored = hkw.layer("mesh.ply").color_by("temperature")
+```
+
+Specify only the options that differ from those defaults:
+
+```py
+colored = base.color_by(
+    "temperature",
+    domain=(0, 100),
+    legend=hkw.Legend(title="Temperature", units="°C"),
+)
+```
+
+`color_by()` creates a diffuse material whose reflectance is a `ScalarField`.
+It also supports categorical fields, reversed or custom colormaps, an explicit
+output range, custom legends, and two-sided rendering. Use `hkw.inspect()` when
+the scalar attribute name or element domain is not known.
+
+### Overlay mesh edges
+
+```py
+# Default: diameter is 0.5% of the scene or ROI-box diagonal.
+with_edges = colored.show_edges(color="black")
+
+# Half-pixel diameter at the camera target plane.
+pixel_edges = colored.show_edges(width=0.5, width_space="screen")
+
+# Legacy object-space radius; visible diameter is twice this value.
+world_edges = colored.show_edges(width=0.005, width_space="world")
+```
+
+`show_edges()` returns the original visualization overlaid with a curve-mark
+view of the same data. Its `width` always describes visible diameter in
+`"scene"` and `"screen"` spaces, but retains radius semantics in legacy
+`"world"` space.
+
+The CLI uses screen space: `--wire-thickness 0.5` means a 0.5-pixel diameter.
+
+
+### Add vector glyphs
+
+```py
+with_velocity = colored.glyph_vectors(
+    "velocity",
+    scale=0.2,
+    size=0.01,
+    color="white",
+    normalize=False,
+    end_type="arrow",
+)
+```
+
+Vector `scale` controls glyph length and `size` controls thickness. By default,
+the glyph layer is overlaid on the input; pass `overlay=False` to return only
+the vector visualization.
+
+### Slice with a plane
+
+```py
+upper = base.slice(normal=(0, 0, 1), offset=0.25)
+```
+
+`offset` is signed distance along the normalized plane normal. Use `point=`
+instead when the plane must pass through a specific point.
+
+### Isolate a connected component
+
+```py
+component = base.isolate_component(3)
+```
+
+By default, Hakowan computes connected-component IDs in a temporary
+`component` attribute and keeps the requested facet group. To use existing
+labels instead:
+
+```py
+region = base.isolate_component(8, attribute="region", compute=False)
+```
+
+The generated filter uses the restricted expression system and remains fully
+serializable.
+
+### Compare two layers
+
+```py
+comparison = before.compare(
+    after,
+    axis="x",
+    gap=0.1,
+    normalize=True,
+    labels=("Before", "After"),
+)
+```
+
+`compare()` is a convenience over `juxtapose()`. Labels name layers in the
+interactive WebGL controls; static Blender and Mitsuba images do not draw them.
+
+### Arrange layers in a grid
+
+`hkw.grid()` wraps a flat, row-major sequence without manually nesting
+horizontal and vertical juxtaposition nodes:
+
+```py
+matrix = hkw.grid(
+    [distance_0, distance_1, distance_2, surface_0, surface_1, surface_2],
+    columns=3,
+    column_axis="x",
+    row_axis="z",
+    row_gap=0.1,
+    column_gap=0.05,
+    normalize=True,
+)
+```
+
+Specify exactly one of `columns` or `rows`. The first input row appears at the
+top, and a ragged final row is centered. `gap` sets both directions by default;
+`row_gap` and `column_gap` override either direction independently. Gap values
+may be negative to move adjacent views closer together or make them overlap.
+`normalize=True` gives every input layer a common scale before packing. The
+result is an ordinary composed `Layer`, so it serializes and renders through
+the same paths as nested `juxtapose()` calls.
+
 ## Layer composition
 
 In the following example, we will demonstrate the idea of _layer composition_.
@@ -110,6 +244,9 @@ comparison = base.juxtapose(
 )
 ```
 
+Gap values may be negative when the default bounding-sphere separation leaves
+more space than the composition needs.
+
 Each operand of `|` becomes one _cell_. Cells may themselves be composite layers, so `+`, `|`, and
 `&` combine freely:
 
@@ -131,4 +268,20 @@ matrix = (a | b) & (c | d)  # a 2x2 grid
 
 Cells are spaced by their bounding spheres, so they never overlap — even as you rotate each cell
 in the interactive viewer.
+
+## Annotations
+
+Attach deterministic screen-space labels with `annotate()`:
+
+```py
+layer = hkw.layer("shape.obj").annotate(
+    "Simulation A",
+    position=(0.5, 0.05),
+    anchor="center",
+    background="black",
+)
+```
+
+Annotations follow layer inheritance and are deduplicated when composite views
+are compiled. See [Legends and annotations](overlay.md).
 

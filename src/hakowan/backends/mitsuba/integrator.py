@@ -26,10 +26,13 @@ def generate_integrator_config(integrator: Integrator) -> dict:
         case AOV():
             mi_config["type"] = "aov"
             mi_config["aovs"] = ",".join(integrator.aovs)
-            if integrator.integrator is not None:
-                mi_config["integrator"] = generate_integrator_config(
-                    integrator.integrator
-                )
+            # Mitsuba omits integrator.R/G/B/A unless a nested integrator is
+            # set. None means path-traced beauty, so render() still returns RGBA
+            # instead of the first auxiliary channels.
+            nested = integrator.integrator
+            if nested is None:
+                nested = Path(hide_emitters=integrator.hide_emitters)
+            mi_config["integrator"] = generate_integrator_config(nested)
         case VolPath():
             mi_config["type"] = "volpath"
             mi_config["max_depth"] = integrator.max_depth

@@ -45,6 +45,44 @@
   #clip-controls button:hover { background: rgba(255,255,255,0.18); }
   #clip-controls button.active { background: rgba(255,255,255,0.28); }
   #clip-controls input[type=range] { width: 150px; accent-color: #ccc; }
+  #layers {
+    position: absolute; bottom: 8px; left: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: #eee;
+    background: rgba(0,0,0,0.45); padding: 6px 8px; border-radius: 4px;
+    display: none; flex-direction: column; gap: 3px;
+    max-height: 40vh; overflow-y: auto;
+  }
+  #layers.visible { display: flex; }
+  #layers .title {
+    font-size: 11px; color: #aaa; margin-bottom: 2px; user-select: none;
+  }
+  #layers label {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    white-space: nowrap;
+  }
+  #layers input[type=checkbox] { accent-color: #ccc; cursor: pointer; }
+  .semantic-legends {
+    position: absolute; top: 56px; display: flex; flex-direction: column;
+    gap: 8px; max-height: calc(100vh - 72px); overflow-y: auto;
+    font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    pointer-events: none;
+  }
+  #semantic-legends-left { left: 8px; }
+  #semantic-legends-right { right: 8px; }
+  .semantic-legend {
+    min-width: 130px; padding: 8px; border-radius: 4px;
+    color: #eee; background: rgba(0,0,0,0.58);
+  }
+  .semantic-legend .heading { font-weight: 600; margin-bottom: 5px; }
+  .semantic-legend .scale { color: #bbb; font-size: 10px; margin-bottom: 4px; }
+  .semantic-legend .continuous { display: flex; gap: 6px; height: 150px; }
+  .semantic-legend .bar { width: 18px; border: 1px solid rgba(255,255,255,.6); }
+  .semantic-legend .ticks { display: flex; flex-direction: column; justify-content: space-between; }
+  .semantic-legend .category { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .semantic-legend .swatch { width: 14px; height: 14px; border: 1px solid rgba(255,255,255,.6); }
+  #semantic-annotations { position: absolute; inset: 0; pointer-events: none; }
+  .semantic-annotation { position: absolute; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -52,11 +90,15 @@
 <div id="status">loading…</div>
 <div id="passes"></div>
 <div id="clip-controls"></div>
+<div id="layers"></div>
+<div id="semantic-legends-left" class="semantic-legends"></div>
+<div id="semantic-legends-right" class="semantic-legends"></div>
+<div id="semantic-annotations"></div>
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@{{THREE_VERSION}}/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@{{THREE_VERSION}}/examples/jsm/"
+    "three": {{THREE_MODULE_URL}},
+    "three/addons/": {{THREE_ADDONS_URL}}
   }
 }
 </script>
@@ -65,14 +107,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const GLB_DATA_URI = "{{GLB_DATA_URI}}";
+const GLB_DATA_URI = {{GLB_DATA_URI}};
 const INITIAL_EYE    = {{INITIAL_EYE}};
 const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
-let bgMode = "{{BG_MODE}}";
+let bgMode = {{BG_MODE}};
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
+const INITIAL_CAMERA_MODE = {{INITIAL_CAMERA_MODE}};
+const INITIAL_ORTHO_SCALE = {{INITIAL_ORTHO_SCALE}};
+// One { index, label } entry per rendered layer (view), in view order. Drives
+// the per-layer visibility checkboxes; empty for single-layer scenes.
+const LAYERS = {{LAYERS_JSON}};
+const LEGENDS = {{LEGENDS_JSON}};
+const ANNOTATIONS = {{ANNOTATIONS_JSON}};
+// index -> array of top-level scene nodes tagged with that layer (populated on load).
+let layerNodeMap = new Map();
 
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
@@ -117,6 +168,10 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+// Apply the backend-neutral environment orientation encoded by envmap_descriptor.
+let envRotationSupported = false; // three.js >= r163 exposes scene.environmentRotation
+const _envMat = new THREE.Matrix4();
+const _envEuler = new THREE.Euler();
 
 function setBackgroundMode(mode) {
   if (!BG_PRESETS[mode]) return;
@@ -132,15 +187,88 @@ function setBackgroundMode(mode) {
   if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
 }
 
-let camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
-camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
-camera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
-camera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+// Perspective and orthographic cameras share the same eye / orientation; the
+// viewer toggles which one is active (perspective by default). OrbitControls
+// drives whichever is active — `camera` is a live `let` so render/depth/save
+// closures pick up the reassignment for free.
+const perspCamera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 1000);
+let camera = perspCamera;
+let cameraMode = 'perspective';   // 'perspective' | 'orthographic'
+let orthoHalfHeight = 1.0;        // vertical half-extent of the ortho frustum
+
+perspCamera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
+perspCamera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
+perspCamera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+orthoCamera.position.copy(perspCamera.position);
+orthoCamera.up.copy(perspCamera.up);
+orthoCamera.quaternion.copy(perspCamera.quaternion);
 
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
 controls.enableDamping = true;
 controls.update();
+
+// Refresh both projection matrices from the canvas aspect and the current ortho
+// extent. Keeping the inactive camera current means a toggle is instant.
+function updateCameraProjection() {
+  const w = canvas.clientWidth || canvas.width || 1;
+  const h = canvas.clientHeight || canvas.height || 1;
+  const aspect = w / h;
+  perspCamera.aspect = aspect;
+  perspCamera.updateProjectionMatrix();
+  const halfW = orthoHalfHeight * aspect;
+  orthoCamera.left = -halfW;
+  orthoCamera.right = halfW;
+  orthoCamera.top = orthoHalfHeight;
+  orthoCamera.bottom = -orthoHalfHeight;
+  orthoCamera.updateProjectionMatrix();
+}
+
+// Toggle projection while preserving framing. Going orthographic, size the
+// frustum from the current eye→target distance and the perspective fov (so the
+// scene keeps its apparent size at the target plane). Coming back, map the
+// accumulated ortho zoom onto an eye distance so perspective picks up where the
+// ortho view left off. OrbitControls handles either camera type once reassigned.
+function setCameraMode(mode) {
+  if (mode !== 'perspective' && mode !== 'orthographic') return;
+  if (mode === cameraMode) return;
+  const fovRad = THREE.MathUtils.degToRad(perspCamera.fov);
+  if (mode === 'orthographic') {
+    const dist = perspCamera.position.distanceTo(controls.target);
+    orthoHalfHeight = Math.max(dist * Math.tan(fovRad / 2), 1e-4);
+    orthoCamera.position.copy(perspCamera.position);
+    orthoCamera.up.copy(perspCamera.up);
+    orthoCamera.quaternion.copy(perspCamera.quaternion);
+    orthoCamera.zoom = 1;
+    camera = orthoCamera;
+  } else {
+    const visibleHalfH = orthoHalfHeight / (orthoCamera.zoom || 1);
+    const dist = Math.max(visibleHalfH / Math.tan(fovRad / 2), 1e-4);
+    const dir = new THREE.Vector3().subVectors(orthoCamera.position, controls.target);
+    if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+    dir.normalize();
+    perspCamera.up.copy(orthoCamera.up);
+    perspCamera.position.copy(controls.target).addScaledVector(dir, dist);
+    camera = perspCamera;
+  }
+  cameraMode = mode;
+  updateCameraProjection();
+  controls.object = camera;
+  controls.update();
+  const btn = document.getElementById('btn-projection');
+  if (btn) {
+    btn.textContent = mode === 'orthographic' ? '=' : '<';
+    btn.classList.toggle('active', mode === 'orthographic');
+  }
+}
+if (INITIAL_CAMERA_MODE === 'orthographic') {
+  setCameraMode('orthographic');
+  if (INITIAL_ORTHO_SCALE !== null) {
+    orthoHalfHeight = INITIAL_ORTHO_SCALE * 0.5;
+    updateCameraProjection();
+  }
+}
 
 // Fallback 3-point lighting, used only when no envmap is supplied or the envmap
 // fails to load. When the envmap loads successfully, `loadEnvmap` zeroes these
@@ -167,8 +295,7 @@ function resize() {
   const h = canvas.clientHeight;
   if (canvas.width !== w || canvas.height !== h) {
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    updateCameraProjection();
     // Regenerate the studio gradient at the new aspect so it stays circular.
     const old = studioBackground;
     studioBackground = makeStudioBackground(w, h);
@@ -179,6 +306,26 @@ function resize() {
   }
 }
 window.addEventListener('resize', resize);
+
+function updateEnvRotation() {
+  if (!envRotationSupported || !ENVMAP) return;
+  const m = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  _envMat.set(
+    m[0], m[1], m[2], 0,
+    m[3], m[4], m[5], 0,
+    m[6], m[7], m[8], 0,
+    0,    0,    0,    1,
+  );
+  // three.js negates environmentRotation internally. Transpose the desired
+  // world transform and pre-negate its Euler angles to supply its inverse.
+  _envMat.transpose();
+  _envEuler.setFromRotationMatrix(_envMat);
+  _envEuler.x *= -1; _envEuler.y *= -1; _envEuler.z *= -1;
+  scene.environmentRotation.copy(_envEuler);
+  if (envBackground !== null && 'backgroundRotation' in scene) {
+    scene.backgroundRotation.copy(_envEuler);
+  }
+}
 
 async function loadEnvmap() {
   if (!ENVMAP) return;
@@ -205,34 +352,15 @@ async function loadEnvmap() {
     if ('environmentIntensity' in scene) {
       scene.environmentIntensity = ENVMAP.scale;
     }
-    // Apply Mitsuba's `to_world = align_y_to(up) @ rotate_y(rotation_deg)`
-    // matrix to the environment. Requires three.js >= r163.
-    //
-    // three.js samples the env at `envMapRotation * worldDir`, where the uniform
-    // is `makeRotationFromEuler(-scene.environmentRotation)` (each Euler
-    // component is negated to "accommodate left-handed frame"). For env rotated
-    // by M in world, sampling needs M^T * worldDir; so we feed M^T into the
-    // Euler and pre-negate to cancel three.js's flip.
+    // Apply Mitsuba's align-y-to-up and azimuth transform from the descriptor.
+    // Requires three.js >= r163.
     if ('environmentRotation' in scene) {
-      const M = ENVMAP.rotation_matrix || [1, 0, 0, 0, 1, 0, 0, 0, 1];
-      const m4 = new THREE.Matrix4();
-      m4.set(
-        M[0], M[1], M[2], 0,
-        M[3], M[4], M[5], 0,
-        M[6], M[7], M[8], 0,
-        0,    0,    0,    1,
-      );
-      m4.transpose();
-      const euler = new THREE.Euler().setFromRotationMatrix(m4);
-      euler.x *= -1; euler.y *= -1; euler.z *= -1;
-      scene.environmentRotation = euler;
+      envRotationSupported = true;
       if (ENVMAP.background) {
         scene.background = envTexture;
         envBackground = envTexture;
-        if ('backgroundRotation' in scene) {
-          scene.backgroundRotation = euler;
-        }
       }
+      updateEnvRotation();
     } else if (ENVMAP.background) {
       scene.background = envTexture;
       envBackground = envTexture;
@@ -926,6 +1054,190 @@ function savePassPng() {
   }, 'image/png');
 }
 
+function setCameraState(state) {
+  setCameraMode(state.mode || 'perspective');
+  const active = camera;
+  if (active.isOrthographicCamera && state.scale !== undefined && state.scale !== null) {
+    orthoHalfHeight = state.scale * 0.5;
+    updateCameraProjection();
+  }
+  active.position.fromArray(state.eye);
+  active.up.fromArray(state.up);
+  controls.target.fromArray(state.target);
+  active.lookAt(controls.target);
+  if (active.isPerspectiveCamera && state.fov !== undefined) active.fov = state.fov;
+  if (state.near !== undefined) active.near = state.near;
+  if (state.far !== undefined) active.far = state.far;
+  active.updateProjectionMatrix();
+  active.updateMatrixWorld(true);
+  controls.object = active;
+  controls.enableDamping = false;
+  controls.update();
+  _geometrySampleCache = null;
+}
+
+function prepareCapture(width, height) {
+  for (const id of ['status', 'passes', 'clip-controls', 'layers']) {
+    const node = document.getElementById(id);
+    if (node) node.style.display = 'none';
+  }
+  document.documentElement.style.width = `${width}px`;
+  document.documentElement.style.height = `${height}px`;
+  document.body.style.width = `${width}px`;
+  document.body.style.height = `${height}px`;
+  document.body.style.overflow = 'hidden';
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  renderer.setPixelRatio(1);
+  renderer.setSize(width, height, false);
+  updateCameraProjection();
+}
+
+function capturePng(pass = 'beauty') {
+  setPass(pass);
+  camera.updateMatrixWorld(true);
+  if (pass === 'depth') updateDepthRange();
+  renderer.render(scene, camera);
+  return canvas.toDataURL('image/png');
+}
+
+function _typedArrayBase64(array) {
+  const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+function _layerIndex(object) {
+  let current = object;
+  while (current) {
+    const value = current.userData && current.userData.hakowan_layer;
+    if (value !== undefined && value !== null) return value >>> 0;
+    current = current.parent;
+  }
+  return 0xffffffff;
+}
+
+let _geometrySampleCache = null;
+function sampleGeometry(width, height) {
+  camera.updateMatrixWorld(true);
+  loadedRoot.updateMatrixWorld(true);
+  const key = [
+    width, height,
+    ...camera.matrixWorld.elements,
+    ...camera.projectionMatrix.elements,
+  ].join(',');
+  if (_geometrySampleCache && _geometrySampleCache.key === key) {
+    return _geometrySampleCache.value;
+  }
+
+  const count = width * height;
+  const depth = new Float32Array(count);
+  const element = new Uint32Array(count);
+  const layer = new Uint32Array(count);
+  const normal = new Float32Array(count * 3);
+  depth.fill(Number.NaN);
+  element.fill(0xffffffff);
+  layer.fill(0xffffffff);
+  normal.fill(Number.NaN);
+
+  const raycaster = new THREE.Raycaster();
+  const sceneSize = sceneBbox ? sceneBbox.getSize(new THREE.Vector3()).length() : 2.0;
+  const threshold = Math.max(sceneSize / Math.max(width, height) * 1.5, 1e-5);
+  raycaster.params.Line.threshold = threshold;
+  raycaster.params.Points.threshold = threshold;
+  const ndc = new THREE.Vector2();
+  const cameraPoint = new THREE.Vector3();
+  const worldNormal = new THREE.Vector3();
+
+  for (let y = 0; y < height; y++) {
+    ndc.y = 1.0 - 2.0 * (y + 0.5) / height;
+    for (let x = 0; x < width; x++) {
+      ndc.x = 2.0 * (x + 0.5) / width - 1.0;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObject(loadedRoot, true);
+      let hit = null;
+      for (const candidate of hits) {
+        if (!candidate.object.visible) continue;
+        if (candidate.object.userData && candidate.object.userData.isWireframe) continue;
+        hit = candidate;
+        break;
+      }
+      if (hit === null) continue;
+      const index = y * width + x;
+      cameraPoint.copy(hit.point).applyMatrix4(camera.matrixWorldInverse);
+      depth[index] = -cameraPoint.z;
+      layer[index] = _layerIndex(hit.object);
+      const rawElement = hit.instanceId ?? hit.faceIndex ?? hit.index;
+      element[index] = rawElement === undefined || rawElement === null
+        ? 0
+        : rawElement >>> 0;
+      if (hit.normal) {
+        worldNormal.copy(hit.normal);
+      } else if (hit.face) {
+        worldNormal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+      } else {
+        worldNormal.set(0, 0, 0);
+      }
+      normal[index * 3] = worldNormal.x;
+      normal[index * 3 + 1] = worldNormal.y;
+      normal[index * 3 + 2] = worldNormal.z;
+    }
+  }
+
+  const value = {
+    width,
+    height,
+    depth: _typedArrayBase64(depth),
+    element: _typedArrayBase64(element),
+    layer: _typedArrayBase64(layer),
+    normal: _typedArrayBase64(normal),
+  };
+  _geometrySampleCache = { key, value };
+  return value;
+}
+
+function captureIdPng(kind, width, height) {
+  const samples = sampleGeometry(width, height);
+  const encoded = atob(kind === 'layer_id' ? samples.layer : samples.element);
+  const bytes = Uint8Array.from(encoded, c => c.charCodeAt(0));
+  const ids = new Uint32Array(bytes.buffer);
+  const output = document.createElement('canvas');
+  output.width = width;
+  output.height = height;
+  const context = output.getContext('2d');
+  const image = context.createImageData(width, height);
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const offset = i * 4;
+    if (id === 0xffffffff) {
+      image.data[offset + 3] = 0;
+      continue;
+    }
+    const value = (id + 1) >>> 0;
+    image.data[offset] = (value * 73) & 255;
+    image.data[offset + 1] = (value * 151) & 255;
+    image.data[offset + 2] = (value * 199) & 255;
+    image.data[offset + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  return output.toDataURL('image/png');
+}
+
+function captureState() {
+  camera.updateMatrixWorld(true);
+  return {
+    worldToCamera: camera.matrixWorldInverse.toArray(),
+    projection: camera.projectionMatrix.toArray(),
+    bounds: sceneBbox ? [sceneBbox.min.toArray(), sceneBbox.max.toArray()] : null,
+    depthRange: [depthUniforms.uDepthMin.value, depthUniforms.uDepthMax.value],
+    mode: cameraMode,
+  };
+}
+
 function buildPassUI() {
   if (!Array.isArray(RENDER_PASSES) || RENDER_PASSES.length === 0) return;
   const passes = ['beauty', ...RENDER_PASSES];
@@ -967,6 +1279,14 @@ function buildPassUI() {
     + 'double-click to reset';
   objRotBtn.addEventListener('click', () => setObjectRotateEnabled(!objectRotateEnabled));
   container.appendChild(objRotBtn);
+  const projBtn = document.createElement('button');
+  projBtn.id = 'btn-projection';
+  projBtn.textContent = cameraMode === 'orthographic' ? '=' : '<';
+  projBtn.title = 'Toggle orthographic (=) / perspective (<) projection';
+  projBtn.classList.toggle('active', cameraMode === 'orthographic');
+  projBtn.addEventListener('click', () =>
+    setCameraMode(cameraMode === 'perspective' ? 'orthographic' : 'perspective'));
+  container.appendChild(projBtn);
   const bgBtn = document.createElement('button');
   bgBtn.id = 'btn-bg';
   bgBtn.textContent = bgMode === 'light' ? '☀' : '☾';
@@ -982,6 +1302,118 @@ function buildPassUI() {
   container.classList.add('visible');
   // Mark beauty as active initially.
   container.querySelector('button[data-pass="beauty"]').classList.add('active');
+}
+
+function buildLayerGroups(root) {
+  // Map each top-level node to its layer index. The WebGL backend writes the
+  // view index to glTF `extras.hakowan_layer`, which GLTFLoader surfaces as
+  // `userData.hakowan_layer`. Untagged nodes (lights/cameras) are skipped.
+  layerNodeMap = new Map();
+  for (const child of root.children) {
+    const idx = child.userData && child.userData.hakowan_layer;
+    if (idx === undefined || idx === null) continue;
+    if (!layerNodeMap.has(idx)) layerNodeMap.set(idx, []);
+    layerNodeMap.get(idx).push(child);
+  }
+}
+
+function setLayerVisible(index, visible) {
+  // Hiding a top-level node hides its whole subtree, including the wireframe
+  // overlay attached as a child of each mesh — so passes/screenshots follow.
+  const nodes = layerNodeMap.get(index);
+  if (!nodes) return;
+  for (const n of nodes) n.visible = visible;
+}
+
+function buildLayerUI() {
+  // A lone layer needs no toggle; only surface the panel for multi-layer scenes.
+  if (!Array.isArray(LAYERS) || LAYERS.length < 2) return;
+  const container = document.getElementById('layers');
+  const title = document.createElement('div');
+  title.className = 'title';
+  title.textContent = 'layers';
+  container.appendChild(title);
+  for (const entry of LAYERS) {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', () => setLayerVisible(entry.index, cb.checked));
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(entry.label));
+    container.appendChild(label);
+  }
+  container.classList.add('visible');
+}
+
+function _cssColor(color, alpha = 1) {
+  const values = color.map(value => Math.round(Math.max(0, Math.min(1, value)) * 255));
+  return `rgba(${values[0]},${values[1]},${values[2]},${alpha})`;
+}
+
+function buildSemanticOverlays() {
+  for (const legend of LEGENDS) {
+    const container = document.getElementById(
+      legend.position === 'left' ? 'semantic-legends-left' : 'semantic-legends-right'
+    );
+    const panel = document.createElement('div');
+    panel.className = 'semantic-legend';
+    const heading = document.createElement('div');
+    heading.className = 'heading';
+    heading.textContent = legend.title + (legend.units ? ` (${legend.units})` : '');
+    panel.appendChild(heading);
+    if (legend.scale && legend.scale.length) {
+      const scale = document.createElement('div');
+      scale.className = 'scale';
+      scale.textContent = legend.scale.join(' → ');
+      panel.appendChild(scale);
+    }
+    if (legend.categories) {
+      legend.labels.forEach((label, index) => {
+        const row = document.createElement('div');
+        row.className = 'category';
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.background = _cssColor(legend.colors[index]);
+        const text = document.createElement('span');
+        text.textContent = label;
+        row.append(swatch, text);
+        panel.appendChild(row);
+      });
+    } else {
+      const body = document.createElement('div');
+      body.className = 'continuous';
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.background = `linear-gradient(to top, ${legend.colors.map(c => _cssColor(c)).join(',')})`;
+      const ticks = document.createElement('div');
+      ticks.className = 'ticks';
+      [...legend.labels].reverse().forEach(label => {
+        const text = document.createElement('span');
+        text.textContent = label;
+        ticks.appendChild(text);
+      });
+      body.append(bar, ticks);
+      panel.appendChild(body);
+    }
+    container.appendChild(panel);
+  }
+  const annotationRoot = document.getElementById('semantic-annotations');
+  for (const annotation of ANNOTATIONS) {
+    const node = document.createElement('div');
+    node.className = 'semantic-annotation';
+    node.textContent = annotation.text;
+    node.style.left = `${annotation.position[0] * 100}%`;
+    node.style.top = `${annotation.position[1] * 100}%`;
+    node.style.color = _cssColor(annotation.color);
+    node.style.fontSize = `${annotation.font_size}px`;
+    node.style.padding = `${annotation.padding}px`;
+    node.style.transform = annotation.anchor === 'center'
+      ? 'translateX(-50%)'
+      : annotation.anchor === 'right' ? 'translateX(-100%)' : 'none';
+    if (annotation.background) node.style.background = _cssColor(annotation.background, 0.86);
+    annotationRoot.appendChild(node);
+  }
 }
 
 function applyCrispCheckerTextures(root) {
@@ -1009,38 +1441,67 @@ const onLoaded = (gltf) => {
   loadedRoot = gltf.scene;
   // Group nodes into rotatable cells (after wireframe so its lines ride along).
   buildCellGroups(loadedRoot);
+  // Map top-level nodes to their layer index for the visibility checkboxes.
+  buildLayerGroups(loadedRoot);
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
     const cam = gltf.cameras[0];
+    let startOrtho = false;
     if (cam.isPerspectiveCamera) {
-      const aspect = canvas.clientWidth / canvas.clientHeight;
-      camera.fov = cam.fov;
-      camera.near = cam.near;
-      camera.far = cam.far;
-      camera.aspect = aspect;
-      camera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
-      camera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
-      camera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
-      camera.updateProjectionMatrix();
-      controls.object = camera;
-      controls.update();
+      perspCamera.fov = cam.fov;
+      perspCamera.near = cam.near;
+      perspCamera.far = cam.far;
+    } else if (cam.isOrthographicCamera) {
+      // Honour an Orthographic sensor: start in ortho mode, sizing the frustum
+      // from the glTF camera's vertical half-extent.
+      perspCamera.near = orthoCamera.near = cam.near;
+      perspCamera.far = orthoCamera.far = cam.far;
+      orthoHalfHeight = Math.max(cam.top, 1e-4);
+      startOrtho = true;
     }
+    perspCamera.position.set(INITIAL_EYE[0], INITIAL_EYE[1], INITIAL_EYE[2]);
+    perspCamera.up.set(INITIAL_UP[0], INITIAL_UP[1], INITIAL_UP[2]);
+    perspCamera.lookAt(INITIAL_TARGET[0], INITIAL_TARGET[1], INITIAL_TARGET[2]);
+    orthoCamera.position.copy(perspCamera.position);
+    orthoCamera.up.copy(perspCamera.up);
+    orthoCamera.quaternion.copy(perspCamera.quaternion);
+    updateCameraProjection();
+    camera = startOrtho ? orthoCamera : perspCamera;
+    cameraMode = startOrtho ? 'orthographic' : 'perspective';
+    controls.object = camera;
+    controls.update();
   }
   buildPassUI();
+  buildLayerUI();
+  buildSemanticOverlays();
   // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
   // to per-object rotation so dragging compares orientations rather than orbiting
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
   if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
-  // Debug/automation handle: read-only access to the live scene graph and the
-  // object-rotation controls. Handy for inspection and end-to-end tests.
+  // Stable automation handle used by snapshot()/observe() and end-to-end tests.
   window.__hakowan = {
-    THREE, scene, camera, controls, loadedRoot,
+    THREE, scene, renderer, canvas, camera, controls, loadedRoot,
+    perspCamera, orthoCamera,
+    hasEnvironment: () => scene.environment !== null,
+    getCamera: () => camera,
+    getCameraMode: () => cameraMode,
+    setCameraMode,
+    setCameraState,
+    prepareCapture,
+    setPass,
+    capturePng,
+    captureIdPng,
+    captureState,
+    sampleGeometry,
     getCellGroups: () => cellGroups,
     setObjectRotateEnabled,
     applyObjectRotation,
     qObjectRotation,
+    getLayerNodes: () => layerNodeMap,
+    setLayerVisible,
+    updateEnvRotation,
   };
   window.__hakowan_loaded = true;
 };

@@ -141,3 +141,27 @@ column = l0 & l1   # vertical
 ```
 
 See the [layer guide](layer.md) for the configurable `juxtapose` method.
+
+### Reproducible scene settings
+
+Wrap a layer tree in a [`Figure`](figure.md) when camera, lights, environment,
+resolution, output passes, and sampler seed are part of the visualization intent:
+
+```py
+figure = (
+    hkw.figure(combined_layer)
+    .camera("perspective", eye=(2, 3, 4))
+    .light("directional", direction=(0, 0, -1))
+    .output(width=1024, height=768, passes=("beauty", "depth"))
+)
+```
+
+Layer remains the geometry-and-encoding grammar. Figure is its optional,
+serializable scene envelope.
+
+## Canonical specification
+
+For versioned JSON serialization, constrained generation, reproducible cache
+keys, and tooling integration, see the [Canonical Specification](schema.md).
+The dedicated Specification section also contains the Python API reference and
+the published JSON Schema.

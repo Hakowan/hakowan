@@ -14,7 +14,9 @@ from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL
 from .. import RenderBackend
 
+from ...setup.emitter import Directional as DirectionalEmitter
 from ...setup.emitter import Point as PointEmitter
+from ...common.to_color import to_color
 
 from .builder import GLTFBuilder
 from .camera import add_camera
@@ -25,6 +27,7 @@ from .mesh_extract import extract_surface_arrays
 from .point_cloud import add_point_view
 from .template import render_html
 from .utils import glb_to_data_uri
+from .assets import copy_three_assets
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
@@ -51,7 +54,7 @@ def _validate_background(name: Literal["light", "dark"]) -> None:
 
 
 class WebGLBackend(RenderBackend):
-    """Render a hakowan ``Scene`` as a self-contained three.js HTML viewer."""
+    """Render a Hakowan scene as an embedded-data Three.js HTML viewer."""
 
     # The interactive viewer always exposes albedo/depth/normal as live,
     # client-side toggle passes (rendered by three.js, not written to files),
@@ -73,23 +76,35 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] | None = None,
         title: str = _DEFAULT_TITLE,
-        envmap_background: bool = False,
+        envmap_background: bool | None = None,
+        offline: bool = False,
         **kwargs: Any,
     ) -> Path:
-        """Write an interactive HTML viewer and return the output path."""
+        """Write an interactive HTML viewer and optional offline asset bundle."""
         if kwargs:
             raise TypeError(
                 f"render() got unexpected keyword argument(s): {list(kwargs)}"
             )
+        if envmap_background is None:
+            envmap_background = config.environment_visible
+        if background is None:
+            background = config.background or _DEFAULT_BACKGROUND
 
         _validate_background(background)
         out_path = _resolve_output_path(filename)
-        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+        glb_bytes, envmap, initial_view, layers = self._build_scene_artifacts(
             scene, config, envmap_background
         )
 
+        three_module_url = None
+        three_addons_url = None
+        if offline:
+            assets = out_path.with_name(f"{out_path.stem}_assets")
+            copy_three_assets(three_version, assets)
+            three_module_url = f"./{assets.name}/build/three.module.js"
+            three_addons_url = f"./{assets.name}/examples/jsm/"
         html = render_html(
             glb_uri=glb_to_data_uri(glb_bytes),
             three_version=three_version,
@@ -98,8 +113,12 @@ class WebGLBackend(RenderBackend):
             initial_view=initial_view,
             title=title,
             envmap=envmap,
+            layers=layers,
+            three_module_url=three_module_url,
+            three_addons_url=three_addons_url,
+            legends=[legend.to_dict() for legend in scene.legends],
+            annotations=[annotation.to_dict() for annotation in scene.annotations],
         )
-
         out_path.write_bytes(html.encode("utf-8"))
         logger.info(f"WebGL viewer saved to {out_path}")
         return out_path
@@ -110,9 +129,11 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] = _DEFAULT_BACKGROUND,
+        background: Literal["light", "dark"] | None = None,
         title: str = _DEFAULT_TITLE,
-        envmap_background: bool = False,
+        envmap_background: bool | None = None,
+        three_module_url: str | None = None,
+        three_addons_url: str | None = None,
     ) -> str:
         """Build and return the viewer HTML as a string without writing any files.
 
@@ -124,12 +145,18 @@ class WebGLBackend(RenderBackend):
                 Both are soft studio radial gradients with a bright centre spot.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
+            three_module_url: Explicit Three.js ES-module URL; defaults to unpkg.
+            three_addons_url: Explicit Three.js addons base URL; defaults to unpkg.
 
         Returns:
             Complete HTML page as a string.
         """
+        if envmap_background is None:
+            envmap_background = config.environment_visible
+        if background is None:
+            background = config.background or _DEFAULT_BACKGROUND
         _validate_background(background)
-        glb_bytes, envmap, initial_view = self._build_scene_artifacts(
+        glb_bytes, envmap, initial_view, layers = self._build_scene_artifacts(
             scene, config, envmap_background
         )
         return render_html(
@@ -140,6 +167,11 @@ class WebGLBackend(RenderBackend):
             initial_view=initial_view,
             title=title,
             envmap=envmap,
+            layers=layers,
+            three_module_url=three_module_url,
+            three_addons_url=three_addons_url,
+            legends=[legend.to_dict() for legend in scene.legends],
+            annotations=[annotation.to_dict() for annotation in scene.annotations],
         )
 
     # ------------------------------------------------------------------ #
@@ -151,7 +183,7 @@ class WebGLBackend(RenderBackend):
         scene: Scene,
         config: Config,
         envmap_background: bool = False,
-    ) -> tuple[bytes, dict | None, dict]:
+    ) -> tuple[bytes, dict | None, dict, list[dict]]:
         """Compile *scene* into GLB bytes, an envmap descriptor, and camera view.
 
         Args:
@@ -160,14 +192,19 @@ class WebGLBackend(RenderBackend):
             envmap_background: Whether the envmap is visible as the background.
 
         Returns:
-            ``(glb_bytes, envmap, initial_view)`` where *envmap* may be ``None``.
+            ``(glb_bytes, envmap, initial_view, layers)`` where *envmap* may be
+            ``None`` and *layers* is one ``{"index", "label"}`` entry per rendered
+            view, in view order, for the viewer's per-layer visibility checkboxes.
         """
         builder = GLTFBuilder()
+        layers: list[dict] = []
         for index, view in enumerate(scene):
             # Tag every node produced for this view with its juxtaposition cell
-            # so the interactive viewer can rotate each comparison cell about its
-            # own centre. ``None`` (no `|` in the layer tree) leaves nodes untagged.
+            # (so the viewer can rotate each comparison cell about its own centre;
+            # ``None`` leaves nodes untagged) and its layer index (so the viewer
+            # can toggle per-layer visibility).
             builder._current_cell = _cell_tag(view)
+            builder._current_layer = index
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)
             elif view.mark is mark_module.Point:
@@ -179,13 +216,15 @@ class WebGLBackend(RenderBackend):
                     f"WebGL backend: view {index} has unsupported mark "
                     f"{view.mark!r} — skipping."
                 )
+                continue
+            layers.append({"index": index, "label": view.name or f"Layer {index + 1}"})
         _, initial_view = add_camera(builder, config)
-        _add_point_lights(builder, config)
+        _add_lights(builder, config)
         glb_bytes = builder.finalize()
         envmap = envmap_descriptor(config)
         if envmap is not None:
             envmap["background"] = bool(envmap_background)
-        return glb_bytes, envmap, initial_view
+        return glb_bytes, envmap, initial_view, layers
 
 
 # ---------------------------------------------------------------------- #
@@ -224,29 +263,42 @@ def _resolve_output_path(filename: Path | str | None) -> Path:
     return path
 
 
-def _add_point_lights(builder: GLTFBuilder, config: Config) -> None:
-    """Emit one KHR_lights_punctual entry per Point emitter."""
-    from ...common.color import Color
-
-    for emitter in config.emitters:
-        if not isinstance(emitter, PointEmitter):
-            continue
-        intensity = emitter.intensity
-        if isinstance(intensity, Color):
-            color = (
-                float(intensity.red),
-                float(intensity.green),
-                float(intensity.blue),
-            )
-            mag = max(color) if max(color) > 1.0 else 1.0
-            color = (color[0] / mag, color[1] / mag, color[2] / mag)
-            strength = float(max(intensity.red, intensity.green, intensity.blue))
-        else:
-            color = (1.0, 1.0, 1.0)
-            strength = float(intensity)
-        builder.add_point_light(
-            position=list(emitter.position), color=color, intensity=strength
+def _light_color_intensity(emitter) -> tuple[tuple[float, float, float], float]:
+    if getattr(emitter, "color", None) is not None:
+        color = to_color(emitter.color)
+        return (
+            (float(color.red), float(color.green), float(color.blue)),
+            float(emitter.intensity),
         )
+    if isinstance(emitter.intensity, (int, float)):
+        return (1.0, 1.0, 1.0), float(emitter.intensity)
+    color = to_color(emitter.intensity)
+    values = (float(color.red), float(color.green), float(color.blue))
+    strength = max(values)
+    normalized = (
+        tuple(value / strength for value in values) if strength > 1.0 else values
+    )
+    return (
+        float(normalized[0]),
+        float(normalized[1]),
+        float(normalized[2]),
+    ), strength if strength > 0.0 else 1.0
+
+
+def _add_lights(builder: GLTFBuilder, config: Config) -> None:
+    """Emit supported KHR_lights_punctual lights."""
+    for emitter in config.emitters:
+        if not isinstance(emitter, (PointEmitter, DirectionalEmitter)):
+            continue
+        color, intensity = _light_color_intensity(emitter)
+        if isinstance(emitter, PointEmitter):
+            builder.add_point_light(
+                position=list(emitter.position), color=color, intensity=intensity
+            )
+        else:
+            builder.add_directional_light(
+                direction=list(emitter.direction), color=color, intensity=intensity
+            )
 
 
 def _add_surface_view(builder: GLTFBuilder, view) -> None:

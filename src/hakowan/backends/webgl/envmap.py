@@ -81,6 +81,12 @@ def envmap_descriptor(config: Config) -> dict[str, Any] | None:
         # Row-major 3x3 — the viewer reads it into a Matrix4 and converts to
         # an Euler for scene.environmentRotation.
         "rotation_matrix": rotation_matrix.flatten().tolist(),
+        # Azimuth about the up axis (radians), = Mitsuba's rotation composed with
+        # the three.js equirect seam offset. The viewer locks the env's vertical
+        # to the *camera* up and applies this as the constant view-relative
+        # azimuth of the env (see the viewer's `updateEnvRotation`).
+        "azimuth": math.radians(float(envmap.rotation))
+        + _THREEJS_ENV_AZIMUTH_OFFSET_RAD,
         "background": False,
     }
 

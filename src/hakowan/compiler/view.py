@@ -14,6 +14,7 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, Norm, to_attribute
 from ..grammar.transform import Transform
+from ..grammar.overlay import Annotation
 from ..common import logger
 
 from dataclasses import dataclass, field
@@ -28,6 +29,8 @@ class View:
     mark: Mark | None = None
     channels: list[Channel] = field(default_factory=list)
     transform: Transform | None = None
+    name: str | None = None
+    annotations: list[Annotation] = field(default_factory=list)
     global_transform: npt.NDArray = field(default_factory=lambda: np.eye(4))
 
     _position_channel: Position | None = None
@@ -130,11 +133,14 @@ class View:
         assert self.data_frame is not None, "Data component is not specified"
         assert self.mark is not None, "Mark component is not specified"
 
-    def finalize(self):
+    def finalize(self, *, preserve_attributes: bool = False):
         """Finalize the view by updating the data frame.
 
-        This function will ensure all attributes are either vertex or facet attribute.
+        Args:
+            preserve_attributes: Keep inactive source attributes for inspection
+                and pixel picking. Rendering compilation drops them by default.
         """
+        assert self.data_frame is not None
         mesh = self.data_frame.mesh
         active_attribute_names = [
             attr._internal_name for attr in self._active_attributes
@@ -160,12 +166,19 @@ class View:
             logger.debug(f"Adding input normal attribute '{normal_attr_names[0]}'")
             active_attribute_names.append(normal_attr_names[0])
 
-        # Drop all non-active attributes
+        # Rendering only needs active attributes. Observation compilation keeps
+        # inactive source fields except UV attributes superseded by a processed
+        # UV channel: backends support one UV set and must select the active one.
         for attr_id in mesh.get_matching_attribute_ids():
             attr_name = mesh.get_attribute_name(attr_id)
-            if attr_name not in active_attribute_names and not attr_name.startswith(
-                "_hakowan"
-            ):
+            if attr_name in active_attribute_names or attr_name.startswith("_hakowan"):
+                continue
+            attribute = (
+                mesh.indexed_attribute(attr_name)
+                if mesh.is_attribute_indexed(attr_name)
+                else mesh.attribute(attr_name)
+            )
+            if not preserve_attributes or attribute.usage == lagrange.AttributeUsage.UV:
                 mesh.delete_attribute(attr_name)
 
         # Convert all corner attributes to indexed attributes
@@ -195,6 +208,7 @@ class View:
         # Update mesh vertices to the scaled version if needed.
         if (
             self._position_channel is not None
+            and isinstance(self._position_channel.data, Attribute)
             and self._position_channel.data._internal_name is not None
         ):
             position_attr_name = self._position_channel.data._internal_name

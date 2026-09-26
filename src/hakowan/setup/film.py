@@ -1,3 +1,5 @@
+"""Output image dimensions, crop, and pixel-format settings."""
+
 from dataclasses import dataclass
 
 import numpy.typing as npt
@@ -20,6 +22,7 @@ class Film:
     `crop_offset` and `crop_size` defines a crop region. If either is `None`, no cropping is performed.
     `file_format`, `pixel_format` and `component_format` are for advanced user only. The default
     values should work in most cases.
+
     """
 
     width: int = 1024

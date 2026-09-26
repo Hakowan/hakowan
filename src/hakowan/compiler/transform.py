@@ -8,6 +8,7 @@ from ..grammar.transform import (
     Compute,
     Explode,
     Filter,
+    Fur,
     Norm,
     Normalize,
     PrincipalAxes,
@@ -16,6 +17,7 @@ from ..grammar.transform import (
     UVMesh,
 )
 from .streamline import _compute_streamlines
+from .fur import _compute_fur
 from ..common import logger
 
 import copy
@@ -81,9 +83,29 @@ def _apply_filter_transform(view: View, transform: Filter):
     assert mesh.has_attribute(attr_name), (
         f"Attribute {attr_name} does not exist in data"
     )
+    if mesh.is_attribute_indexed(attr_name):
+        if view.mark is not Mark.Surface:
+            raise RuntimeError("Indexed filtering is supported only for Surface marks.")
+        indexed = mesh.indexed_attribute(attr_name)
+        values = np.asarray(indexed.values.data)
+        indices = np.asarray(indexed.indices.data, dtype=np.uint32).reshape(-1)
+        indexed_keep = np.zeros(mesh.num_facets, dtype=bool)
+        for facet in range(mesh.num_facets):
+            begin = mesh.get_facet_corner_begin(facet)
+            size = mesh.get_facet_size(facet)
+            indexed_keep[facet] = all(
+                bool(transform.condition(values[index]))
+                for index in indices[begin : begin + size]
+            )
+        selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[indexed_keep]
+        df.mesh = lagrange.extract_submesh(
+            mesh,
+            selected_facets=selected_facets,
+            map_attributes=True,
+        )
+        return
     attr = mesh.attribute(attr_name)
     keep = [transform.condition(value) for value in attr.data]
-
     match attr.element_type:
         case lagrange.AttributeElement.Facet:
             selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[keep]
@@ -546,6 +568,7 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         length=transform.length,
         seed=transform.seed,
         min_length=transform.min_length,
+        max_steps=transform.max_steps,
     )
 
     if transform.id_attr_name != "_hakowan_streamline_id" and sl_mesh.has_attribute(
@@ -556,6 +579,44 @@ def _apply_streamline_transform(view: View, transform: Streamline):
     df.mesh = sl_mesh
 
     logger.debug("Updating view bbox due to streamline transform.")
+    view.initialize_bbox()
+
+
+def _apply_fur_transform(view: View, transform: Fur):
+    df = view.data_frame
+    assert df is not None
+    assert transform is not None
+
+    if isinstance(transform.vec_field, str):
+        vec_field_attr = transform.vec_field
+    elif isinstance(transform.vec_field, Attribute):
+        if transform.vec_field.scale is not None:
+            logger.warning("Attribute scale is ignored when applying transform.")
+        vec_field_attr = transform.vec_field.name
+    else:
+        raise RuntimeError("Fur.vec_field must be a string or Attribute.")
+
+    fur_mesh = _compute_fur(
+        df.mesh,
+        vec_field_attr,
+        n=transform.n,
+        length=transform.length,
+        lift=transform.lift,
+        curl=transform.curl,
+        segments=transform.segments,
+        root_radius=transform.root_radius,
+        tip_radius=transform.tip_radius,
+        randomness=transform.randomness,
+        follow_surface=transform.follow_surface,
+        children=transform.children,
+        clump=transform.clump,
+        spread=transform.spread,
+        seed=transform.seed,
+    )
+
+    df.mesh = fur_mesh
+
+    logger.debug("Updating view bbox due to fur transform.")
     view.initialize_bbox()
 
 
@@ -603,6 +664,9 @@ def apply_transform(view: View):
             case Streamline():
                 assert view.data_frame is not None
                 _apply_streamline_transform(view, t)
+            case Fur():
+                assert view.data_frame is not None
+                _apply_fur_transform(view, t)
             case _:
                 raise NotImplementedError(f"Unsupported transform: {type(t)}!")
 

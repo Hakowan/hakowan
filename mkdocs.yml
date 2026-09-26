@@ -1,35 +1,50 @@
 site_name: Hakowan - A 3D Data Visualization Grammar
+site_url: https://hakowan.github.io/hakowan/
 
-repo_url: https://github.com/qnzhou/hakowan
+repo_url: https://github.com/Hakowan/hakowan
+edit_uri: blob/main/docs/
+
+hooks:
+  - mkdocs_hooks.py
 
 theme:
-  name: material
+  code:
+    fold:
+      enabled: true
+      lines: 20
+  name: materialx
   icon:
     repo: fontawesome/brands/github
   features:
-    - search.suggest
+    - navigation.footer
+    - navigation.indexes
     - search.highlight
     - content.code.copy
+    - content.action.agents
+    - content.footnote.tooltips
+    - toc.follow
   logo: images/hakowan_logo.svg
   favicon: images/hakowan_logo.svg
 
   palette:
-    # Palette toggle for light mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: orange
       accent: indigo
       toggle:
-        icon: material/toggle-switch
+        icon: material/weather-sunny
         name: Switch to dark mode
-
-    # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: grey
+      accent: orange
       toggle:
-        icon: material/toggle-switch-off-outline
-        name: Switch to light mode
+        icon: material/brightness-4
+        name: Switch to system preference
 
 
 plugins:
@@ -42,7 +57,14 @@ plugins:
           show_root_toc_entry: false
           preload_modules:
           - hakowan
-- search
+- search:
+    provider: pagefind
+    pagefind:
+      options:
+        excerptLength: 40
+        ranking:
+          metaWeights:
+            title: 8.0
 
 
 markdown_extensions:
@@ -57,6 +79,7 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+      toc_depth: 3
   - attr_list
   - footnotes
   - md_in_html
@@ -70,20 +93,29 @@ nav:
 - User guide:
   - Grammar: guide/grammar.md
   - Data: guide/data.md
-  - Mark: guide/mark.md
-  - Channel: guide/channel.md
-  - Transform: guide/transform.md
   - Attribute: guide/attribute.md
   - Scale: guide/scale.md
-  - Material: guide/material.md
+  - Mark: guide/mark.md
   - Texture: guide/texture.md
+  - Material: guide/material.md
+  - Channel: guide/channel.md
+  - Transform: guide/transform.md
   - Layer: guide/layer.md
+  - Figure and scene: guide/figure.md
+  - Legends and annotations: guide/overlay.md
+  - Configuration: guide/config.md
   - Compile: guide/compile.md
   - Backend: guide/backend.md
-  - Configuration: guide/config.md
+  - Snapshot and observation: guide/observation.md
+- Specification:
+  - Overview: guide/schema.md
+  - Python API: api/spec.md
+  - JSON Schema: schema/v1.json
 - Gallery: gallery.md
 - Reference:
   - Render: api/render.md
+  - Figure and scene: api/figure.md
+  - Snapshot and observation: api/observation.md
   - Compile: api/compile.md
   - Data: api/data.md
   - Mark: api/mark.md
@@ -91,6 +123,7 @@ nav:
   - Transform: api/transform.md
   - Attribute: api/attribute.md
   - Scale: api/scale.md
+  - Legends and annotations: api/overlay.md
   - Material: api/material.md
   - Texture: api/texture.md
   - Layer: api/layer.md

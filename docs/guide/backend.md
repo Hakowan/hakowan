@@ -67,20 +67,24 @@ hkw.render(
 
 ### WebGL Backend
 
-The WebGL backend generates a self-contained, interactive HTML file using
-[three.js](https://threejs.org/) and the glTF 2.0 format. No server is required — open
-the HTML file in any browser to explore the scene interactively. It ships with the base install
-and is the default backend.
+The WebGL backend generates an interactive HTML viewer using
+[three.js](https://threejs.org/) and glTF 2.0. The scene data is embedded in the
+HTML. By default, the viewer imports version-pinned Three.js modules from unpkg;
+`offline=True` writes those modules into a sibling asset directory instead.
+WebGL ships with the base install and is the default backend.
 
 **Advantages:**
-- Default backend — ships with the base install, no extra to add
-- Instant interactive 3D viewer in any browser
-- No rendering time — output is generated immediately
-- Self-contained single HTML file (or optional sidecar GLB)
-- Supports render passes: albedo, depth, normal
+- Default backend — ships with the base install
+- Immediate interactive browser output
+- Embedded glTF scene data
+- Optional offline module bundle
+- Live albedo, depth, and normal passes
+- Deterministic headless snapshots with `hakowan[observe]`
 
 **Requirements:**
-- None — `pygltflib` is a core dependency, so the WebGL backend is always available
+- Interactive viewer: none beyond the base install and a modern browser
+- `snapshot()` / `observe()`: `pip install "hakowan[observe]"` followed by
+  `playwright install chromium`
 
 **Usage:**
 
@@ -140,6 +144,27 @@ print(f"Available backends: {backends}")
 
 WebGL is always listed (it is part of the base install); Mitsuba and Blender appear only when their
 extras (`hakowan[mitsuba]` / `hakowan[blender]`) are installed.
+
+### Inspect Backend Capabilities
+
+Capability declarations can be queried without importing heavyweight backend
+modules:
+
+```py
+caps = hkw.backend_capabilities("webgl")
+print(caps.marks)
+print(caps.render_passes)
+print(caps.features)
+print(caps.limitations)
+
+# JSON-safe form; includes declarations for unavailable optional backends too.
+payload = caps.to_dict()
+all_capabilities = hkw.list_backend_capabilities()
+```
+
+`hkw.validate(layer, backend=..., strict=True)` uses these declarations to
+reject requested behavior that the selected backend would approximate or
+ignore.
 
 ### Set Default Backend
 
@@ -203,14 +228,22 @@ hkw.render(
 ### WebGL Backend Options
 
 ```py
-# Write sidecar GLB file instead of embedding in HTML
+# Default: compact HTML that imports Three.js from the pinned CDN URL.
+hkw.render(layer, filename="output.html", backend="webgl")
+
+# Portable offline folder: output.html + output_assets/.
 hkw.render(
     layer,
     filename="output.html",
     backend="webgl",
-    embed=False       # writes output.glb alongside output.html
+    offline=True,
 )
 ```
+
+The first offline build downloads the pinned core, controls, geometry utilities,
+and environment-map loader dependencies into `~/.cache/hakowan/three/` and
+verifies their SHA-256 digests. Subsequent bundles are copied from that cache.
+See [Snapshot and observation](observation.md) for deterministic PNG capture.
 
 ## Choosing a Backend
 

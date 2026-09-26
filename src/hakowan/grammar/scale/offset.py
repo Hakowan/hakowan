@@ -1,3 +1,5 @@
+"""Attribute-offset scale model."""
+
 from dataclasses import dataclass
 
 from .scale import Scale
@@ -10,6 +12,7 @@ class Offset(Scale):
 
     Attributes:
         offset (Attribute): The offset to apply to the data.
+
     """
 
     offset: Attribute

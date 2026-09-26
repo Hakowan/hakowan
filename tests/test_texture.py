@@ -17,6 +17,10 @@ class TestTexture:
         assert t.colormap == "viridis"
         t.colormap = "turbo"
         assert t.colormap == "turbo"
+        categorical = texture.ScalarField(data=attr, categories=True)
+        assert categorical.colormap == "set1"
+        explicit = texture.ScalarField(data=attr, categories=True, colormap="viridis")
+        assert explicit.colormap == "viridis"
 
     def test_image(self):
         attr = scale.Attribute(name="uv")

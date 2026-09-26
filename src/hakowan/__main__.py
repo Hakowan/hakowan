@@ -52,6 +52,18 @@ def _saturation_arg(value: str) -> float:
     return v
 
 
+def _explode_arg(value: str) -> float:
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"explode magnitude must be a number, got {value!r}"
+        )
+    if not math.isfinite(v):
+        raise argparse.ArgumentTypeError(f"explode magnitude must be finite, got {v}")
+    return v
+
+
 def _whiteness_arg(value: str) -> float:
     try:
         v = float(value)
@@ -82,7 +94,25 @@ def parse_args():
     )
     parser.add_argument("--comp", help="Visualize components", action="store_true")
     parser.add_argument(
-        "--normal", help="Normal field", choices=["facet", "vertex"], default=None
+        "--explode",
+        help=(
+            "Explode the mesh: displace each connected component outward from the "
+            "mesh center by VAL times its offset (0 = no move, 1 = strong). "
+            "Negative values implode."
+        ),
+        type=_explode_arg,
+        default=None,
+        metavar="VAL",
+    )
+    parser.add_argument(
+        "--normal",
+        help=(
+            "Normal field for shading. 'facet' or 'vertex' computes normals "
+            "from geometry; any other value is treated as the name of a "
+            "pre-existing normal attribute on the mesh."
+        ),
+        default=None,
+        metavar="FIELD",
     )
     parser.add_argument(
         "input_mesh",
@@ -96,9 +126,9 @@ def parse_args():
     )
     parser.add_argument(
         "--wire-thickness",
-        help="Wireframe/seam thickness relative to bbox diagonal",
+        help="Wireframe, seam, and field-line diameter in pixels (default: 0.5)",
         type=float,
-        default=0.0005,
+        default=0.5,
     )
     parser.add_argument(
         "--resolution", help="Resolution", nargs=2, type=int, default=(1024, 800)
@@ -131,7 +161,13 @@ def parse_args():
         "--rotate", help="Rotate the mesh (degrees)", type=float, default=None
     )
     parser.add_argument(
-        "--turn-table", help="Turn table animation (num samples)", type=int, default=0
+        "--turn-table",
+        help=(
+            "Turn table animation (num samples). WebGL capture requires "
+            "hakowan[observe] and Playwright Chromium."
+        ),
+        type=int,
+        default=0,
     )
     parser.add_argument(
         "--two-sided", help="Render both sides of the mesh", action="store_true"
@@ -174,9 +210,14 @@ def parse_args():
     )
     parser.add_argument(
         "--field-style",
-        choices=["streamline", "arrow"],
+        choices=["streamline", "arrow", "fur"],
         default="streamline",
-        help="How to visualize --vector-field / --cross-field: 'streamline' (default) or 'arrow'.",
+        help=(
+            "How to visualize --vector-field / --cross-field: 'streamline' "
+            "(default), 'arrow', or 'fur' (hair strands combed along the field; "
+            "--vector-field only). For fur, --num-streamlines sets the strand "
+            "count and --streamline-color sets the coat color."
+        ),
     )
 
     parser.add_argument(
@@ -309,14 +350,16 @@ def _base_color_diffuse(material) -> "hkw.material.Material":
 def extract_material(
     scene: lagrange.scene.Scene, saturation: float = 1.0, whiteness: float = 0.0
 ):
-    """
-    Extracts materials from a Lagrange scene and converts them to hakowan material objects.
+    """Convert Lagrange scene materials to Hakowan materials.
 
-    Parameters:
-        scene (lagrange.scene.Scene): The scene object containing materials, textures, and images.
+    Args:
+        scene: Scene containing materials, textures, and embedded images.
+        saturation: Saturation multiplier applied to extracted image textures.
+        whiteness: Fraction used to blend extracted image textures toward white.
 
     Returns:
-        list[hkw.material.Material]: A list of hakowan material objects corresponding to the scene's materials.
+        Hakowan material objects in source-scene order.
+
     """
     mats = []
 
@@ -409,7 +452,8 @@ def embed_texture(scene_file, saturation: float = 1.0, whiteness: float = 0.0):
     mats = extract_material(scene, saturation=saturation, whiteness=whiteness)
     layers = [node_to_layer(scene, scene.nodes[nid], mats) for nid in scene.root_nodes]
     layers = [layer for layer in layers if layer is not None]
-    assert len(layers) > 0, "No valid layers found in scene"
+    if not layers:
+        raise SystemExit("No valid layers found in scene")
     return np.sum(layers)
 
 
@@ -615,11 +659,34 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             color_attr_ids = mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Color
             )
-            assert len(color_attr_ids) > 0, (
-                "No color attributes found in mesh for vertex_color material"
-            )
+            if not color_attr_ids:
+                raise SystemExit(
+                    "No color attributes found in mesh for vertex_color material"
+                )
             color_attr_id = color_attr_ids[0]
+            if mesh.is_attribute_indexed(color_attr_id):
+                color_attr_id = lagrange.map_attribute(
+                    mesh,
+                    color_attr_id,
+                    "_vertex_color",
+                    lagrange.AttributeElement.Vertex,
+                )
+            color_attr = mesh.attribute(color_attr_id)
+            color_data = np.asarray(color_attr.data)
             color_attr_name = mesh.get_attribute_name(color_attr_id)
+            # Integer color attributes (e.g. uint8 [0,255] from PCD/PLY) must be
+            # normalized to the [0,1] float range the renderer expects; the
+            # identity colormap passes values through unchanged, so 0-255 would
+            # otherwise blow past 1.0 and clamp every point to white.
+            if np.issubdtype(color_data.dtype, np.integer):
+                color_attr_name = "_vertex_color_normalized"
+                mesh.create_attribute(
+                    color_attr_name,
+                    element=color_attr.element_type,
+                    usage=lagrange.AttributeUsage.Color,
+                    initial_values=color_data.astype(np.float64)
+                    / np.iinfo(color_data.dtype).max,
+                )
             layer = layer.material(
                 "Principled",
                 hkw.texture.ScalarField(color_attr_name, colormap="identity"),
@@ -665,7 +732,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             )
         case "uv":
             uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-            assert len(uv_ids) > 0, "No UV attributes found in mesh for uv material"
+            if not uv_ids:
+                raise SystemExit("No UV attributes found in mesh for uv material")
             uv_id = uv_ids[0]
             uv_name = mesh.get_attribute_name(uv_id)
             base = hkw.layer(mesh)
@@ -681,7 +749,6 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 scalar_texture = hkw.texture.ScalarField(
                     args.material,
                     categories=args.categorical,
-                    colormap="set1" if args.categorical else "viridis",
                 )
 
                 if args.isoline:
@@ -709,7 +776,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                     )
             else:
                 texture_file = Path(args.material)
-                assert texture_file.is_file(), f"Texture file {texture_file} not found"
+                if not texture_file.is_file():
+                    raise SystemExit(f"Texture file {texture_file} not found")
                 layer = layer.material(
                     "Principled",
                     hkw.texture.Image(
@@ -720,7 +788,8 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 )
 
     if args.point_cloud:
-        assert not args.comp, "--point-cloud and --comp options are mutually exclusive"
+        if args.comp:
+            raise SystemExit("--point-cloud and --comp options are mutually exclusive")
         layer = layer.mark("Point").channel(size=args.point_size)
 
     if args.comp:
@@ -730,24 +799,53 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             hkw.texture.ScalarField("comp", colormap="set1", categories=True),
         )
 
+    if args.explode is not None:
+        # Displace each connected component outward from the mesh center by
+        # `args.explode` times its offset. Explode groups facets by a facet
+        # attribute, so reuse the "comp" component attribute when --comp already
+        # computed it; otherwise compute a private one first. The extra Compute
+        # is deeper in the transform chain, so it runs before Explode.
+        pieces_attr = "comp"
+        if not args.comp:
+            pieces_attr = "_explode_comp"
+            layer = layer.transform(hkw.transform.Compute(component=pieces_attr))
+        layer = layer.transform(
+            hkw.transform.Explode(pieces=pieces_attr, magnitude=args.explode)
+        )
+
+    normal_attr = None
     if args.normal == "vertex":
         layer = layer.transform(hkw.transform.Compute(vertex_normal="vertex_normal"))
-        layer = layer.channel(normal="vertex_normal")
+        normal_attr = "vertex_normal"
     elif args.normal == "facet":
         layer = layer.transform(hkw.transform.Compute(facet_normal="face_normal"))
-        layer = layer.channel(normal="face_normal")
+        normal_attr = "face_normal"
+    elif args.normal is not None:
+        if not mesh.has_attribute(args.normal):
+            raise SystemExit(f"Normal attribute '{args.normal}' not found in mesh")
+        normal_attr = args.normal
+
+    if normal_attr is not None:
+        if args.point_cloud:
+            # Render each point as a disc oriented by the normal field.
+            layer = layer.channel(
+                shape=hkw.channel.Shape(base_shape="disk", orientation=normal_attr)
+            )
+        else:
+            layer = layer.channel(normal=normal_attr)
 
     if args.uv:
         layer = layer.transform(hkw.transform.UVMesh())
 
     if args.wireframe:
-        w = layer.mark("Curve").material("Diffuse", "black")
-        w = w.channel(size=args.wire_thickness * bbox_diag)
-        layer = layer + w
+        layer = layer.show_edges(
+            width=args.wire_thickness, width_space="screen", name="Wireframe"
+        )
 
     if args.seams:
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
-        assert len(uv_ids) > 0, "No UV attributes found in mesh for seams rendering"
+        if not uv_ids:
+            raise SystemExit("No UV attributes found in mesh for seams rendering")
         uv_id = uv_ids[0]
         uv_name = mesh.get_attribute_name(uv_id)
         base = hkw.layer(mesh)
@@ -755,7 +853,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
             base.transform(hkw.transform.Boundary(attributes=[uv_name]))
             .mark("Curve")
             .material("Diffuse", "black")
-            .channel(size=args.wire_thickness * bbox_diag)
+            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="screen"))
         )
         layer = layer + seams
 
@@ -764,7 +862,24 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         is_cross = args.cross_field is not None
         vf_mesh = copy.deepcopy(mesh)
         lagrange.triangulate_polygonal_facets(vf_mesh)
-        if args.field_style == "arrow":
+        if args.field_style == "fur":
+            if is_cross:
+                raise SystemExit(
+                    "--field-style fur supports --vector-field only, not --cross-field."
+                )
+            vf_layer = (
+                hkw.layer(vf_mesh)
+                .transform(
+                    hkw.transform.Fur(
+                        vec_field=vec_field_attr,
+                        n=args.num_streamlines,
+                        follow_surface=True,
+                    )
+                )
+                .mark("Curve")
+                .material("Hair", color=args.streamline_color)
+            )
+        elif args.field_style == "arrow":
             vf_layer = (
                 hkw.layer(vf_mesh)
                 .mark("Curve")
@@ -775,7 +890,7 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                         end_type="arrow",
                         normalize=True,
                     ),
-                    size=args.wire_thickness * bbox_diag,
+                    size=hkw.channel.Size(data=args.wire_thickness, space="screen"),
                 )
             )
         else:
@@ -793,7 +908,9 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
                 )
                 .mark("Curve")
                 .material("Diffuse", args.streamline_color)
-                .channel(size=args.wire_thickness * bbox_diag)
+                .channel(
+                    size=hkw.channel.Size(data=args.wire_thickness, space="screen")
+                )
             )
         layer = layer + vf_layer
 
@@ -910,45 +1027,6 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
     return layer
 
 
-def grid_layout(layers: list["hkw.layer"], up_axis: str) -> "hkw.layer":
-    """Arrange ``layers`` in a grid (at most 3 columns) facing the camera.
-
-    Columns are laid out along X; rows are stacked along ``up_axis`` (the screen
-    vertical, so the grid faces the camera). Column count is ``min(N, 3)``, so up
-    to 3 meshes share a single row and 4-6 meshes fill a 2-row grid (6 meshes give
-    a 2x3 grid). Rows are emitted top-to-bottom (the first mesh sits top-left). A
-    ragged last row centers itself for free, courtesy of the recursive
-    juxtaposition layout in the compiler.
-
-    Parameters:
-        layers (list[hkw.layer]): One styled layer per input mesh.
-        up_axis (str): Screen-vertical axis to stack rows along ("y" or "z").
-
-    Returns:
-        hkw.layer: The composited grid layer (or the lone layer if N == 1).
-    """
-    if len(layers) == 1:
-        return layers[0]
-
-    # ``layers`` are pre-normalized to unit size by ``build_layer`` (see the
-    # ``normalize`` path), so every cell — including a lone mesh in a ragged
-    # row — is already the same size. The juxtaposition just packs them; no
-    # per-cell ``normalize`` is needed (and using it would re-shrink whole rows
-    # unevenly when row counts differ, e.g. a full row of 3 vs a ragged 2).
-    cols = min(len(layers), 3)
-    rows = [layers[i : i + cols] for i in range(0, len(layers), cols)]
-    row_layers = [
-        row[0] if len(row) == 1 else row[0].juxtapose(*row[1:], axis="x")
-        for row in rows
-    ]
-    # Stack rows top-to-bottom: juxtapose packs in increasing-axis order, so
-    # reverse the rows to place the first one at the top.
-    row_layers.reverse()
-    if len(row_layers) == 1:
-        return row_layers[0]
-    return row_layers[0].juxtapose(*row_layers[1:], axis=up_axis)  # type: ignore[arg-type]
-
-
 def main():
     """
     Entry point for the command-line interface for mesh rendering.
@@ -979,7 +1057,11 @@ def main():
         build_layer(args, mesh_path, normalize=normalize)
         for mesh_path in args.input_mesh
     ]
-    layer = grid_layout(layers, up_axis="z" if args.z_up else "y")
+    layer = hkw.grid(
+        layers,
+        columns=min(len(layers), 3),
+        row_axis="z" if args.z_up else "y",
+    )
 
     config = hkw.config()
     [config.film.width, config.film.height] = args.resolution
@@ -1006,6 +1088,25 @@ def main():
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
         save_camera_matrix(cam_data, Path(args.camera_matrix))
+
+    turntable_pass = "beauty"
+    if args.turn_table and args.backend == "webgl":
+        requested_passes = [
+            name
+            for name, enabled in (
+                ("albedo", args.albedo),
+                ("depth", args.depth),
+                ("normal", args.shading_normal),
+                ("facet_id", args.facet_id),
+            )
+            if enabled
+        ]
+        if len(requested_passes) > 1:
+            raise SystemExit("WebGL turn-table supports at most one render pass.")
+        if requested_passes == ["facet_id"]:
+            raise SystemExit("WebGL turn-table does not support the facet_id pass.")
+        if requested_passes:
+            turntable_pass = requested_passes[0]
 
     if args.turn_table == 0:
         kwargs = {}
@@ -1079,9 +1180,26 @@ def main():
 
                 frame_file = get_tmp_image_name()
                 temp_files.append(frame_file)
-                hkw.render(
-                    layer, frame_config, filename=frame_file, backend=args.backend
-                )
+                if args.backend == "webgl":
+                    hkw.snapshot(
+                        layer,
+                        pass_name=turntable_pass,
+                        camera=hkw.CameraState(
+                            eye=tuple(float(value) for value in rotated_camera),
+                            target=(0.0, 0.0, 0.0),
+                            up=tuple(float(value) for value in frame_config.sensor.up),
+                            fov=float(getattr(frame_config.sensor, "fov", 28.8415)),
+                            near=float(frame_config.sensor.near_clip),
+                            far=float(frame_config.sensor.far_clip),
+                        ),
+                        resolution=(frame_config.film.width, frame_config.film.height),
+                        config=frame_config,
+                        filename=frame_file,
+                    )
+                else:
+                    hkw.render(
+                        layer, frame_config, filename=frame_file, backend=args.backend
+                    )
                 # Load frame and ensure solid white background
                 with Image.open(frame_file) as img:
                     if img.mode == "RGBA":

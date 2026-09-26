@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pygltflib
 
-from .utils import gltf_matrix, np_to_bytes
+from .utils import gltf_matrix, look_at, np_to_bytes
 
 
 # glTF component-type constants (subset)
@@ -48,6 +48,10 @@ class GLTFBuilder:
     # interactive viewer groups nodes by this tag so each comparison cell can be
     # rotated about its own centre. ``None`` means "no cell" (a single group).
     _current_cell: str | None = None
+    # View index attached to every node created while set. The interactive viewer
+    # groups nodes by this tag to drive per-layer visibility checkboxes. ``None``
+    # means the node carries no layer tag.
+    _current_layer: int | None = None
 
     def __post_init__(self) -> None:
         # Ensure a buffer slot exists; its length is patched at finalize time.
@@ -113,19 +117,23 @@ class GLTFBuilder:
 
     def add_image_texture(
         self,
-        png_bytes: bytes,
+        image_bytes: bytes,
         *,
+        mime_type: str = "image/png",
         mag_filter: int = _FILTER_LINEAR,
         min_filter: int = _FILTER_LINEAR_MIPMAP_LINEAR,
     ) -> int:
-        """Embed a PNG image as a glTF texture and return the texture index.
+        """Embed a PNG or WebP image as a glTF texture and return its index.
 
         Each call appends its own sampler so procedural textures (e.g. a 2×2
         checker) can request NEAREST / non-mipmap filtering without affecting
-        photo textures.
+        photo textures. WebP images use the required ``EXT_texture_webp``
+        extension because core glTF texture sources only support PNG and JPEG.
         """
-        view_idx = self._add_buffer_view(png_bytes, target=None)
-        image = pygltflib.Image(mimeType="image/png", bufferView=view_idx)
+        if mime_type not in {"image/png", "image/webp"}:
+            raise ValueError(f"Unsupported glTF image MIME type: {mime_type!r}")
+        view_idx = self._add_buffer_view(image_bytes, target=None)
+        image = pygltflib.Image(mimeType=mime_type, bufferView=view_idx)
         self._gltf.images.append(image)
         image_idx = len(self._gltf.images) - 1
 
@@ -139,7 +147,14 @@ class GLTFBuilder:
         )
         sampler_idx = len(self._gltf.samplers) - 1
 
-        texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
+        if mime_type == "image/webp":
+            texture = pygltflib.Texture(
+                sampler=sampler_idx,
+                extensions={"EXT_texture_webp": {"source": image_idx}},
+            )
+            self._register_required_extension("EXT_texture_webp")
+        else:
+            texture = pygltflib.Texture(source=image_idx, sampler=sampler_idx)
         self._gltf.textures.append(texture)
         return len(self._gltf.textures) - 1
 
@@ -349,8 +364,13 @@ class GLTFBuilder:
         node_kwargs: dict[str, Any] = {"mesh": mesh_idx}
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        extras: dict[str, Any] = {}
         if self._current_cell is not None:
-            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
+            extras["hakowan_cell"] = self._current_cell
+        if self._current_layer is not None:
+            extras["hakowan_layer"] = self._current_layer
+        if extras:
+            node_kwargs["extras"] = extras
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
@@ -478,8 +498,13 @@ class GLTFBuilder:
         }
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
+        extras: dict[str, Any] = {}
         if self._current_cell is not None:
-            node_kwargs["extras"] = {"hakowan_cell": self._current_cell}
+            extras["hakowan_cell"] = self._current_cell
+        if self._current_layer is not None:
+            extras["hakowan_layer"] = self._current_layer
+        if extras:
+            node_kwargs["extras"] = extras
         node = pygltflib.Node(**node_kwargs)
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1
@@ -551,6 +576,42 @@ class GLTFBuilder:
         node = pygltflib.Node(
             translation=translation,
             extensions={"KHR_lights_punctual": {"light": light_idx}},
+        )
+        self._gltf.nodes.append(node)
+        node_idx = len(self._gltf.nodes) - 1
+        self._gltf.scenes[0].nodes.append(node_idx)
+        return node_idx
+
+    def add_directional_light(
+        self,
+        direction: tuple[float, float, float] | list[float],
+        color: tuple[float, float, float] | list[float],
+        intensity: float,
+    ) -> int:
+        """Register a KHR_lights_punctual directional light."""
+        ext_obj = self._gltf.extensions or {}
+        khr = ext_obj.setdefault("KHR_lights_punctual", {"lights": []})
+        khr["lights"].append(
+            {
+                "type": "directional",
+                "color": [float(color[0]), float(color[1]), float(color[2])],
+                "intensity": float(intensity),
+            }
+        )
+        self._gltf.extensions = ext_obj
+        used = self._gltf.extensionsUsed or []
+        if "KHR_lights_punctual" not in used:
+            used.append("KHR_lights_punctual")
+            self._gltf.extensionsUsed = used
+        vector = np.asarray(direction, dtype=np.float64)
+        vector /= np.linalg.norm(vector)
+        up = np.array([0.0, 1.0, 0.0])
+        if abs(float(vector @ up)) > 0.99:
+            up = np.array([1.0, 0.0, 0.0])
+        matrix = look_at(np.zeros(3), vector, up)
+        node = pygltflib.Node(
+            matrix=gltf_matrix(matrix),
+            extensions={"KHR_lights_punctual": {"light": len(khr["lights"]) - 1}},
         )
         self._gltf.nodes.append(node)
         node_idx = len(self._gltf.nodes) - 1

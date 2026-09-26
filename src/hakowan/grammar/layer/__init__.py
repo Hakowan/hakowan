@@ -1,3 +1,5 @@
-from .layer import Layer, LayoutOptions
+"""Layer tree and juxtaposition layout models."""
 
-__all__ = ["Layer", "LayoutOptions"]
+from .layer import Layer, LayoutOptions, grid
+
+__all__ = ["Layer", "LayoutOptions", "grid"]

@@ -1,3 +1,5 @@
+"""Composable geometry and attribute transform models."""
+
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 import copy
@@ -19,6 +21,7 @@ __all__ = [
     "Norm",
     "Boundary",
     "Streamline",
+    "Fur",
 ]
 
 
@@ -37,6 +40,7 @@ class Transform:
 
         Args:
             other: The transform to apply after the current transform.
+
         """
         # Because transform may be used in multiple places in the layer graph, and it may have a
         # child in the future, it must be deep copied to avoid undesired side effects.
@@ -56,6 +60,7 @@ class Transform:
             other: The other transform.
 
         Returns: A new transform that is the composition of the current transform and `other`.
+
         """
         r = copy.deepcopy(self)
         r *= other
@@ -70,6 +75,7 @@ class Filter(Transform):
         data: The attribute to filter on. If None, the vertex position is used.
         condition: A callable that takes a single argument, the value of the attribute, and returns
             a boolean indicating whether the data should be kept.
+
     """
 
     data: AttributeLike | None = None
@@ -93,6 +99,7 @@ class Clip(Transform):
         point: A point lying on the clipping plane.
         normal: The plane normal. The half-space where
             ``dot(normal, x - point) >= 0`` is kept; the rest is clipped away.
+
     """
 
     point: npt.ArrayLike = field(default_factory=lambda: np.zeros(3))
@@ -106,6 +113,7 @@ class UVMesh(Transform):
     Attributes:
         uv: The attribute defining the UV coordinates. If None, automatically deetect the UV
             attribute from the data.
+
     """
 
     uv: AttributeLike | None = None
@@ -117,6 +125,7 @@ class Affine(Transform):
 
     Attributes:
         matrix: The 4x4 affine matrix to apply.
+
     """
 
     matrix: npt.ArrayLike
@@ -139,6 +148,7 @@ class PrincipalAxes(Transform):
         frame: 3x3 matrix whose columns are the target orthonormal axes (see above).
         orthonormalize_frame: If True (default), orthonormalize ``frame`` with QR so mildly
             skewed inputs still yield a proper rotation.
+
     """
 
     frame: npt.ArrayLike = field(default_factory=lambda: np.eye(3))
@@ -164,6 +174,7 @@ class Normalize(Transform):
         normalize_normals: Re-normalize normal attributes to unit length. Default True.
         normalize_tangents_bitangents: Re-normalize tangent/bitangent attributes to
             unit length. Default True.
+
     """
 
     normalize_normals: bool = True
@@ -182,6 +193,7 @@ class Compute(Transform):
         vertex_normal: Compute the vertex normal vector field as an attribute.
         facet_normal: Compute the facet normal vector field as an attribute.
         component: Compute connected component ids.
+
     """
 
     x: str | None = None
@@ -200,6 +212,7 @@ class Explode(Transform):
     Attributes:
         pieces: The attribute defining the pieces.
         magnitude: The magnitude of the displacement.
+
     """
 
     pieces: AttributeLike
@@ -214,6 +227,7 @@ class Norm(Transform):
         data: The vector attribute to compute the norm on.
         norm_attr_name: The name of the output norm attribute.
         order: The order of the norm. Default is 2, which is the L2 norm.
+
     """
 
     data: AttributeLike
@@ -228,6 +242,7 @@ class Boundary(Transform):
     Attributes:
         attributes: The attributes to take into account when computing the boundary.
             i.e. discontinuities in these attributes will be considered as boundaries.
+
     """
 
     attributes: list[str] = field(default_factory=list)
@@ -235,28 +250,35 @@ class Boundary(Transform):
 
 @dataclass(slots=True, kw_only=True)
 class Streamline(Transform):
-    """Replace the mesh with surface streamlines traced from a per-facet vector or
-    cross field.
+    """Replace a triangular surface with traced vector- or cross-field curves.
 
-    The output is a vertex-only mesh whose 2-vertex polygonal faces encode line
-    segments along the streamlines, suitable for the ``curve`` mark.  A per-vertex
-    ``int32`` attribute named by ``id_attr_name`` identifies which streamline
-    each point belongs to.
+    Hakowan resolves facet, vertex, corner, and indexed three-channel fields to
+    one tangent direction per facet. Vertex fields use Levi-Civita transport and
+    symmetry-aware averaging (1-RoSy for vectors, 4-RoSy for cross fields);
+    corner and indexed fields use arithmetic facet averaging. Traces cross
+    triangle edges exactly and parallel-transport directions between facets.
+
+    The output mesh stores streamline points as vertices and consecutive line
+    segments as two-vertex facets. A per-vertex ``int32`` attribute named by
+    ``id_attr_name`` identifies each streamline.
 
     Attributes:
-        vec_field: The per-facet vector field attribute name.  Vertex- or corner-
-            domain attributes are averaged to per-facet first.
-        n: Number of blue-noise seed faces to sample.  Default 50.
-        cross_field: Treat the field as 4-RoSy cross field.  Default True.
-        length: Maximum object-space length per half-trace (measured on the
-            data-frame mesh, before any layer-level affine transforms).  Tracing
-            stops once the accumulated length exceeds this value.  ``None`` means
-            no limit (trace until mesh boundary).  Default None.
-        seed: RNG seed passed to blue-noise sampling.  Default 0.
-        min_length: Discard streamlines shorter than this many sample points.
-            Default 3.
-        id_attr_name: Name of the per-vertex streamline-id attribute on the
-            output mesh.  Default ``_hakowan_streamline_id``.
+        vec_field: Three-channel vector attribute. Facet values are used
+            directly; other supported domains are converted to facets.
+        n: Number of blue-noise seed facets. Default 50. Ordinary fields produce
+            up to ``n`` bidirectional streamlines; cross fields produce up to
+            ``2 * n`` by tracing both orthogonal axes.
+        cross_field: Treat the field as 4-RoSy. Default True.
+        length: Maximum object-space length per half-trace, measured before
+            layer-level affine transforms. A complete bidirectional trace can
+            approach twice this length. ``None`` traces until a boundary or
+            another termination condition. Default None.
+        seed: RNG seed passed to blue-noise sampling. Default 0.
+        min_length: Minimum retained sample-point count. Default 3.
+        max_steps: Edge-crossing cap per half-trace. ``None`` uses half the
+            number of facets.
+        id_attr_name: Output per-vertex streamline-ID attribute name. Default
+            ``_hakowan_streamline_id``.
     """
 
     vec_field: AttributeLike
@@ -265,4 +287,84 @@ class Streamline(Transform):
     length: float | None = None
     seed: int = 0
     min_length: int = 3
+    max_steps: int | None = None
     id_attr_name: str = "_hakowan_streamline_id"
+
+
+@dataclass(slots=True, kw_only=True)
+class Fur(Transform):
+    """Replace a surface with tapered strands flowing along a vector field.
+
+    Each strand is a short, tapered curve that grows from the surface, leans in
+    the direction of the vector field, and curls toward the surface flow — so a
+    dense collection of them reads as realistic fur combed along the field.  The
+    output is a vertex-only mesh whose 2-vertex polygonal faces encode the line
+    segments of every strand, suitable for the ``curve`` mark paired with a
+    ``Hair`` material.
+
+    Two internal per-vertex attributes are written on the output mesh:
+    ``_hakowan_strand_id`` (``int32``) identifies which strand each point
+    belongs to, and ``_hakowan_strand_radius`` (``float64``) carries the
+    root-to-tip taper radius.  The Blender backend groups points by strand id
+    into continuous tapered hair curves (rendered with the Principled Hair BSDF
+    when a ``Hair`` material is used); the Mitsuba and WebGL backends render the
+    same strands as tapered tubes, using the strand radius as the curve size
+    when no ``size`` channel is set.
+
+    All lengths below are measured in object space on the data-frame mesh
+    (before any layer-level affine transforms).
+
+    Attributes:
+        vec_field: The per-facet vector field attribute name.  Vertex- or
+            corner-domain attributes are averaged to per-facet first.
+        n: Number of fur strands to grow.  Seed points are drawn area-uniformly
+            over the surface.  Default 2000.
+        length: Strand length.  ``None`` (default) picks 5% of the mesh
+            bounding-box diagonal.
+        lift: Angle in degrees by which each strand rises off the surface at its
+            root (0 = lies flat along the field, 90 = stands straight up).
+            Default 30.
+        curl: How strongly the strand curls back toward the surface flow
+            direction as it grows (0 = straight, larger = more droop).  Default
+            0.35.
+        segments: Number of segments per strand (points per strand is
+            ``segments + 1``).  Higher gives smoother curls.  Default 6.
+        root_radius: Strand radius at the root.  ``None`` (default) picks 6% of
+            ``length``.
+        tip_radius: Strand radius at the tip.  Default 0 (pointed hair tip).
+        randomness: Amount of natural per-strand variation in length, lift,
+            direction and curl, in ``[0, 1]``.  Default 0.3.
+        follow_surface: When True, trace each strand as a short streamline on the
+            surface (following the field and the surface curvature) and give it
+            only a gentle lift/curl, so it hugs the surface instead of standing
+            off it.  When False (default), strands are analytic and lean off the
+            surface by ``lift``.
+        children: Number of child hairs grown around each guide strand for dense,
+            clumped fur.  ``0`` (default) keeps guide strands only.  Only the
+            Blender backend expands children (via a Geometry Nodes modifier); the
+            Mitsuba and WebGL backends render the guide strands alone.
+        clump: How strongly child-hair tips converge onto their guide strand, in
+            ``[0, 1]`` (0 = parallel children, 1 = tips meet at the guide tip).
+            Only used when ``children > 0``.  Default 0.6.
+        spread: Radius over which child-hair roots scatter around each guide
+            root.  ``None`` (default) picks 15% of ``length``.  Only used when
+            ``children > 0``.
+        seed: RNG seed for seed-point sampling and per-strand variation.
+            Default 0.
+
+    """
+
+    vec_field: AttributeLike
+    n: int = 2000
+    length: float | None = None
+    lift: float = 30.0
+    curl: float = 0.35
+    segments: int = 6
+    root_radius: float | None = None
+    tip_radius: float = 0.0
+    randomness: float = 0.3
+    follow_surface: bool = False
+    children: int = 0
+    clump: float = 0.6
+    spread: float | None = None
+    seed: int = 0

@@ -30,22 +30,71 @@ of a mesh defines the "columns" of a 3D data frame.
 In addition, Hakowan can also extract geometry and data associated
 with geometry from a number of common 3D file formats such as OBJ, PLY, GLTF and MSH.
 
-Here is a quick example demonstrating the various ways of specifying data in Hakowan:
+Hakowan accepts mesh files and Lagrange meshes directly:
+
 ```py
-# As argument to hkw.layer() method.
 l0 = hkw.layer("shape.obj")
-
-# As argument to .data overwrite function.
-l1 = hkw.layer().data("shape.obj")
-
-# Lagrange SurfaceMesh object can also be used instead of filename.
-mesh = lagrange.io.load_mesh("shape.obj")
-l2 = hkw.layer(mesh)
-l3 = hkw.layer().data(mesh)
+l1 = hkw.layer(lagrange.io.load_mesh("shape.obj"))
 ```
 
-See the [Mesh Deformation](../examples/deformation.md) example for a use case of reusing the same
-layer specification with different data fields.
+Numeric arrays with shape `(n, 2)` or `(n, 3)` become point clouds. Two-dimensional
+positions receive a zero Z coordinate:
+
+```py
+points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+points_layer = hkw.layer(points).mark("point")
+```
+
+Pandas and xarray inputs use `x`, `y`, and optional `z` columns as positions.
+Use `positions=` when the columns have domain-specific names. Other numeric
+columns become vertex attributes, boolean columns are retained as `0`/`1`
+attributes, and unsupported non-numeric columns are ignored. Position tables
+must contain at least one row.
+
+```py
+table = pandas.DataFrame({
+    "east": [0, 1, 0],
+    "north": [0, 0, 1],
+    "height": [0, 0, 0],
+    "temperature": [12.0, 18.0, 25.0],
+})
+points_layer = hkw.layer(
+    table, positions=("east", "north", "height")
+).mark("point")
+```
+
+PyVista polygonal datasets and Trimesh meshes preserve their surface topology,
+numeric point/vertex attributes, and numeric cell/face attributes:
+
+```py
+surface_layer = hkw.layer(pyvista_mesh)
+surface_layer = hkw.layer(trimesh_mesh)
+```
+
+These libraries are optional and are not imported by Hakowan. Install all four
+interoperability dependencies with `pip install "hakowan[data]"`.
+
+## Inspecting data
+
+Use `hkw.inspect()` before building a layer to obtain a JSON-safe summary of the
+geometry and its attributes. This is useful for scripts and agents that must
+choose fields without guessing their names or shapes.
+
+```py
+summary = hkw.inspect("shape.ply")
+
+print(summary.vertex_count, summary.facet_count)
+for attr in summary.attributes:
+    print(attr.name, attr.element, attr.channels, attr.minimum, attr.maximum)
+
+# Suitable for JSON serialization or model/tool input.
+payload = summary.to_dict()
+```
+
+For indexed attributes, `value_count` is the number of unique stored values and
+`element_count` is the number of indices. Numeric summaries include finite and
+non-finite row counts, per-channel bounds, and quartiles.
+
 
 <!--
 In 2D data visualization, data is often represented as a table or data frame (e.g. Excel sheet or

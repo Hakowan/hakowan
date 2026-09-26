@@ -42,9 +42,8 @@ def _worker_init(
 
 def _trace_seed_task(task):
     """Worker entry point: trace one seed (both arms, both directions)."""
-    fi, seed_pt, arms, max_length, min_length = task
+    fi, seed_pt, arms, max_length, min_length, max_steps = task
     w = _W
-    num_faces = w["facets"].shape[0]
     polylines = []
     for arm in arms:
         fwd = _trace_half(
@@ -52,7 +51,7 @@ def _trace_seed_task(task):
             seed_pt,
             arm,
             max_length,
-            num_faces,
+            max_steps,
             w["vertices"],
             w["facets"],
             w["normals"],
@@ -68,7 +67,7 @@ def _trace_seed_task(task):
             seed_pt,
             -arm,
             max_length,
-            num_faces,
+            max_steps,
             w["vertices"],
             w["facets"],
             w["normals"],
@@ -99,6 +98,7 @@ def _compute_streamlines(
     length: float | None = None,
     seed: int = 0,
     min_length: int = 3,
+    max_steps: int | None = None,
 ) -> lagrange.SurfaceMesh:
     """Compute surface streamlines from a per-facet vector/cross field.
 
@@ -126,6 +126,8 @@ def _compute_streamlines(
             limit (trace until mesh boundary).
         seed: RNG seed used when blue-noise sampling falls back to random.
         min_length: Discard streamlines shorter than this many sample points.
+        max_steps: Hard cap on edge-crossing steps per half-trace.  ``None``
+            defaults to half the number of facets.
 
     Returns:
         A :class:`lagrange.SurfaceMesh` whose vertices are streamline sample
@@ -168,6 +170,9 @@ def _compute_streamlines(
     if len(seed_faces) == 0:
         return lagrange.SurfaceMesh()
 
+    if max_steps is None:
+        max_steps = max(1, num_faces // 2)
+
     tasks = []
     for fi in seed_faces:
         seed_pt = centroids_3d[fi]
@@ -177,7 +182,7 @@ def _compute_streamlines(
         if cross_field:
             perp_2d = np.array([-d_2d[1], d_2d[0]])
             arms.append(perp_2d[0] * e1[fi] + perp_2d[1] * e2[fi])
-        tasks.append((fi, seed_pt, arms, length, min_length))
+        tasks.append((fi, seed_pt, arms, length, min_length, max_steps))
 
     shared = (
         vertices,

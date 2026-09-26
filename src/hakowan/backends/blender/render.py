@@ -3,6 +3,7 @@
 from ...common import logger
 from ...common.image_io import check_supported_suffix, convert_image, is_hdr_suffix
 from ...common.output import manage_native_output
+from ...common.overlay import composite_overlay_file
 from ...compiler import Scene
 from ...setup import Config
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, FACET_ID, aov_path
@@ -43,6 +44,7 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         filename: Path | str | None = None,
         *,
         blender_engine: str = "CYCLES",
+        environment_visible: bool | None = None,
         blend_file: Path | str | None = None,
         **kwargs: Any,
     ) -> Any:
@@ -65,8 +67,11 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                 automatically.  Pass ``None`` to render without saving.
             blender_engine: Blender render engine — ``"CYCLES"`` (default) or
                 ``"BLENDER_EEVEE"``.
+            environment_visible: Override whether the environment map is visible
+                to the camera; ``None`` inherits Config.
             blend_file: If provided, save the Blender scene to this path before
                 rendering (useful for debugging).
+            **kwargs: Rejected compatibility catch-all for unknown options.
 
         Returns:
             ``None`` — Blender writes directly to *filename*.
@@ -75,6 +80,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             raise TypeError(
                 f"render() got unexpected keyword argument(s): {list(kwargs)}"
             )
+        if environment_visible is None:
+            environment_visible = config.environment_visible
         logger.info("Starting Blender rendering...")
 
         # Clear existing scene
@@ -90,8 +97,11 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         # Setup lighting
         self._setup_lighting(config)
 
-        # Setup render settings
-        self._setup_render_settings(config, engine=blender_engine)
+        self._setup_render_settings(
+            config,
+            engine=blender_engine,
+            environment_visible=environment_visible,
+        )
 
         # Save .blend file if requested (for debugging)
         if blend_file is not None:
@@ -183,6 +193,15 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             and render_filename.suffix.lower() != out_suffix
         ):
             self._finalize_outputs(config, render_filename, filename)
+
+        if filename is not None:
+            if not composite_overlay_file(
+                filename, scene.legends, scene.annotations, config.background
+            ):
+                logger.warning(
+                    "Legends and annotations are not composited into HDR output; "
+                    "use PNG or another Pillow-supported format."
+                )
 
         # Drop the private intermediate render directory, if one was used.
         if _tmp_render_dir is not None:
@@ -321,6 +340,13 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         # Clear orphaned data
         for mesh in bpy.data.meshes:
             bpy.data.meshes.remove(mesh)
+        # Curve datablocks (streamline/vector-field beveled curves) and hair
+        # Curves (fur strands) are not tied to meshes, so purge them explicitly
+        # or they leak and their names collide across renders.
+        for curve in bpy.data.curves:
+            bpy.data.curves.remove(curve)
+        for hair in bpy.data.hair_curves:
+            bpy.data.hair_curves.remove(hair)
         for material in bpy.data.materials:
             bpy.data.materials.remove(material)
         for light in bpy.data.lights:

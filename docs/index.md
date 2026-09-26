@@ -42,6 +42,28 @@ The above code creates a single visualization [_layer_](guide/layer.md) using
 default WebGL backend into an interactive viewer named `output.html`, which you
 can open in any modern browser.
 
+The shortest scalar-field visualization is one additional method call. Hakowan
+infers the numeric domain and adds a `viridis` color map and legend:
+
+```py
+temperature = hkw.layer("mesh.ply").color_by("temperature")
+hkw.render(temperature, filename="temperature.html")
+```
+
+Use `hkw.inspect("mesh.ply")` first when the available attribute names are not
+already known.
+
+For a deterministic static image, install `hakowan[observe]` and capture a
+beauty snapshot:
+
+```py
+figure = hkw.figure(temperature).camera("fit", direction="isometric")
+hkw.snapshot(figure, filename="temperature.png")
+```
+
+Use [`hkw.observe()`](guide/observation.md) when the task needs several views,
+render passes, visual diagnostics, or machine-readable visibility evidence.
+
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:
 
@@ -59,7 +81,7 @@ provides a specification of one or more of the following items:
 ``` bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.5.2},
+    version = {0.6.0},
     year = 2026,
 }
 ```

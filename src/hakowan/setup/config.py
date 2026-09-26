@@ -1,17 +1,25 @@
+"""Invocation-time renderer configuration and coordinate presets."""
+
 from .sensor import Sensor, Perspective
 from .film import Film
 from .sampler import Sampler, Independent
 from .emitter import Emitter, Envmap
-from .integrator import Integrator, Path, AOV
-from .render_pass import RENDER_PASSES, get_render_pass
+from .integrator import Integrator, Path
+from .render_pass import get_render_pass
 
 import numpy as np
 from dataclasses import dataclass, field
+from typing import Literal
 
 
 @dataclass(kw_only=True, slots=True)
 class Config:
-    """Configuration for rendering.
+    """Invocation-time renderer policy, separate from visualization intent.
+
+    A :class:`~hakowan.grammar.figure.Figure` stores portable camera, lighting,
+    environment, and output intent. Passing an explicit ``Config`` to rendering
+    selects operational backend settings and overrides the complete
+    Figure-derived configuration rather than merging with it.
 
     Attributes:
         sensor: Sensor settings.
@@ -37,6 +45,9 @@ class Config:
             written to a ``<stem>_<pass><ext>`` sidecar file (or exposed as a
             live viewer toggle for WebGL); see
             :class:`hakowan.render.RenderResult` for the per-render manifest.
+        environment_visible: Show an environment map to the camera when true.
+        background: Optional WebGL/raster light or dark background override.
+
     """
 
     sensor: Sensor = field(default_factory=Perspective)
@@ -45,6 +56,13 @@ class Config:
     emitters: list[Emitter] = field(default_factory=lambda: [Envmap()])
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
+    environment_visible: bool = False
+    background: Literal["light", "dark"] | None = None
+
+    def __setattr__(self, name, value):
+        if name == "background" and value not in {None, "light", "dark"}:
+            raise ValueError("Config.background must be 'light', 'dark', or None.")
+        object.__setattr__(self, name, value)
 
     def z_up(self) -> None:
         """Update configuration for z-up coordinate system."""
@@ -87,31 +105,27 @@ class Config:
     # ------------------------------------------------------------------ #
 
     @property
-    def render_passes(self) -> set[str]:
-        """Set of active render passes.
+    def render_passes(self) -> frozenset[str]:
+        """Immutable set of requested semantic render passes.
 
         Valid pass names are ``"albedo"``, ``"depth"``, ``"normal"``, and
-        ``"facet_id"``.  Assigning a new collection replaces the entire set
-        and re-synchronises the Mitsuba AOV integrator accordingly.
+        ``"facet_id"``. Assign a collection to replace the requests. Backends
+        derive their native pass configuration at render time, keeping this set
+        as the single source of truth.
 
         Example::
 
             config.render_passes = {"albedo", "depth"}
         """
-        return self._render_passes
+        return frozenset(self._render_passes)
 
     @render_passes.setter
-    def render_passes(self, value: set[str] | list[str]) -> None:
-        """Replace the active render-pass set and re-sync AOV integrator.
-
-        Raises:
-            ValueError: If any name is not a recognised render pass.
-        """
+    def render_passes(self, value: set[str] | list[str] | frozenset[str]) -> None:
+        """Replace the requested render passes after validating every name."""
         names = set(value)
         for name in names:
-            get_render_pass(name)  # type: ignore[arg-type]  # validate; raises on unknown name
+            get_render_pass(name)  # type: ignore[arg-type]
         self._render_passes = names
-        self.__sync_aovs()
 
     # ------------------------------------------------------------------ #
     # Convenience boolean aliases                                          #
@@ -124,12 +138,11 @@ class Config:
 
     @albedo.setter
     def albedo(self, value: bool) -> None:
-        """Add or remove the albedo pass.  Also updates the Mitsuba AOV integrator."""
+        """Add or remove the albedo pass request."""
         if value:
             self._render_passes.add("albedo")
         else:
             self._render_passes.discard("albedo")
-        self.__sync_aovs()
 
     @property
     def depth(self) -> bool:
@@ -138,12 +151,11 @@ class Config:
 
     @depth.setter
     def depth(self, value: bool) -> None:
-        """Add or remove the depth pass.  Also updates the Mitsuba AOV integrator."""
+        """Add or remove the depth pass request."""
         if value:
             self._render_passes.add("depth")
         else:
             self._render_passes.discard("depth")
-        self.__sync_aovs()
 
     @property
     def normal(self) -> bool:
@@ -152,12 +164,11 @@ class Config:
 
     @normal.setter
     def normal(self, value: bool) -> None:
-        """Add or remove the normal pass.  Also updates the Mitsuba AOV integrator."""
+        """Add or remove the normal pass request."""
         if value:
             self._render_passes.add("normal")
         else:
             self._render_passes.discard("normal")
-        self.__sync_aovs()
 
     @property
     def facet_id(self) -> bool:
@@ -185,30 +196,3 @@ class Config:
             self._render_passes.add("facet_id")
         else:
             self._render_passes.discard("facet_id")
-
-    # ------------------------------------------------------------------ #
-    # Internal helpers                                                     #
-    # ------------------------------------------------------------------ #
-
-    def __sync_aovs(self):
-        """Rebuild the Mitsuba AOV integrator from the current render-pass set.
-
-        Strips any existing AOV wrapper and re-adds only the passes that are
-        currently active, ensuring the integrator always reflects the exact
-        state of ``_render_passes``.
-        """
-        # Strip the AOV wrapper (if any) to start from the base integrator.
-        if isinstance(self.integrator, AOV):
-            self.integrator = self.integrator.integrator or Path()
-
-        # Re-add AOVs for every active pass that has a Mitsuba counterpart.
-        # Iterating the registry (not the unordered set) keeps the AOV channel
-        # layout deterministic: albedo, then depth, then normal.
-        for rp in RENDER_PASSES.values():
-            if rp.name not in self._render_passes or rp.mitsuba_aov is None:
-                continue
-            aov_str = rp.mitsuba_aov
-            if not isinstance(self.integrator, AOV):
-                self.integrator = AOV(aovs=[aov_str], integrator=self.integrator)
-            elif aov_str not in self.integrator.aovs:
-                self.integrator.aovs.append(aov_str)

@@ -8,6 +8,12 @@ The configuration class defines a number of scene-related settings that mapped d
 * `emitters`: An array of light settings.
 * `integrator`: Settings for different rendering techniques.
 
+
+For reproducible figures, prefer the declarative [Figure scene settings](figure.md)
+for camera, lighting, environment, resolution, background, passes, and sampler
+seed. `Config` remains useful for invocation-specific overrides. Passing
+`config=` to `hkw.render()` overrides the Figure scene settings.
+
 The configuration object provides a number of handy functions for commonly used configurations. For
 example, the default scene using Y axis as the up direction. To change the up direction:
 
@@ -160,10 +166,27 @@ and shadow of the scene. Multiple emitters can be used at the same time.
 
 ### Point emitter
 
-A point emitter is a point light source, which tends to generate share shadow boundaries.
+A point emitter radiates from a world-space position.
+When `color` is supplied, `intensity` must be a finite non-negative number.
+Positions must contain three finite coordinates.
 
 ```py
-l = hkw.setup.emitter.Point(position=[0, 0, 5], intensity="#FFEAC5")
+l = hkw.setup.emitter.Point(
+    position=[0, 0, 5], color="#ffe4b5", intensity=20
+)
+config.emitters.append(l)
+```
+
+### Directional emitter
+
+A directional emitter produces parallel rays traveling along `direction`.
+`direction` must be a finite non-zero vector and `intensity` must be finite and
+non-negative. `Config.background` accepts only `"light"`, `"dark"`, or `None`.
+
+```py
+l = hkw.setup.emitter.Directional(
+    direction=[0, 0, -1], color="white", intensity=2
+)
 config.emitters.append(l)
 ```
 

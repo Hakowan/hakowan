@@ -1,3 +1,5 @@
+"""Attribute references with optional units and scale chains."""
+
 from dataclasses import dataclass
 from typing import TypeAlias
 
@@ -14,14 +16,17 @@ class Attribute:
     Attributes:
         name: The name of the attribute as it is defined in the data frame.
         scale: The scale to be applied to the attribute. `None` means no scale is used.
+        unit: Optional physical unit displayed in legends and manifests.
 
     Note:
         The attribute object can be constructed with `hakowan.attribute()` function, which is an
         alias of the constructor of this class.
+
     """
 
     name: str
     scale: ScaleLike | None = None
+    unit: str | None = None
 
     # (internal) The name of the attribute with scale applied.
     _internal_name: str | None = None
@@ -50,6 +55,7 @@ def to_attribute(value: AttributeLike) -> Attribute:
 
     Returns:
         The corresponding `Attribute` object.
+
     """
     if isinstance(value, str):
         return Attribute(name=value)
@@ -57,7 +63,12 @@ def to_attribute(value: AttributeLike) -> Attribute:
     return value
 
 
-def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attribute:
+def norm(
+    name: str,
+    scale: ScaleLike | None = None,
+    order: float = 2.0,
+    unit: str | None = None,
+) -> Attribute:
     """Construct an attribute representing the per-element magnitude of a vector field.
 
     This is a **shorthand** for ``Attribute(name, scale=Norm(order))`` (optionally
@@ -78,6 +89,7 @@ def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attri
             float as a uniform multiplier). ``None`` means no extra scale.
         order: The order of the norm (e.g. ``2`` for Euclidean length,
             ``1`` for Manhattan, ``numpy.inf`` for max-abs). Default ``2``.
+        unit: Optional physical unit propagated to legends and manifests.
 
     Returns:
         An :class:`Attribute` whose value is the row-wise norm of ``name``.
@@ -89,8 +101,9 @@ def norm(name: str, scale: ScaleLike | None = None, order: float = 2.0) -> Attri
         >>> hkw.channel.Size(data=hkw.norm("velocity",
         ...                                 scale=hkw.scale.Normalize(
         ...                                     range_min=0.005, range_max=0.02)))
+
     """
     norm_scale: Scale = Norm(order=order)
     if scale is not None:
         norm_scale = norm_scale * to_scale(scale)
-    return Attribute(name=name, scale=norm_scale)
+    return Attribute(name=name, scale=norm_scale, unit=unit)

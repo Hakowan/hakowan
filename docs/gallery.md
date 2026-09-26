@@ -2,40 +2,46 @@
 
 <div class="grid cards" markdown>
 
-- [![Incremental Potential Contact](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side.png?raw=true)](examples/ipc.md)
+- [![Mean Curvature Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flow/results/bust_comp.webp?raw=true)](examples/flow.md)
 
-- [![Scalable Locally Injective Mappings](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Slim/results/fig3.png?raw=true)](examples/slim.md)
+- [![Spot](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Spot/results/spot_wireframe.webp?raw=true)](examples/spot.md)
 
-- [![Layout Embedding via Combinatorial Optimization](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Layout/results/pig_embedded.png?raw=true)](examples/layout.md)
+- [![Layout Embedding](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Layout/results/pig_embedded.webp?raw=true)](examples/layout.md)
 
-- [![The Heat Method](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.png?raw=true)](examples/heat.md)
+- [![The Heat Method](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Heat/results/bunny_heat.webp?raw=true)](examples/heat.md)
 
-- [![Tetrahedral Meshing in the Wild](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/TetWild/results/bust.png?raw=true)](examples/tetwild.md)
+- [![Cross-Field Streamlines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/CrossField/results/shark_stream_lines.webp?raw=true)](examples/cross-field.md)
 
-- [![Neral Skeleton](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.png?raw=true)](examples/skeleton.md)
+- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
 
-- [![3D Freehand Sketch](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Sketch/results/designer2_guitar_01_rough_dark.png?raw=true#only-light) ](examples/sketch.md)[![3D Freehand Sketch](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Sketch/results/designer2_guitar_01_rough_light.png?raw=true#only-dark)](examples/sketch.md)
+- [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side_10.webp?raw=true)](examples/ipc.md)
 
-- [![Powell Sabin Tet Subdivision](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin_explode.png?raw=true)](examples/powell-sabin.md)
+- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_top.webp?raw=true)](examples/components.md)
 
-- [![Topographic Map](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.png?raw=true)](examples/elevation.md)
+- [![Smoothed Particle Hydrodynamics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.webp?raw=true)](examples/sph.md)
 
-- [![Deformation](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.png?raw=true)](examples/deformation.md)
+- [![Surface Skeleton](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.webp?raw=true)](examples/skeleton.md)
 
-- [![Penny](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Penny/results/penny.png?raw=true)](examples/penny.md)
+- [![Reconstructed 3D Sketches](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/Prof2task2_guitar_01_rough_dark.webp?raw=true#only-light)](examples/sketch.md)[![Reconstructed 3D Sketches](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Sketch/results/Prof2task2_guitar_01_rough_light.webp?raw=true#only-dark)](examples/sketch.md)
 
-- [![SPH](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.png?raw=true)](examples/sph.md)
+- [![Scalable Locally Injective Maps](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Slim/results/fig3.webp?raw=true)](examples/slim.md)
 
-- [![Mean Curvature Flow](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Flow/results/bust.png?raw=true)](examples/flow.md)
+- [![Powell-Sabin Splines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin.webp?raw=true)](examples/powell-sabin.md)
 
-- [![Developability of Triangle Meshes](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Developable/results/mask_3.png?raw=true)](examples/developable.md)
+- [![TetWild Cutaway](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/TetWild/results/bust.webp?raw=true)](examples/tetwild.md)
 
-- [![Components](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Components/results/foot_top.png?raw=true)](examples/components.md)
+- [![Elevation Map](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.webp?raw=true)](examples/elevation.md)
 
-- [![Fibers](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.png?raw=true)](examples/fibers.md)
+- [![Mesh Deformation](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Deformation/results/cylinder_1.webp?raw=true)](examples/deformation.md)
 
-- [![Moon](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Moon/results/moon.png?raw=true)](examples/moon.md)
+- [![Penny](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Penny/results/penny.webp?raw=true)](examples/penny.md)
 
-- [![Face](https://github.com/qnzhou/hakowan-gallery/blob/main/gallery/Face/results/face_uv.png?raw=true)](examples/face.md)
+- [![Developable Surface Flow](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Developable/results/mask_0.webp?raw=true)](examples/developable.md)
+
+- [![Fiber Curves](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Fibers/results/fibers.webp?raw=true)](examples/fibers.md)
+
+- [![Moon](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Moon/results/moon.webp?raw=true)](examples/moon.md)
+
+- [![Face Texture and UV Layout](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Face/results/face.webp?raw=true)](examples/face.md)
 
 </div>

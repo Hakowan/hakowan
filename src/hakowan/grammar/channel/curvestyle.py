@@ -1,3 +1,5 @@
+"""Curve styling models for ribbons and bent vector glyphs."""
+
 from dataclasses import dataclass
 from typing import Literal
 
@@ -20,6 +22,7 @@ class Bend(CurveStyle):
         bend_type (Literal["n", "r", "s"]): The type of bending.
             ``"n"`` = normal bend, ``"r"`` = ribbon bend, ``"s"`` = smooth bend.
             The default value is ``"n"``.
+
     """
 
     direction: AttributeLike

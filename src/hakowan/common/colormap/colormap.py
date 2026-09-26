@@ -1,3 +1,5 @@
+"""Piecewise-linear RGB color map."""
+
 import math
 import numpy.typing as npt
 
@@ -5,14 +7,17 @@ from ..color import Color
 
 
 class ColorMap:
-    """A color map is a function that linearly interpolate a set of color
-    samples."""
+    """Interpolate an ordered set of RGB color samples.
+
+    Input values are clamped to the unit interval.
+    """
 
     def __init__(self, samples: npt.NDArray):
         """Construct color map from color samples.
 
         Args:
             samples: A numpy array of shape (n, 3). Each row is a color sample.
+
         """
         assert len(samples) >= 2, "Color map must have at least 2 samples."
         self.samples = samples
@@ -25,6 +30,7 @@ class ColorMap:
 
         Returns:
             (Color): The interpolated color.
+
         """
         value = max(0.0, min(1.0, value))
 
@@ -40,11 +46,7 @@ class ColorMap:
         return Color(*c)
 
     def num_colors(self):
-        """Number of color samples stored in this color map.
-
-        Returns:
-            (int): Number of colors in the color map.
-        """
+        """Return the number of stored color samples."""
         return len(self.samples)
 
     def reversed(self):
@@ -52,5 +54,6 @@ class ColorMap:
 
         Returns:
             (ColorMap): A color map mapping 0->last color and 1->first color.
+
         """
         return ColorMap(self.samples[::-1])

@@ -28,6 +28,16 @@ pip install hakowan[blender]
 
 # All backends
 pip install hakowan[mitsuba,blender]
+
+# Add deterministic headless snapshots and multi-view observations
+pip install "hakowan[observe]"
+playwright install chromium
+
+# Optional dataframe and geometry adapters
+pip install "hakowan[data]"
+
+# Agent integration is distributed separately
+pip install "hakowan-mcp"
 ```
 
 Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender backend).
@@ -56,6 +66,14 @@ result = hkw.render(layer, filename="viewer.html", backend="webgl")
 # Open viewer.html in any modern browser
 ```
 
+## Agent integration
+
+Hakowan's provider-neutral agent integration is maintained separately in
+[`Hakowan/hakowan-mcp`](https://github.com/Hakowan/hakowan-mcp). It exposes
+Hakowan's deterministic inspection, schema, validation, compilation, rendering,
+observation, camera-fitting, and patch APIs to Copilot, Oh My Pi, and other MCP
+hosts without adding model-provider dependencies to this package.
+
 ## Documentation
 
 [HTML](https://hakowan.github.io/hakowan/)
@@ -63,7 +81,7 @@ result = hkw.render(layer, filename="viewer.html", backend="webgl")
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.5.2},
+    version = {0.6.0},
     year = 2026,
 }
 ```

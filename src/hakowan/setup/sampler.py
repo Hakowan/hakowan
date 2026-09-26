@@ -1,3 +1,5 @@
+"""Independent and low-discrepancy sampler settings."""
+
 from dataclasses import dataclass
 
 
@@ -8,6 +10,7 @@ class Sampler:
     Attributes:
         sample_count: Number of samples per pixel.
         seed: Seed for random number generate.
+
     """
 
     sample_count: int = 256  # Samples per pixel.
@@ -23,6 +26,7 @@ class Independent(Sampler):
         [Mitsuba
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_samplers.html#independent-sampler-independent)
         for more details.
+
     """
 
     pass
@@ -39,6 +43,7 @@ class Stratified(Sampler):
         See [Mitsuba
         doc](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_samplers.html#stratified-sampler-stratified)
         for more details.
+
     """
 
     jitter: bool = True

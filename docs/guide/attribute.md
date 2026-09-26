@@ -2,9 +2,10 @@
 
 In Hakowan, an attribute specifies a specific "column" of the [data](data.md) (i.e. mesh attribute)
 that will be used to encode various visual [channels](channel.md) and [textures](texture.md). Each
-attribute consists of a name and a [scale](scale.md). The name is the name of the mesh attribute
-used as data, and the scale defines a "column"-specific transformation applied to the attribute
-before mapping to visual channels.
+attribute consists of a name, optional physical unit, and [scale](scale.md). The
+name identifies the mesh attribute; the scale defines a column-specific
+transformation before visual encoding. Units are semantic metadata used by
+automatic legends and observation manifests.
 
 ## Creating Attributes
 
@@ -20,6 +21,11 @@ attr = hkw.attribute(name="normal", scale=hkw.scale.Uniform(factor=2))
 
 # hkw.attribute() is equivalent to hkw.scale.Attribute()
 attr = hkw.scale.Attribute(name="normal", scale=hkw.scale.Uniform(factor=2))
+```
+
+```py
+temperature = hkw.attribute("temperature", unit="°C")
+pressure = hkw.attribute("pressure", unit="Pa", scale=hkw.scale.Log())
 ```
 
 ## The `norm()` shorthand

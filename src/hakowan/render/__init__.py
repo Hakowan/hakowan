@@ -8,8 +8,9 @@ from ..backends import (
     set_default_backend,
     list_backends,
 )
-from ..compiler import compile
+from ..compiler import compile, prepare_scene
 from ..grammar import layer
+from ..grammar.figure import Figure
 from ..setup import Config
 from ..setup.render_pass import aov_path
 from ..common import logger
@@ -40,6 +41,7 @@ class RenderResult:
     The object is also a :pep:`519` path-like (``__fspath__``), so it can be
     passed straight to ``open()``, :class:`~pathlib.Path`, etc. when a main
     output file was written.
+
     """
 
     backend: BackendName
@@ -48,6 +50,12 @@ class RenderResult:
     path: Path | None = None
 
     def __fspath__(self) -> str:
+        """Return the main output path for os.PathLike consumers.
+
+        Raises:
+            TypeError: If rendering produced no file path.
+
+        """
         if self.path is None:
             raise TypeError(
                 "RenderResult has no output path "
@@ -57,52 +65,63 @@ class RenderResult:
 
 
 def render(
-    root: layer.Layer,
+    root: layer.Layer | Figure,
     config: Config | None = None,
     filename: Path | str | None = None,
     backend: BackendName | None = None,
     **kwargs: Any,
 ) -> RenderResult:
-    """Render a layer using the specified backend.
+    """Compile and render a Layer or Figure with the selected backend.
+
+    Figure scene settings supply camera, lighting, environment, and output
+    intent only when ``config`` is omitted. An explicit Config overrides the
+    complete Figure-derived Config; backend keyword arguments override their
+    corresponding backend-facing settings.
 
     Args:
-        root: Root layer to render.
-        config: Rendering configuration. If None, uses default.
-        filename: Output filename.
-        backend: Backend name — ``"webgl"`` (ships with the base install),
-            ``"mitsuba"``, or ``"blender"``. If ``None``, uses the configured
-            default, which is ``"webgl"`` unless changed via
-            :func:`set_default_backend`. The heavier Mitsuba and Blender
-            backends must be requested explicitly.
-        **kwargs: Backend-specific keyword arguments forwarded verbatim to the
-            chosen backend (e.g. ``background`` / ``title`` for WebGL,
-            ``yaml_file`` for Mitsuba, ``blender_engine`` / ``blend_file`` for
-            Blender). Unknown keys raise ``TypeError``.
+        root: Layer tree or declarative Figure to render.
+        config: Explicit invocation configuration, or Figure/default settings.
+        filename: Main output path; WebGL rewrites non-HTML suffixes to HTML.
+        backend: ``webgl``, ``mitsuba``, ``blender``, or the configured default.
+        **kwargs: Backend-specific options such as WebGL ``background`` and
+            ``offline``, Mitsuba ``yaml_file``, or Blender ``blender_engine``.
 
     Returns:
-        A :class:`RenderResult` bundling the in-memory ``image`` (Mitsuba), the
-        main output ``path``, and the ``outputs`` manifest (per-pass sidecar
-        files, or ``"interactive"`` for the WebGL viewer).
+        RenderResult with the backend, primary path/image, and output manifest.
+
+    Raises:
+        TypeError: If backend-specific keyword arguments are unknown.
 
     Examples:
         >>> import hakowan as hkw
-        >>> layer = hkw.layer(mesh)
-        >>> result = hkw.render(layer, filename="output.png")
-        >>> result.path            # PosixPath('output.png')
-        >>> result.outputs         # {'main': PosixPath('output.png'), ...}
-        >>> # Mitsuba: display the rendered image in a notebook
-        >>> result.image
-    """
-    # Compile the layer tree into a scene
-    scene = compile(root)
-    logger.info("Compilation done")
+        >>> result = hkw.render(hkw.layer("mesh.obj"), filename="viewer.html")
+        >>> result.path
+        PosixPath('viewer.html')
 
-    # Get config
-    if config is None:
+    """
+    runtime_layer = root.layer if isinstance(root, Figure) else root
+    use_figure_settings = isinstance(root, Figure) and config is None
+    if isinstance(root, Figure) and config is None:
+        config = root.to_config()
+    elif config is None:
         config = Config()
 
+    # Compile the layer tree after resolving the figure wrapper.
+    scene = prepare_scene(compile(runtime_layer), config)
+    logger.info("Compilation done")
     # Get backend and render
     backend_name = resolve_backend_name(backend)
+    if use_figure_settings:
+        assert isinstance(root, Figure)
+        output = root.scene.output
+        environment = root.scene.environment
+        if output is not None and backend_name == "webgl":
+            kwargs.setdefault("background", output.background)
+        if environment is not None:
+            if backend_name == "webgl":
+                kwargs.setdefault("envmap_background", environment.visible)
+            elif backend_name == "blender":
+                kwargs.setdefault("environment_visible", environment.visible)
     logger.info(f"Using backend: {backend_name}")
     backend_impl = get_backend(backend_name)
 
@@ -166,7 +185,12 @@ def _manifest_for(
     supported = {p.name for p in backend_impl.SUPPORTED_PASSES}
     interactive = backend_impl.PASS_DELIVERY == "interactive"
     for name in sorted(config.render_passes & supported):
-        manifest[name] = "interactive" if interactive else aov_path(main, name)
+        if interactive:
+            manifest[name] = "interactive"
+            continue
+        output = aov_path(main, name)
+        if output.is_file():
+            manifest[name] = output
     return manifest
 
 

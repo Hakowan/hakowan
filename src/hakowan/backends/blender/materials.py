@@ -128,7 +128,20 @@ class _MaterialMixin:
                 f"{type(mat_data).__name__} front materials."
             )
         if isinstance(mat_data, Hair):
-            return self._create_hair_material(mat, mat_data, nodes, links)
+            # A constant RGB color overrides the melanin parametrization. The
+            # Cycles hair renderer can't read a per-strand color attribute, so
+            # data-driven hair color falls back to melanin (with a warning).
+            hair_color_const = self._extract_material_color(mat_data)
+            if self._get_scalar_field_color_attr(view) is not None:
+                logger.warning(
+                    "Blender backend: data-driven (attribute) Hair color is not "
+                    "supported by the hair renderer; falling back to the melanin "
+                    "color. Use a constant RGB color for fur, or a non-Hair "
+                    "material for per-strand data colors."
+                )
+            return self._create_hair_material(
+                mat, mat_data, nodes, links, color_const=hair_color_const
+            )
         if isinstance(mat_data, ThinDielectric):
             return self._create_thin_dielectric_material(mat, mat_data, nodes, links)
 
@@ -356,28 +369,77 @@ class _MaterialMixin:
             links.new(normal_socket, back_bsdf.inputs["Normal"])
         return back_bsdf
 
-    def _create_hair_material(self, mat, mat_data: Hair, nodes, links):
+    def _create_hair_material(
+        self,
+        mat,
+        mat_data: Hair,
+        nodes,
+        links,
+        *,
+        color_const: tuple[float, float, float, float] | None = None,
+    ):
         """Create a Principled Hair BSDF material.
+
+        A constant ``color_const`` (linear RGBA) uses the ``COLOR``
+        parametrization; otherwise the physical ``MELANIN`` parametrization is
+        used.
 
         Args:
             mat: Blender material.
             mat_data: Hair material data.
             nodes: Shader node tree nodes.
             links: Shader node tree links.
+            color_const: Constant linear RGBA hair color, or None for melanin.
 
         Returns:
             Blender material.
         """
         hair_bsdf = nodes.new(type="ShaderNodeBsdfHairPrincipled")
         hair_bsdf.location = (0, 0)
-        # Use melanin concentration parametrization
-        hair_bsdf.parametrization = "MELANIN"
-        hair_bsdf.inputs["Melanin"].default_value = mat_data.eumelanin / 8.0
-        hair_bsdf.inputs["Melanin Redness"].default_value = (
-            mat_data.pheomelanin / (mat_data.eumelanin + mat_data.pheomelanin)
-            if (mat_data.eumelanin + mat_data.pheomelanin) > 0
-            else 0.5
-        )
+
+        root_lin = self._extract_color(mat_data.root_color)
+        tip_lin = self._extract_color(mat_data.tip_color)
+        gradient = root_lin is not None or tip_lin is not None
+        variation = float(mat_data.color_variation or 0.0)
+
+        if gradient or color_const is not None:
+            hair_bsdf.parametrization = "COLOR"
+            fallback = color_const or (0.1, 0.05, 0.02, 1.0)
+            # Base color: a root->tip gradient (Hair Info intercept) or a constant.
+            color_socket = None
+            if gradient:
+                color_socket = self._hair_gradient_color(
+                    nodes,
+                    links,
+                    root_lin or tip_lin or fallback,
+                    tip_lin or root_lin or fallback,
+                )
+            # Per-strand brightness jitter driven by Hair Info random.
+            if variation > 0.0:
+                if color_socket is None:
+                    rgb = nodes.new(type="ShaderNodeRGB")
+                    rgb.location = (-600, -200)
+                    rgb.outputs[0].default_value = color_const
+                    color_socket = rgb.outputs[0]
+                color_socket = self._hair_color_variation(
+                    nodes, links, color_socket, variation
+                )
+            if color_socket is not None:
+                links.new(color_socket, hair_bsdf.inputs["Color"])
+            else:
+                hair_bsdf.inputs["Color"].default_value = color_const
+        else:
+            # Physical melanin concentration parametrization.
+            hair_bsdf.parametrization = "MELANIN"
+            hair_bsdf.inputs["Melanin"].default_value = mat_data.eumelanin / 8.0
+            hair_bsdf.inputs["Melanin Redness"].default_value = (
+                mat_data.pheomelanin / (mat_data.eumelanin + mat_data.pheomelanin)
+                if (mat_data.eumelanin + mat_data.pheomelanin) > 0
+                else 0.5
+            )
+            if variation > 0.0 and "Random Color" in hair_bsdf.inputs:
+                hair_bsdf.inputs["Random Color"].default_value = min(1.0, variation)
+
         hair_bsdf.inputs["Roughness"].default_value = 0.3
         hair_bsdf.inputs["Coat"].default_value = 0.0
 
@@ -386,6 +448,42 @@ class _MaterialMixin:
         links.new(hair_bsdf.outputs["BSDF"], output.inputs["Surface"])
 
         return mat
+
+    def _hair_gradient_color(self, nodes, links, root_rgba, tip_rgba):
+        """A root->tip hair color gradient: Hair Info intercept -> color ramp.
+
+        Returns the ramp's Color output socket.
+        """
+        hair_info = nodes.new(type="ShaderNodeHairInfo")
+        hair_info.location = (-800, 200)
+        ramp = nodes.new(type="ShaderNodeValToRGB")
+        ramp.location = (-560, 200)
+        ramp.color_ramp.elements[0].color = tuple(root_rgba)
+        ramp.color_ramp.elements[1].color = tuple(tip_rgba)
+        links.new(hair_info.outputs["Intercept"], ramp.inputs["Fac"])
+        return ramp.outputs["Color"]
+
+    def _hair_color_variation(self, nodes, links, color_socket, variation: float):
+        """Per-strand random brightness jitter of ``color_socket``.
+
+        Maps the Hair Info per-strand random value to a brightness multiplier in
+        ``[1 - variation, 1 + variation]`` and applies it via a Hue/Saturation/
+        Value node.  Returns the varied Color output socket.
+        """
+        hair_info = nodes.new(type="ShaderNodeHairInfo")
+        hair_info.location = (-800, -160)
+        map_range = nodes.new(type="ShaderNodeMapRange")
+        map_range.location = (-560, -160)
+        map_range.inputs["From Min"].default_value = 0.0
+        map_range.inputs["From Max"].default_value = 1.0
+        map_range.inputs["To Min"].default_value = max(0.0, 1.0 - variation)
+        map_range.inputs["To Max"].default_value = 1.0 + variation
+        links.new(hair_info.outputs["Random"], map_range.inputs["Value"])
+        hue_sat = nodes.new(type="ShaderNodeHueSaturation")
+        hue_sat.location = (-320, 0)
+        links.new(color_socket, hue_sat.inputs["Color"])
+        links.new(map_range.outputs["Result"], hue_sat.inputs["Value"])
+        return hue_sat.outputs["Color"]
 
     def _create_thin_dielectric_material(
         self, mat, mat_data: ThinDielectric, nodes, links
@@ -530,6 +628,9 @@ class _MaterialMixin:
                 return self._extract_color(mat_data.diffuse_reflectance)
             case Principled() | ThinPrincipled():
                 return self._extract_color(mat_data.color)
+            case Hair():
+                # None when color is unset (melanin mode) or a data texture.
+                return self._extract_color(mat_data.color)
             case RoughConductor() | Conductor():
                 name = mat_data.material
                 rgb = self._conductor_colors.get(name, (0.8, 0.8, 0.8))
@@ -612,6 +713,8 @@ class _MaterialMixin:
             case Plastic() | RoughPlastic():
                 out = check(mat_data.diffuse_reflectance)
             case Principled() | ThinPrincipled():
+                out = check(mat_data.color)
+            case Hair():
                 out = check(mat_data.color)
             case _:
                 out = None

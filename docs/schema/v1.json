@@ -1,0 +1,5820 @@
+{
+  "$defs": {
+    "AffineScaleSpec": {
+      "additionalProperties": false,
+      "description": "Applies a linear or homogeneous affine matrix to an attribute.",
+      "properties": {
+        "kind": {
+          "const": "affine",
+          "default": "affine",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "matrix": {
+          "description": "Numeric affine or linear transformation matrix.",
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "title": "Matrix",
+          "type": "array"
+        }
+      },
+      "required": [
+        "matrix"
+      ],
+      "title": "AffineScaleSpec",
+      "type": "object"
+    },
+    "AffineTransformSpec": {
+      "additionalProperties": false,
+      "description": "Applies a global affine matrix to a layer's geometry.",
+      "properties": {
+        "kind": {
+          "const": "affine",
+          "default": "affine",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            }
+          ],
+          "description": "Numeric affine or linear transformation matrix.",
+          "title": "Matrix"
+        }
+      },
+      "required": [
+        "matrix"
+      ],
+      "title": "AffineTransformSpec",
+      "type": "object"
+    },
+    "AnnotationSpec": {
+      "additionalProperties": false,
+      "description": "A deterministic screen-space text annotation.",
+      "properties": {
+        "anchor": {
+          "default": "left",
+          "description": "Horizontal annotation anchor relative to its position.",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "title": "Anchor",
+          "type": "string"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional annotation background color.",
+          "title": "Background"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Annotation text color.",
+          "title": "Color"
+        },
+        "font_size": {
+          "default": 16,
+          "description": "Annotation font size in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Font Size",
+          "type": "integer"
+        },
+        "padding": {
+          "default": 4,
+          "description": "Annotation background padding in pixels.",
+          "minimum": 0,
+          "title": "Padding",
+          "type": "integer"
+        },
+        "position": {
+          "default": [
+            0.02,
+            0.02
+          ],
+          "description": "Normalized image position with origin at the top-left.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "text": {
+          "description": "Annotation text.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AnnotationSpec",
+      "type": "object"
+    },
+    "AttributeSpec": {
+      "additionalProperties": false,
+      "description": "Reference an attribute with an ordered scale chain and optional unit.",
+      "properties": {
+        "name": {
+          "description": "Human-readable layer label used by interactive viewers.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scales": {
+          "default": [],
+          "description": "Ordered attribute scale pipeline, evaluated in array order.",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "affine": "#/$defs/AffineScaleSpec",
+                "clip": "#/$defs/ClipScaleSpec",
+                "custom": "#/$defs/CustomScaleSpec",
+                "log": "#/$defs/LogScaleSpec",
+                "norm": "#/$defs/NormScaleSpec",
+                "normalize": "#/$defs/NormalizeScaleSpec",
+                "offset": "#/$defs/OffsetScaleSpec",
+                "uniform": "#/$defs/UniformScaleSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UniformScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/LogScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/ClipScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/NormalizeScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/AffineScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/NormScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/CustomScaleSpec"
+              },
+              {
+                "$ref": "#/$defs/OffsetScaleSpec"
+              }
+            ]
+          },
+          "title": "Scales",
+          "type": "array"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional physical unit shown in legends and manifests.",
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "AttributeSpec",
+      "type": "object"
+    },
+    "BendStyleSpec": {
+      "additionalProperties": false,
+      "description": "Controls curve bending from a direction attribute.",
+      "properties": {
+        "bend_type": {
+          "default": "n",
+          "description": "Curve bend algorithm: normal, ribbon, or smooth.",
+          "enum": [
+            "n",
+            "r",
+            "s"
+          ],
+          "title": "Bend Type",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Attribute defining curve-bending directions.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "bend",
+          "default": "bend",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "direction"
+      ],
+      "title": "BendStyleSpec",
+      "type": "object"
+    },
+    "BoundaryTransformSpec": {
+      "additionalProperties": false,
+      "description": "Extracts geometric boundaries and optional attribute discontinuities.",
+      "properties": {
+        "attributes": {
+          "default": [],
+          "description": "Attribute names whose discontinuities count as boundaries.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Attributes",
+          "type": "array"
+        },
+        "kind": {
+          "const": "boundary",
+          "default": "boundary",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "BoundaryTransformSpec",
+      "type": "object"
+    },
+    "BumpMapChannelSpec": {
+      "additionalProperties": false,
+      "description": "Perturbs surface shading normals from a height texture.",
+      "properties": {
+        "kind": {
+          "const": "bump_map",
+          "default": "bump_map",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "scale": {
+          "default": 1.0,
+          "description": "Strength of the bump perturbation.",
+          "title": "Scale",
+          "type": "number"
+        },
+        "texture": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Texture supplying values for this channel.",
+          "title": "Texture"
+        }
+      },
+      "required": [
+        "texture"
+      ],
+      "title": "BumpMapChannelSpec",
+      "type": "object"
+    },
+    "ChannelsSpec": {
+      "additionalProperties": false,
+      "description": "One optional slot per visual role; each compiled view uses the first channel of each kind encountered from root to leaf.",
+      "properties": {
+        "bump_map": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BumpMapChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional bump-map channel."
+        },
+        "covariance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CovarianceChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional covariance channel."
+        },
+        "material": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional material encoding or conductor preset name.",
+          "title": "Material"
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NormalChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional mapping of an attribute to shading normals."
+        },
+        "normal_map": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NormalMapChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional normal-map channel."
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PositionChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional position channel."
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShapeChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional point-glyph shape channel."
+        },
+        "size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SizeChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional size channel or checkerboard dimension, depending on the containing model."
+        },
+        "vector_field": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VectorFieldChannelSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional vector-field channel."
+        }
+      },
+      "title": "ChannelsSpec",
+      "type": "object"
+    },
+    "CheckerboardTextureSpec": {
+      "additionalProperties": false,
+      "description": "Alternates two texture or color values in UV space.",
+      "properties": {
+        "kind": {
+          "const": "checkerboard",
+          "default": "checkerboard",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "size": {
+          "default": 8,
+          "description": "Number of checker cells along each UV axis.",
+          "minimum": 1,
+          "title": "Size",
+          "type": "integer"
+        },
+        "texture1": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.8,
+          "description": "Texture or constant used for the first alternating region.",
+          "title": "Texture1"
+        },
+        "texture2": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.2,
+          "description": "Texture or constant used for the second alternating region.",
+          "title": "Texture2"
+        },
+        "uv": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted.",
+          "x-hakowan-role": "attribute_reference"
+        }
+      },
+      "title": "CheckerboardTextureSpec",
+      "type": "object"
+    },
+    "ClipScaleSpec": {
+      "additionalProperties": false,
+      "description": "Clamps attribute values to a closed numeric domain.",
+      "properties": {
+        "domain": {
+          "description": "Inclusive input or clipping domain as [minimum, maximum].",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Domain",
+          "type": "array"
+        },
+        "kind": {
+          "const": "clip",
+          "default": "clip",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "title": "ClipScaleSpec",
+      "type": "object"
+    },
+    "ClipTransformSpec": {
+      "additionalProperties": false,
+      "description": "Cuts geometry against a plane and keeps its positive half-space.",
+      "properties": {
+        "kind": {
+          "const": "clip",
+          "default": "clip",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "normal": {
+          "description": "Three-component plane normal; the positive half-space is retained.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Normal",
+          "type": "array"
+        },
+        "point": {
+          "description": "Point lying on the clipping plane.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Point",
+          "type": "array"
+        }
+      },
+      "title": "ClipTransformSpec",
+      "type": "object"
+    },
+    "ComputeTransformSpec": {
+      "additionalProperties": false,
+      "description": "Computes named coordinate, normal, or component attributes.",
+      "properties": {
+        "component": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for connected-component identifiers.",
+          "title": "Component"
+        },
+        "facet_normal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for computed facet normals.",
+          "title": "Facet Normal"
+        },
+        "kind": {
+          "const": "compute",
+          "default": "compute",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for automatically selected normals.",
+          "title": "Normal"
+        },
+        "vertex_normal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for computed vertex normals.",
+          "title": "Vertex Normal"
+        },
+        "x": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for vertex x coordinates.",
+          "title": "X"
+        },
+        "y": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for vertex y coordinates.",
+          "title": "Y"
+        },
+        "z": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output attribute name for vertex z coordinates.",
+          "title": "Z"
+        }
+      },
+      "title": "ComputeTransformSpec",
+      "type": "object"
+    },
+    "ConductorMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A smooth metallic conductor selected by optical preset name.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "kind": {
+          "const": "conductor",
+          "default": "conductor",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "material": {
+          "description": "Optional material encoding or conductor preset name.",
+          "title": "Material",
+          "type": "string"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "material"
+      ],
+      "title": "ConductorMaterialSpec",
+      "type": "object"
+    },
+    "CovarianceChannelSpec": {
+      "additionalProperties": false,
+      "description": "Maps per-point 3x3 covariance matrices to anisotropic glyphs.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Nine-channel per-vertex covariance attribute.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "full": {
+          "default": false,
+          "description": "Whether covariance values store full matrices instead of square-root factors.",
+          "title": "Full",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "covariance",
+          "default": "covariance",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "CovarianceChannelSpec",
+      "type": "object"
+    },
+    "CustomScaleSpec": {
+      "additionalProperties": false,
+      "description": "Applies a safe expression or externally resolved function to an attribute.",
+      "properties": {
+        "function": {
+          "description": "Safe expression or trusted external function reference.",
+          "discriminator": {
+            "mapping": {
+              "expression": "#/$defs/ExpressionSpec",
+              "function": "#/$defs/FunctionRefSpec"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ExpressionSpec"
+            },
+            {
+              "$ref": "#/$defs/FunctionRefSpec"
+            }
+          ],
+          "title": "Function"
+        },
+        "kind": {
+          "const": "custom",
+          "default": "custom",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "title": "CustomScaleSpec",
+      "type": "object"
+    },
+    "DielectricMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A smooth transmissive dielectric with optional participating medium.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "ext_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "air",
+          "description": "Exterior index of refraction or named preset.",
+          "title": "Ext Ior"
+        },
+        "int_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "bk7",
+          "description": "Interior index of refraction or named preset.",
+          "title": "Int Ior"
+        },
+        "kind": {
+          "const": "dielectric",
+          "default": "dielectric",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "medium": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediumSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional homogeneous interior medium."
+        },
+        "specular_reflectance": {
+          "default": 1.0,
+          "description": "Specular reflection strength or texture.",
+          "title": "Specular Reflectance",
+          "type": "number"
+        },
+        "specular_transmittance": {
+          "default": 1.0,
+          "description": "Specular transmission strength.",
+          "title": "Specular Transmittance",
+          "type": "number"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "DielectricMaterialSpec",
+      "type": "object"
+    },
+    "DiffuseMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A matte material whose reflectance may be constant or data-driven.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "kind": {
+          "const": "diffuse",
+          "default": "diffuse",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "reflectance": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.5,
+          "description": "Diffuse reflectance as a constant color or texture.",
+          "title": "Reflectance"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "DiffuseMaterialSpec",
+      "type": "object"
+    },
+    "DirectionalLightSpec": {
+      "additionalProperties": false,
+      "description": "A distant light with parallel rays along a world-space direction.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Directional-light RGB or named color.",
+          "title": "Color"
+        },
+        "direction": {
+          "description": "World-space direction traveled by light rays.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Direction",
+          "type": "array"
+        },
+        "intensity": {
+          "default": 1.0,
+          "description": "Non-negative light intensity in backend-neutral relative units.",
+          "minimum": 0.0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "kind": {
+          "const": "directional",
+          "default": "directional",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "DirectionalLightSpec",
+      "type": "object"
+    },
+    "EnvironmentSpec": {
+      "additionalProperties": false,
+      "description": "Environment-map lighting, orientation, scale, and visibility settings.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Whether environment lighting is enabled.",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional environment-map path resolved beside the specification.",
+          "title": "Path"
+        },
+        "rotation": {
+          "default": 180.0,
+          "description": "Environment rotation in degrees around its up axis.",
+          "title": "Rotation",
+          "type": "number"
+        },
+        "scale": {
+          "default": 1.0,
+          "description": "Environment-light intensity multiplier.",
+          "minimum": 0.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        },
+        "visible": {
+          "default": false,
+          "description": "Whether the environment map is visible to the camera.",
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "title": "EnvironmentSpec",
+      "type": "object"
+    },
+    "ExplodeTransformSpec": {
+      "additionalProperties": false,
+      "description": "Separates facet groups outward from the mesh center.",
+      "properties": {
+        "kind": {
+          "const": "explode",
+          "default": "explode",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "magnitude": {
+          "default": 1.0,
+          "description": "Distance multiplier used when separating pieces.",
+          "title": "Magnitude",
+          "type": "number"
+        },
+        "pieces": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Facet attribute grouping geometry into exploded pieces.",
+          "x-hakowan-role": "attribute_reference"
+        }
+      },
+      "required": [
+        "pieces"
+      ],
+      "title": "ExplodeTransformSpec",
+      "type": "object"
+    },
+    "ExpressionSpec": {
+      "additionalProperties": false,
+      "description": "Restricted expression used by serializable filters and custom scales.",
+      "properties": {
+        "kind": {
+          "const": "expression",
+          "default": "expression",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "description": "Restricted expression source, bounded by syntax-tree and result-size limits.",
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "ExpressionSpec",
+      "type": "object"
+    },
+    "ExternalDataSpec": {
+      "additionalProperties": false,
+      "description": "References in-memory data by an application-defined resolver identifier.",
+      "properties": {
+        "id": {
+          "description": "Non-empty application-defined identifier resolved outside the JSON document.",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "external",
+          "default": "external",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "roi_box": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional axis-aligned region of interest as minimum and maximum corners.",
+          "title": "Roi Box"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "ExternalDataSpec",
+      "type": "object"
+    },
+    "FilterTransformSpec": {
+      "additionalProperties": false,
+      "description": "Keeps mesh elements for which a condition evaluates true.",
+      "properties": {
+        "condition": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "expression": "#/$defs/ExpressionSpec",
+                  "function": "#/$defs/FunctionRefSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/ExpressionSpec"
+                },
+                {
+                  "$ref": "#/$defs/FunctionRefSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Predicate controlling whether each selected mesh element is retained.",
+          "title": "Condition"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Attribute tested by the predicate; null uses vertex positions.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "filter",
+          "default": "filter",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "FilterTransformSpec",
+      "type": "object"
+    },
+    "FunctionRefSpec": {
+      "additionalProperties": false,
+      "description": "Reference a trusted callable supplied through a function resolver.",
+      "properties": {
+        "id": {
+          "description": "Non-empty application-defined identifier resolved outside the JSON document.",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "function",
+          "default": "function",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "FunctionRefSpec",
+      "type": "object"
+    },
+    "FurTransformSpec": {
+      "additionalProperties": false,
+      "description": "Generates hair strands along a surface vector field.",
+      "properties": {
+        "children": {
+          "default": 0,
+          "description": "Ordered child visualization nodes.",
+          "minimum": 0,
+          "title": "Children",
+          "type": "integer"
+        },
+        "clump": {
+          "default": 0.6,
+          "description": "Strength with which child-hair tips converge on guides.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Clump",
+          "type": "number"
+        },
+        "curl": {
+          "default": 0.35,
+          "description": "Fur curvature strength toward the surface-flow direction.",
+          "minimum": 0.0,
+          "title": "Curl",
+          "type": "number"
+        },
+        "follow_surface": {
+          "default": false,
+          "description": "Whether fur follows the surface instead of leaning analytically away.",
+          "title": "Follow Surface",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "fur",
+          "default": "fur",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum object-space trace or strand length; null selects an automatic limit.",
+          "title": "Length"
+        },
+        "lift": {
+          "default": 30.0,
+          "description": "Fur root lift angle in degrees.",
+          "maximum": 90.0,
+          "minimum": 0.0,
+          "title": "Lift",
+          "type": "number"
+        },
+        "n": {
+          "default": 2000,
+          "description": "Requested number of seeds, streamlines, or fur strands.",
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "randomness": {
+          "default": 0.3,
+          "description": "Natural strand variation from zero to one.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Randomness",
+          "type": "number"
+        },
+        "root_radius": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fur radius at strand roots; null selects an automatic value.",
+          "title": "Root Radius"
+        },
+        "seed": {
+          "default": 0,
+          "description": "Deterministic random seed.",
+          "title": "Seed",
+          "type": "integer"
+        },
+        "segments": {
+          "default": 6,
+          "description": "Number of line segments generated per fur strand.",
+          "minimum": 1,
+          "title": "Segments",
+          "type": "integer"
+        },
+        "spread": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Child-hair root scatter radius; null selects an automatic value.",
+          "title": "Spread"
+        },
+        "tip_radius": {
+          "default": 0.0,
+          "description": "Fur radius at strand tips.",
+          "minimum": 0.0,
+          "title": "Tip Radius",
+          "type": "number"
+        },
+        "vec_field": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Vector or cross-field attribute used to generate curves."
+        }
+      },
+      "required": [
+        "vec_field"
+      ],
+      "title": "FurTransformSpec",
+      "type": "object"
+    },
+    "HairMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A hair material controlled by pigments, colors, gradients, and variation.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Constant or texture-driven base color.",
+          "title": "Color"
+        },
+        "color_variation": {
+          "default": 0.0,
+          "description": "Per-strand brightness variation from zero to one.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Color Variation",
+          "type": "number"
+        },
+        "eumelanin": {
+          "default": 1.3,
+          "description": "Dark brown/black pigment concentration for hair.",
+          "minimum": 0.0,
+          "title": "Eumelanin",
+          "type": "number"
+        },
+        "kind": {
+          "const": "hair",
+          "default": "hair",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pheomelanin": {
+          "default": 0.2,
+          "description": "Red/yellow pigment concentration for hair.",
+          "minimum": 0.0,
+          "title": "Pheomelanin",
+          "type": "number"
+        },
+        "root_color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional hair color at strand roots.",
+          "title": "Root Color"
+        },
+        "tip_color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional hair color at strand tips.",
+          "title": "Tip Color"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "HairMaterialSpec",
+      "type": "object"
+    },
+    "ImageTextureSpec": {
+      "additionalProperties": false,
+      "description": "Samples an image through a mesh UV attribute.",
+      "properties": {
+        "kind": {
+          "const": "image",
+          "default": "image",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "description": "Resource path; relative paths resolve beside the loaded specification file.",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "raw": {
+          "default": false,
+          "description": "Whether image values bypass color-transfer decoding.",
+          "title": "Raw",
+          "type": "boolean"
+        },
+        "saturation": {
+          "default": 1.0,
+          "description": "Image saturation multiplier; zero produces grayscale.",
+          "minimum": 0.0,
+          "title": "Saturation",
+          "type": "number"
+        },
+        "uv": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "whiteness": {
+          "default": 0.0,
+          "description": "Blend amount toward white, from zero to one.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Whiteness",
+          "type": "number"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "ImageTextureSpec",
+      "type": "object"
+    },
+    "InheritNodeSpec": {
+      "additionalProperties": false,
+      "description": "Applies partial layer properties to one child node.",
+      "properties": {
+        "child": {
+          "description": "Single child that inherits this node's layer properties.",
+          "discriminator": {
+            "mapping": {
+              "inherit": "#/$defs/InheritNodeSpec",
+              "layer": "#/$defs/LayerNodeSpec",
+              "layout": "#/$defs/LayoutNodeSpec",
+              "overlay": "#/$defs/OverlayNodeSpec"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LayerNodeSpec"
+            },
+            {
+              "$ref": "#/$defs/InheritNodeSpec"
+            },
+            {
+              "$ref": "#/$defs/OverlayNodeSpec"
+            },
+            {
+              "$ref": "#/$defs/LayoutNodeSpec"
+            }
+          ],
+          "title": "Child"
+        },
+        "kind": {
+          "const": "inherit",
+          "default": "inherit",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/$defs/LayerPropertiesSpec",
+          "description": "Layer properties contributed by this composition node."
+        }
+      },
+      "required": [
+        "child"
+      ],
+      "title": "InheritNodeSpec",
+      "type": "object"
+    },
+    "IsocontourTextureSpec": {
+      "additionalProperties": false,
+      "description": "Alternates two textures in bands derived from a scalar field.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Scalar attribute from which contour bands are generated.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "isocontour",
+          "default": "isocontour",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "num_contours": {
+          "default": 8,
+          "description": "Number of contour repetitions per unit scalar interval.",
+          "minimum": 1,
+          "title": "Num Contours",
+          "type": "integer"
+        },
+        "ratio": {
+          "default": 0.1,
+          "description": "Relative width of the first isocontour region.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Ratio",
+          "type": "number"
+        },
+        "texture1": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.4,
+          "description": "Texture or constant used for the first alternating region.",
+          "title": "Texture1"
+        },
+        "texture2": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.2,
+          "description": "Texture or constant used for the second alternating region.",
+          "title": "Texture2"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "IsocontourTextureSpec",
+      "type": "object"
+    },
+    "LayerNodeSpec": {
+      "additionalProperties": false,
+      "description": "A leaf visualization layer with no child composition nodes.",
+      "properties": {
+        "kind": {
+          "const": "layer",
+          "default": "layer",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/$defs/LayerPropertiesSpec",
+          "description": "Layer properties contributed by this composition node."
+        }
+      },
+      "title": "LayerNodeSpec",
+      "type": "object"
+    },
+    "LayerPropertiesSpec": {
+      "additionalProperties": false,
+      "description": "Properties contributed by one node in a composed layer tree.",
+      "properties": {
+        "annotations": {
+          "default": [],
+          "description": "Ordered screen-space annotations for this node.",
+          "items": {
+            "$ref": "#/$defs/AnnotationSpec"
+          },
+          "title": "Annotations",
+          "type": "array"
+        },
+        "channels": {
+          "$ref": "#/$defs/ChannelsSpec",
+          "description": "Unique visual channels and material contributed by this node."
+        },
+        "data": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "external": "#/$defs/ExternalDataSpec",
+                  "mesh_file": "#/$defs/MeshFileDataSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MeshFileDataSpec"
+                },
+                {
+                  "$ref": "#/$defs/ExternalDataSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional file-backed or externally resolved mesh data.",
+          "title": "Data",
+          "x-hakowan-role": "geometry_source"
+        },
+        "mark": {
+          "anyOf": [
+            {
+              "enum": [
+                "point",
+                "curve",
+                "surface"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional mark type; unresolved marks default to surface during compilation.",
+          "title": "Mark"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable layer label used by interactive viewers.",
+          "title": "Name"
+        },
+        "transforms": {
+          "default": [],
+          "description": "Ordered runtime transform chain stored by this node.",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "affine": "#/$defs/AffineTransformSpec",
+                "boundary": "#/$defs/BoundaryTransformSpec",
+                "clip": "#/$defs/ClipTransformSpec",
+                "compute": "#/$defs/ComputeTransformSpec",
+                "explode": "#/$defs/ExplodeTransformSpec",
+                "filter": "#/$defs/FilterTransformSpec",
+                "fur": "#/$defs/FurTransformSpec",
+                "norm": "#/$defs/NormTransformSpec",
+                "normalize": "#/$defs/NormalizeTransformSpec",
+                "principal_axes": "#/$defs/PrincipalAxesTransformSpec",
+                "streamline": "#/$defs/StreamlineTransformSpec",
+                "uv_mesh": "#/$defs/UVMeshTransformSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/FilterTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/ClipTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/UVMeshTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/AffineTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/PrincipalAxesTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/NormalizeTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/ComputeTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/ExplodeTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/NormTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/BoundaryTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/StreamlineTransformSpec"
+              },
+              {
+                "$ref": "#/$defs/FurTransformSpec"
+              }
+            ]
+          },
+          "title": "Transforms",
+          "type": "array"
+        }
+      },
+      "title": "LayerPropertiesSpec",
+      "type": "object"
+    },
+    "LayoutNodeSpec": {
+      "additionalProperties": false,
+      "description": "Places child visualizations side by side along one axis.",
+      "properties": {
+        "axis": {
+          "default": "x",
+          "description": "World axis along which layout children are placed.",
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "children": {
+          "description": "Ordered child visualization nodes.",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "inherit": "#/$defs/InheritNodeSpec",
+                "layer": "#/$defs/LayerNodeSpec",
+                "layout": "#/$defs/LayoutNodeSpec",
+                "overlay": "#/$defs/OverlayNodeSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LayerNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/InheritNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/OverlayNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/LayoutNodeSpec"
+              }
+            ]
+          },
+          "minItems": 2,
+          "title": "Children",
+          "type": "array"
+        },
+        "gap": {
+          "default": 0.05,
+          "description": "Signed spacing between layout cells as a fraction of mean cell diameter; negative values move cells closer together.",
+          "title": "Gap",
+          "type": "number"
+        },
+        "kind": {
+          "const": "layout",
+          "default": "layout",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "normalize": {
+          "default": false,
+          "description": "Whether vectors or layout cells are normalized before use.",
+          "title": "Normalize",
+          "type": "boolean"
+        },
+        "reverse": {
+          "default": false,
+          "description": "Whether layout children are placed in decreasing axis order.",
+          "title": "Reverse",
+          "type": "boolean"
+        },
+        "spec": {
+          "$ref": "#/$defs/LayerPropertiesSpec",
+          "description": "Layer properties contributed by this composition node."
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "title": "LayoutNodeSpec",
+      "type": "object"
+    },
+    "LegendSpec": {
+      "additionalProperties": false,
+      "description": "Presentation settings for a continuous colorbar or categorical legend.",
+      "properties": {
+        "category_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional mapping from stringified category values to labels.",
+          "title": "Category Labels"
+        },
+        "format": {
+          "default": ".3g",
+          "description": "Python numeric format specifier for tick labels.",
+          "title": "Format",
+          "type": "string"
+        },
+        "position": {
+          "default": "right",
+          "description": "Side on which the legend panel is placed.",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "title": "Position",
+          "type": "string"
+        },
+        "ticks": {
+          "default": 5,
+          "description": "Number of labeled ticks for a continuous colorbar.",
+          "minimum": 2,
+          "title": "Ticks",
+          "type": "integer"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional display title; null derives it from the attribute name.",
+          "title": "Title"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional display units appended to the legend title.",
+          "title": "Units"
+        },
+        "width": {
+          "default": 180,
+          "description": "Raster legend panel width in pixels.",
+          "minimum": 80,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "title": "LegendSpec",
+      "type": "object"
+    },
+    "LogScaleSpec": {
+      "additionalProperties": false,
+      "description": "Applies a logarithm with the selected base to scalar data.",
+      "properties": {
+        "base": {
+          "default": 10.0,
+          "description": "Logarithm base; must be greater than one at runtime.",
+          "exclusiveMinimum": 1.0,
+          "title": "Base",
+          "type": "number"
+        },
+        "kind": {
+          "const": "log",
+          "default": "log",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "LogScaleSpec",
+      "type": "object"
+    },
+    "MediumSpec": {
+      "additionalProperties": false,
+      "description": "Defines the homogeneous medium enclosed by a dielectric material.",
+      "properties": {
+        "albedo": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.75,
+          "description": "Single-scattering albedo of a participating medium.",
+          "title": "Albedo"
+        },
+        "scale": {
+          "default": 1.0,
+          "description": "Density multiplier for the participating medium.",
+          "title": "Scale",
+          "type": "number"
+        }
+      },
+      "title": "MediumSpec",
+      "type": "object"
+    },
+    "MeshFileDataSpec": {
+      "additionalProperties": false,
+      "description": "References mesh data stored in an external file.",
+      "properties": {
+        "kind": {
+          "const": "mesh_file",
+          "default": "mesh_file",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "description": "Resource path; relative paths resolve beside the loaded specification file.",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "roi_box": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional axis-aligned region of interest as minimum and maximum corners.",
+          "title": "Roi Box"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "MeshFileDataSpec",
+      "type": "object"
+    },
+    "NormScaleSpec": {
+      "additionalProperties": false,
+      "description": "Reduces each vector value to its selected vector norm.",
+      "properties": {
+        "kind": {
+          "const": "norm",
+          "default": "norm",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "order": {
+          "default": 2.0,
+          "description": "Vector norm order.",
+          "title": "Order",
+          "type": "number"
+        }
+      },
+      "title": "NormScaleSpec",
+      "type": "object"
+    },
+    "NormTransformSpec": {
+      "additionalProperties": false,
+      "description": "Writes vector magnitudes into a new mesh attribute.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Context-specific input. LayerPropertiesSpec.data is a geometry source; channel, texture, and transform data fields are attribute references.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "norm",
+          "default": "norm",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "norm_attr_name": {
+          "description": "Output attribute name for computed vector magnitudes.",
+          "title": "Norm Attr Name",
+          "type": "string"
+        },
+        "order": {
+          "default": 2,
+          "description": "Vector norm order.",
+          "title": "Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "data",
+        "norm_attr_name"
+      ],
+      "title": "NormTransformSpec",
+      "type": "object"
+    },
+    "NormalChannelSpec": {
+      "additionalProperties": false,
+      "description": "Maps a vector attribute to surface shading normals.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Vector attribute supplying shading normals.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "normal",
+          "default": "normal",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "NormalChannelSpec",
+      "type": "object"
+    },
+    "NormalMapChannelSpec": {
+      "additionalProperties": false,
+      "description": "Replaces surface shading normals from a normal-map texture.",
+      "properties": {
+        "kind": {
+          "const": "normal_map",
+          "default": "normal_map",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "texture": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Texture supplying values for this channel.",
+          "title": "Texture"
+        }
+      },
+      "required": [
+        "texture"
+      ],
+      "title": "NormalMapChannelSpec",
+      "type": "object"
+    },
+    "NormalizeScaleSpec": {
+      "additionalProperties": false,
+      "description": "Linearly maps an attribute domain into a target range.",
+      "properties": {
+        "domain_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional explicit input-domain maximum; inferred from data when omitted.",
+          "title": "Domain Max"
+        },
+        "domain_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional explicit input-domain minimum; inferred from data when omitted.",
+          "title": "Domain Min"
+        },
+        "kind": {
+          "const": "normalize",
+          "default": "normalize",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "range_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Target output-range maximum.",
+          "title": "Range Max"
+        },
+        "range_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Target output-range minimum.",
+          "title": "Range Min"
+        }
+      },
+      "required": [
+        "range_min",
+        "range_max"
+      ],
+      "title": "NormalizeScaleSpec",
+      "type": "object"
+    },
+    "NormalizeTransformSpec": {
+      "additionalProperties": false,
+      "description": "Recenters and uniformly scales geometry to the canonical unit sphere.",
+      "properties": {
+        "kind": {
+          "const": "normalize",
+          "default": "normalize",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "normalize_normals": {
+          "default": true,
+          "description": "Whether normal attributes are normalized after geometry normalization.",
+          "title": "Normalize Normals",
+          "type": "boolean"
+        },
+        "normalize_tangents_bitangents": {
+          "default": true,
+          "description": "Whether tangent and bitangent attributes are normalized.",
+          "title": "Normalize Tangents Bitangents",
+          "type": "boolean"
+        }
+      },
+      "title": "NormalizeTransformSpec",
+      "type": "object"
+    },
+    "OffsetScaleSpec": {
+      "additionalProperties": false,
+      "description": "Adds another mesh attribute to the current attribute.",
+      "properties": {
+        "kind": {
+          "const": "offset",
+          "default": "offset",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "offset": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Attribute whose values are added to the current attribute.",
+          "x-hakowan-role": "attribute_reference"
+        }
+      },
+      "required": [
+        "offset"
+      ],
+      "title": "OffsetScaleSpec",
+      "type": "object"
+    },
+    "OrthographicCameraSpec": {
+      "additionalProperties": false,
+      "description": "An orthographic camera with explicit look-at vectors and clipping planes.",
+      "properties": {
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "kind": {
+          "const": "orthographic",
+          "default": "orthographic",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "scale": {
+          "default": 2.0,
+          "description": "Full vertical world-space extent of the orthographic view.",
+          "exclusiveMinimum": 0.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "OrthographicCameraSpec",
+      "type": "object"
+    },
+    "OutputSettingsSpec": {
+      "additionalProperties": false,
+      "description": "Semantic output resolution, background, passes, and deterministic seed.",
+      "properties": {
+        "background": {
+          "anyOf": [
+            {
+              "enum": [
+                "light",
+                "dark"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional opaque light or dark raster background; null preserves backend transparency. WebGL falls back to its dark viewer background.",
+          "title": "Background"
+        },
+        "height": {
+          "default": 800,
+          "description": "Output image height in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "passes": {
+          "default": [
+            "beauty"
+          ],
+          "description": "Ordered semantic render-pass requests.",
+          "items": {
+            "enum": [
+              "beauty",
+              "albedo",
+              "depth",
+              "normal",
+              "facet_id"
+            ],
+            "type": "string"
+          },
+          "title": "Passes",
+          "type": "array"
+        },
+        "sampler_seed": {
+          "default": 0,
+          "description": "Deterministic renderer sampler seed.",
+          "title": "Sampler Seed",
+          "type": "integer"
+        },
+        "width": {
+          "default": 1024,
+          "description": "Output image width in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "title": "OutputSettingsSpec",
+      "type": "object"
+    },
+    "OverlayNodeSpec": {
+      "additionalProperties": false,
+      "description": "Renders two or more child nodes in the same coordinate space.",
+      "properties": {
+        "children": {
+          "description": "Ordered child visualization nodes.",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "inherit": "#/$defs/InheritNodeSpec",
+                "layer": "#/$defs/LayerNodeSpec",
+                "layout": "#/$defs/LayoutNodeSpec",
+                "overlay": "#/$defs/OverlayNodeSpec"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LayerNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/InheritNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/OverlayNodeSpec"
+              },
+              {
+                "$ref": "#/$defs/LayoutNodeSpec"
+              }
+            ]
+          },
+          "minItems": 2,
+          "title": "Children",
+          "type": "array"
+        },
+        "kind": {
+          "const": "overlay",
+          "default": "overlay",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/$defs/LayerPropertiesSpec",
+          "description": "Layer properties contributed by this composition node."
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "title": "OverlayNodeSpec",
+      "type": "object"
+    },
+    "PerspectiveCameraSpec": {
+      "additionalProperties": false,
+      "description": "A perspective camera with explicit look-at vectors and field of view.",
+      "properties": {
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "fov": {
+          "default": 28.8415,
+          "description": "Perspective field of view in degrees.",
+          "exclusiveMaximum": 180.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Fov",
+          "type": "number"
+        },
+        "fov_axis": {
+          "default": "smaller",
+          "description": "Image axis to which the field of view applies.",
+          "enum": [
+            "x",
+            "y",
+            "diagonal",
+            "smaller",
+            "larger"
+          ],
+          "title": "Fov Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "perspective",
+          "default": "perspective",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "PerspectiveCameraSpec",
+      "type": "object"
+    },
+    "PlasticMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A smooth plastic with diffuse and specular components.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "diffuse_reflectance": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.5,
+          "description": "Diffuse plastic reflectance as a color or texture.",
+          "title": "Diffuse Reflectance"
+        },
+        "kind": {
+          "const": "plastic",
+          "default": "plastic",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "specular_reflectance": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "description": "Specular reflection strength or texture.",
+          "title": "Specular Reflectance"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "PlasticMaterialSpec",
+      "type": "object"
+    },
+    "PointLightSpec": {
+      "additionalProperties": false,
+      "description": "An omnidirectional point light with color and intensity.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "Point-light RGB or named color.",
+          "title": "Color"
+        },
+        "intensity": {
+          "default": 1.0,
+          "description": "Non-negative light intensity in backend-neutral relative units.",
+          "minimum": 0.0,
+          "title": "Intensity",
+          "type": "number"
+        },
+        "kind": {
+          "const": "point",
+          "default": "point",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "position": {
+          "description": "World-space point-light position.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Position",
+          "type": "array"
+        }
+      },
+      "title": "PointLightSpec",
+      "type": "object"
+    },
+    "PositionChannelSpec": {
+      "additionalProperties": false,
+      "description": "Maps a vector attribute to mark positions.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Vector attribute supplying mark positions.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "kind": {
+          "const": "position",
+          "default": "position",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "PositionChannelSpec",
+      "type": "object"
+    },
+    "PrincipalAxesTransformSpec": {
+      "additionalProperties": false,
+      "description": "Aligns mesh PCA directions with a target frame.",
+      "properties": {
+        "frame": {
+          "description": "Target orthonormal frame whose columns receive PCA directions.",
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Frame",
+          "type": "array"
+        },
+        "kind": {
+          "const": "principal_axes",
+          "default": "principal_axes",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "orthonormalize_frame": {
+          "default": true,
+          "description": "Whether to QR-orthonormalize the supplied frame.",
+          "title": "Orthonormalize Frame",
+          "type": "boolean"
+        }
+      },
+      "title": "PrincipalAxesTransformSpec",
+      "type": "object"
+    },
+    "PrincipledMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A general-purpose physically based surface material.",
+      "properties": {
+        "anisotropic": {
+          "default": 0.0,
+          "description": "Principled-material anisotropy amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Anisotropic",
+          "type": "number"
+        },
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.5,
+          "description": "Constant or texture-driven base color.",
+          "title": "Color"
+        },
+        "eta": {
+          "default": 1.5,
+          "description": "Principled-material interior index of refraction.",
+          "exclusiveMinimum": 0.0,
+          "title": "Eta",
+          "type": "number"
+        },
+        "flatness": {
+          "default": 0.0,
+          "description": "Thin-surface or subsurface flatness control.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Flatness",
+          "type": "number"
+        },
+        "kind": {
+          "const": "principled",
+          "default": "principled",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metallic": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Metallic response as a constant scalar or texture.",
+          "title": "Metallic"
+        },
+        "roughness": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.5,
+          "description": "Surface roughness as a constant scalar or texture.",
+          "title": "Roughness"
+        },
+        "sheen": {
+          "default": 0.0,
+          "description": "Principled-material sheen amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Sheen",
+          "type": "number"
+        },
+        "sheen_tint": {
+          "default": 0.0,
+          "description": "Principled-material sheen tint amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Sheen Tint",
+          "type": "number"
+        },
+        "spec_tint": {
+          "default": 0.0,
+          "description": "Principled-material specular tint amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Spec Tint",
+          "type": "number"
+        },
+        "spec_trans": {
+          "default": 0.0,
+          "description": "Principled-material specular transmission amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Spec Trans",
+          "type": "number"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "PrincipledMaterialSpec",
+      "type": "object"
+    },
+    "RoughConductorMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A metallic conductor with microfacet roughness.",
+      "properties": {
+        "alpha": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.1,
+          "description": "Microfacet roughness or scalar texture.",
+          "title": "Alpha"
+        },
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "distribution": {
+          "default": "beckmann",
+          "description": "Microfacet distribution used by a rough material.",
+          "enum": [
+            "beckmann",
+            "ggx",
+            "phong"
+          ],
+          "title": "Distribution",
+          "type": "string"
+        },
+        "kind": {
+          "const": "rough_conductor",
+          "default": "rough_conductor",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "material": {
+          "description": "Optional material encoding or conductor preset name.",
+          "title": "Material",
+          "type": "string"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "material"
+      ],
+      "title": "RoughConductorMaterialSpec",
+      "type": "object"
+    },
+    "RoughDielectricMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A transmissive dielectric with microfacet roughness.",
+      "properties": {
+        "alpha": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.1,
+          "description": "Microfacet roughness or scalar texture.",
+          "title": "Alpha"
+        },
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "distribution": {
+          "default": "beckmann",
+          "description": "Microfacet distribution used by a rough material.",
+          "enum": [
+            "beckmann",
+            "ggx",
+            "phong"
+          ],
+          "title": "Distribution",
+          "type": "string"
+        },
+        "ext_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "air",
+          "description": "Exterior index of refraction or named preset.",
+          "title": "Ext Ior"
+        },
+        "int_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "bk7",
+          "description": "Interior index of refraction or named preset.",
+          "title": "Int Ior"
+        },
+        "kind": {
+          "const": "rough_dielectric",
+          "default": "rough_dielectric",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "medium": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediumSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional homogeneous interior medium."
+        },
+        "specular_reflectance": {
+          "default": 1.0,
+          "description": "Specular reflection strength or texture.",
+          "title": "Specular Reflectance",
+          "type": "number"
+        },
+        "specular_transmittance": {
+          "default": 1.0,
+          "description": "Specular transmission strength.",
+          "title": "Specular Transmittance",
+          "type": "number"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "RoughDielectricMaterialSpec",
+      "type": "object"
+    },
+    "RoughPlasticMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A plastic material with microfacet roughness.",
+      "properties": {
+        "alpha": {
+          "default": 0.1,
+          "description": "Microfacet roughness or scalar texture.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Alpha",
+          "type": "number"
+        },
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "diffuse_reflectance": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.5,
+          "description": "Diffuse plastic reflectance as a color or texture.",
+          "title": "Diffuse Reflectance"
+        },
+        "distribution": {
+          "default": "beckmann",
+          "description": "Microfacet distribution used by a rough material.",
+          "enum": [
+            "beckmann",
+            "ggx",
+            "phong"
+          ],
+          "title": "Distribution",
+          "type": "string"
+        },
+        "kind": {
+          "const": "rough_plastic",
+          "default": "rough_plastic",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "specular_reflectance": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "description": "Specular reflection strength or texture.",
+          "title": "Specular Reflectance"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "RoughPlasticMaterialSpec",
+      "type": "object"
+    },
+    "ScalarFieldTextureSpec": {
+      "additionalProperties": false,
+      "description": "Maps a scalar attribute through a colormap.",
+      "properties": {
+        "categories": {
+          "default": false,
+          "description": "Whether values are discrete categories rather than continuous quantities.",
+          "title": "Categories",
+          "type": "boolean"
+        },
+        "colormap": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "viridis",
+          "description": "Built-in palette name, colorcet palette name, identity, or explicit color list. Defaults to set1 for categories and viridis otherwise.",
+          "title": "Colormap"
+        },
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Scalar attribute mapped through the selected colormap.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "domain": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Inclusive input or clipping domain as [minimum, maximum].",
+          "title": "Domain"
+        },
+        "kind": {
+          "const": "scalar_field",
+          "default": "scalar_field",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "legend": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/LegendSpec"
+            }
+          ],
+          "default": true,
+          "description": "Automatic legend toggle or detailed configuration.",
+          "title": "Legend"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Output colormap interval as [minimum, maximum].",
+          "title": "Range"
+        },
+        "reverse": {
+          "default": false,
+          "description": "Whether to reverse colormap direction.",
+          "title": "Reverse",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "ScalarFieldTextureSpec",
+      "type": "object"
+    },
+    "SceneSettingsSpec": {
+      "additionalProperties": false,
+      "description": "Optional figure-level camera, lights, environment, and output intent.",
+      "properties": {
+        "camera": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "orthographic": "#/$defs/OrthographicCameraSpec",
+                  "perspective": "#/$defs/PerspectiveCameraSpec",
+                  "thin_lens": "#/$defs/ThinLensCameraSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PerspectiveCameraSpec"
+                },
+                {
+                  "$ref": "#/$defs/OrthographicCameraSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinLensCameraSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional figure camera specification.",
+          "title": "Camera"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnvironmentSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional environment lighting and background settings."
+        },
+        "lights": {
+          "anyOf": [
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "directional": "#/$defs/DirectionalLightSpec",
+                    "point": "#/$defs/PointLightSpec"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/PointLightSpec"
+                  },
+                  {
+                    "$ref": "#/$defs/DirectionalLightSpec"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional ordered light list; null preserves defaults and an empty list disables explicit lights.",
+          "title": "Lights"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputSettingsSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional semantic output settings."
+        }
+      },
+      "title": "SceneSettingsSpec",
+      "type": "object"
+    },
+    "ShapeChannelSpec": {
+      "additionalProperties": false,
+      "description": "Selects and optionally orients the glyph used for point marks.",
+      "properties": {
+        "base_shape": {
+          "default": "sphere",
+          "description": "Point glyph primitive: sphere, disk, or cube.",
+          "enum": [
+            "sphere",
+            "disk",
+            "cube"
+          ],
+          "title": "Base Shape",
+          "type": "string"
+        },
+        "kind": {
+          "const": "shape",
+          "default": "shape",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional vector attribute orienting each point glyph.",
+          "x-hakowan-role": "attribute_reference"
+        }
+      },
+      "title": "ShapeChannelSpec",
+      "type": "object"
+    },
+    "SizeChannelSpec": {
+      "additionalProperties": false,
+      "description": "Maps a scalar field or constant to point or curve radius.",
+      "properties": {
+        "data": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            }
+          ],
+          "description": "Constant radius or scalar attribute supplying radii.",
+          "title": "Data",
+          "x-hakowan-role": "attribute_or_constant"
+        },
+        "kind": {
+          "const": "size",
+          "default": "size",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "space": {
+          "default": "world",
+          "description": "Size coordinate space: world radius, scene-relative diameter fraction, or screen-pixel diameter.",
+          "enum": [
+            "world",
+            "scene",
+            "screen"
+          ],
+          "title": "Space",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "SizeChannelSpec",
+      "type": "object"
+    },
+    "StreamlineTransformSpec": {
+      "additionalProperties": false,
+      "description": "Traces surface streamlines from a vector or cross field.",
+      "properties": {
+        "cross_field": {
+          "default": true,
+          "description": "Whether the input is a four-fold rotationally symmetric cross field.",
+          "title": "Cross Field",
+          "type": "boolean"
+        },
+        "id_attr_name": {
+          "default": "_hakowan_streamline_id",
+          "description": "Output attribute name containing streamline identifiers.",
+          "minLength": 1,
+          "title": "Id Attr Name",
+          "type": "string"
+        },
+        "kind": {
+          "const": "streamline",
+          "default": "streamline",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum object-space trace or strand length; null selects an automatic limit.",
+          "title": "Length"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum streamline edge-crossing steps; null selects a mesh-dependent limit.",
+          "title": "Max Steps"
+        },
+        "min_length": {
+          "default": 3,
+          "description": "Minimum number of retained streamline sample points.",
+          "minimum": 1,
+          "title": "Min Length",
+          "type": "integer"
+        },
+        "n": {
+          "default": 50,
+          "description": "Requested number of seeds, streamlines, or fur strands.",
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 0,
+          "description": "Deterministic random seed.",
+          "title": "Seed",
+          "type": "integer"
+        },
+        "vec_field": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Vector or cross-field attribute used to generate curves.",
+          "x-hakowan-role": "attribute_reference"
+        }
+      },
+      "required": [
+        "vec_field"
+      ],
+      "title": "StreamlineTransformSpec",
+      "type": "object"
+    },
+    "ThinDielectricMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A transmissive dielectric for negligible-thickness surfaces.",
+      "properties": {
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "ext_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "air",
+          "description": "Exterior index of refraction or named preset.",
+          "title": "Ext Ior"
+        },
+        "int_ior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": "bk7",
+          "description": "Interior index of refraction or named preset.",
+          "title": "Int Ior"
+        },
+        "kind": {
+          "const": "thin_dielectric",
+          "default": "thin_dielectric",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "medium": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediumSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional homogeneous interior medium."
+        },
+        "specular_reflectance": {
+          "default": 1.0,
+          "description": "Specular reflection strength or texture.",
+          "title": "Specular Reflectance",
+          "type": "number"
+        },
+        "specular_transmittance": {
+          "default": 1.0,
+          "description": "Specular transmission strength.",
+          "title": "Specular Transmittance",
+          "type": "number"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "ThinDielectricMaterialSpec",
+      "type": "object"
+    },
+    "ThinLensCameraSpec": {
+      "additionalProperties": false,
+      "description": "A perspective camera with aperture and focus-distance controls.",
+      "properties": {
+        "aperture_radius": {
+          "default": 0.1,
+          "description": "Thin-lens aperture radius.",
+          "minimum": 0.0,
+          "title": "Aperture Radius",
+          "type": "number"
+        },
+        "eye": {
+          "description": "World-space camera position after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Eye",
+          "type": "array"
+        },
+        "far": {
+          "default": 10000.0,
+          "description": "Far clipping-plane distance, greater than near.",
+          "exclusiveMinimum": 0.0,
+          "title": "Far",
+          "type": "number"
+        },
+        "focus_distance": {
+          "default": 0.0,
+          "description": "Thin-lens focus distance; zero selects the target distance.",
+          "minimum": 0.0,
+          "title": "Focus Distance",
+          "type": "number"
+        },
+        "fov": {
+          "default": 28.8415,
+          "description": "Perspective field of view in degrees.",
+          "exclusiveMaximum": 180.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Fov",
+          "type": "number"
+        },
+        "fov_axis": {
+          "default": "smaller",
+          "description": "Image axis to which the field of view applies.",
+          "enum": [
+            "x",
+            "y",
+            "diagonal",
+            "smaller",
+            "larger"
+          ],
+          "title": "Fov Axis",
+          "type": "string"
+        },
+        "kind": {
+          "const": "thin_lens",
+          "default": "thin_lens",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "near": {
+          "default": 0.01,
+          "description": "Positive near clipping-plane distance.",
+          "exclusiveMinimum": 0.0,
+          "title": "Near",
+          "type": "number"
+        },
+        "target": {
+          "description": "World-space camera look-at target after scene normalization.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Target",
+          "type": "array"
+        },
+        "up": {
+          "description": "World-space camera or environment up vector.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Up",
+          "type": "array"
+        }
+      },
+      "title": "ThinLensCameraSpec",
+      "type": "object"
+    },
+    "ThinPrincipledMaterialSpec": {
+      "additionalProperties": false,
+      "description": "A thin-surface principled material with diffuse transmission.",
+      "properties": {
+        "anisotropic": {
+          "default": 0.0,
+          "description": "Principled-material anisotropy amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Anisotropic",
+          "type": "number"
+        },
+        "back_side": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "conductor": "#/$defs/ConductorMaterialSpec",
+                  "dielectric": "#/$defs/DielectricMaterialSpec",
+                  "diffuse": "#/$defs/DiffuseMaterialSpec",
+                  "hair": "#/$defs/HairMaterialSpec",
+                  "plastic": "#/$defs/PlasticMaterialSpec",
+                  "principled": "#/$defs/PrincipledMaterialSpec",
+                  "rough_conductor": "#/$defs/RoughConductorMaterialSpec",
+                  "rough_dielectric": "#/$defs/RoughDielectricMaterialSpec",
+                  "rough_plastic": "#/$defs/RoughPlasticMaterialSpec",
+                  "thin_dielectric": "#/$defs/ThinDielectricMaterialSpec",
+                  "thin_principled": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/DiffuseMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughConductorMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughPlasticMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/PrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinPrincipledMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/DielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/ThinDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/RoughDielectricMaterialSpec"
+                },
+                {
+                  "$ref": "#/$defs/HairMaterialSpec"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional independent material for back-facing surface facets.",
+          "title": "Back Side"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": 0.5,
+          "description": "Constant or texture-driven base color.",
+          "title": "Color"
+        },
+        "diff_trans": {
+          "default": 0.0,
+          "description": "Diffuse transmission amount for thin principled surfaces.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Diff Trans",
+          "type": "number"
+        },
+        "eta": {
+          "default": 1.5,
+          "description": "Principled-material interior index of refraction.",
+          "exclusiveMinimum": 0.0,
+          "title": "Eta",
+          "type": "number"
+        },
+        "flatness": {
+          "default": 0.0,
+          "description": "Thin-surface or subsurface flatness control.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Flatness",
+          "type": "number"
+        },
+        "kind": {
+          "const": "thin_principled",
+          "default": "thin_principled",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metallic": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.0,
+          "description": "Metallic response as a constant scalar or texture.",
+          "title": "Metallic"
+        },
+        "roughness": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "checkerboard": "#/$defs/CheckerboardTextureSpec",
+                  "image": "#/$defs/ImageTextureSpec",
+                  "isocontour": "#/$defs/IsocontourTextureSpec",
+                  "scalar_field": "#/$defs/ScalarFieldTextureSpec",
+                  "uniform": "#/$defs/UniformTextureSpec"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/UniformTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ImageTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/CheckerboardTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/IsocontourTextureSpec"
+                },
+                {
+                  "$ref": "#/$defs/ScalarFieldTextureSpec"
+                }
+              ]
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 0.5,
+          "description": "Surface roughness as a constant scalar or texture.",
+          "title": "Roughness"
+        },
+        "sheen": {
+          "default": 0.0,
+          "description": "Principled-material sheen amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Sheen",
+          "type": "number"
+        },
+        "sheen_tint": {
+          "default": 0.0,
+          "description": "Principled-material sheen tint amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Sheen Tint",
+          "type": "number"
+        },
+        "spec_tint": {
+          "default": 0.0,
+          "description": "Principled-material specular tint amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Spec Tint",
+          "type": "number"
+        },
+        "spec_trans": {
+          "default": 0.0,
+          "description": "Principled-material specular transmission amount.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Spec Trans",
+          "type": "number"
+        },
+        "two_sided": {
+          "default": false,
+          "description": "Whether the material renders both surface orientations.",
+          "title": "Two Sided",
+          "type": "boolean"
+        }
+      },
+      "title": "ThinPrincipledMaterialSpec",
+      "type": "object"
+    },
+    "UVMeshTransformSpec": {
+      "additionalProperties": false,
+      "description": "Replaces geometry positions with UV coordinates.",
+      "properties": {
+        "kind": {
+          "const": "uv_mesh",
+          "default": "uv_mesh",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "uv": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttributeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional two-channel UV attribute; an existing UV attribute is inferred when omitted."
+        }
+      },
+      "title": "UVMeshTransformSpec",
+      "type": "object"
+    },
+    "UniformScaleSpec": {
+      "additionalProperties": false,
+      "description": "Multiplies every attribute value by one factor.",
+      "properties": {
+        "factor": {
+          "description": "Uniform multiplicative factor.",
+          "title": "Factor",
+          "type": "number"
+        },
+        "kind": {
+          "const": "uniform",
+          "default": "uniform",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "factor"
+      ],
+      "title": "UniformScaleSpec",
+      "type": "object"
+    },
+    "UniformTextureSpec": {
+      "additionalProperties": false,
+      "description": "Represents one constant color or scalar texture value.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Constant or texture-driven base color.",
+          "title": "Color"
+        },
+        "kind": {
+          "const": "uniform",
+          "default": "uniform",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "color"
+      ],
+      "title": "UniformTextureSpec",
+      "type": "object"
+    },
+    "VectorFieldChannelSpec": {
+      "additionalProperties": false,
+      "description": "Renders a vector field as curve or arrow geometry.",
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/AttributeSpec",
+          "description": "Vector attribute supplying arrow or curve directions.",
+          "x-hakowan-role": "attribute_reference"
+        },
+        "end_type": {
+          "default": "point",
+          "description": "Vector endpoint style: tapered point, arrowhead, or flat cap.",
+          "enum": [
+            "point",
+            "arrow",
+            "flat"
+          ],
+          "title": "End Type",
+          "type": "string"
+        },
+        "kind": {
+          "const": "vector_field",
+          "default": "vector_field",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "normalize": {
+          "default": false,
+          "description": "Whether vectors or layout cells are normalized before use.",
+          "title": "Normalize",
+          "type": "boolean"
+        },
+        "refinement_level": {
+          "default": 0,
+          "description": "Vector-field sampling refinement level.",
+          "minimum": 0,
+          "title": "Refinement Level",
+          "type": "integer"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BendStyleSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional curve style for vector-field marks."
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "title": "VectorFieldChannelSpec",
+      "type": "object"
+    }
+  },
+  "$id": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "version": {
+            "const": "1.0"
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "then": {
+        "properties": {
+          "scene": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "description": "Canonical, versioned Hakowan 3D visualization specification. Unknown fields and unknown discriminated variants are rejected.",
+  "examples": [
+    {
+      "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+      "root": {
+        "kind": "layer",
+        "spec": {
+          "channels": {
+            "material": {
+              "kind": "diffuse",
+              "reflectance": {
+                "data": {
+                  "name": "temperature"
+                },
+                "kind": "scalar_field"
+              }
+            }
+          },
+          "data": {
+            "kind": "mesh_file",
+            "path": "mesh.ply"
+          }
+        }
+      },
+      "version": "1.0"
+    },
+    {
+      "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+      "root": {
+        "kind": "layer",
+        "spec": {
+          "channels": {
+            "material": {
+              "kind": "diffuse",
+              "reflectance": {
+                "colormap": "viridis",
+                "data": {
+                  "name": "temperature",
+                  "scales": []
+                },
+                "kind": "scalar_field"
+              }
+            }
+          },
+          "data": {
+            "kind": "mesh_file",
+            "path": "mesh.ply",
+            "roi_box": null
+          },
+          "mark": "surface",
+          "name": "temperature",
+          "transforms": []
+        }
+      },
+      "scene": {
+        "camera": {
+          "eye": [
+            2,
+            3,
+            4
+          ],
+          "fov": 35,
+          "kind": "perspective",
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1,
+            0
+          ]
+        },
+        "environment": {
+          "enabled": false
+        },
+        "lights": [
+          {
+            "color": "white",
+            "direction": [
+              0,
+              0,
+              -1
+            ],
+            "intensity": 2,
+            "kind": "directional"
+          }
+        ],
+        "output": {
+          "background": null,
+          "height": 800,
+          "passes": [
+            "beauty"
+          ],
+          "sampler_seed": 0,
+          "width": 1024
+        }
+      },
+      "version": "1.1"
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://hakowan.github.io/hakowan/schema/v1.json",
+      "default": "https://hakowan.github.io/hakowan/schema/v1.json",
+      "description": "Canonical schema identifier for this document version.",
+      "title": "$Schema",
+      "type": "string"
+    },
+    "root": {
+      "description": "Root layer or composition node.",
+      "discriminator": {
+        "mapping": {
+          "inherit": "#/$defs/InheritNodeSpec",
+          "layer": "#/$defs/LayerNodeSpec",
+          "layout": "#/$defs/LayoutNodeSpec",
+          "overlay": "#/$defs/OverlayNodeSpec"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LayerNodeSpec"
+        },
+        {
+          "$ref": "#/$defs/InheritNodeSpec"
+        },
+        {
+          "$ref": "#/$defs/OverlayNodeSpec"
+        },
+        {
+          "$ref": "#/$defs/LayoutNodeSpec"
+        }
+      ],
+      "title": "Root"
+    },
+    "scene": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SceneSettingsSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional reproducible camera, lighting, environment, and output settings."
+    },
+    "version": {
+      "default": "1.1",
+      "description": "Hakowan specification format version.",
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "root"
+  ],
+  "title": "FigureSpec",
+  "type": "object",
+  "x-hakowan-conventions": {
+    "attribute_reference": "Channel, texture, and transform attribute inputs reference named fields inside the selected geometry source.",
+    "channel_composition": "Each channel key is a semantic slot. Along a root-to-leaf path, the first value for a slot wins; unrelated slots compose.",
+    "config": "Invocation-time renderer policy; an explicit Config overrides all Figure-derived rendering configuration.",
+    "figure": "Portable visualization intent serialized as FigureSpec.",
+    "geometry_source": "Only LayerPropertiesSpec.data selects mesh geometry.",
+    "scalar_field": "To color geometry by a scalar attribute, use a diffuse material whose reflectance is a scalar_field texture. Supply only data.name for the default inferred domain, viridis colormap, and automatic legend."
+  }
+}

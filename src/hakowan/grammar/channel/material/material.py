@@ -1,9 +1,12 @@
+"""Declarative surface and hair material channels."""
+
 from dataclasses import dataclass
 from typing import Literal
 
 from .medium import Medium
 from ..channel import Channel
 from ...texture import ScalarTextureLike, TextureLike
+from ....common.color import ColorLike
 
 
 @dataclass(kw_only=True, slots=True)
@@ -18,6 +21,7 @@ class Material(Channel):
             two-sided rendering regardless of ``two_sided``. Only meaningful for
             surface marks. A nested ``back_side`` on the back material itself is
             ignored.
+
     """
 
     two_sided: bool = False
@@ -30,6 +34,7 @@ class Diffuse(Material):
 
     Attributes:
         reflectance: Diffuse reflectance (i.e. base color) texture (default: 0.5).
+
     """
 
     reflectance: TextureLike = 0.5
@@ -41,6 +46,7 @@ class Conductor(Material):
 
     Attributes:
         material: Conductor material name based on [Mitsuba preset](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#conductor-ior-list).
+
     """
 
     material: str
@@ -54,6 +60,7 @@ class RoughConductor(Conductor):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -67,6 +74,7 @@ class Plastic(Material):
     Attributes:
         diffuse_reflectance: Diffuse reflectance (i.e. base color) texture (default: 0.5).
         specular_reflectance: Specular reflectance texture (default: 1.0).
+
     """
 
     diffuse_reflectance: TextureLike = 0.5
@@ -81,6 +89,7 @@ class RoughPlastic(Plastic):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -102,6 +111,7 @@ class Principled(Material):
         sheen: Sheen amount (default: 0.0).
         sheen_tint: Sheen tint towards base color (default: 0.0).
         flatness: Blend between thin and volumetric subsurface scattering (default: 0.0).
+
     """
 
     color: TextureLike = 0.5
@@ -122,6 +132,7 @@ class ThinPrincipled(Principled):
 
     Attributes:
         diff_trans: Diffuse transmission amount (default: 0.0).
+
     """
 
     diff_trans: float = 0.0
@@ -137,6 +148,7 @@ class Dielectric(Material):
         medium: Medium (default: None).
         specular_reflectance: Specular reflectance (default: 1.0).
         specular_transmittance: Specular transmittance (default: 1.0).
+
     """
 
     int_ior: str | float = "bk7"
@@ -161,6 +173,7 @@ class RoughDielectric(Dielectric):
         distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
+
     """
 
     distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
@@ -171,10 +184,47 @@ class RoughDielectric(Dielectric):
 class Hair(Material):
     """Hair material.
 
+    Color is controlled either physically, via the two melanin pigment
+    concentrations (natural hair palette: black → brown → red → blonde), or
+    directly via ``color`` with an RGB / named color for uniform fur of any
+    hue.  ``color`` overrides the melanin parametrization when set.
+
+    For richer fur, colors can be mixed procedurally along and across strands:
+    ``root_color`` / ``tip_color`` give a root-to-tip gradient (dark undercoat →
+    lighter tips), and ``color_variation`` adds per-strand random brightness
+    jitter.  These are evaluated in the hair shader (Blender), so they compose
+    with the guide/child hairs for free.
+
+    Note: a *data-driven* color (e.g. ``ScalarField``) is not supported by the
+    hair renderers and falls back to melanin with a warning — the hair BSDF
+    darkens/tints colors, which is poor for reading data anyway.  To color fur
+    by an attribute, use a non-Hair material (e.g. ``Diffuse``) on the fur
+    strands.
+
     Attributes:
         eumelanin: Eumelanin (dark/brown pigment) concentration (default: 1.3).
-        pheomelanin: Pheomelanin (reddish-yellow pigment) concentration (default: 0.2).
+            Ignored when ``color`` or a root/tip gradient is set.
+        pheomelanin: Pheomelanin (reddish-yellow pigment) concentration
+            (default: 0.2).  Ignored when ``color`` or a gradient is set.
+        color: Direct RGB / named hair color (overrides melanin).  ``None``
+            (default) uses the melanin parametrization.
+        root_color: Strand-root color of a root-to-tip gradient.  Setting
+            ``root_color`` and/or ``tip_color`` overrides ``color`` and melanin.
+        tip_color: Strand-tip color of the root-to-tip gradient.
+        color_variation: Per-strand random brightness jitter in ``[0, 1]``
+            (0 = uniform).  Applied on top of the melanin / color / gradient.
+
     """
 
     eumelanin: float = 1.3
     pheomelanin: float = 0.2
+    color: TextureLike | None = None
+    root_color: ColorLike | None = None
+    tip_color: ColorLike | None = None
+    color_variation: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.eumelanin < 0.0 or self.pheomelanin < 0.0:
+            raise ValueError("Hair melanin concentrations must be non-negative.")
+        if not 0.0 <= self.color_variation <= 1.0:
+            raise ValueError("Hair.color_variation must be in [0, 1].")

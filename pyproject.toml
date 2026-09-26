@@ -20,19 +20,24 @@ dependencies=[
     "tqdm>=4.66",
     "colorcet>=3.2.1,<4",
     "pygltflib>=1.16.5,<2",
+    "pydantic>=2.10,<3",
 ]
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
-# Optional rendering backends. Install with e.g. ``pip install hakowan[mitsuba]``,
-# ``hakowan[blender]``, or ``hakowan[mitsuba,blender]``. The WebGL backend needs
-# no extra. A backend whose dependency is absent simply does not appear in
-# ``hakowan.list_backends()``.
+# Optional integrations and rendering backends. WebGL needs no extra. Backends
+# whose dependencies are absent do not appear in ``hakowan.list_backends()``.
 mitsuba = ["mitsuba~=3.8"]
 blender = ["bpy>=5.1,<6; python_version == '3.13'"]
+observe = ["playwright>=1.49,<2"]
+data = [
+    "pandas>=2.0",
+    "xarray>=2024.1",
+    "pyvista>=0.44",
+    "trimesh>=4.0",
+]
 docs = [
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.0",
+    "mkdocs-materialx>=10.2,<11",
     "mkdocstrings[python]>=0.24",
 ]
 
@@ -41,9 +46,9 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.pypi-dependencies]
-# Base install: WebGL backend only (no extras). Mitsuba and Blender are added
-# per-feature below, and selected via the ``mitsuba`` / ``blender`` / ``full``
-# environments (e.g. ``pixi shell -e full``).
+# Base install: WebGL backend only (no extras). Optional renderer and observation
+# dependencies are selected through named Pixi environments (for example,
+# ``pixi shell -e observe`` or ``pixi shell -e full``).
 hakowan = { path = ".", editable = true }
 
 # --- Mitsuba backend feature -------------------------------------------------
@@ -67,14 +72,19 @@ DRJIT_LIBLLVM_PATH = "$CONDA_PREFIX/lib/libLLVM-18.dylib"
 [tool.pixi.feature.blender.pypi-dependencies]
 hakowan = { path = ".", editable = true, extras = ["blender"] }
 
+# --- Headless observation feature -------------------------------------------
+[tool.pixi.feature.observe.pypi-dependencies]
+hakowan = { path = ".", editable = true, extras = ["observe"] }
+
 [tool.pixi.environments]
-# ``default`` is WebGL-only. Pick a heavier backend with ``pixi shell -e <env>``
-# or ``pixi run -e <env> ...``. All share one solve-group so the common deps
-# resolve to identical versions across environments.
+# ``default`` is WebGL-only. Pick optional integrations with
+# ``pixi shell -e <env>`` or ``pixi run -e <env> ...``. All share one solve
+# group so common dependencies resolve to identical versions.
 default = { solve-group = "default" }
 mitsuba = { features = ["mitsuba"], solve-group = "default" }
 blender = { features = ["blender"], solve-group = "default" }
-full = { features = ["mitsuba", "blender"], solve-group = "default" }
+observe = { features = ["observe"], solve-group = "default" }
+full = { features = ["mitsuba", "blender", "observe"], solve-group = "default" }
 
 [tool.pixi.dependencies]
 python = "==3.13"

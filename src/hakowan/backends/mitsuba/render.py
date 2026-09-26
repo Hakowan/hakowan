@@ -7,9 +7,11 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 
 from ...common import logger
 from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
+from ...common.overlay import composite_overlay_file
 from ...compiler import Scene, View
 from ...setup import Config
-from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, aov_path
+from ...setup.integrator import AOV, Integrator
+from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, RENDER_PASSES, aov_path
 from ...grammar import mark
 from .. import RenderBackend
 
@@ -62,12 +64,84 @@ def _camera_axis_cosine(shape: tuple[int, ...], sensor: Any) -> np.ndarray:
     return cos.astype(np.float32)
 
 
+def _show_emitters(integrator: dict[str, Any]) -> None:
+    """Make emitters visible through nested Mitsuba integrators."""
+    current = integrator
+    while True:
+        current["hide_emitters"] = False
+        nested = current.get("integrator")
+        if not isinstance(nested, dict):
+            return
+        current = nested
+
+
+def _effective_aovs(config: Config) -> list[str]:
+    """Merge explicit Mitsuba AOVs with requested semantic render passes."""
+    result = list(config.integrator.aovs) if isinstance(config.integrator, AOV) else []
+    for render_pass in RENDER_PASSES.values():
+        aov = render_pass.mitsuba_aov
+        if (
+            render_pass.name in config.render_passes
+            and aov is not None
+            and aov not in result
+        ):
+            result.append(aov)
+    return result
+
+
+def _effective_integrator(config: Config) -> Integrator:
+    """Build the render-local integrator without mutating Config."""
+    aovs = _effective_aovs(config)
+    if isinstance(config.integrator, AOV):
+        if aovs == config.integrator.aovs:
+            return config.integrator
+        return AOV(aovs=aovs, integrator=config.integrator.integrator)
+    if aovs:
+        return AOV(aovs=aovs, integrator=config.integrator)
+    return config.integrator
+
+
+_BEAUTY_CHANNEL_NAMES = ("integrator.R", "integrator.G", "integrator.B", "integrator.A")
+
+
+def _beauty_rgba_indexes(
+    channel_names: list[str], channel_count: int
+) -> tuple[int, int, int, int]:
+    """Return image indexes of the RGBA beauty block.
+
+    ``aov_names()`` lists every image channel in order. A nested beauty
+    integrator contributes ``integrator.R/G/B/A`` at those indexes; they are
+    already absolute, so do not add another four-channel prefix. A plain render
+    has an empty name list and four RGBA channels. Auxiliary names with no
+    beauty block are not a color image.
+    """
+    if not channel_names:
+        if channel_count < 4:
+            raise RuntimeError(
+                f"Mitsuba beauty image has {channel_count} channels; expected RGBA."
+            )
+        return (0, 1, 2, 3)
+    missing = [name for name in _BEAUTY_CHANNEL_NAMES if name not in channel_names]
+    if missing:
+        raise RuntimeError(
+            "Mitsuba AOV output has no beauty channels "
+            f"({', '.join(missing)}). Set AOV.integrator to a beauty integrator; "
+            "None selects a path tracer."
+        )
+    red, green, blue, alpha = (
+        channel_names.index(name) for name in _BEAUTY_CHANNEL_NAMES
+    )
+    return (red, green, blue, alpha)
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
     sensor_config = generate_sensor_config(config.sensor)
     sensor_config["film"] = generate_film_config(config.film)
     sensor_config["sampler"] = generate_sampler_config(config.sampler)
-    integrator_config = generate_integrator_config(config.integrator)
+    integrator_config = generate_integrator_config(_effective_integrator(config))
+    if config.environment_visible:
+        _show_emitters(integrator_config)
 
     mi_config = {
         "type": "scene",
@@ -177,8 +251,8 @@ def ensure_variant() -> None:
 class MitsubaBackend(RenderBackend):
     """Mitsuba rendering backend."""
 
-    # facet_id has no Mitsuba AOV counterpart; the other passes ride the AOV
-    # integrator (see Config.__sync_aovs and the channel slicing in render()).
+    # facet_id has no Mitsuba AOV counterpart; other requested passes are
+    # derived into a render-local AOV integrator.
     SUPPORTED_PASSES = frozenset({ALBEDO, DEPTH, NORMAL})
 
     def render(
@@ -196,6 +270,7 @@ class MitsubaBackend(RenderBackend):
             config: Rendering configuration.
             filename: Output image filename.
             yaml_file: Optional YAML scene export filename (mi_config).
+            **kwargs: Rejected compatibility catch-all for unknown options.
 
         Returns:
             Rendered image as Mitsuba tensor.
@@ -224,35 +299,31 @@ class MitsubaBackend(RenderBackend):
         logger.info("Rendering done")
         image_layers = image
 
-        # Always extract the main RGBA image from the first 4 channels.
-        # When an AOV integrator is active the remaining channels hold pass
-        # data; without one, image_layers already has exactly 4 channels.
-        image = image_layers[:, :, mi.ArrayXi([0, 1, 2, 3])]  # type: ignore
+        # Beauty channels are named by Mitsuba. A nested integrator contributes
+        # integrator.R/G/B/A at absolute image indexes; do not add another
+        # four-channel prefix. Auxiliary names with no beauty block are not RGBA.
+        channel_names = list(mi_scene.integrator().aov_names())
+        beauty_r, beauty_g, beauty_b, beauty_a = _beauty_rgba_indexes(
+            channel_names, int(image_layers.shape[-1])
+        )
+        image = image_layers[:, :, mi.ArrayXi([beauty_r, beauty_g, beauty_b, beauty_a])]
+        beauty_alpha = np.array(image_layers[:, :, beauty_a])
 
-        # Compute per-pass channel offsets by walking the AOV list in order.
-        # Mitsuba lays out AOV channels sequentially after the 4 RGBA channels.
-        # Known widths: RGB AOVs contribute 3 channels, scalar AOVs 1 channel.
-        _aov_width = {
-            "albedo:albedo": 3,
-            "depth:depth": 1,
-            "sh_normal:sh_normal": 3,
-        }
-        albedo_offset: int | None = None
-        depth_offset: int | None = None
-        normal_offset: int | None = None
+        def channel_offset(name: str) -> int | None:
+            # Semantic AOVs are appended after explicit AOVs. Search backwards
+            # so a caller reusing a reserved label cannot shadow our pass.
+            return next(
+                (
+                    index
+                    for index in range(len(channel_names) - 1, -1, -1)
+                    if channel_names[index] == name
+                ),
+                None,
+            )
 
-        from ...setup.integrator import AOV as AOVIntegrator
-
-        if isinstance(config.integrator, AOVIntegrator):
-            _offset = 4
-            for aov_str in config.integrator.aovs:
-                if aov_str == "albedo:albedo":
-                    albedo_offset = _offset
-                elif aov_str == "depth:depth":
-                    depth_offset = _offset
-                elif aov_str == "sh_normal:sh_normal":
-                    normal_offset = _offset
-                _offset += _aov_width.get(aov_str, 1)
+        albedo_offset = channel_offset("albedo.R")
+        depth_offset = channel_offset("depth.T")
+        normal_offset = channel_offset("sh_normal.X")
 
         if config.albedo:
             if albedo_offset is None:
@@ -268,7 +339,7 @@ class MitsubaBackend(RenderBackend):
                 # conductor albedo isn't available from this AOV — the Blender
                 # backend reads the Glossy Color pass for that.)
                 albedo = np.array(image_layers[:, :, mi.ArrayXi([o, o + 1, o + 2])])
-                fg = np.array(image_layers[:, :, 3]) > 0.5
+                fg = beauty_alpha > 0.5
                 if fg.any() and float(albedo[fg].max()) > 1.5:
                     logger.warning(
                         "Albedo pass: BSDF reflectance exceeds [0, 1] (max "
@@ -278,7 +349,7 @@ class MitsubaBackend(RenderBackend):
                         "albedo of such materials."
                     )
                 albedo = np.clip(albedo, 0.0, 1.0)
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 albedo_image = mi.TensorXf(
                     np.concatenate([albedo, alpha[:, :, None]], axis=2)
                 )
@@ -289,7 +360,7 @@ class MitsubaBackend(RenderBackend):
                     "Depth pass requested but no depth AOV found in integrator"
                 )
             else:
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 depth = np.array(image_layers[:, :, depth_offset])
                 # Mitsuba's ``depth`` AOV is the ray distance (camera → hit),
                 # which carries a radial/perspective falloff: even a flat plane
@@ -335,7 +406,7 @@ class MitsubaBackend(RenderBackend):
                 # [0, 1] (out = N * 0.5 + 0.5) so an 8-bit image keeps the
                 # negative half instead of clamping it to black — matching the
                 # Blender backend's normal pass.
-                alpha = np.array(image_layers[:, :, 3])
+                alpha = beauty_alpha
                 nx = np.array(image_layers[:, :, o])
                 ny = np.array(image_layers[:, :, o + 1])
                 nz = np.array(image_layers[:, :, o + 2])
@@ -351,6 +422,13 @@ class MitsubaBackend(RenderBackend):
             # not, and a missing parent fails silently (deferred I/O error).
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
+            if not composite_overlay_file(
+                filename, scene.legends, scene.annotations, config.background
+            ):
+                logger.warning(
+                    "Legends and annotations are not composited into HDR output; "
+                    "use PNG or another Pillow-supported format."
+                )
 
             if config.albedo and albedo_offset is not None:
                 save_image(albedo_image, aov_path(filename, ALBEDO))

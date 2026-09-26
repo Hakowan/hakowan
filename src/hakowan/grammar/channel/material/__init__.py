@@ -1,3 +1,5 @@
+"""Surface and hair material grammar models."""
+
 from .material import (
     Conductor,
     Dielectric,

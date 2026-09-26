@@ -1,4 +1,5 @@
 from .attribute import compute_scaled_attribute
+import copy
 from .utils import get_default_uv
 from ..grammar.dataframe import DataFrame
 from ..grammar.texture import (
@@ -31,8 +32,69 @@ def apply_texture(
     return r
 
 
+def _terminal_normalized_domain(scale: Scale | None) -> tuple[float, float] | None:
+    """Return the scalar output range when the user scale ends in Normalize."""
+    if scale is None:
+        return None
+    while scale._child is not None:
+        scale = scale._child
+    if not isinstance(scale, Normalize):
+        return None
+    bounds = np.asarray([scale.range_min, scale.range_max], dtype=np.float64)
+    if bounds.shape != (2,) or not np.all(np.isfinite(bounds)):
+        return None
+    return float(bounds.min()), float(bounds.max())
+
+
+def _capture_legend_metadata(df: DataFrame, tex: ScalarField) -> None:
+    if tex.legend is False or tex.colormap == "identity":
+        return
+    assert isinstance(tex.data, Attribute)
+    scale_names: list[str] = []
+    current = tex.data.scale if isinstance(tex.data.scale, Scale) else None
+    while current is not None:
+        scale_names.append(type(current).__name__.lower())
+        current = current._child
+    tex._legend_scale = tuple(scale_names)
+
+    probe = copy.deepcopy(tex.data)
+    compute_scaled_attribute(df, probe)
+    assert probe._internal_name is not None
+    mesh = df.mesh
+    if mesh.is_attribute_indexed(probe._internal_name):
+        values = np.asarray(mesh.indexed_attribute(probe._internal_name).values.data)
+    else:
+        values = np.asarray(mesh.attribute(probe._internal_name).data)
+    if values.ndim > 1:
+        if values.shape[1] != 1:
+            return
+        values = values[:, 0]
+    values = values[np.isfinite(values)]
+    if probe._internal_name != tex.data.name and mesh.has_attribute(
+        probe._internal_name
+    ):
+        mesh.delete_attribute(probe._internal_name)
+    if values.size == 0:
+        return
+    if tex.categories:
+        tex._legend_values = tuple(float(value) for value in np.unique(values))
+    else:
+        declared_domain = _terminal_normalized_domain(
+            tex.data.scale if isinstance(tex.data.scale, Scale) else None
+        )
+        tex._legend_domain = (
+            (float(tex.domain[0]), float(tex.domain[1]))
+            if tex.domain is not None
+            else declared_domain or (float(np.min(values)), float(np.max(values)))
+        )
+
+
 def _apply_scalar_field(df: DataFrame, tex: ScalarField):
     tex.data = to_attribute(tex.data)
+    normalized_domain = _terminal_normalized_domain(
+        tex.data.scale if isinstance(tex.data.scale, Scale) else None
+    )
+    _capture_legend_metadata(df, tex)
 
     if tex.domain is not None:
         # Add a clip scale as the last scale to the attribute.
@@ -54,6 +116,8 @@ def _apply_scalar_field(df: DataFrame, tex: ScalarField):
         )
         if tex.domain is not None:
             normalize_scale.domain_min, normalize_scale.domain_max = tex.domain
+        elif normalized_domain is not None:
+            normalize_scale.domain_min, normalize_scale.domain_max = normalized_domain
 
         if tex.data.scale is not None:
             assert isinstance(tex.data.scale, Scale)

@@ -34,6 +34,7 @@ class RenderPass:
     mitsuba_aov: str | None = None
 
     def __str__(self) -> str:  # pragma: no cover - trivial
+        """Return the canonical pass name."""
         return self.name
 
 
@@ -64,6 +65,7 @@ def get_render_pass(
 
     Raises:
         ValueError: If ``name`` is not a recognised render pass.
+
     """
     try:
         return RENDER_PASSES[name]
@@ -86,6 +88,7 @@ def aov_path(filename: Path | str, render_pass: RenderPass | str) -> Path:
 
     Returns:
         The derived sidecar path.
+
     """
     name = render_pass.name if isinstance(render_pass, RenderPass) else render_pass
     p = Path(filename)

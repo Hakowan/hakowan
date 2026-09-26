@@ -152,44 +152,146 @@ transforms, matching the behavior of the [PrincipalAxes transform](#principalaxe
 
 ## Streamline transform
 
-Streamline transform replaces the mesh with surface streamlines traced from a per-facet vector
-field or 4-RoSy cross field. The output is a vertex-only mesh whose 2-vertex polylines encode
-streamline segments, suitable for the `Curve` mark.
+`Streamline` replaces a triangulated surface with curves traced through a
+tangent vector field. It supports ordinary vector fields and four-fold
+rotationally symmetric (4-RoSy) cross fields. The resulting mesh contains
+polyline vertices and two-vertex facets suitable for the `Curve` mark.
 
 ```py
-# Trace 100 streamlines from a per-facet vector field attribute "velocity".
-tr = hkw.transform.Streamline(vec_field="velocity", n=100, cross_field=False)
-
-# Visualize as curves.
-l = hkw.layer(mesh).transform(tr).mark("Curve").channel(size=0.005)
+streamlines = (
+    hkw.layer(mesh)
+    .transform(
+        hkw.transform.Streamline(
+            vec_field="velocity",
+            cross_field=False,
+            n=100,
+        )
+    )
+    .mark("Curve")
+    .channel(size=hkw.channel.Size(data=0.5, space="screen"))
+)
 ```
 
-Vertex- or corner-domain vector attributes are automatically averaged to per-facet before tracing.
-Seeds are placed via blue-noise sampling for even surface coverage.
+### Input field domains
+
+The input must be a three-channel vector attribute on a triangular surface.
+Hakowan resolves every supported domain to one tangent direction per facet:
+
+| Attribute domain | Conversion before tracing |
+|---|---|
+| `facet` | Used directly, then projected into the facet tangent plane. |
+| `vertex` | Levi-Civita transported into each facet frame and symmetry-aware averaged; ordinary fields use 1-RoSy averaging and cross fields use 4-RoSy averaging. |
+| `corner` | The three corner vectors are arithmetically averaged per triangle. |
+| `indexed` | Indexed corner values are expanded and arithmetically averaged per triangle. |
+
+Corner and indexed cross fields do not currently receive the symmetry-aware
+transport used for vertex fields. Prefer facet or vertex storage when field
+representatives can differ by sign or quarter-turn.
+
+### Tracing behavior
+
+Seeds are selected by area-aware blue-noise sampling. Each seed is traced in
+both directions through exact triangle-edge crossings. Directions are parallel
+transported between adjacent facet tangent frames. For a cross field, the
+transported direction snaps to the closest of four equivalent arms, and Hakowan
+traces both orthogonal bidirectional axes. A request for `n` seeds can therefore
+produce up to `n` ordinary streamlines or `2 * n` cross-field streamlines.
+
+Zero directions, missing forward crossings, mesh boundaries, the length limit,
+and the step limit can terminate a trace. The surface must already be
+triangulated.
+
+### Length and limits
+
+| Parameter | Meaning |
+|---|---|
+| `n=50` | Number of sampled seed facets. |
+| `cross_field=True` | Interpret the input as a 4-RoSy field; use `False` for an ordinary vector field. |
+| `length=None` | Maximum object-space length **per half-trace**. `None` traces until a boundary or another termination condition. A complete forward-plus-backward streamline can approach `2 * length`. |
+| `seed=0` | Deterministic seed for sampling fallback. |
+| `min_length=3` | Minimum retained sample-point count. |
+| `max_steps=None` | Edge-crossing cap per half-trace; `None` uses half the facet count. |
+| `id_attr_name="_hakowan_streamline_id"` | Per-vertex integer attribute identifying each output streamline. |
+
+`length` is measured on the data-frame mesh before layer-level affine
+transforms. It is not a fraction of the bounding box. To use a relative limit,
+compute the object-space value explicitly from the input bounds.
+
+The output streamline ID can drive categorical color:
+
+```py
+streamlines = streamlines.material(
+    "Diffuse",
+    hkw.texture.ScalarField(
+        "_hakowan_streamline_id",
+        categories=True,
+    ),
+)
+```
+
+## Fur transform
+
+Fur transform replaces the mesh with fur/hair strands that flow along a per-facet vector field.
+Each strand is a short, tapered curve that grows from the surface, leans in the direction of the
+field, and curls back toward the surface flow — so a dense collection reads as realistic fur
+combed along the field. The output is a vertex-only mesh whose 2-vertex polylines encode strand
+segments, suitable for the `Curve` mark.
+
+```py
+# Grow 12000 fur strands along a per-facet vector field attribute "flow".
+tr = hkw.transform.Fur(vec_field="flow", n=12000, length=0.18, lift=35)
+
+# Visualize as curves. Pair with a Hair material for realistic fur in the
+# Blender backend (Principled Hair BSDF).
+l = hkw.layer(mesh).transform(tr).mark("Curve").material("Hair")
+```
+
+Vertex- or corner-domain vector attributes are automatically averaged to per-facet before growing.
+Strands are seeded area-uniformly across the surface and grow along the mesh face normals, so a
+correctly oriented (outward-wound) mesh produces fur standing off the surface.
 
 Key parameters:
 
-* `n` — number of seed faces (default 50).
-* `cross_field` — treat the input as a 4-RoSy cross field (default `True`). Set `False` for
-  ordinary vector fields.
-* `length` — maximum world-space length per half-trace; `None` means trace until the mesh boundary.
-* `seed` — RNG seed for the blue-noise sampler.
-* `min_length` — discard streamlines with fewer than this many sample points (default 3).
-* `id_attr_name` — name of the per-vertex streamline-id attribute on the output mesh.
+* `n` — number of strands (default 2000). Increase for denser, more realistic fur.
+* `length` — strand length in object space; `None` (default) picks 5% of the bounding-box diagonal.
+* `lift` — root lift-off angle in degrees, `0` flat along the field, `90` straight up (default 30).
+* `curl` — how strongly the strand curls back toward the surface flow as it grows (default 0.35).
+* `segments` — segments per strand; higher gives smoother curls (default 6).
+* `root_radius` / `tip_radius` — root and tip radii; `root_radius=None` (default) picks 6% of
+  `length`, `tip_radius=0` gives a pointed hair tip.
+* `randomness` — amount of natural per-strand variation in `[0, 1]` (default 0.3).
+* `follow_surface` — when `True`, trace each strand as a short streamline *on* the surface (so it
+  follows the field and the surface curvature) with only a gentle lift/curl, so the fur hugs the
+  surface instead of standing off it. Default `False` (analytic strands that lean off the surface).
+* `children` — number of child hairs grown around each guide strand for dense, clumped fur
+  (default 0 = guides only). Only the Blender backend expands children, via a Geometry Nodes
+  modifier that duplicates each guide, scatters the child roots, and pulls the child tips back
+  toward the guide. This keeps the guide count (and the geometry the transform produces) low while
+  render-time fur stays dense.
+* `clump` — how strongly child-hair tips converge onto their guide, in `[0, 1]` (default 0.6).
+* `spread` — child-root scatter radius; `None` (default) picks 15% of `length`.
+* `seed` — RNG seed for seeding and per-strand variation.
 
-Each output vertex carries an integer streamline id under `id_attr_name`, useful for coloring
-individual streamlines:
+For dense fur, prefer a modest guide count with children (e.g. `n=5000, children=15`) over a huge
+`n`: the guides stay cheap and Geometry Nodes multiplies them into clumped fur only at render time.
 
-```py
-tr = hkw.transform.Streamline(vec_field="velocity", n=200)
-l = (
-    hkw.layer(mesh)
-    .transform(tr)
-    .mark("Curve")
-    .channel(size=0.003)
-    .channel(material=hkw.material.Diffuse(color="_hakowan_streamline_id"))
-)
-```
+Fur color comes from the `Hair` material: the `eumelanin` / `pheomelanin` pigments give a natural
+palette (black → brown → red → blonde), or set a constant `color` (RGB / named) for any hue, e.g.
+`.material("Hair", color=[0.15, 0.35, 0.95])` for blue fur.
+
+For richer coats, mix colors procedurally: `root_color` / `tip_color` give a root-to-tip gradient
+(dark undercoat → lighter tips) and `color_variation` adds per-strand brightness jitter, e.g.
+`.material("Hair", root_color=[0.05, 0.02, 0.01], tip_color=[0.9, 0.65, 0.32], color_variation=0.4)`.
+These are evaluated in the Blender hair shader (child hairs inherit them); the Mitsuba and WebGL
+backends collapse a gradient to its average color.
+
+The strand radius taper is baked onto the output mesh, so it drives the curve thickness
+automatically. Paired with a `Hair` material, the Blender backend renders the strands as native
+Cycles hair *primitives* (thin 3D hair with proper self-shadowing and translucency under the
+Principled Hair BSDF) — the realistic path — while the Mitsuba and WebGL backends render the same
+strands as tapered tubes. An explicit `size` channel overrides the baked taper. For dense,
+realistic fur, use many thin strands (e.g. `n=40000` with a small `root_radius`); native hair
+primitives keep high strand counts cheap.
 
 ## Boundary transform
 

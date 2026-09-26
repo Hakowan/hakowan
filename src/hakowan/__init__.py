@@ -1,27 +1,88 @@
 """Hakowan: A 3D data visualization grammar"""
 
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 
 from .common import logger
 from .setup import Config as config
 from .grammar import dataframe, mark, channel, scale, texture, transform
-from .grammar.layer import Layer as layer
+from .grammar.layer import Layer as layer, grid
 from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
-from .compiler import compile
+from .grammar.overlay import Annotation, Legend
+from .grammar.figure import (
+    DirectionalLight,
+    Environment,
+    Figure,
+    OrthographicCamera,
+    OutputSettings,
+    PerspectiveCamera,
+    PointLight,
+    SceneSettings,
+    ThinLensCamera,
+)
+
+from .compiler import compile, prepare_scene
+from .workflow import (
+    AttributeSummary,
+    DataSummary,
+    Diagnostic,
+    ValidationError,
+    ValidationReport,
+    validate,
+    inspect,
+)
+from .spec import (
+    FigureSpec,
+    SpecConversionError,
+    PatchError,
+    PatchFailure,
+    PatchOperation,
+    from_json,
+    from_spec,
+    json_schema as schema,
+    load_layer,
+    load_spec,
+    patch,
+    patch_spec,
+    to_spec,
+)
 from .render import (
     render,
     RenderResult,
     set_default_backend,
     list_backends,
 )
+from .workflow import (
+    AttributeVisibility,
+    CameraState,
+    LayerVisibility,
+    Observation,
+    ObservationError,
+    OcclusionRecord,
+    PixelHit,
+    SceneSummary,
+    RegionSummary,
+    Snapshot,
+    observe,
+    snapshot,
+)
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
 # bpy, pygltflib) only runs when that backend is first requested. ``requires`` is
 # probed without importing, so a backend whose dependency is missing simply
 # doesn't appear in ``list_backends()``.
-from .backends import register_backend_loader
+from .backends import (
+    BLENDER_CAPABILITIES,
+    MITSUBA_CAPABILITIES,
+    WEBGL_CAPABILITIES,
+    BackendCapabilities,
+    get_backend_capabilities as backend_capabilities,
+    list_backend_capabilities,
+    register_backend_loader,
+)
+
+figure = Figure
 
 
 def _load_mitsuba_backend():
@@ -51,9 +112,24 @@ def _load_webgl_backend():
     return WebGLBackend
 
 
-register_backend_loader("mitsuba", _load_mitsuba_backend, requires="mitsuba")
-register_backend_loader("blender", _load_blender_backend, requires="bpy")
-register_backend_loader("webgl", _load_webgl_backend, requires="pygltflib")
+register_backend_loader(
+    "mitsuba",
+    _load_mitsuba_backend,
+    requires="mitsuba",
+    capabilities=MITSUBA_CAPABILITIES,
+)
+register_backend_loader(
+    "blender",
+    _load_blender_backend,
+    requires="bpy",
+    capabilities=BLENDER_CAPABILITIES,
+)
+register_backend_loader(
+    "webgl",
+    _load_webgl_backend,
+    requires="pygltflib",
+    capabilities=WEBGL_CAPABILITIES,
+)
 
 __all__ = [
     "logger",
@@ -65,12 +141,61 @@ __all__ = [
     "texture",
     "transform",
     "layer",
+    "grid",
     "attribute",
     "material",
     "norm",
     "compile",
+    "prepare_scene",
     "render",
     "RenderResult",
     "set_default_backend",
+    "Annotation",
+    "Legend",
+    "figure",
+    "Figure",
+    "PerspectiveCamera",
+    "OrthographicCamera",
+    "ThinLensCamera",
+    "PointLight",
+    "DirectionalLight",
+    "Environment",
+    "OutputSettings",
+    "SceneSettings",
     "list_backends",
+    "AttributeSummary",
+    "DataSummary",
+    "inspect",
+    "Diagnostic",
+    "ValidationError",
+    "ValidationReport",
+    "validate",
+    "BackendCapabilities",
+    "backend_capabilities",
+    "list_backend_capabilities",
+    "FigureSpec",
+    "SpecConversionError",
+    "PatchError",
+    "PatchFailure",
+    "PatchOperation",
+    "schema",
+    "to_spec",
+    "from_spec",
+    "from_json",
+    "load_layer",
+    "load_spec",
+    "patch",
+    "patch_spec",
+    "AttributeVisibility",
+    "CameraState",
+    "LayerVisibility",
+    "Observation",
+    "ObservationError",
+    "OcclusionRecord",
+    "PixelHit",
+    "SceneSummary",
+    "RegionSummary",
+    "Snapshot",
+    "observe",
+    "snapshot",
 ]

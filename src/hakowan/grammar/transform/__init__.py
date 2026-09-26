@@ -1,3 +1,5 @@
+"""Geometry and attribute transform grammar models."""
+
 from .transform import (
     Transform,
     Filter,
@@ -11,6 +13,7 @@ from .transform import (
     Norm,
     Boundary,
     Streamline,
+    Fur,
 )
 
 __all__ = [
@@ -26,4 +29,5 @@ __all__ = [
     "Norm",
     "Boundary",
     "Streamline",
+    "Fur",
 ]

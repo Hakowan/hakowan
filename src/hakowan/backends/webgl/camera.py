@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from typing import Literal
+from typing import Any, Literal
 
 from ...common import logger
 from ...setup import Config
@@ -49,9 +49,7 @@ def _yfov_radians(sensor: Perspective, aspect: float) -> float:
     return fov_rad
 
 
-def add_camera(
-    builder: GLTFBuilder, config: Config
-) -> tuple[int, dict[str, list[float]]]:
+def add_camera(builder: GLTFBuilder, config: Config) -> tuple[int, dict[str, Any]]:
     """Register a camera node and return ``(node_index, initial_view_dict)``.
 
     ``initial_view_dict`` carries the eye/target/up vectors that the HTML
@@ -66,10 +64,7 @@ def add_camera(
     aspect = _aspect_ratio(config)
 
     if isinstance(sensor, Orthographic):
-        # Approximate ortho extents from the sensor->target distance and a
-        # nominal 1.0 world-unit height (the global transform fits everything
-        # into a unit sphere, so this is reasonable).
-        ymag = 1.0
+        ymag = float(sensor.scale) * 0.5
         xmag = ymag * aspect
         node_idx = builder.add_orthographic_camera(
             xmag=xmag,
@@ -95,9 +90,11 @@ def add_camera(
             world_transform_4x4=world_matrix,
         )
 
-    initial_view = {
+    initial_view: dict[str, Any] = {
         "eye": eye.tolist(),
         "target": target.tolist(),
         "up": up.tolist(),
+        "mode": "orthographic" if isinstance(sensor, Orthographic) else "perspective",
+        "scale": float(sensor.scale) if isinstance(sensor, Orthographic) else None,
     }
     return node_idx, initial_view

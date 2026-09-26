@@ -8,6 +8,112 @@ from ..setup import Config
 from ..setup.render_pass import RenderPass
 from pathlib import Path
 from typing import Any, Literal
+from dataclasses import asdict, dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class BackendCapabilities:
+    """Machine-readable rendering capabilities available without loading a backend."""
+
+    name: str
+    marks: frozenset[str]
+    render_passes: frozenset[str]
+    pass_delivery: Literal["file", "interactive"]
+    features: frozenset[str] = frozenset()
+    limitations: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe capability description."""
+        result = asdict(self)
+        result["marks"] = sorted(self.marks)
+        result["render_passes"] = sorted(self.render_passes)
+        result["features"] = sorted(self.features)
+        result["limitations"] = list(self.limitations)
+        return result
+
+
+_COMMON_MARKS = frozenset({"point", "curve", "surface"})
+
+WEBGL_CAPABILITIES = BackendCapabilities(
+    name="webgl",
+    marks=_COMMON_MARKS,
+    render_passes=frozenset({"albedo", "depth", "normal"}),
+    pass_delivery="interactive",
+    features=frozenset(
+        {
+            "interactive",
+            "layer_visibility",
+            "interactive_clip",
+            "image_texture",
+            "image_bump_map",
+            "image_normal_map",
+            "headless_snapshot",
+            "multi_view_observation",
+            "element_id_observation",
+            "layer_id_observation",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
+        }
+    ),
+    limitations=(
+        "Hair shading is approximated; melanin, gradients, and data-driven hair color are unsupported.",
+        "Fur child hairs are ignored.",
+        "Thin-lens depth of field is rendered as perspective.",
+    ),
+)
+
+MITSUBA_CAPABILITIES = BackendCapabilities(
+    name="mitsuba",
+    marks=_COMMON_MARKS,
+    render_passes=frozenset({"albedo", "depth", "normal"}),
+    pass_delivery="file",
+    features=frozenset(
+        {
+            "in_memory_image",
+            "image_texture",
+            "bump_map",
+            "normal_map",
+            "hair",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
+            "thin_lens",
+        }
+    ),
+    limitations=(
+        "Hair root/tip gradients collapse to one average color.",
+        "Data-driven hair color and fur child hairs are unsupported.",
+    ),
+)
+
+BLENDER_CAPABILITIES = BackendCapabilities(
+    name="blender",
+    marks=_COMMON_MARKS,
+    render_passes=frozenset({"albedo", "depth", "normal", "facet_id"}),
+    pass_delivery="file",
+    features=frozenset(
+        {
+            "image_texture",
+            "image_bump_map",
+            "image_normal_map",
+            "hair",
+            "hair_gradient",
+            "declarative_scene",
+            "point_light",
+            "directional_light",
+            "environment",
+            "fur_children",
+            "thin_lens",
+        }
+    ),
+    limitations=(
+        "Data-driven hair color is unsupported.",
+        "Textured back-face materials fall back to a uniform color.",
+    ),
+)
 
 BackendName = Literal["webgl", "mitsuba", "blender"]
 
@@ -64,6 +170,10 @@ class RenderBackend(ABC):
 # and ensures using a non-Mitsuba backend never loads Mitsuba/LLVM.
 _BackendLoader = Callable[[], type[RenderBackend]]
 _backend_loaders: dict[str, tuple[_BackendLoader, str | None]] = {}
+_backend_capabilities: dict[str, BackendCapabilities] = {
+    item.name: item
+    for item in (WEBGL_CAPABILITIES, MITSUBA_CAPABILITIES, BLENDER_CAPABILITIES)
+}
 _backends: dict[str, type[RenderBackend]] = {}  # eager registrations + load cache
 
 # The default backend. WebGL is the default because its dependency (pygltflib)
@@ -91,28 +201,33 @@ def _resolve_default() -> str:
     )
 
 
-def register_backend(name: str, backend_class: type[RenderBackend]):
-    """Register a rendering backend class directly (eager).
-
-    Args:
-        name: Backend name (e.g., 'mitsuba', 'blender').
-        backend_class: Backend class implementing RenderBackend.
-    """
+def register_backend(
+    name: str,
+    backend_class: type[RenderBackend],
+    *,
+    capabilities: BackendCapabilities | None = None,
+):
+    """Register a rendering backend class directly (eager)."""
     _backends[name] = backend_class
+    if capabilities is not None:
+        if capabilities.name != name:
+            raise ValueError("Backend capability name must match its registry name.")
+        _backend_capabilities[name] = capabilities
 
 
 def register_backend_loader(
-    name: str, loader: _BackendLoader, *, requires: str | None = None
+    name: str,
+    loader: _BackendLoader,
+    *,
+    requires: str | None = None,
+    capabilities: BackendCapabilities | None = None,
 ):
-    """Register a rendering backend behind a lazy loader.
-
-    Args:
-        name: Backend name.
-        loader: Zero-arg callable that imports and returns the backend class.
-        requires: Optional module name probed (without importing it) to decide
-            whether the backend is available. ``None`` means always available.
-    """
+    """Register a backend behind a lazy loader and optional capability record."""
     _backend_loaders[name] = (loader, requires)
+    if capabilities is not None:
+        if capabilities.name != name:
+            raise ValueError("Backend capability name must match its registry name.")
+        _backend_capabilities[name] = capabilities
 
 
 def _is_available(name: str) -> bool:
@@ -205,13 +320,35 @@ def list_backends() -> list[str]:
     return sorted(n for n in names if _is_available(n))
 
 
+def get_backend_capabilities(name: BackendName | None = None) -> BackendCapabilities:
+    """Return declared capabilities without importing the backend implementation."""
+    backend_name = resolve_backend_name(name)
+    try:
+        return _backend_capabilities[backend_name]
+    except KeyError as exc:
+        raise ValueError(
+            f"Backend '{backend_name}' has no capability declaration."
+        ) from exc
+
+
+def list_backend_capabilities() -> dict[str, BackendCapabilities]:
+    """Return all declared backend capabilities, including optional backends."""
+    return dict(sorted(_backend_capabilities.items()))
+
+
 __all__ = [
     "BackendName",
+    "BackendCapabilities",
+    "WEBGL_CAPABILITIES",
+    "MITSUBA_CAPABILITIES",
+    "BLENDER_CAPABILITIES",
     "RenderBackend",
     "register_backend",
     "register_backend_loader",
     "set_default_backend",
     "get_backend",
+    "get_backend_capabilities",
+    "list_backend_capabilities",
     "resolve_backend_name",
     "list_backends",
 ]

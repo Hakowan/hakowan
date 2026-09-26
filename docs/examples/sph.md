@@ -1,7 +1,7 @@
---8<-- "https://github.com/qnzhou/hakowan-gallery/raw/main/gallery/SPH/README.md"
+--8<-- "https://github.com/Hakowan/hakowan-gallery/raw/main/gallery/SPH/README.md"
 
 ## Code
 
 ```py
---8<-- "https://github.com/qnzhou/hakowan-gallery/raw/main/gallery/SPH/sph.py"
+--8<-- "https://github.com/Hakowan/hakowan-gallery/raw/main/gallery/SPH/sph.py"
 ```

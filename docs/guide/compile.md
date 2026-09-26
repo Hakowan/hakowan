@@ -68,20 +68,46 @@ for view in scene:
     # ...
 ```
 
-### Testing and Validation
+### Validation
 
-When writing tests or validating layer specifications:
+Use `hkw.validate()` to check a layer before compiling or rendering it. The
+result is structured and JSON-safe, so callers can display errors or feed them
+back to an automated authoring system.
 
 ```py
-import hakowan as hkw
+layer = hkw.layer("shape.obj").mark("Point").channel(size="radius")
+report = hkw.validate(layer, backend="webgl", strict=True)
 
-def test_layer_compilation():
-    layer = hkw.layer("mesh.obj").mark(hkw.mark.Surface)
-    scene = hkw.compile(layer)
-    
-    assert len(scene.views) == 1
-    assert scene.views[0].mark == hkw.mark.Surface
+if not report.valid:
+    for error in report.errors:
+        print(error.code, error.path, error.message, error.hint)
+
+# Raise one exception containing the complete report when desired.
+report.raise_for_errors()
 ```
+
+Intrinsic errors such as missing attributes are always errors. In strict mode,
+backend fallbacks and mark/channel combinations that would be ignored are also
+errors. With `strict=False`, those degradations are warnings. When static checks
+find no errors, validation finishes with a real compile dry-run; compilation
+deep-copies layer data, so validation does not mutate the input. Pass
+`compile_check=False` for static-only, low-cost validation of expensive
+procedural transforms.
+
+The compile dry-run also checks output semantics that static schema validation
+cannot determine:
+
+- transforms that leave a view with no renderable geometry;
+- scenes entirely behind or outside an explicit Figure camera;
+- geometry outside or intersecting near and far clipping planes; and
+- surface layers that are entirely behind another layer covering their
+  projected bounds.
+
+Every finding has a stable `code`, exact `path`, and actionable `hint`. Occlusion
+is intentionally reported as a warning: projected bounding coverage is a
+conservative heuristic and cannot prove that an arbitrary surface is opaque.
+
+
 
 ## Compilation Process
 

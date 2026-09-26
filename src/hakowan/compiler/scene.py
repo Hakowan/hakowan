@@ -2,14 +2,22 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 from numpy.linalg import norm
+from typing import TYPE_CHECKING
 
 from .view import View
 from ..grammar.layer import LayoutOptions
+from ..setup.sensor import Orthographic, Perspective
+
+if TYPE_CHECKING:
+    from .overlay import CompiledAnnotation, CompiledLegend
+    from ..setup import Config
 
 
 @dataclass
 class Scene:
     views: list[View] = field(default_factory=list)
+    legends: list["CompiledLegend"] = field(default_factory=list)
+    annotations: list["CompiledAnnotation"] = field(default_factory=list)
 
     def __len__(self):
         return self.views.__len__()
@@ -140,13 +148,17 @@ class Scene:
         cursor = 0.0
         all_views: list[View] = []
         all_cells: list[tuple[npt.NDArray, float]] = []
-        for (cv, cells), (lo, hi) in zip(child_groups, reaches):
+        groups_with_reaches = list(zip(child_groups, reaches))
+        if options.reverse:
+            groups_with_reaches.reverse()
+        for (cv, cells), (lo, hi) in groups_with_reaches:
             offset = np.zeros(3)
             offset[axis] = cursor - lo
             self._translate_views(cv, offset)
             all_views.extend(cv)
             all_cells.extend((c + offset, rad) for c, rad in cells)
             cursor += (hi - lo) + gap_distance
+
         total = cursor - gap_distance if child_groups else 0.0
 
         # Recentre the packed group at the origin along the layout axis.
@@ -234,14 +246,65 @@ class Scene:
         translation = np.eye(4)
         translation[0:3, 3] = -bbox_center
 
-        # max_side = np.amax(bbox_max - bbox_min)
         diag = norm(bbox_max - bbox_min)
-
-        # factor = max_side / diag
+        # A single point (or coincident point cloud) has zero diagonal. Center
+        # it without scaling rather than emitting NaNs into every backend.
+        factor = 2.0 / diag if diag > 1e-12 else 1.0
         scale = np.eye(4)
-        scale[0:3, 0:3] *= 2 / diag
+        scale[0:3, 0:3] *= factor
 
         global_transform = scale @ translation
 
         for view in self.views:
             view.global_transform = global_transform @ view.global_transform
+
+    def resolve_size_spaces(self, config: "Config") -> None:
+        """Resolve scene-relative and screen-pixel sizes to world-space radii."""
+        sensor = config.sensor
+        aspect = config.film.width / config.film.height
+        if isinstance(sensor, Orthographic):
+            world_per_pixel = float(sensor.scale) / config.film.height
+        else:
+            assert isinstance(sensor, Perspective)
+            half = np.radians(float(sensor.fov)) * 0.5
+            axis = sensor.fov_axis
+            if (
+                axis == "y"
+                or (axis == "smaller" and aspect >= 1)
+                or (axis == "larger" and aspect < 1)
+            ):
+                half_y = half
+            elif axis == "diagonal":
+                half_y = np.arctan(np.tan(half) / np.sqrt(aspect * aspect + 1.0))
+            else:
+                half_y = np.arctan(np.tan(half) / aspect)
+            distance = float(
+                np.linalg.norm(
+                    np.asarray(sensor.location, dtype=float)
+                    - np.asarray(sensor.target, dtype=float)
+                )
+            )
+            world_per_pixel = (
+                2.0 * distance * float(np.tan(half_y)) / config.film.height
+            )
+
+        for view in self.views:
+            size = view.size_channel
+            if size is None or size.space == "world":
+                continue
+            if not isinstance(size.data, (int, float)):
+                raise ValueError(
+                    f"Size space {size.space!r} requires a constant numeric size."
+                )
+            scale = float(np.cbrt(abs(np.linalg.det(view.global_transform[:3, :3]))))
+            if scale <= 1e-12:
+                raise ValueError(
+                    "Cannot resolve size through a singular scene transform."
+                )
+            normalized_radius = (
+                float(size.data)
+                if size.space == "scene"
+                else float(size.data) * world_per_pixel * 0.5
+            )
+            size.data = normalized_radius / scale
+            size.space = "world"

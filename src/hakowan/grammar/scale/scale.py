@@ -1,3 +1,5 @@
+"""Composable transformations from source attributes to visual values."""
+
 import copy
 from dataclasses import dataclass
 from typing import Optional, Callable, TypeAlias
@@ -11,8 +13,10 @@ class Scale:
     _child: Optional["Scale"] = None
 
     def __imul__(self, other: "Scale") -> "Scale":
-        """Combine the current scale with the `other` scale in place. The current scale will be applied
-        before the `other` scale.
+        """Append ``other`` to this scale chain in place.
+
+        A deep copy prevents later mutations of a reused scale from aliasing
+        this chain.
         """
         # `other` may be reused across multiple scale chains (and may gain its own
         # child later), so it must be deep copied to avoid aliasing side effects.
@@ -24,9 +28,9 @@ class Scale:
         return self
 
     def __mul__(self, other: "Scale") -> "Scale":
-        """Combine the current scale with the `other` scale in a new scale. Both the current and
-        the `other` scale is not modified. In the new scale, the current scale will be applied
-        before the `other` scale.
+        """Return a new chain that applies this scale before ``other``.
+
+        Neither operand is modified.
         """
         r = copy.deepcopy(self)
         r *= other
@@ -35,8 +39,9 @@ class Scale:
 
 @dataclass(slots=True)
 class Normalize(Scale):
-    """Normalize the data so that the box defined by `domain_min` and `domain_max` is scaled to the box
-    defined by `range_min` and `range_max`.
+    """Map an inferred or explicit input domain to an output range.
+
+    Scalars and vectors are both supported when bounds have matching shapes.
 
     Attributes:
         range_min: The minimum value of the output range.
@@ -45,6 +50,7 @@ class Normalize(Scale):
             input data will be used.
         domain_max: The maximum value of the input range. If not specified, the maximum value of the
             input data will be used.
+
     """
 
     range_min: npt.ArrayLike
@@ -59,6 +65,7 @@ class Log(Scale):
 
     Attributes:
         base: The base of the logarithm.
+
     """
 
     base: float = 10.0
@@ -70,6 +77,7 @@ class Uniform(Scale):
 
     Attributes:
         factor: The scaling factor.
+
     """
 
     factor: float
@@ -81,6 +89,7 @@ class Custom(Scale):
 
     Attributes:
         function: The scaling function. E.g. `lambda x: x ** 2` for squaring the data.
+
     """
 
     function: Callable
@@ -92,6 +101,7 @@ class Affine(Scale):
 
     Attributes:
         matrix: The affine transformation matrix.
+
     """
 
     matrix: npt.NDArray
@@ -103,6 +113,7 @@ class Clip(Scale):
 
     Attributes:
         domain: The clip minimum and maximum values.
+
     """
 
     domain: tuple[float, float]
@@ -122,6 +133,7 @@ class Norm(Scale):
     Attributes:
         order: The order of the norm (e.g. ``2`` for Euclidean length,
             ``1`` for Manhattan, ``numpy.inf`` for max-abs). Default ``2``.
+
     """
 
     order: float = 2.0
@@ -147,6 +159,7 @@ def to_scale(value: ScaleLike) -> Scale:
 
     Returns:
         The corresponding `Scale` object.
+
     """
     if isinstance(value, (int, float)):
         return Uniform(factor=float(value))

@@ -1,3 +1,5 @@
+"""Invocation-time camera, lighting, output, sampling, and integration settings."""
+
 from .config import Config
 from .render_pass import (
     RenderPass,

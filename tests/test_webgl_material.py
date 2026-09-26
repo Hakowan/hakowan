@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 
+import io
 import numpy as np
 import pytest
 
 pygltflib = pytest.importorskip("pygltflib")
-from PIL import Image as PILImage
+from PIL import Image as PILImage, features as PILFeatures
 
 import hakowan as hkw
 from hakowan.backends.webgl.builder import GLTFBuilder
@@ -272,6 +273,69 @@ class TestImage:
         # Builder should have one texture/image now.
         assert len(builder._gltf.textures) == 1
         assert len(builder._gltf.images) == 1
+
+    @pytest.mark.skipif(not PILFeatures.check("webp"), reason="WebP unavailable")
+    def test_image_texture_is_lossless_rgb_webp(self, tmp_path):
+        png = tmp_path / "pattern.png"
+        source = PILImage.new("RGB", (2, 2))
+        source.putdata([(255, 0, 0), (0, 255, 0), (0, 0, 255), (1, 2, 3)])
+        source.save(png)
+        view = _triangle_view(
+            hkw.material.Diffuse(reflectance=hkw.texture.Image(filename=png))
+        )
+        builder = GLTFBuilder()
+
+        translate_material(view, builder)
+
+        image = builder._gltf.images[0]
+        buffer_view = builder._gltf.bufferViews[image.bufferView]
+        payload = bytes(
+            builder._bin[
+                buffer_view.byteOffset : buffer_view.byteOffset + buffer_view.byteLength
+            ]
+        )
+        with PILImage.open(io.BytesIO(payload)) as decoded:
+            assert decoded.format == "WEBP"
+            assert decoded.mode == "RGB"
+            assert list(decoded.getdata()) == [
+                (0, 0, 255),
+                (1, 2, 3),
+                (255, 0, 0),
+                (0, 255, 0),
+            ]
+        assert image.mimeType == "image/webp"
+
+    def test_image_texture_falls_back_to_lossless_png(self, tmp_path, monkeypatch):
+        png = tmp_path / "pattern.png"
+        source = PILImage.new("RGB", (2, 2))
+        source.putdata([(255, 0, 0), (0, 255, 0), (0, 0, 255), (1, 2, 3)])
+        source.save(png)
+        monkeypatch.setattr(PILFeatures, "check", lambda _feature: False)
+        view = _triangle_view(
+            hkw.material.Diffuse(reflectance=hkw.texture.Image(filename=png))
+        )
+        builder = GLTFBuilder()
+
+        translate_material(view, builder)
+
+        image = builder._gltf.images[0]
+        buffer_view = builder._gltf.bufferViews[image.bufferView]
+        payload = bytes(
+            builder._bin[
+                buffer_view.byteOffset : buffer_view.byteOffset + buffer_view.byteLength
+            ]
+        )
+        with PILImage.open(io.BytesIO(payload)) as decoded:
+            assert decoded.format == "PNG"
+            assert list(decoded.getdata()) == [
+                (0, 0, 255),
+                (1, 2, 3),
+                (255, 0, 0),
+                (0, 255, 0),
+            ]
+        assert image.mimeType == "image/png"
+        assert builder._gltf.textures[0].source == 0
+        assert not builder._gltf.textures[0].extensions
 
 
 class TestCheckerboard:

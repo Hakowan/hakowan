@@ -178,6 +178,19 @@ class TestMaterials:
         assert nt.index == tex_idx
         assert nt.scale == pytest.approx(0.5)
 
+    def test_lossless_webp_texture_registers_required_extension(self):
+        b = GLTFBuilder()
+        webp = b"RIFF" + b"\x00" * 40
+        tex_idx = b.add_image_texture(webp, mime_type="image/webp")
+        b.add_material({"baseColorTextureIndex": tex_idx})
+
+        gltf = _roundtrip(_minimal_with_material(b))
+        assert gltf.images[0].mimeType == "image/webp"
+        assert gltf.textures[0].source is None
+        assert gltf.textures[0].extensions == {"EXT_texture_webp": {"source": 0}}
+        assert "EXT_texture_webp" in gltf.extensionsUsed
+        assert "EXT_texture_webp" in gltf.extensionsRequired
+
     def test_material_extras_pass_through(self):
         b = GLTFBuilder()
         extras = {"hakowan": {"isocontour": {"num_contours": 8}}}
