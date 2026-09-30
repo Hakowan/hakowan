@@ -83,6 +83,15 @@
   .semantic-legend .swatch { width: 14px; height: 14px; border: 1px solid rgba(255,255,255,.6); }
   #semantic-annotations { position: absolute; inset: 0; pointer-events: none; }
   .semantic-annotation { position: absolute; white-space: pre-wrap; }
+  #world-callouts { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #world-callouts svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+  .world-callout {
+    position: absolute; visibility: hidden; white-space: pre-wrap;
+    max-width: min(260px, 35vw); overflow-wrap: anywhere;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.25; border-radius: 4px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+  }
 </style>
 </head>
 <body>
@@ -94,6 +103,7 @@
 <div id="semantic-legends-left" class="semantic-legends"></div>
 <div id="semantic-legends-right" class="semantic-legends"></div>
 <div id="semantic-annotations"></div>
+<div id="world-callouts"><svg aria-hidden="true"></svg></div>
 <script type="importmap">
 {
   "imports": {
@@ -122,6 +132,7 @@ const INITIAL_ORTHO_SCALE = {{INITIAL_ORTHO_SCALE}};
 const LAYERS = {{LAYERS_JSON}};
 const LEGENDS = {{LEGENDS_JSON}};
 const ANNOTATIONS = {{ANNOTATIONS_JSON}};
+const WORLD_ANNOTATIONS = {{WORLD_ANNOTATIONS_JSON}};
 // index -> array of top-level scene nodes tagged with that layer (populated on load).
 let layerNodeMap = new Map();
 
@@ -527,7 +538,7 @@ let sceneBbox = null;
 // --------------------------------------------------------------------- //
 let objectRotateEnabled = false;
 const qObjectRotation = new THREE.Quaternion();
-let cellGroups = [];  // [{ center: Vector3, entries: [{ node, M0: Matrix4 }] }]
+let cellGroups = [];  // [{ tag, center: Vector3, entries: [{ node, M0: Matrix4 }] }]
 
 function _hasGeometry(obj) {
   let found = false;
@@ -552,7 +563,7 @@ function buildCellGroups(root) {
   root.updateWorldMatrix(true, false);
   const parentInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
   cellGroups = [];
-  for (const nodes of byCell.values()) {
+  for (const [tag, nodes] of byCell) {
     const box = new THREE.Box3();
     for (const n of nodes) box.expandByObject(n);
     // Pivot = cell centre expressed in the nodes' parent (scene-root) space.
@@ -561,7 +572,7 @@ function buildCellGroups(root) {
       n.matrixAutoUpdate = false;
       return { node: n, M0: n.matrix.clone() };
     });
-    cellGroups.push({ center, entries });
+    cellGroups.push({ tag, center, entries });
   }
 }
 
@@ -721,6 +732,7 @@ function updateClipPlane() {
   const pt = center.clone().addScaledVector(n, clipOffset * half);
   clipPlane.setFromNormalAndCoplanarPoint(n, pt);
   renderer.clippingPlanes = clipEnabled ? [clipPlane] : [];
+  updateWorldCallouts(true, true);
 }
 
 function toggleClip() {
@@ -1034,6 +1046,7 @@ function setPass(pass) {
   for (const btn of document.querySelectorAll('#passes button[data-pass]')) {
     btn.classList.toggle('active', btn.dataset.pass === pass);
   }
+  updateWorldCallouts(true, true);
 }
 
 function savePassPng() {
@@ -1074,9 +1087,11 @@ function setCameraState(state) {
   controls.enableDamping = false;
   controls.update();
   _geometrySampleCache = null;
+  if (captureLayout) updateWorldCallouts(true, true);
 }
 
 function prepareCapture(width, height) {
+  captureLayout = true;
   for (const id of ['status', 'passes', 'clip-controls', 'layers']) {
     const node = document.getElementById(id);
     if (node) node.style.display = 'none';
@@ -1091,6 +1106,9 @@ function prepareCapture(width, height) {
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
   updateCameraProjection();
+  calloutRoot.style.width = `${width}px`;
+  calloutRoot.style.height = `${height}px`;
+  updateWorldCallouts(true, true);
 }
 
 function capturePng(pass = 'beauty') {
@@ -1323,6 +1341,7 @@ function setLayerVisible(index, visible) {
   const nodes = layerNodeMap.get(index);
   if (!nodes) return;
   for (const n of nodes) n.visible = visible;
+  updateWorldCallouts(true, true);
 }
 
 function buildLayerUI() {
@@ -1416,6 +1435,234 @@ function buildSemanticOverlays() {
   }
 }
 
+// World callouts are a separate, non-interactive DOM overlay. Labels remain
+// upright while their SVG leaders and 3D anchors follow the active camera.
+const calloutRoot = document.getElementById('world-callouts');
+const calloutSvg = calloutRoot.querySelector('svg');
+const calloutRaycaster = new THREE.Raycaster();
+const calloutNdc = new THREE.Vector2();
+const calloutPoint = new THREE.Vector3();
+const calloutProjected = new THREE.Vector3();
+const calloutViewPoint = new THREE.Vector3();
+const worldToRoot = new THREE.Matrix4();
+const previousCalloutCamera = new THREE.Matrix4();
+const previousCalloutProjection = new THREE.Matrix4();
+const previousCalloutRoot = new THREE.Matrix4();
+const previousCalloutRotation = new THREE.Quaternion();
+let previousCalloutWidth = 0, previousCalloutHeight = 0;
+let calloutSettling = false, calloutsHidden = false;
+let callouts = [];
+let captureLayout = false;
+
+function buildWorldCallouts() {
+  const groups = new Map(cellGroups.map(group => [group.tag, group]));
+  callouts = WORLD_ANNOTATIONS.map(annotation => {
+    const label = document.createElement('div');
+    label.className = 'world-callout';
+    label.textContent = annotation.text;
+    label.style.color = _cssColor(annotation.color);
+    label.style.fontSize = `${annotation.font_size}px`;
+    label.style.padding = `${annotation.padding}px`;
+    if (annotation.background) label.style.background = _cssColor(annotation.background, 0.86);
+    calloutRoot.appendChild(label);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const tip = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('stroke', _cssColor(annotation.color));
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('fill', 'none');
+    tip.setAttribute('fill', _cssColor(annotation.color));
+    calloutSvg.append(line, tip);
+    return {
+      annotation, label, line, tip, point: new THREE.Vector3(...annotation.position),
+      group: groups.get(annotation.cell ?? '__default__'), previous: null, candidate: -1,
+    };
+  });
+}
+
+function hideWorldCallout(item) {
+  item.label.style.visibility = 'hidden';
+  item.line.style.visibility = 'hidden';
+  item.tip.style.visibility = 'hidden';
+  item.previous = null;
+  item.candidate = -1;
+}
+
+function _rectOverlap(a, b) {
+  return Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+       * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+}
+const calloutFootprintSamples = [
+  [0.03, 0.03], [0.5, 0.03], [0.97, 0.03],
+  [0.03, 0.5], [0.5, 0.5], [0.97, 0.5],
+  [0.03, 0.97], [0.5, 0.97], [0.97, 0.97],
+];
+
+function _visibleHit(hits) {
+  for (const hit of hits) {
+    if (hit.object.userData && hit.object.userData.isWireframe) continue;
+    if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(hit.point) < 0)) continue;
+    let node = hit.object;
+    while (node && node !== loadedRoot && node.visible) node = node.parent;
+    if (node === loadedRoot && loadedRoot.visible) return hit;
+  }
+  return null;
+}
+
+function calloutPanelObstructed(x, y, width, height, viewportWidth, viewportHeight) {
+  // The panel can overlap geometry at an edge even when its centre is clear.
+  for (const [u, v] of calloutFootprintSamples) {
+    calloutNdc.set(
+      2 * (x + width * u) / viewportWidth - 1,
+      1 - 2 * (y + height * v) / viewportHeight,
+    );
+    calloutRaycaster.setFromCamera(calloutNdc, camera);
+    if (_visibleHit(calloutRaycaster.intersectObject(loadedRoot, true))) return true;
+  }
+  return false;
+}
+
+function updateWorldCallouts(staticLayout = captureLayout, force = false) {
+  if (!loadedRoot || callouts.length === 0) return;
+  if (currentPass !== 'beauty') {
+    if (!calloutsHidden) for (const item of callouts) hideWorldCallout(item);
+    calloutsHidden = true;
+    return;
+  }
+  camera.updateMatrixWorld(true);
+  if (!force && !calloutsHidden && !calloutSettling
+      && camera.matrixWorld.equals(previousCalloutCamera)
+      && camera.projectionMatrix.equals(previousCalloutProjection)
+      && loadedRoot.matrixWorld.equals(previousCalloutRoot)
+      && qObjectRotation.equals(previousCalloutRotation)
+      && calloutRoot.clientWidth === previousCalloutWidth
+      && calloutRoot.clientHeight === previousCalloutHeight) return;
+  calloutsHidden = false;
+  previousCalloutCamera.copy(camera.matrixWorld);
+  previousCalloutProjection.copy(camera.projectionMatrix);
+  previousCalloutRoot.copy(loadedRoot.matrixWorld);
+  previousCalloutRotation.copy(qObjectRotation);
+  calloutSettling = false;
+  const viewport = calloutRoot.getBoundingClientRect();
+  const w = viewport.width, h = viewport.height;
+  if (w <= 0 || h <= 0) return;
+  previousCalloutWidth = calloutRoot.clientWidth;
+  previousCalloutHeight = calloutRoot.clientHeight;
+  worldToRoot.copy(loadedRoot.matrixWorld).invert();
+  const sceneSize = sceneBbox ? sceneBbox.getSize(calloutViewPoint).length() : 2;
+  calloutRaycaster.params.Line.threshold = Math.max(sceneSize / Math.max(w, h), 1e-5);
+  calloutRaycaster.params.Points.threshold = calloutRaycaster.params.Line.threshold;
+  // Screen-space obstacles include fixed overlays, visible UI and earlier labels.
+  const occupied = [];
+  for (const selector of ['#passes', '#clip-controls', '#layers', '.semantic-legend', '.semantic-annotation']) {
+    for (const node of document.querySelectorAll(selector)) {
+      if (getComputedStyle(node).display === 'none' || !node.getClientRects().length) continue;
+      const box = node.getBoundingClientRect();
+      occupied.push({ x: box.left - viewport.left, y: box.top - viewport.top,
+        w: box.width, h: box.height });
+    }
+  }
+  for (const item of callouts) {
+    const nodes = layerNodeMap.get(item.annotation.layer);
+    if (!nodes || !nodes.some(node => node.visible)) {
+      hideWorldCallout(item);
+      continue;
+    }
+    calloutPoint.copy(item.point);
+    if (item.group) {
+      // Geometry is rotated about this cell's root-local bounding-box centre.
+      // Apply precisely the same pivot to the compiled world-space anchor.
+      calloutPoint.applyMatrix4(worldToRoot).sub(item.group.center)
+        .applyQuaternion(qObjectRotation).add(item.group.center)
+        .applyMatrix4(loadedRoot.matrixWorld);
+    }
+    if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(calloutPoint) < 0)) {
+      hideWorldCallout(item);
+      continue;
+    }
+    calloutViewPoint.copy(calloutPoint).applyMatrix4(camera.matrixWorldInverse);
+    const depth = -calloutViewPoint.z;
+    calloutProjected.copy(calloutPoint).project(camera);
+    if (depth <= camera.near || calloutProjected.z < -1 || calloutProjected.z > 1
+        || Math.abs(calloutProjected.x) >= 1 || Math.abs(calloutProjected.y) >= 1) {
+      hideWorldCallout(item);
+      continue;
+    }
+    const ax = (calloutProjected.x + 1) * w / 2;
+    const ay = (1 - calloutProjected.y) * h / 2;
+    calloutNdc.set(calloutProjected.x, calloutProjected.y);
+    calloutRaycaster.setFromCamera(calloutNdc, camera);
+    const anchorDistance = calloutRaycaster.ray.origin.distanceTo(calloutPoint);
+    const occluder = _visibleHit(calloutRaycaster.intersectObject(loadedRoot, true));
+    // Tolerance lets an anchor sitting on its own surface remain visible.
+    const tolerance = Math.max(sceneSize * 1e-4, anchorDistance * 1e-4);
+    if (occluder && occluder.distance < anchorDistance - tolerance) {
+      hideWorldCallout(item);
+      continue;
+    }
+    const label = item.label;
+    const width = label.offsetWidth, height = label.offsetHeight;
+    const edge = 6;
+    const placements = [];
+    for (const gap of [20, 55, 95]) {
+      placements.push(
+        [ax + gap, ay - gap - height], [ax - gap - width, ay - gap - height],
+        [ax + gap, ay + gap], [ax - gap - width, ay + gap],
+        [ax - width / 2, ay - gap - height], [ax - width / 2, ay + gap],
+        [ax - gap - width, ay - height / 2], [ax + gap, ay - height / 2],
+      );
+    }
+    let best = null;
+    for (let i = 0; i < placements.length; i++) {
+      const x = Math.max(edge, Math.min(w - width - edge, placements[i][0]));
+      const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
+      if (w < width + 2 * edge || h < height + 2 * edge) break;
+      const rect = { x, y, w: width, h: height };
+      if (_rectOverlap(rect, { x: ax - 12, y: ay - 12, w: 24, h: 24 })) continue;
+      const score = i * 3 + (item.candidate < 0 || item.candidate === i ? 0 : 35);
+      // A crowded viewport is better served by hiding the callout than by
+      // covering controls or another label.
+      if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;
+      if (score >= (best ? best.score : Infinity)) continue;
+      if (calloutPanelObstructed(x, y, width, height, w, h)) continue;
+      if (!best || score < best.score) best = { x, y, score, candidate: i };
+    }
+    if (!best) {
+      hideWorldCallout(item);
+      continue;
+    }
+    let { x, y } = best;
+    if (!staticLayout && item.previous) {
+      x = item.previous.x + (x - item.previous.x) * 0.3;
+      y = item.previous.y + (y - item.previous.y) * 0.3;
+      // A smooth transition may cross geometry even when its destination is clear.
+      if (_rectOverlap({ x, y, w: width, h: height },
+          { x: ax - 12, y: ay - 12, w: 24, h: 24 })
+          || occupied.some(other => _rectOverlap({ x, y, w: width, h: height }, other) > 0)
+          || calloutPanelObstructed(x, y, width, height, w, h)) {
+        x = best.x;
+        y = best.y;
+      }
+    }
+    if (Math.abs(best.x - x) + Math.abs(best.y - y) > 0.5) calloutSettling = true;
+    item.previous = { x, y };
+    item.candidate = best.candidate;
+    label.style.left = `${x}px`;
+    label.style.top = `${y}px`;
+    label.style.visibility = 'visible';
+    const sx = Math.max(x, Math.min(x + width, ax));
+    const sy = Math.max(y, Math.min(y + height, ay));
+    const dx = ax - sx, dy = ay - sy;
+    const len = Math.hypot(dx, dy);
+    const ux = dx / len, uy = dy / len;
+    item.line.setAttribute('d', `M ${sx} ${sy} L ${ax} ${ay}`);
+    item.tip.setAttribute('d', `M ${ax} ${ay} L ${ax - ux * 9 - uy * 4} ${ay - uy * 9 + ux * 4} L ${ax - ux * 9 + uy * 4} ${ay - uy * 9 - ux * 4} Z`);
+    item.line.style.visibility = 'visible';
+    item.tip.style.visibility = 'visible';
+    occupied.push({ x, y, w: width, h: height });
+  }
+}
+
 function applyCrispCheckerTextures(root) {
   // three.js may still build mipmaps for small PNGs; force point sampling so
   // baked checker cells stay sharp (see material extras from the WebGL backend).
@@ -1443,6 +1690,7 @@ const onLoaded = (gltf) => {
   buildCellGroups(loadedRoot);
   // Map top-level nodes to their layer index for the visibility checkboxes.
   buildLayerGroups(loadedRoot);
+  buildWorldCallouts();
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
@@ -1475,6 +1723,7 @@ const onLoaded = (gltf) => {
   buildPassUI();
   buildLayerUI();
   buildSemanticOverlays();
+  updateWorldCallouts(true);
   // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
   // to per-object rotation so dragging compares orientations rather than orbiting
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
@@ -1536,6 +1785,7 @@ const onError = (err) => {
 function animate() {
   resize();
   controls.update();
+  updateWorldCallouts();
   if (currentPass === 'depth') updateDepthRange();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);

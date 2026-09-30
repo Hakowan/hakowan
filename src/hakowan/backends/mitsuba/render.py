@@ -423,11 +423,13 @@ class MitsubaBackend(RenderBackend):
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
             if not composite_overlay_file(
-                filename, scene.legends, scene.annotations, config.background
+                filename, scene.legends, scene.annotations, config.background,
+                world_annotations=scene.world_annotations, sensor=config.sensor,
             ):
                 logger.warning(
-                    "Legends and annotations are not composited into HDR output; "
-                    "use PNG or another Pillow-supported format."
+                    "Legends and annotations (including world annotations) are not "
+                    "composited into HDR output; use PNG or another "
+                    "Pillow-supported format."
                 )
 
             if config.albedo and albedo_offset is not None:

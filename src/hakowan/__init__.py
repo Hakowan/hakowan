@@ -9,7 +9,7 @@ from .grammar.layer import Layer as layer, grid
 from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
-from .grammar.overlay import Annotation, Legend
+from .grammar.overlay import Annotation, Legend, WorldAnnotation
 from .grammar.figure import (
     DirectionalLight,
     Environment,
@@ -151,6 +151,7 @@ __all__ = [
     "RenderResult",
     "set_default_backend",
     "Annotation",
+    "WorldAnnotation",
     "Legend",
     "figure",
     "Figure",

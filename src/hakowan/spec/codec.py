@@ -49,7 +49,7 @@ from ..grammar.figure import (
     SceneSettings,
     ThinLensCamera,
 )
-from ..grammar.overlay import Annotation, Legend
+from ..grammar.overlay import Annotation, Legend, WorldAnnotation
 from ..grammar.scale import (
     Affine as AffineScale,
     Attribute,
@@ -1183,17 +1183,32 @@ def _properties_to_spec(
         ),
         name=runtime.name,
         annotations=tuple(
-            sm.AnnotationSpec(
-                text=item.text,
-                position=item.position,
-                color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
-                font_size=item.font_size,
-                anchor=item.anchor,
-                background=cast(
-                    Any,
-                    _json_value(item.background, f"{path}.annotations.background"),
-                ),
-                padding=item.padding,
+            (
+                sm.WorldAnnotationSpec(
+                    kind="world",
+                    text=item.text,
+                    position=item.position,
+                    color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
+                    font_size=item.font_size,
+                    background=cast(
+                        Any,
+                        _json_value(item.background, f"{path}.annotations.background"),
+                    ),
+                    padding=item.padding,
+                )
+                if isinstance(item, WorldAnnotation)
+                else sm.AnnotationSpec(
+                    text=item.text,
+                    position=item.position,
+                    color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
+                    font_size=item.font_size,
+                    anchor=item.anchor,
+                    background=cast(
+                        Any,
+                        _json_value(item.background, f"{path}.annotations.background"),
+                    ),
+                    padding=item.padding,
+                )
             )
             for item in runtime.annotations
         ),
@@ -1439,14 +1454,25 @@ def _properties_from_spec(
     )
     layer._spec.name = spec.name
     layer._spec.annotations = [
-        Annotation(
-            text=item.text,
-            position=item.position,
-            color=item.color,
-            font_size=item.font_size,
-            anchor=item.anchor,
-            background=item.background,
-            padding=item.padding,
+        (
+            WorldAnnotation(
+                text=item.text,
+                position=item.position,
+                color=item.color,
+                font_size=item.font_size,
+                background=item.background,
+                padding=item.padding,
+            )
+            if isinstance(item, sm.WorldAnnotationSpec)
+            else Annotation(
+                text=item.text,
+                position=item.position,
+                color=item.color,
+                font_size=item.font_size,
+                anchor=item.anchor,
+                background=item.background,
+                padding=item.padding,
+            )
         )
         for item in spec.annotations
     ]

@@ -781,10 +781,12 @@ def _capture_sync(
                         else:
                             data = None
                         if pass_name == "beauty" and (
-                            scene.legends or scene.annotations
+                            scene.legends or scene.annotations or scene.world_annotations
                         ):
                             image = composite_overlays(
-                                image, scene.legends, scene.annotations, background
+                                image, scene.legends, scene.annotations, background,
+                                world_annotations=scene.world_annotations,
+                                world_to_camera=world_to_camera, projection=projection,
                             )
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
@@ -1024,6 +1026,9 @@ def observe(
         "legends": [legend.to_dict() for legend in result.scene.legends],
         "annotations": [
             annotation.to_dict() for annotation in result.scene.annotations
+        ],
+        "world_annotations": [
+            annotation.to_dict() for annotation in result.scene.world_annotations
         ],
         "snapshots": [
             result.snapshots[(view, pass_name)].to_manifest()

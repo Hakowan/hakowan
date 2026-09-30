@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Literal
 
 from ..common.color import ColorLike
@@ -75,4 +76,32 @@ class Annotation:
             raise ValueError("Annotation.padding must be non-negative.")
 
 
-__all__ = ["Annotation", "Legend"]
+@dataclass(frozen=True, slots=True)
+class WorldAnnotation:
+    """Text callout anchored to a point in a view's local 3D coordinates.
+
+    The label remains screen-facing; renderers project ``position`` through
+    the view's geometry transform and the active camera.
+    """
+
+    text: str
+    position: tuple[float, float, float]
+    color: ColorLike = "white"
+    font_size: int = 16
+    background: ColorLike | None = "black"
+    padding: int = 4
+
+    def __post_init__(self) -> None:
+        if not self.text:
+            raise ValueError("WorldAnnotation.text must not be empty.")
+        if len(self.position) != 3 or not all(
+            math.isfinite(value) for value in self.position
+        ):
+            raise ValueError("WorldAnnotation.position must contain three finite coordinates.")
+        if self.font_size <= 0:
+            raise ValueError("WorldAnnotation.font_size must be positive.")
+        if self.padding < 0:
+            raise ValueError("WorldAnnotation.padding must be non-negative.")
+
+
+__all__ = ["Annotation", "Legend", "WorldAnnotation"]

@@ -551,6 +551,18 @@ class AnnotationSpec(SpecModel):
         return value
 
 
+class WorldAnnotationSpec(SpecModel):
+    """Readable text attached by a leader to a local 3D geometry position."""
+
+    kind: Literal["world"]
+    text: str = Field(min_length=1)
+    position: tuple[float, float, float]
+    color: ColorValue = "white"
+    font_size: int = Field(default=16, gt=0)
+    background: ColorValue | None = "black"
+    padding: int = Field(default=4, ge=0)
+
+
 class LayerPropertiesSpec(SpecModel):
     """Properties contributed by one node in a composed layer tree."""
 
@@ -559,7 +571,7 @@ class LayerPropertiesSpec(SpecModel):
     channels: ChannelsSpec = Field(default_factory=ChannelsSpec)
     transforms: tuple[TransformSpec, ...] = ()
     name: str | None = None
-    annotations: tuple[AnnotationSpec, ...] = ()
+    annotations: tuple[AnnotationSpec | WorldAnnotationSpec, ...] = ()
 
 
 class LayerNodeSpec(SpecModel):
@@ -774,6 +786,8 @@ FigureSpec.model_rebuild()
 __all__ = [
     "SCHEMA_URL",
     "SCHEMA_VERSION",
+    "AnnotationSpec",
+    "WorldAnnotationSpec",
     "AttributeSpec",
     "FigureSpec",
     "FunctionRefSpec",

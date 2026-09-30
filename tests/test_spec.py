@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 from hakowan.spec import ExpressionError, ExpressionSpec, FigureSpec, compile_expression
+from hakowan.grammar.overlay import Annotation, WorldAnnotation
 
 
 def _mesh_with_fields():
@@ -69,6 +70,10 @@ def test_schema_is_versioned_json_schema():
         "string",
         "null",
     }
+    world_schema = schema["$defs"]["WorldAnnotationSpec"]
+    assert "kind" in world_schema["required"]
+    position_schema = world_schema["properties"]["position"]
+    assert position_schema["minItems"] == position_schema["maxItems"] == 3
     assert len(schema["$defs"]) > 40
     json.dumps(schema)
     assert schema["description"]
@@ -145,6 +150,107 @@ def test_layer_round_trip_preserves_canonical_composition_and_behavior():
     assert spec.to_json(canonical=True) == rebuilt_spec.to_json(canonical=True)
     assert hkw.validate(rebuilt, backend="webgl").valid
     assert len(hkw.compile(rebuilt)) == 3
+
+
+@pytest.mark.parametrize("use_constructor", [False, True])
+def test_world_and_screen_annotations_round_trip_in_canonical_spec(use_constructor):
+    mesh = _mesh_with_fields()
+    world = WorldAnnotation(
+        "peak",
+        position=(1.25, -0.5, 3.0),
+        color="red",
+        font_size=21,
+        background="blue",
+        padding=7,
+    )
+    screen = Annotation(
+        "caption",
+        position=(0.5, 0.25),
+        anchor="center",
+        color="white",
+        font_size=13,
+        background=None,
+        padding=2,
+    )
+    layer = (
+        hkw.layer(mesh, annotations=[world, screen])
+        if use_constructor
+        else hkw.layer(mesh).annotate(world).annotate(screen, in_place=True)
+    )
+
+    spec = hkw.to_spec(layer, data_ids={id(mesh): "mesh"})
+    annotations = spec.to_dict()["root"]["spec"]["annotations"]
+    assert annotations[0] == {
+        "kind": "world",
+        "text": "peak",
+        "position": [1.25, -0.5, 3.0],
+        "color": "red",
+        "font_size": 21,
+        "background": "blue",
+        "padding": 7,
+    }
+    assert annotations[1] == {
+        "text": "caption",
+        "position": [0.5, 0.25],
+        "color": "white",
+        "font_size": 13,
+        "anchor": "center",
+        "background": None,
+        "padding": 2,
+    }
+
+    for restored in (
+        hkw.from_spec(spec, data_resolver={"mesh": mesh}),
+        hkw.from_json(spec.to_json(), data_resolver={"mesh": mesh}),
+    ):
+        assert restored._spec.annotations == [world, screen]
+        assert hkw.to_spec(restored, data_ids={id(mesh): "mesh"}).to_json(
+            canonical=True
+        ) == spec.to_json(canonical=True)
+
+
+@pytest.mark.parametrize(
+    "position",
+    [
+        [],
+        [0.0, 1.0],
+        [0.0, 1.0, 2.0, 3.0],
+        [float("nan"), 1.0, 2.0],
+        [0.0, float("inf"), 2.0],
+        [0.0, 1.0, -float("inf")],
+    ],
+)
+def test_world_annotation_spec_rejects_nonfinite_or_nonthree_position(position):
+    payload = {
+        "root": {
+            "kind": "layer",
+            "spec": {
+                "annotations": [
+                    {"kind": "world", "text": "peak", "position": position}
+                ]
+            },
+        }
+    }
+    with pytest.raises(ValidationError):
+        FigureSpec.model_validate(payload)
+
+
+def test_world_annotation_spec_requires_tag_and_has_runtime_defaults():
+    payload = {
+        "root": {
+            "kind": "layer",
+            "spec": {
+                "annotations": [
+                    {"kind": "world", "text": "peak", "position": [2, -3, 4]}
+                ]
+            },
+        }
+    }
+    parsed = FigureSpec.model_validate(payload)
+    assert parsed.to_dict()["root"]["spec"]["annotations"][0]["background"] == "black"
+    del payload["root"]["spec"]["annotations"][0]["kind"]
+    with pytest.raises(ValidationError):
+        FigureSpec.model_validate(payload)
 
 
 def test_transform_arrays_follow_application_order():

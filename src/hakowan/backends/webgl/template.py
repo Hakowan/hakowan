@@ -40,6 +40,7 @@ def render_html(
     three_addons_url: str | None = None,
     legends: list[dict] | None = None,
     annotations: list[dict] | None = None,
+    world_annotations: list[dict] | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
@@ -88,6 +89,9 @@ def render_html(
         "{{LEGENDS_JSON}}": _script_json(legends if legends is not None else []),
         "{{ANNOTATIONS_JSON}}": _script_json(
             annotations if annotations is not None else []
+        ),
+        "{{WORLD_ANNOTATIONS_JSON}}": _script_json(
+            world_annotations if world_annotations is not None else []
         ),
     }
     for key, value in replacements.items():

@@ -6,7 +6,7 @@ from .view import View
 from .scene import Scene
 from .transform import apply_transform
 from .channel import preprocess_channels, process_channels
-from .overlay import collect_overlays
+from .overlay import collect_overlays, collect_world_annotations
 from ..setup import Config
 
 import copy
@@ -143,6 +143,7 @@ def compile(root: layer.Layer | object, *, preserve_attributes: bool = False) ->
 
     # Step 7: compute the global scene transform.
     scene.compute_global_transform()
+    collect_world_annotations(scene)
     return scene
 
 

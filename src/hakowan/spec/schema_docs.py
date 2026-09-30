@@ -74,6 +74,7 @@ MODEL_DESCRIPTIONS = {
     "UniformScaleSpec": "Multiplies every attribute value by one factor.",
     "UniformTextureSpec": "Represents one constant color or scalar texture value.",
     "VectorFieldChannelSpec": "Renders a vector field as curve or arrow geometry.",
+    "WorldAnnotationSpec": "A readable 2D text callout linked to a local 3D geometry point by a leader.",
 }
 
 
@@ -91,7 +92,7 @@ FIELD_DESCRIPTIONS = {
     "channels": "Unique visual channels and material contributed by this node.",
     "transforms": "Ordered runtime transform chain stored by this node.",
     "name": "Human-readable layer label used by interactive viewers.",
-    "annotations": "Ordered screen-space text annotations contributed by this node.",
+    "annotations": "Ordered screen-space and world-anchored text annotations contributed by this node.",
     "unit": "Optional physical unit associated with the referenced attribute.",
     "legend": "Automatic legend toggle or detailed legend configuration.",
     "title": "Optional display title; null derives it from the attribute name.",
@@ -246,6 +247,11 @@ FIELD_OVERRIDES = {
         "position",
     ): "Normalized image position with origin at the top-left.",
     ("AnnotationSpec", "color"): "Annotation text color.",
+    (
+        "WorldAnnotationSpec",
+        "position",
+    ): "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit.",
+    ("WorldAnnotationSpec", "color"): "World annotation text and leader color.",
     ("LegendSpec", "position"): "Side on which the legend panel is placed.",
     (
         "LayoutNodeSpec",
@@ -256,7 +262,7 @@ FIELD_OVERRIDES = {
     (
         "LayerPropertiesSpec",
         "annotations",
-    ): "Ordered screen-space annotations for this node.",
+    ): "Ordered screen-space and world-anchored annotations for this node.",
     (
         "ScalarFieldTextureSpec",
         "legend",

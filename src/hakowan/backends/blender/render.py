@@ -195,12 +195,24 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             self._finalize_outputs(config, render_filename, filename)
 
         if filename is not None:
+            camera_matrices = {}
+            if scene.world_annotations and not is_hdr_suffix(filename.suffix.lower()):
+                camera = bpy.context.scene.camera
+                camera_matrices = {
+                    "world_to_camera": camera.matrix_world.inverted(),
+                    "projection": camera.calc_matrix_camera(
+                        bpy.context.evaluated_depsgraph_get(),
+                        x=config.film.width, y=config.film.height,
+                    ),
+                }
             if not composite_overlay_file(
-                filename, scene.legends, scene.annotations, config.background
+                filename, scene.legends, scene.annotations, config.background,
+                world_annotations=scene.world_annotations, **camera_matrices,
             ):
                 logger.warning(
-                    "Legends and annotations are not composited into HDR output; "
-                    "use PNG or another Pillow-supported format."
+                    "Legends and annotations (including world annotations) are not "
+                    "composited into HDR output; use PNG or another "
+                    "Pillow-supported format."
                 )
 
         # Drop the private intermediate render directory, if one was used.

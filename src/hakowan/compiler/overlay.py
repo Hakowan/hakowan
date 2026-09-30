@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from ..common.to_color import to_color
-from ..grammar.overlay import Annotation, Legend
+from ..grammar.overlay import Annotation, Legend, WorldAnnotation
 from ..grammar.texture import ScalarField, Texture
 from .scene import Scene
 
@@ -37,6 +37,23 @@ class CompiledAnnotation:
     color: tuple[float, float, float]
     font_size: int
     anchor: str
+    background: tuple[float, float, float] | None
+    padding: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class CompiledWorldAnnotation:
+    """World-space anchor and its owning rendered view."""
+
+    text: str
+    position: tuple[float, float, float]
+    layer: int
+    cell: str | None
+    color: tuple[float, float, float]
+    font_size: int
     background: tuple[float, float, float] | None
     padding: int
 
@@ -155,15 +172,63 @@ def collect_overlays(scene: Scene) -> None:
                 if legend is not None and legend not in legends:
                     legends.append(legend)
         for annotation in view.annotations:
-            compiled = _compiled_annotation(annotation)
-            if compiled not in annotations:
-                annotations.append(compiled)
+            if isinstance(annotation, Annotation):
+                compiled = _compiled_annotation(annotation)
+                if compiled not in annotations:
+                    annotations.append(compiled)
     scene.legends = legends
     scene.annotations = annotations
 
 
+def collect_world_annotations(scene: Scene) -> None:
+    """Resolve local annotation points after layout and scene transforms."""
+    result: list[CompiledWorldAnnotation] = []
+    for index, view in enumerate(scene):
+        cell = (
+            "/".join(f"{node_id}.{branch}" for node_id, branch in view._layout_cell)
+            if view._layout_cell
+            else None
+        )
+        for annotation in view.annotations:
+            if not isinstance(annotation, WorldAnnotation):
+                continue
+            point = np.asarray((*annotation.position, 1.0), dtype=np.float64)
+            transformed = view.global_transform @ point
+            color = to_color(annotation.color).data
+            background = (
+                to_color(annotation.background).data
+                if annotation.background is not None
+                else None
+            )
+            result.append(
+                CompiledWorldAnnotation(
+                    text=annotation.text,
+                    position=(
+                        float(transformed[0]),
+                        float(transformed[1]),
+                        float(transformed[2]),
+                    ),
+                    layer=index,
+                    cell=cell,
+                    color=(float(color[0]), float(color[1]), float(color[2])),
+                    font_size=annotation.font_size,
+                    background=(
+                        float(background[0]),
+                        float(background[1]),
+                        float(background[2]),
+                    )
+                    if background is not None
+                    else None,
+                    padding=annotation.padding,
+                )
+            )
+    scene.world_annotations = result
+
+
 __all__ = [
     "CompiledAnnotation",
+    "CompiledWorldAnnotation",
     "CompiledLegend",
     "collect_overlays",
+    "collect_world_annotations",
 ]

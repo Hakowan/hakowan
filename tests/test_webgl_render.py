@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import math
 import re
 from html.parser import HTMLParser
@@ -611,6 +612,29 @@ class TestEndToEnd:
         # The glTF camera is orthographic, so the viewer honours it on load.
         assert "isOrthographicCamera" in html
         assert "startOrtho" in html
+
+
+def test_world_callouts_serialize_layer_cell_and_safe_text(tmp_path):
+    payload = '</script><img src=x onerror="alert(1)">'
+    sphere = _make_icosphere()
+    layer = (
+        hkw.layer(sphere)
+        .mark(hkw.mark.Surface)
+        .annotate(hkw.WorldAnnotation(payload, position=(0, 0, 1), color="red", padding=7))
+        .annotate("Screen", position=(0.2, 0.3))
+    )
+    result = hkw.render(layer | layer, filename=tmp_path / "callouts.html", backend="webgl")
+    html = result.path.read_text(encoding="utf-8")
+
+    world = json.loads(re.search(r"const WORLD_ANNOTATIONS = (.*?);", html).group(1))
+    screen = json.loads(re.search(r"const ANNOTATIONS = (.*?);", html).group(1))
+    assert [item["text"] for item in world] == [payload, payload]
+    assert [item["cell"] for item in world] == ["0.0", "0.1"]
+    assert [item["layer"] for item in world] == [0, 1]
+    assert world[0]["position"][0] < world[1]["position"][0]
+    assert all(item["padding"] == 7 and item["color"] == [1, 0, 0] for item in world)
+    assert [item["text"] for item in screen] == ["Screen"]
+    assert payload not in html  # The inline JSON must not close the script tag.
 
 
 def test_render_unknown_kwarg_raises(tmp_path):

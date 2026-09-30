@@ -204,7 +204,7 @@ A node's `spec` accepts:
 | `channels` | object | At most one value for each visual channel. |
 | `transforms` | array | Transform operations in application order. |
 | `name` | string or `null` | Viewer-facing layer label. |
-| `annotations` | array | Screen-space text annotations contributed by the node. |
+| `annotations` | array | Fixed screen-space or 3D-anchored text annotations contributed by the node. |
 
 Defaults and explicit `null` values are retained in canonical output so two
 canonical documents can be compared byte-for-byte.
@@ -340,9 +340,9 @@ positions additionally accept a number, named/hex color string, or numeric list.
 
 ## Annotations
 
-Each layer property object accepts an `annotations` array. An annotation has
-`text`, normalized screen `position`, `color`, `font_size`, horizontal `anchor`,
-optional `background`, and `padding`.
+Each layer property object accepts an `annotations` array. Untagged annotations
+use a normalized 2D screen `position`, `color`, `font_size`, horizontal `anchor`,
+optional `background`, and `padding`:
 
 ```json
 {
@@ -351,6 +351,22 @@ optional `background`, and `padding`.
   "color": "white",
   "font_size": 18,
   "anchor": "center",
+  "background": "black",
+  "padding": 5
+}
+```
+
+To attach a label to a local 3D geometry point instead, use `kind: "world"` and
+a three-coordinate `position`. The compiled view transform/layout maps the
+point into world space; no screen `anchor` field is used.
+
+```json
+{
+  "kind": "world",
+  "text": "Peak stress",
+  "position": [0.4, 0.2, 0.1],
+  "color": "white",
+  "font_size": 18,
   "background": "black",
   "padding": 5
 }

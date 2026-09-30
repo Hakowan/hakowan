@@ -119,6 +119,37 @@ layer = hkw.layer(mesh, annotations=[label])
 Annotations inherited by multiple child views are deduplicated when the scene is
 compiled.
 
+## World-space callouts
+
+Use `WorldAnnotation` to attach a label to a point in the **local coordinates of
+the layer's geometry**, rather than a fixed pixel location:
+
+```py
+layer = hkw.layer(mesh).annotate(
+    hkw.WorldAnnotation(
+        "Peak stress",
+        position=(0.4, 0.2, 0.1),
+        color="white",
+        background="black",
+    )
+)
+```
+
+The compiler applies the layer transform and scene layout to the anchor, so
+the callout follows its view when the scene is juxtaposed. In the WebGL viewer,
+the text remains readable in screen space, offset from the point and connected
+by an arrow. Its placement follows camera orbit, zoom, projection changes, and
+per-object rotation smoothly. Callouts behind the camera, outside the viewport,
+or hidden by geometry are not displayed; crowded scenes may hide labels that
+cannot be placed without overlap. Existing `Annotation` remains a fixed
+screen-space overlay.
+
+Beauty snapshots and LDR images from Mitsuba and Blender project the point
+through their fixed render camera and composite a callout at that view. Raster
+output cannot continuously reposition the label or reliably test geometry
+occlusion; diagnostic passes never include labels. As with other raster
+overlays, EXR/HDR output skips compositing.
+
 ## Backend behavior
 
 | Backend/output | Behavior |

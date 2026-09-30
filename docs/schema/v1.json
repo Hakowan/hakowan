@@ -2348,9 +2348,16 @@
       "properties": {
         "annotations": {
           "default": [],
-          "description": "Ordered screen-space annotations for this node.",
+          "description": "Ordered screen-space and world-anchored annotations for this node.",
           "items": {
-            "$ref": "#/$defs/AnnotationSpec"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AnnotationSpec"
+              },
+              {
+                "$ref": "#/$defs/WorldAnnotationSpec"
+              }
+            ]
           },
           "title": "Annotations",
           "type": "array"
@@ -5617,6 +5624,124 @@
         "data"
       ],
       "title": "VectorFieldChannelSpec",
+      "type": "object"
+    },
+    "WorldAnnotationSpec": {
+      "additionalProperties": false,
+      "description": "Readable text attached by a leader to a local 3D geometry position.",
+      "properties": {
+        "background": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "black",
+          "description": "Optional annotation background color.",
+          "title": "Background"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": "white",
+          "description": "World annotation text and leader color.",
+          "title": "Color"
+        },
+        "font_size": {
+          "default": 16,
+          "description": "Annotation font size in pixels.",
+          "exclusiveMinimum": 0,
+          "title": "Font Size",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "world",
+          "description": "Discriminator selecting the concrete specification variant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "padding": {
+          "default": 4,
+          "description": "Annotation background padding in pixels.",
+          "minimum": 0,
+          "title": "Padding",
+          "type": "integer"
+        },
+        "position": {
+          "description": "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "text": {
+          "description": "Annotation text.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "position"
+      ],
+      "title": "WorldAnnotationSpec",
       "type": "object"
     }
   },
