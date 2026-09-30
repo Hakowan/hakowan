@@ -95,6 +95,35 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
+**Embed in a webpage:**
+
+Render the viewer to an HTML file, publish it on an HTTP(S) static host, and paste
+an iframe into the page where it should appear:
+
+```py
+result = hkw.render(layer, filename="output.html", backend="webgl")
+print(result.embed_html(src="https://example.org/visualizations/output.html", height=420))
+```
+
+```html
+<iframe src="https://example.org/visualizations/output.html" title="Interactive 3D visualization" width="100%" height="420" loading="lazy" style="border:0;"></iframe>
+```
+
+If the embedding page and viewer are published in the same directory, call
+`result.embed_html()` without `src`: it uses the generated viewer's filename,
+even when the render output path on your computer is absolute. Set `src` to the
+published path or URL for any other layout. You can also set `title` and `width`.
+The viewer's styles, scripts, and controls stay inside the iframe; no Three.js
+code is needed in the embedding page.
+
+The default output embeds scene data but loads Three.js modules from unpkg. For
+an offline/self-hosted deployment, render with `offline=True` and publish both
+`output.html` **and** the sibling `output_assets/` directory at the same relative
+paths. The viewer's host must allow framing (for example, through its
+`frame-ancestors` policy), and the embedding page must allow the viewer's URL in
+its iframe/CSP policy. Hosts that strip iframes or disallow scripts cannot
+display the interactive viewer; link to the HTML page instead.
+
 **Background:**
 
 The beauty view uses a soft "studio" radial gradient — a bright spot in the centre falling off

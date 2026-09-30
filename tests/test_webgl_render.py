@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 import math
 import re
+from html.parser import HTMLParser
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -76,6 +78,16 @@ def _make_icosphere() -> lagrange.SurfaceMesh:
     return mesh
 
 
+class _IframeParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.attributes = {}
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "iframe":
+            self.attributes = dict(attrs)
+
+
 class TestEndToEnd:
     def test_register_webgl_backend(self):
         assert "webgl" in hkw.list_backends()
@@ -93,6 +105,37 @@ class TestEndToEnd:
         assert isinstance(result, hkw.RenderResult)
         assert result.path == out_path
         assert result.backend == "webgl"
+
+    def test_embed_html_targets_published_viewer(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        result = hkw.render(layer, filename=tmp_path / "viewer.html", backend="webgl")
+
+        parser = _IframeParser()
+        parser.feed(result.embed_html())
+        assert parser.attributes["src"] == "viewer.html"
+        assert parser.attributes["width"] == "100%"
+        assert parser.attributes["height"] == "500"
+        assert parser.attributes["loading"] == "lazy"
+
+        src = 'https://example.org/scene.html?a=" onload="alert(1)&b=2'
+        parser = _IframeParser()
+        parser.feed(
+            result.embed_html(src=src, title='3D "model" & view', height=320)
+        )
+        assert parser.attributes["src"] == src
+        assert parser.attributes["title"] == '3D "model" & view'
+        assert parser.attributes["height"] == "320"
+        assert "onload" not in parser.attributes
+
+    def test_embed_html_requires_saved_webgl_viewer(self):
+        with pytest.raises(ValueError, match="saved WebGL viewer"):
+            hkw.RenderResult(backend="mitsuba", path=Path("image.png")).embed_html()
+        with pytest.raises(ValueError, match="saved WebGL viewer"):
+            hkw.RenderResult(backend="webgl", path=None).embed_html()
+        with pytest.raises(ValueError, match="positive"):
+            hkw.RenderResult(backend="webgl", path=Path("viewer.html")).embed_html(
+                height=0
+            )
 
     def test_filename_suffix_normalised(self, tmp_path):
         layer = (

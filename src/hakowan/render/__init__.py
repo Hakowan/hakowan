@@ -15,6 +15,7 @@ from ..setup import Config
 from ..setup.render_pass import aov_path
 from ..common import logger
 from dataclasses import dataclass, field
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,32 @@ class RenderResult:
                 "(render() was called without a filename)."
             )
         return str(self.path)
+
+    def embed_html(
+        self,
+        *,
+        src: str | None = None,
+        title: str = "Interactive 3D visualization",
+        width: str = "100%",
+        height: int = 500,
+    ) -> str:
+        """Return an iframe snippet for a published WebGL viewer.
+
+        By default, the iframe looks for the viewer beside the embedding page.
+        Pass ``src`` when the viewer is hosted at another path or URL. Publish
+        the entire output directory when rendering with ``offline=True``.
+        """
+        if self.backend != "webgl" or self.path is None:
+            raise ValueError("Embedding requires a saved WebGL viewer.")
+        if height <= 0:
+            raise ValueError("Iframe height must be positive.")
+        viewer_src = self.path.name if src is None else src
+        return (
+            f'<iframe src="{escape(viewer_src, quote=True)}" '
+            f'title="{escape(title, quote=True)}" '
+            f'width="{escape(width, quote=True)}" height="{height}" '
+            'loading="lazy" style="border:0;"></iframe>'
+        )
 
 
 def render(
