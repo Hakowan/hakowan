@@ -95,6 +95,10 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
+For scenes with multiple named layers, the viewer shows a layer list with
+visibility checkboxes. Use the **−** button to minimize the list; use **layers +**
+to restore it. Minimizing the panel does not change layer visibility.
+
 **Embed in a webpage:**
 
 Render the viewer to an HTML file, publish it on an HTTP(S) static host, and paste

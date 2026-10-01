@@ -54,6 +54,15 @@
     max-height: 40vh; overflow-y: auto;
   }
   #layers.visible { display: flex; }
+  #layers .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #layers button {
+    background: rgba(255,255,255,0.08); color: #eee; border: 0;
+    padding: 2px 6px; border-radius: 3px; font: inherit; cursor: pointer;
+  }
+  #layers button:hover { background: rgba(255,255,255,0.18); }
+  #layers .restore { display: none; }
+  #layers.minimized .header, #layers.minimized label { display: none; }
+  #layers.minimized .restore { display: block; }
   #layers .title {
     font-size: 11px; color: #aaa; margin-bottom: 2px; user-select: none;
   }
@@ -1349,10 +1358,27 @@ function buildLayerUI() {
   // A lone layer needs no toggle; only surface the panel for multi-layer scenes.
   if (!Array.isArray(LAYERS) || LAYERS.length < 2) return;
   const container = document.getElementById('layers');
+  const header = document.createElement('div');
+  header.className = 'header';
   const title = document.createElement('div');
   title.className = 'title';
   title.textContent = 'layers';
-  container.appendChild(title);
+  const minimize = document.createElement('button');
+  minimize.type = 'button';
+  minimize.textContent = '−';
+  minimize.setAttribute('aria-label', 'Minimize layer list');
+  minimize.title = 'Minimize layer list';
+  header.append(title, minimize);
+  container.appendChild(header);
+  const restore = document.createElement('button');
+  restore.type = 'button';
+  restore.className = 'restore';
+  restore.textContent = 'layers +';
+  restore.setAttribute('aria-label', 'Restore layer list');
+  restore.title = 'Restore layer list';
+  minimize.addEventListener('click', () => container.classList.add('minimized'));
+  restore.addEventListener('click', () => container.classList.remove('minimized'));
+  container.appendChild(restore);
   for (const entry of LAYERS) {
     const label = document.createElement('label');
     const cb = document.createElement('input');
