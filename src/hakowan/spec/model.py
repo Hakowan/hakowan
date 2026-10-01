@@ -552,7 +552,7 @@ class AnnotationSpec(SpecModel):
 
 
 class WorldAnnotationSpec(SpecModel):
-    """Readable text attached by a leader to a local 3D geometry position."""
+    """Readable text for a local 3D geometry point, with an optional leader."""
 
     kind: Literal["world"]
     text: str = Field(min_length=1)
@@ -561,6 +561,8 @@ class WorldAnnotationSpec(SpecModel):
     font_size: int = Field(default=16, gt=0)
     background: ColorValue | None = "black"
     padding: int = Field(default=4, ge=0)
+    offset: tuple[float, float] | None = None
+    arrow: bool = True
 
 
 class LayerPropertiesSpec(SpecModel):

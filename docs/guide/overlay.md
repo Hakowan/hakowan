@@ -131,27 +131,37 @@ layer = hkw.layer(mesh).annotate(
         position=(0.4, 0.2, 0.1),
         color="white",
         background="black",
+        offset=(0, -10),  # label sits 10 px above the projected anchor
+        arrow=False,      # omit the leader; the default is True
     )
 )
 ```
 
 The compiler applies the layer transform and scene layout to the anchor, so
-the callout follows its view when the scene is juxtaposed. In the WebGL viewer,
-the text remains readable in screen space, offset from the point and connected
-by an arrow. Its placement follows camera orbit, zoom, projection changes, and
-per-object rotation smoothly. Callouts behind the camera, outside the viewport,
-or hidden by geometry are not displayed; crowded scenes may hide labels that
-cannot be placed without overlap. Existing `Annotation` remains a fixed
-screen-space overlay.
+the callout follows its view when the scene is juxtaposed. The label stays
+screen-facing. When `arrow` is true (the default), a leader connects the
+panel to the projected point. `arrow=False` draws the text alone.
 
-WebGL and raster callouts use the same placement policy: try the same ordered
-directions, expand the distance until the text clears the rendered geometry,
-keep a six-pixel viewport inset and a twelve-pixel exclusion around the anchor,
-and avoid fixed overlays and previously placed labels. If no legal position
-exists, hide the callout rather than cover the mesh. WebGL additionally avoids
-its controls and preserves the previous placement during interactive movement.
-For identical cameras and viewport sizes, initial placements are comparable;
-browser and Pillow font measurements can produce small pixel differences.
+`offset` is an optional screen-space pixel vector from the projected anchor
+to the panel edge that faces it. `+x` is right and `+y` is down. A zero
+component centers the panel on that axis, so `offset=(0, -10)` places the
+label 10 pixels above the anchor. `offset=None` keeps automatic placement;
+it is not the same as `(0, 0)`. An explicit offset is not inset,
+collision-checked, or hidden when it overlaps geometry, and the viewport may
+clip it.
+
+When `offset` is omitted, WebGL and raster callouts use the same placement
+policy: try the same ordered directions, expand the distance until the text
+clears the rendered geometry, keep a six-pixel viewport inset and a
+twelve-pixel exclusion around the anchor, and avoid fixed overlays and
+previously placed labels. If no legal position exists, hide the callout rather
+than cover the mesh. WebGL additionally avoids its controls and preserves the
+previous placement during interactive movement. For identical cameras and
+viewport sizes, initial placements are comparable; browser and Pillow font
+measurements can produce small pixel differences.
+
+Callouts behind the camera, outside the viewport, or hidden by geometry are
+not displayed. Existing `Annotation` remains a fixed screen-space overlay.
 
 Beauty snapshots and LDR images from Mitsuba and Blender project the point
 through their fixed render camera. Mitsuba casts a camera ray per annotation and

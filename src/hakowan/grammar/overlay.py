@@ -82,6 +82,20 @@ class WorldAnnotation:
 
     The label remains screen-facing; renderers project ``position`` through
     the view's geometry transform and the active camera.
+
+    Parameters:
+        text: Text string to display.
+        position: 3D point in the layer's local coordinates.
+        color: Text and arrow color.
+        font_size: Font size in pixels.
+        background: Background color of the text callout panel.
+        padding: Internal padding in pixels around the text.
+        offset: Optional screen-space pixel offset ``(dx, dy)`` from the projected
+            anchor to the panel edge that faces it. ``+x`` is right and ``+y`` is
+            down. A zero component centers the panel on that axis, so
+            ``(0, -10)`` places the label 10 pixels above the anchor. ``None``
+            keeps automatic placement. An explicit offset is not collision-checked.
+        arrow: Whether to draw a leader from the panel to the anchor (default True).
     """
 
     text: str
@@ -90,6 +104,8 @@ class WorldAnnotation:
     font_size: int = 16
     background: ColorLike | None = "black"
     padding: int = 4
+    offset: tuple[float, float] | None = None
+    arrow: bool = True
 
     def __post_init__(self) -> None:
         if not self.text:
@@ -102,6 +118,13 @@ class WorldAnnotation:
             raise ValueError("WorldAnnotation.font_size must be positive.")
         if self.padding < 0:
             raise ValueError("WorldAnnotation.padding must be non-negative.")
+        if self.offset is not None:
+            if len(self.offset) != 2 or not all(
+                math.isfinite(value) for value in self.offset
+            ):
+                raise ValueError(
+                    "WorldAnnotation.offset must contain two finite coordinates."
+                )
 
 
 __all__ = ["Annotation", "Legend", "WorldAnnotation"]

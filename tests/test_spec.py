@@ -162,6 +162,8 @@ def test_world_and_screen_annotations_round_trip_in_canonical_spec(use_construct
         font_size=21,
         background="blue",
         padding=7,
+        offset=(0.0, -10.0),
+        arrow=False,
     )
     screen = Annotation(
         "caption",
@@ -188,6 +190,8 @@ def test_world_and_screen_annotations_round_trip_in_canonical_spec(use_construct
         "font_size": 21,
         "background": "blue",
         "padding": 7,
+        "offset": [0.0, -10.0],
+        "arrow": False,
     }
     assert annotations[1] == {
         "text": "caption",
@@ -235,6 +239,30 @@ def test_world_annotation_spec_rejects_nonfinite_or_nonthree_position(position):
         FigureSpec.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    "offset",
+    [[0.0], [0.0, 1.0, 2.0], [float("nan"), 1.0], [float("inf"), -10.0]],
+)
+def test_world_annotation_spec_rejects_invalid_offset(offset):
+    payload = {
+        "root": {
+            "kind": "layer",
+            "spec": {
+                "annotations": [
+                    {
+                        "kind": "world",
+                        "text": "peak",
+                        "position": [0.0, 1.0, 2.0],
+                        "offset": offset,
+                    }
+                ]
+            },
+        }
+    }
+    with pytest.raises(ValidationError):
+        FigureSpec.model_validate(payload)
+
+
 def test_world_annotation_spec_requires_tag_and_has_runtime_defaults():
     payload = {
         "root": {
@@ -247,7 +275,10 @@ def test_world_annotation_spec_requires_tag_and_has_runtime_defaults():
         }
     }
     parsed = FigureSpec.model_validate(payload)
-    assert parsed.to_dict()["root"]["spec"]["annotations"][0]["background"] == "black"
+    annotation = parsed.to_dict()["root"]["spec"]["annotations"][0]
+    assert annotation["background"] == "black"
+    assert annotation["offset"] is None
+    assert annotation["arrow"] is True
     del payload["root"]["spec"]["annotations"][0]["kind"]
     with pytest.raises(ValidationError):
         FigureSpec.model_validate(payload)

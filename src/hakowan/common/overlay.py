@@ -261,6 +261,36 @@ def _project_world_annotations(
     return result
 
 
+def _offset_label_origin(
+    anchor: tuple[float, float],
+    panel_size: tuple[float, float],
+    offset: tuple[float, float],
+) -> tuple[float, float]:
+    """Return the panel top-left for an explicit screen-space offset.
+
+    ``offset`` is the vector from the projected anchor to the panel edge that
+    faces it. ``+x`` is right and ``+y`` is down. A zero component centers the
+    panel on that axis, so ``(0, -10)`` puts the bottom edge 10 px above the
+    anchor. The WebGL viewer duplicates this rule in ``offsetLabelOrigin``.
+    """
+    ax, ay = anchor
+    width, height = panel_size
+    dx, dy = offset
+    if dx > 0:
+        left = ax + dx
+    elif dx < 0:
+        left = ax + dx - width
+    else:
+        left = ax - width / 2
+    if dy > 0:
+        top = ay + dy
+    elif dy < 0:
+        top = ay + dy - height
+    else:
+        top = ay - height / 2
+    return left, top
+
+
 def _place_world_label(
     anchor: tuple[float, float],
     panel_size: tuple[float, float],
@@ -338,9 +368,15 @@ def _draw_world_annotations(
         text_width = max(draw.textlength(line, font=font) for line in lines)
         panel_width = int(np.ceil(text_width + annotation.padding * 2))
         panel_height = int(np.ceil(len(lines) * line_height + annotation.padding * 2))
-        placement = _place_world_label(
-            (ax, ay), (panel_width, panel_height), image.size, occupied, geometry_at
-        )
+        if annotation.offset is not None:
+            left, top = _offset_label_origin(
+                (ax, ay), (panel_width, panel_height), annotation.offset
+            )
+            placement = (left, top, left + panel_width, top + panel_height)
+        else:
+            placement = _place_world_label(
+                (ax, ay), (panel_width, panel_height), image.size, occupied, geometry_at
+            )
         if placement is None:
             continue
         left, top, right, bottom = placement
@@ -355,7 +391,7 @@ def _draw_world_annotations(
         # Thin contrast strokes keep default white labels visible on light
         # renders without imposing a background panel on transparent images.
         contrast = (0, 0, 0, 255) if sum(color[:3]) > 382 else (255, 255, 255, 255)
-        if length > 0:
+        if annotation.arrow and length > 0:
             ux, uy = vx / length, vy / length
             draw.line((end_x, end_y, ax, ay), fill=contrast, width=4)
             draw.line((end_x, end_y, ax, ay), fill=color, width=2)

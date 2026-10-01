@@ -56,6 +56,8 @@ class CompiledWorldAnnotation:
     font_size: int
     background: tuple[float, float, float] | None
     padding: int
+    offset: tuple[float, float] | None = None
+    arrow: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -220,6 +222,8 @@ def collect_world_annotations(scene: Scene) -> None:
                     if background is not None
                     else None,
                     padding=annotation.padding,
+                    offset=annotation.offset,
+                    arrow=annotation.arrow,
                 )
             )
     scene.world_annotations = result

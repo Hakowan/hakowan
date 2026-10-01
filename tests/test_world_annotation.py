@@ -78,6 +78,118 @@ def test_world_annotation_rejects_invalid_coordinates(position):
         hkw.WorldAnnotation("test", position=position)
 
 
+@pytest.mark.parametrize(
+    "offset",
+    [(0,), (0, 1, 2), (0, float("nan")), (float("inf"), 1)],
+)
+def test_world_annotation_rejects_invalid_offset(offset):
+    with pytest.raises(ValueError, match="two finite coordinates"):
+        hkw.WorldAnnotation("test", position=(0, 0, 0), offset=offset)
+
+
+def test_world_annotation_offset_and_arrow_properties():
+    wa = hkw.WorldAnnotation(
+        "label",
+        position=(1.0, 2.0, 3.0),
+        offset=(10.0, -20.0),
+        arrow=False,
+    )
+    assert wa.offset == (10.0, -20.0)
+    assert wa.arrow is False
+
+    scene = hkw.compile(hkw.layer(_triangle()).annotate(wa))
+    assert len(scene.world_annotations) == 1
+    cwa = scene.world_annotations[0]
+    assert cwa.offset == (10.0, -20.0)
+    assert cwa.arrow is False
+
+
+def test_browser_callout_offset_and_optional_arrow(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = (
+        hkw.layer(_triangle())
+        .annotate(
+            hkw.WorldAnnotation(
+                "Above",
+                position=(0.25, 0.25, 0.04),
+                offset=(0.0, -10.0),
+                arrow=False,
+            )
+        )
+        .annotate(
+            hkw.WorldAnnotation(
+                "Right",
+                position=(0.75, 0.2, 0.04),
+                offset=(16.0, 0.0),
+                arrow=True,
+            )
+        )
+    )
+    viewer = hkw.render(
+        layer, filename=tmp_path / "callout_offset.html", backend="webgl", offline=True
+    )
+    compiled = {
+        item.text: item.position for item in hkw.compile(layer).world_annotations
+    }
+
+    with playwright.sync_playwright() as runtime:
+        try:
+            browser = runtime.chromium.launch(
+                headless=True, args=["--allow-file-access-from-files"]
+            )
+        except playwright.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            page.wait_for_function(
+                "document.querySelectorAll('#world-callouts .world-callout').length === 2"
+            )
+            placed = page.evaluate(
+                """(positions) => {
+                  const h = window.__hakowan;
+                  const T = h.THREE;
+                  const cam = h.getCamera();
+                  const rect = document.getElementById('world-callouts').getBoundingClientRect();
+                  const paths = [...document.querySelectorAll('#world-callouts svg path')];
+                  return [...document.querySelectorAll('#world-callouts .world-callout')].map((label, index) => {
+                    const p = new T.Vector3(...positions[label.textContent]).project(cam);
+                    return {
+                      text: label.textContent,
+                      left: parseFloat(label.style.left),
+                      top: parseFloat(label.style.top),
+                      width: label.offsetWidth,
+                      height: label.offsetHeight,
+                      ax: (p.x + 1) * rect.width / 2,
+                      ay: (1 - p.y) * rect.height / 2,
+                      centerX: rect.width / 2,
+                      centerY: rect.height / 2,
+                      line: getComputedStyle(paths[index * 2]).visibility,
+                      tip: getComputedStyle(paths[index * 2 + 1]).visibility,
+                      d: paths[index * 2].getAttribute('d'),
+                    };
+                  });
+                }""",
+                compiled,
+            )
+            by_text = {item["text"]: item for item in placed}
+            above = by_text["Above"]
+            right = by_text["Right"]
+            assert abs(above["ax"] - above["centerX"]) > 15 or abs(above["ay"] - above["centerY"]) > 15
+            assert abs(above["left"] - (above["ax"] - above["width"] / 2)) < 1
+            assert abs(above["top"] - (above["ay"] - 10 - above["height"])) < 1
+            assert above["line"] == "hidden"
+            assert above["tip"] == "hidden"
+            assert abs(right["left"] - (right["ax"] + 16)) < 1
+            assert abs(right["top"] - (right["ay"] - right["height"] / 2)) < 1
+            assert right["line"] == "visible"
+            assert right["tip"] == "visible"
+            assert right["d"] and "NaN" not in right["d"]
+        finally:
+            browser.close()
+
+
 def test_browser_callouts_track_rotation_and_layer_visibility(tmp_path):
     playwright = pytest.importorskip("playwright.sync_api")
     layer = hkw.layer(_triangle()).annotate(

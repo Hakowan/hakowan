@@ -74,7 +74,7 @@ MODEL_DESCRIPTIONS = {
     "UniformScaleSpec": "Multiplies every attribute value by one factor.",
     "UniformTextureSpec": "Represents one constant color or scalar texture value.",
     "VectorFieldChannelSpec": "Renders a vector field as curve or arrow geometry.",
-    "WorldAnnotationSpec": "A readable 2D text callout linked to a local 3D geometry point by a leader.",
+    "WorldAnnotationSpec": "A readable 2D text callout for a local 3D geometry point, with an optional leader.",
 }
 
 
@@ -251,7 +251,15 @@ FIELD_OVERRIDES = {
         "WorldAnnotationSpec",
         "position",
     ): "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit.",
-    ("WorldAnnotationSpec", "color"): "World annotation text and leader color.",
+    ("WorldAnnotationSpec", "color"): "World annotation text color, also used for the leader when one is drawn.",
+    (
+        "WorldAnnotationSpec",
+        "offset",
+    ): "Optional screen-space pixel offset (dx, dy) from the projected anchor to the panel edge that faces it. +x is right and +y is down. A zero component centers the panel on that axis, so (0, -10) places the label 10 pixels above the anchor. Null keeps automatic placement; it is not the same as (0, 0).",
+    (
+        "WorldAnnotationSpec",
+        "arrow",
+    ): "Whether to draw an arrow leader connecting the text panel to the 3D anchor. False draws the text alone.",
     ("LegendSpec", "position"): "Side on which the legend panel is placed.",
     (
         "LayoutNodeSpec",

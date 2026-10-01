@@ -1519,6 +1519,19 @@ function calloutPanelObstructed(x, y, width, height, viewportWidth, viewportHeig
   return false;
 }
 
+function offsetLabelOrigin(ax, ay, width, height, dx, dy) {
+  // Match Python _offset_label_origin. +x right, +y down. A zero component
+  // centers on that axis, so (0, -10) puts the bottom edge 10 px above.
+  let x, y;
+  if (dx > 0) x = ax + dx;
+  else if (dx < 0) x = ax + dx - width;
+  else x = ax - width / 2;
+  if (dy > 0) y = ay + dy;
+  else if (dy < 0) y = ay + dy - height;
+  else y = ay - height / 2;
+  return { x, y };
+}
+
 function updateWorldCallouts(staticLayout = captureLayout, force = false) {
   if (!loadedRoot || callouts.length === 0) return;
   if (currentPass !== 'beauty') {
@@ -1599,41 +1612,50 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
     }
     const label = item.label;
     const width = label.offsetWidth, height = label.offsetHeight;
-    const edge = CALLOUT_POLICY.edge;
-    const placements = [];
-    // A large front-facing surface can cover every nearby candidate. Expand
-    // the search toward the viewport edge before deciding to hide its label.
-    for (let gap = CALLOUT_POLICY.gap; gap <= Math.hypot(w, h);
-         gap = Math.round(gap * CALLOUT_POLICY.gap_growth + CALLOUT_POLICY.gap_step)) {
-      placements.push(
-        [ax + gap, ay - gap - height], [ax - gap - width, ay - gap - height],
-        [ax + gap, ay + gap], [ax - gap - width, ay + gap],
-        [ax - width / 2, ay - gap - height], [ax - width / 2, ay + gap],
-        [ax - gap - width, ay - height / 2], [ax + gap, ay - height / 2],
-      );
-    }
+    const hasExplicitOffset = Array.isArray(item.annotation.offset) && item.annotation.offset.length === 2;
     let best = null;
-    for (let i = 0; i < placements.length; i++) {
-      const x = Math.max(edge, Math.min(w - width - edge, placements[i][0]));
-      const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
-      if (w < width + 2 * edge || h < height + 2 * edge) break;
-      const rect = { x, y, w: width, h: height };
-      const radius = CALLOUT_POLICY.anchor_radius;
-      if (_rectOverlap(rect, { x: ax - radius, y: ay - radius, w: radius * 2, h: radius * 2 })) continue;
-      const score = i * 3 + (item.candidate < 0 || item.candidate === i ? 0 : 35);
-      // A crowded viewport is better served by hiding the callout than by
-      // covering controls or another label.
-      if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;
-      if (score >= (best ? best.score : Infinity)) continue;
-      if (calloutPanelObstructed(x, y, width, height, w, h)) continue;
-      if (!best || score < best.score) best = { x, y, score, candidate: i };
-    }
-    if (!best) {
-      hideWorldCallout(item);
-      continue;
+    if (hasExplicitOffset) {
+      const [ox, oy] = item.annotation.offset;
+      // Match Python _offset_label_origin: offset is the gap to the facing edge.
+      best = offsetLabelOrigin(ax, ay, width, height, ox, oy);
+      best.score = 0;
+      best.candidate = 0;
+    } else {
+      const edge = CALLOUT_POLICY.edge;
+      const placements = [];
+      // A large front-facing surface can cover every nearby candidate. Expand
+      // the search toward the viewport edge before deciding to hide its label.
+      for (let gap = CALLOUT_POLICY.gap; gap <= Math.hypot(w, h);
+           gap = Math.round(gap * CALLOUT_POLICY.gap_growth + CALLOUT_POLICY.gap_step)) {
+        placements.push(
+          [ax + gap, ay - gap - height], [ax - gap - width, ay - gap - height],
+          [ax + gap, ay + gap], [ax - gap - width, ay + gap],
+          [ax - width / 2, ay - gap - height], [ax - width / 2, ay + gap],
+          [ax - gap - width, ay - height / 2], [ax + gap, ay - height / 2],
+        );
+      }
+      for (let i = 0; i < placements.length; i++) {
+        const x = Math.max(edge, Math.min(w - width - edge, placements[i][0]));
+        const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
+        if (w < width + 2 * edge || h < height + 2 * edge) break;
+        const rect = { x, y, w: width, h: height };
+        const radius = CALLOUT_POLICY.anchor_radius;
+        if (_rectOverlap(rect, { x: ax - radius, y: ay - radius, w: radius * 2, h: radius * 2 })) continue;
+        const score = i * 3 + (item.candidate < 0 || item.candidate === i ? 0 : 35);
+        // A crowded viewport is better served by hiding the callout than by
+        // covering controls or another label.
+        if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;
+        if (score >= (best ? best.score : Infinity)) continue;
+        if (calloutPanelObstructed(x, y, width, height, w, h)) continue;
+        if (!best || score < best.score) best = { x, y, score, candidate: i };
+      }
+      if (!best) {
+        hideWorldCallout(item);
+        continue;
+      }
     }
     let { x, y } = best;
-    if (!staticLayout && item.previous) {
+    if (!hasExplicitOffset && !staticLayout && item.previous) {
       x = item.previous.x + (x - item.previous.x) * 0.3;
       y = item.previous.y + (y - item.previous.y) * 0.3;
       // A smooth transition may cross geometry even when its destination is clear.
@@ -1652,15 +1674,21 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
     label.style.left = `${x}px`;
     label.style.top = `${y}px`;
     label.style.visibility = 'visible';
+    const showArrow = item.annotation.arrow !== false;
     const sx = Math.max(x, Math.min(x + width, ax));
     const sy = Math.max(y, Math.min(y + height, ay));
     const dx = ax - sx, dy = ay - sy;
     const len = Math.hypot(dx, dy);
-    const ux = dx / len, uy = dy / len;
-    item.line.setAttribute('d', `M ${sx} ${sy} L ${ax} ${ay}`);
-    item.tip.setAttribute('d', `M ${ax} ${ay} L ${ax - ux * 9 - uy * 4} ${ay - uy * 9 + ux * 4} L ${ax - ux * 9 + uy * 4} ${ay - uy * 9 - ux * 4} Z`);
-    item.line.style.visibility = 'visible';
-    item.tip.style.visibility = 'visible';
+    if (showArrow && len > 0) {
+      const ux = dx / len, uy = dy / len;
+      item.line.setAttribute('d', `M ${sx} ${sy} L ${ax} ${ay}`);
+      item.tip.setAttribute('d', `M ${ax} ${ay} L ${ax - ux * 9 - uy * 4} ${ay - uy * 9 + ux * 4} L ${ax - ux * 9 + uy * 4} ${ay - uy * 9 - ux * 4} Z`);
+      item.line.style.visibility = 'visible';
+      item.tip.style.visibility = 'visible';
+    } else {
+      item.line.style.visibility = 'hidden';
+      item.tip.style.visibility = 'hidden';
+    }
     occupied.push({ x, y, w: width, h: height });
   }
 }

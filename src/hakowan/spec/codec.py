@@ -1195,6 +1195,8 @@ def _properties_to_spec(
                         _json_value(item.background, f"{path}.annotations.background"),
                     ),
                     padding=item.padding,
+                    offset=item.offset,
+                    arrow=item.arrow,
                 )
                 if isinstance(item, WorldAnnotation)
                 else sm.AnnotationSpec(
@@ -1462,6 +1464,8 @@ def _properties_from_spec(
                 font_size=item.font_size,
                 background=item.background,
                 padding=item.padding,
+                offset=item.offset,
+                arrow=item.arrow,
             )
             if isinstance(item, sm.WorldAnnotationSpec)
             else Annotation(

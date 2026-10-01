@@ -10,6 +10,7 @@ from PIL import Image
 
 import hakowan as hkw
 from hakowan.common.overlay import (
+    _offset_label_origin,
     _place_world_label,
     composite_overlay_file,
     composite_overlays,
@@ -384,6 +385,49 @@ def test_world_callout_avoids_foreground_and_preserves_arrow_color(transparent):
     assert np.any(panel)
     assert not np.any(panel & mask)
     assert result.getpixel((210, 160)) == (255, 0, 0, 255)
+
+
+def test_offset_label_origin_faces_the_anchor():
+    # (0, -10): bottom edge 10 px above the anchor, horizontally centered.
+    assert _offset_label_origin((200, 150), (60, 26), (0, -10)) == (170, 114)
+    # Rightward offset uses the left edge and centers vertically.
+    assert _offset_label_origin((200, 150), (60, 26), (10, 0)) == (210, 137)
+    # Leftward offset uses the right edge.
+    assert _offset_label_origin((200, 150), (60, 26), (-8, 4)) == (132, 154)
+
+
+def test_world_callout_relative_offset_placement_and_optional_arrow():
+    source = Image.new("RGBA", (400, 300), (255, 255, 255, 255))
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    # Anchor at (0, 0, 0) projects to (200, 150). offset=(0, -10) must sit
+    # the panel above that point instead of covering it.
+    above = CompiledWorldAnnotation(
+        text="OffsetText",
+        position=(0.0, 0.0, 0.0),
+        layer=0,
+        cell=None,
+        color=(1.0, 0.0, 0.0),
+        font_size=14,
+        background=(0.0, 0.0, 0.0),
+        padding=4,
+        offset=(0.0, -10.0),
+        arrow=False,
+    )
+    result = composite_overlays(
+        source, [], [], world_annotations=[above], sensor=camera
+    )
+    assert result.getpixel((200, 150)) == (255, 255, 255, 255)
+    assert result.getpixel((200, 135))[:3] == (0, 0, 0)
+    black = np.all(np.asarray(result)[:, :, :3] == 0, axis=2)
+    rows = np.where(black)[0]
+    assert rows.size
+    assert 150 - int(rows.max()) >= 10
+
+    with_arrow = composite_overlays(
+        source, [], [], world_annotations=[replace(above, arrow=True)], sensor=camera
+    )
+    assert with_arrow.getpixel((200, 150)) != (255, 255, 255, 255)
+    assert with_arrow.getpixel((200, 135))[:3] == (0, 0, 0)
 
 
 def test_world_callout_geometry_callback_precedes_mask_and_file_forwards(tmp_path):
