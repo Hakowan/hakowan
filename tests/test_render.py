@@ -18,6 +18,22 @@ mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
 from hakowan.backends.mitsuba.render import generate_base_config, generate_scene_config
 
 
+def _box_mesh():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([
+        [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+        [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
+        [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+        [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
+    ]))
+    mesh.add_triangles(np.array([
+        [4, 5, 6], [4, 6, 7], [0, 2, 1], [0, 3, 2],
+        [0, 4, 7], [0, 7, 3], [1, 2, 6], [1, 6, 5],
+        [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4],
+    ], dtype=np.uint32))
+    return mesh
+
+
 class TestRender:
     def test_render(self, triangle):
         mesh = triangle
@@ -205,6 +221,148 @@ class TestRender:
             assert image.size == (200, 160)
             assert image.mode == "RGBA"
             assert np.asarray(image)[:, :80, 3].min() == 0
+
+    @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
+    def test_mitsuba_box_callouts_use_camera_first_hit(
+        self, camera_type, tmp_path
+    ):
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import (
+            MitsubaBackend, _visible_world_annotations,
+        )
+        from hakowan.common.overlay import _project_world_annotations
+        from hakowan.setup.sensor import Orthographic, Perspective
+
+        mesh = _box_mesh()
+        anchors = {
+            "Front": (0, 0, 0.5), "Right": (0.5, 0, 0),
+            "Top": (0, 0.5, 0), "Back": (0, 0, -0.5),
+            "Left": (-0.5, 0, 0), "Bottom": (0, -0.5, 0),
+            "Near surface": (0, 0, 0.50001),
+        }
+        layer = hkw.layer(mesh)
+        for name, position in anchors.items():
+            layer = layer.annotate(hkw.WorldAnnotation(
+                name, position=position,
+                color="blue" if name in {"Back", "Left", "Bottom"} else "red",
+                font_size=11, background=None,
+            ))
+        scene = hkw.compile(layer)
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.sampler.sample_count = 4
+        common = dict(location=(3, 2.4, 4), target=(0, 0, 0), up=(0, 1, 0))
+        config.sensor = (
+            Orthographic(scale=2.6, **common) if camera_type == "orthographic"
+            else Perspective(fov=46, fov_axis="y", **common)
+        )
+        mi_scene = mi.load_dict(generate_base_config(config) | generate_scene_config(scene))
+        visible = _visible_world_annotations(mi_scene, config.sensor, scene.world_annotations)
+        assert {item.text for item in visible} == {
+            "Front", "Right", "Top", "Near surface"
+        }
+
+        if camera_type == "orthographic":
+            output = tmp_path / "box.png"
+            MitsubaBackend().render(scene, config, filename=output)
+            with Image.open(output) as image:
+                pixels = np.asarray(image.convert("RGB"))
+            assert not np.any(
+                (pixels[..., 2] > 240) & (pixels[..., 0] < 10) & (pixels[..., 1] < 10)
+            )
+            projected = _project_world_annotations(
+                scene.world_annotations, (240, 160), sensor=config.sensor,
+                world_to_camera=None, projection=None,
+            )
+            for annotation, x, y in projected:
+                ix, iy = round(x), round(y)
+                area = pixels[iy - 2:iy + 3, ix - 2:ix + 3]
+                red = (area[..., 0] > 230) & (area[..., 1] < 30) & (area[..., 2] < 30)
+                if annotation.text in {"Front", "Right", "Top"}:
+                    assert red.any(), annotation.text
+
+    @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
+    def test_mitsuba_box_label_clears_rendered_silhouette(
+        self, camera_type, tmp_path
+    ):
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import MitsubaBackend
+        from hakowan.setup.sensor import Orthographic, Perspective
+
+        layer = hkw.layer(_box_mesh()).annotate(hkw.WorldAnnotation(
+            "Front face", position=(0, 0, 0.5), color="black",
+            font_size=14, background="#ff00ff", padding=4,
+        ))
+        config = hkw.config()
+        config.film.width, config.film.height = 320, 240
+        config.sampler.sample_count = 4
+        common = dict(location=(0, 0, 4), target=(0, 0, 0), up=(0, 1, 0))
+        config.sensor = (
+            Orthographic(scale=2.6, **common) if camera_type == "orthographic"
+            else Perspective(fov=46, fov_axis="y", **common)
+        )
+        output = tmp_path / "box-label.png"
+        image = MitsubaBackend().render(hkw.compile(layer), config, filename=output)
+        silhouette = np.asarray(image)[..., 3] > 0.99
+        with Image.open(output) as rendered:
+            pixels = np.asarray(rendered.convert("RGB"))
+        label_background = (
+            (pixels[..., 0] > 240) & (pixels[..., 1] < 15)
+            & (pixels[..., 2] > 240)
+        )
+        assert label_background.any()
+        assert not np.any(label_background & silhouette)
+
+    def test_mitsuba_cube_roof_is_lit_across_sharp_edges(self):
+        from hakowan.setup.sensor import Orthographic
+
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.sampler.sample_count = 4
+        config.sensor = Orthographic(location=(1, 1, 5), scale=2)
+        image = np.asarray(
+            hkw.render(
+                hkw.layer(_box_mesh()).material("Diffuse", "orange"),
+                config,
+                backend="mitsuba",
+            ).image
+        )
+
+        # Both points are on the roof: missing feature-angle normals made its
+        # far half black even though the near half was lit by the environment.
+        assert image[28, 120, 0] > 0.1
+        assert image[37, 120, 0] > 0.1
+
+    def test_mitsuba_callout_can_be_hidden_by_another_shape(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.compiler.overlay import CompiledWorldAnnotation
+        from hakowan.setup.sensor import Orthographic
+
+        config = hkw.config()
+        config.film.width, config.film.height = 180, 120
+        config.sensor = Orthographic(
+            location=(0, 0, 5), target=(0, 0, 0), scale=2,
+        )
+        scene_config = generate_base_config(config)
+        scene_config["front"] = {
+            "type": "cube", "to_world": mi.ScalarTransform4f().translate([0, 0, 0.5])
+            @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
+        }
+        scene_config["back"] = {
+            "type": "cube", "to_world": mi.ScalarTransform4f().translate([0, 0, -0.5])
+            @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
+        }
+        annotations = [
+            CompiledWorldAnnotation(
+                text=name, position=(0, 0, z), layer=layer, cell=None,
+                color=(1, 0, 0), font_size=11, background=None, padding=0,
+            )
+            for name, z, layer in (("front", 0.6, 0), ("back", -0.4, 1))
+        ]
+        visible = _visible_world_annotations(
+            mi.load_dict(scene_config), config.sensor, annotations
+        )
+        assert [item.text for item in visible] == ["front"]
 
     def test_mitsuba_point_scalar_colors_are_decoded_once(self, triangle):
         from hakowan.common.color import srgb_to_linear

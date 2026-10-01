@@ -7,8 +7,9 @@ from .shape import generate_point_config, generate_curve_config, generate_surfac
 
 from ...common import logger
 from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
-from ...common.overlay import composite_overlay_file
+from ...common.overlay import _project_world_annotations, composite_overlay_file
 from ...compiler import Scene, View
+from ...compiler.overlay import CompiledWorldAnnotation
 from ...setup import Config
 from ...setup.integrator import AOV, Integrator
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, RENDER_PASSES, aov_path
@@ -18,7 +19,7 @@ from .. import RenderBackend
 import datetime
 import mitsuba as mi
 import drjit
-from typing import Any
+from typing import Any, Callable
 from pathlib import Path
 import numpy as np
 import yaml
@@ -134,9 +135,52 @@ def _beauty_rgba_indexes(
     return (red, green, blue, alpha)
 
 
+def _visible_world_annotations(
+    scene: "mi.Scene",
+    camera: Any,
+    annotations: list[CompiledWorldAnnotation],
+) -> list[CompiledWorldAnnotation]:
+    """Keep anchors whose camera ray first hits their surface (or empty space).
+
+    Cast one ray through each projected anchor using the loaded Mitsuba sensor,
+    so orthographic rays originate on the corresponding part of the film rather
+    than converging on the eye. The same scene BVH handles all shapes/layers.
+    """
+    if not annotations:
+        return annotations
+
+    sensor = scene.sensors()[0]
+    width, height = map(int, sensor.film().size())
+    projected = _project_world_annotations(
+        annotations,
+        (width, height),
+        sensor=camera,
+        world_to_camera=None,
+        projection=None,
+    )
+    visible = []
+    for annotation, x, y in projected:
+        ray, _ = sensor.sample_ray(
+            0.0, 0.0, mi.Point2f(x / width, y / height), mi.Point2f(0.5, 0.5)
+        )
+        anchor_distance = float(
+            np.dot(
+                np.asarray(annotation.position, dtype=np.float64) - np.array(ray.o),
+                np.array(ray.d),
+            )
+        )
+        hit = scene.ray_intersect(ray)
+        tolerance = 1e-4 * max(1.0, abs(anchor_distance))
+        if not hit.is_valid() or float(hit.t) >= anchor_distance - tolerance:
+            visible.append(annotation)
+    return visible
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
-    sensor_config = generate_sensor_config(config.sensor)
+    sensor_config = generate_sensor_config(
+        config.sensor, film_width=config.film.width, film_height=config.film.height
+    )
     sensor_config["film"] = generate_film_config(config.film)
     sensor_config["sampler"] = generate_sampler_config(config.sampler)
     integrator_config = generate_integrator_config(_effective_integrator(config))
@@ -422,9 +466,28 @@ class MitsubaBackend(RenderBackend):
             # not, and a missing parent fails silently (deferred I/O error).
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
+            world_annotations = scene.world_annotations
+            geometry_at: Callable[[float, float], bool] | None = None
+            if world_annotations and not is_hdr_suffix(filename.suffix):
+                world_annotations = _visible_world_annotations(
+                    mi_scene, config.sensor, world_annotations
+                )
+                sensor = mi_scene.sensors()[0]
+                width, height = map(int, sensor.film().size())
+
+                def world_geometry_at(x: float, y: float) -> bool:
+                    ray, _ = sensor.sample_ray(
+                        0.0, 0.0,
+                        mi.Point2f(x / width, y / height),
+                        mi.Point2f(0.5, 0.5),
+                    )
+                    return bool(mi_scene.ray_test(ray))
+
+                geometry_at = world_geometry_at
             if not composite_overlay_file(
                 filename, scene.legends, scene.annotations, config.background,
-                world_annotations=scene.world_annotations, sensor=config.sensor,
+                world_annotations=world_annotations, sensor=config.sensor,
+                geometry_at=geometry_at,
             ):
                 logger.warning(
                     "Legends and annotations (including world annotations) are not "

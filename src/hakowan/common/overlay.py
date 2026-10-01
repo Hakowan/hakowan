@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence, TypedDict
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -12,6 +12,29 @@ from PIL import Image, ImageDraw, ImageFont
 from ..compiler.overlay import CompiledAnnotation, CompiledLegend, CompiledWorldAnnotation
 from ..setup.sensor import Orthographic, Perspective, Sensor
 from .image_io import _write
+
+
+class _CalloutPolicy(TypedDict):
+    edge: int
+    anchor_radius: int
+    gap: int
+    gap_growth: float
+    gap_step: int
+    footprint: list[tuple[float, float]]
+
+
+CALLOUT_POLICY: _CalloutPolicy = {
+    "edge": 6,
+    "anchor_radius": 12,
+    "gap": 20,
+    "gap_growth": 1.5,
+    "gap_step": 15,
+    "footprint": [
+        (0.03, 0.03), (0.5, 0.03), (0.97, 0.03),
+        (0.03, 0.5), (0.5, 0.5), (0.97, 0.5),
+        (0.03, 0.97), (0.5, 0.97), (0.97, 0.97),
+    ],
+}
 
 
 @lru_cache(maxsize=None)
@@ -126,6 +149,7 @@ def _draw_annotations(
     annotations: Sequence[CompiledAnnotation],
     image_origin_x: int,
     image_width: int,
+    occupied: list[tuple[float, float, float, float]] | None = None,
 ) -> None:
     draw = ImageDraw.Draw(image, "RGBA")
     for annotation in annotations:
@@ -140,6 +164,11 @@ def _draw_annotations(
         elif annotation.anchor == "right":
             x -= text_width
         padding = annotation.padding
+        if occupied is not None:
+            occupied.append((
+                x - padding, y - padding,
+                x + text_width + padding, y + max(text_height, bbox[3]) + padding,
+            ))
         if annotation.background is not None:
             draw.rectangle(
                 (
@@ -199,10 +228,10 @@ def _project_world_annotations(
     right /= np.linalg.norm(right)
     up = np.cross(backward, right)
     if isinstance(sensor, Orthographic):
-        # Mitsuba's film covers [-1, 1] horizontally before the configured
-        # scale transform; image aspect changes the vertical extent instead.
-        horizontal_extent = float(sensor.scale)
-        vertical_extent = horizontal_extent * height / width
+        # Orthographic scale is the full vertical camera extent. The same
+        # projection is used by the WebGL and Mitsuba backends.
+        vertical_extent = float(sensor.scale)
+        horizontal_extent = vertical_extent * width / height
     elif isinstance(sensor, Perspective):
         axis = sensor.fov_axis
         reference = {
@@ -232,62 +261,86 @@ def _project_world_annotations(
     return result
 
 
+def _place_world_label(
+    anchor: tuple[float, float],
+    panel_size: tuple[float, float],
+    viewport: tuple[int, int],
+    occupied: Sequence[tuple[float, float, float, float]],
+    geometry_at: Callable[[float, float], bool] | None = None,
+) -> tuple[float, float, float, float] | None:
+    """Return the first legal static callout rectangle (left, top, right, bottom)."""
+    ax, ay = anchor
+    width, height = panel_size
+    viewport_width, viewport_height = viewport
+    edge = CALLOUT_POLICY["edge"]
+    if width + 2 * edge > viewport_width or height + 2 * edge > viewport_height:
+        return None
+    radius = CALLOUT_POLICY["anchor_radius"]
+    gap = CALLOUT_POLICY["gap"]
+    while gap <= np.hypot(viewport_width, viewport_height):
+        candidates = (
+            (ax + gap, ay - gap - height), (ax - gap - width, ay - gap - height),
+            (ax + gap, ay + gap), (ax - gap - width, ay + gap),
+            (ax - width / 2, ay - gap - height), (ax - width / 2, ay + gap),
+            (ax - gap - width, ay - height / 2), (ax + gap, ay - height / 2),
+        )
+        for x, y in candidates:
+            left = max(edge, min(viewport_width - width - edge, x))
+            top = max(edge, min(viewport_height - height - edge, y))
+            right, bottom = left + width, top + height
+            if (left < ax + radius and right > ax - radius
+                    and top < ay + radius and bottom > ay - radius):
+                continue
+            if any(
+                left < other_right and right > other_left
+                and top < other_bottom and bottom > other_top
+                for other_left, other_top, other_right, other_bottom in occupied
+            ):
+                continue
+            if geometry_at is not None and any(
+                geometry_at(left + width * u, top + height * v)
+                for u, v in CALLOUT_POLICY["footprint"]
+            ):
+                continue
+            return left, top, right, bottom
+        # Match JavaScript Math.round, including positive half-integers.
+        gap = int(gap * CALLOUT_POLICY["gap_growth"] + CALLOUT_POLICY["gap_step"] + 0.5)
+    return None
+
+
 def _draw_world_annotations(
     image: Image.Image,
     annotations: Sequence[tuple[CompiledWorldAnnotation, float, float]],
+    occupied: list[tuple[float, float, float, float]],
+    geometry_at: Callable[[float, float], bool] | None = None,
 ) -> None:
     """Lay out labels in screen space while retaining leaders to their anchors."""
     draw = ImageDraw.Draw(image, "RGBA")
-    occupied: list[tuple[float, float, float, float]] = []
-    anchors = [(x, y) for _, x, y in annotations]
     for annotation, ax, ay in annotations:
         font = _font(annotation.font_size)
-        bbox = draw.multiline_textbbox((0, 0), annotation.text, font=font)
-        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        panel_width = text_width + annotation.padding * 2
-        panel_height = text_height + annotation.padding * 2
-        placement = None
-        # Prefer adjacent diagonals, then search farther away when labels collide.
-        directions = (
-            (1, -1), (1, 1), (-1, -1), (-1, 1),
-            (1, 0), (-1, 0), (0, -1), (0, 1),
+        max_text_width = min(260, image.width * 0.35)
+        lines = []
+        for paragraph in annotation.text.split("\n"):
+            remaining = paragraph
+            while remaining and draw.textlength(remaining, font=font) > max_text_width:
+                end = 1
+                while (end < len(remaining)
+                       and draw.textlength(remaining[:end + 1], font=font) <= max_text_width):
+                    end += 1
+                # Prefer a word boundary, but split long words like overflow-wrap:anywhere.
+                boundary = max(remaining.rfind(" ", 0, end), remaining.rfind("\t", 0, end))
+                if boundary > 0:
+                    end = boundary + 1
+                lines.append(remaining[:end])
+                remaining = remaining[end:]
+            lines.append(remaining)
+        line_height = annotation.font_size * 1.25
+        text_width = max(draw.textlength(line, font=font) for line in lines)
+        panel_width = int(np.ceil(text_width + annotation.padding * 2))
+        panel_height = int(np.ceil(len(lines) * line_height + annotation.padding * 2))
+        placement = _place_world_label(
+            (ax, ay), (panel_width, panel_height), image.size, occupied, geometry_at
         )
-        for distance in (18, 30, 46, 68, 96, 136, 188):
-            for dx, dy in directions:
-                if dx > 0:
-                    left = ax + distance
-                elif dx < 0:
-                    left = ax - distance - panel_width
-                else:
-                    left = ax - panel_width / 2
-                if dy > 0:
-                    top = ay + distance
-                elif dy < 0:
-                    top = ay - distance - panel_height
-                else:
-                    top = ay - panel_height / 2
-                right, bottom = left + panel_width, top + panel_height
-                if (
-                    left < 1 or top < 1
-                    or right >= image.width - 1 or bottom >= image.height - 1
-                ):
-                    continue
-                if any(
-                    left - 4 < x < right + 4 and top - 4 < y < bottom + 4
-                    for x, y in anchors
-                ):
-                    continue
-                if any(
-                    left - 4 < existing_right and right + 4 > existing_left
-                    and top - 4 < existing_bottom and bottom + 4 > existing_top
-                    for existing_left, existing_top, existing_right, existing_bottom
-                    in occupied
-                ):
-                    continue
-                placement = (left, top, right, bottom)
-                break
-            if placement is not None:
-                break
         if placement is None:
             continue
         left, top, right, bottom = placement
@@ -319,11 +372,14 @@ def _draw_world_annotations(
             )
         if annotation.background is not None:
             draw.rectangle(placement, fill=(*_rgb(annotation.background), 220))
-        draw.multiline_text(
-            (left + annotation.padding - bbox[0], top + annotation.padding - bbox[1]),
-            annotation.text, fill=color, font=font,
-            stroke_width=1, stroke_fill=contrast,
-        )
+        for index, line in enumerate(lines):
+            bbox = draw.textbbox((0, 0), line, font=font)
+            draw.text(
+                (left + annotation.padding - bbox[0],
+                 top + annotation.padding + index * line_height
+                 + (line_height - (bbox[3] - bbox[1])) / 2 - bbox[1]),
+                line, fill=color, font=font, stroke_width=1, stroke_fill=contrast,
+            )
 
 
 def composite_overlays(
@@ -336,25 +392,29 @@ def composite_overlays(
     sensor: Sensor | None = None,
     world_to_camera: np.ndarray | None = None,
     projection: np.ndarray | None = None,
+    geometry_mask: np.ndarray | None = None,
+    geometry_at: Callable[[float, float], bool] | None = None,
 ) -> Image.Image:
-    """Overlay legends, fixed annotations and camera-projected callouts."""
+    """Overlay legends, fixed annotations and camera-projected callouts.
+
+    Geometry is sampled at nine panel footprint points, using ``geometry_at``
+    preferentially or ``geometry_mask`` in source-image pixel coordinates.
+    Transparent sources supply an alpha foreground mask by default; opaque
+    sources do not imply that the whole viewport contains geometry.
+    """
     source = image.convert("RGBA")
     if background is None:
         output = source.copy()
     else:
-        canvas_color = (
-            (18, 18, 18, 255) if background == "dark" else (255, 255, 255, 255)
-        )
+        canvas_color = {
+            "dark": (18, 18, 18, 255),
+            "light": (255, 255, 255, 255),
+            "black": (0, 0, 0, 255),
+        }[background]
         output = Image.new("RGBA", source.size, canvas_color)
         output.alpha_composite(source)
 
-
-    if world_annotations:
-        projected = _project_world_annotations(
-            world_annotations, source.size, sensor=sensor,
-            world_to_camera=world_to_camera, projection=projection,
-        )
-        _draw_world_annotations(output, projected)
+    occupied: list[tuple[float, float, float, float]] = []
     left = [legend for legend in legends if legend.position == "left"]
     right = [legend for legend in legends if legend.position == "right"]
     margin = 8 if source.width > 16 and source.height > 16 else 0
@@ -364,11 +424,31 @@ def composite_overlays(
         width = min(max(legend.width for legend in left), available_width)
         panel = _draw_legend_panel(left, width, available_height)
         output.alpha_composite(panel, (margin, margin))
+        occupied.append((margin, margin, margin + panel.width, margin + panel.height))
     if right:
         width = min(max(legend.width for legend in right), available_width)
         panel = _draw_legend_panel(right, width, available_height)
         output.alpha_composite(panel, (source.width - width - margin, margin))
-    _draw_annotations(output, annotations, 0, source.width)
+        occupied.append((source.width - width - margin, margin,
+                         source.width - margin, margin + panel.height))
+    _draw_annotations(output, annotations, 0, source.width, occupied)
+    if world_annotations:
+        if geometry_at is None:
+            if geometry_mask is None:
+                alpha = np.asarray(source.getchannel("A"))
+                if np.any(alpha < 255):
+                    geometry_mask = alpha > 0
+            if geometry_mask is not None:
+                def geometry_at(x: float, y: float) -> bool:
+                    return bool(geometry_mask[
+                        min(max(int(y), 0), geometry_mask.shape[0] - 1),
+                        min(max(int(x), 0), geometry_mask.shape[1] - 1),
+                    ])
+        projected = _project_world_annotations(
+            world_annotations, source.size, sensor=sensor,
+            world_to_camera=world_to_camera, projection=projection,
+        )
+        _draw_world_annotations(output, projected, occupied, geometry_at)
     return output
 
 
@@ -382,6 +462,8 @@ def composite_overlay_file(
     sensor: Sensor | None = None,
     world_to_camera: np.ndarray | None = None,
     projection: np.ndarray | None = None,
+    geometry_mask: np.ndarray | None = None,
+    geometry_at: Callable[[float, float], bool] | None = None,
 ) -> bool:
     """Composite overlays into a Pillow-readable image file.
 
@@ -397,9 +479,10 @@ def composite_overlay_file(
             source, legends, annotations, background,
             world_annotations=world_annotations, sensor=sensor,
             world_to_camera=world_to_camera, projection=projection,
+            geometry_mask=geometry_mask, geometry_at=geometry_at,
         )
     _write(result, filename)
     return True
 
 
-__all__ = ["composite_overlay_file", "composite_overlays"]
+__all__ = ["CALLOUT_POLICY", "composite_overlay_file", "composite_overlays"]

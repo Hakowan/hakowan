@@ -1015,6 +1015,10 @@ def translate_material(view: View, builder: GLTFBuilder) -> MaterialResult:
     elif isinstance(mat, Diffuse):
         pbr["metallicFactor"] = 0.0
         pbr["roughnessFactor"] = 1.0
+        # glTF's default dielectric F0 adds a white highlight to even a fully
+        # rough material. IOR 1 has zero Fresnel reflection, matching Mitsuba's
+        # pure Diffuse BSDF while retaining environment-lit Lambert shading.
+        pbr["ior"] = 1.0
 
     _apply_normal_map(pbr, builder, view.normal_map)
     _apply_bump_map(pbr, builder, view)

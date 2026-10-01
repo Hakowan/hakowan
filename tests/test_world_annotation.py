@@ -14,6 +14,31 @@ def _triangle():
     return mesh
 
 
+def _box():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+                [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
+            ]
+        )
+    )
+    mesh.add_triangles(
+        np.array(
+            [
+                [4, 5, 6], [4, 6, 7], [0, 2, 1], [0, 3, 2],
+                [0, 4, 7], [0, 7, 3], [1, 2, 6], [1, 6, 5],
+                [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4],
+            ],
+            dtype=np.uint32,
+        )
+    )
+    return mesh
+
+
 def test_world_callouts_follow_layout_and_remain_attached_to_views():
     mesh = _triangle()
     layer = hkw.layer(mesh).annotate(hkw.WorldAnnotation("vertex", position=(0, 0, 0)))
@@ -107,3 +132,110 @@ def test_browser_callouts_track_rotation_and_layer_visibility(tmp_path):
             assert labels.nth(1).is_visible()
         finally:
             browser.close()
+
+
+def test_browser_box_front_face_callout_finds_space_outside_geometry(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = (
+        hkw.layer(_box())
+        .annotate(hkw.WorldAnnotation("Front", position=(0, 0, 0.5)))
+        .annotate(hkw.WorldAnnotation("Back", position=(0, 0, -0.5)))
+    )
+    viewer = hkw.render(
+        layer, filename=tmp_path / "box.html", backend="webgl", offline=True
+    )
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 1024, "height": 800})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            front = page.locator(".world-callout", has_text="Front")
+            back = page.locator(".world-callout", has_text="Back")
+            assert front.is_visible()
+            assert not back.is_visible()
+            assert page.evaluate(
+                """() => {
+                  const h = window.__hakowan, T = h.THREE;
+                  const rect = [...document.querySelectorAll('.world-callout')]
+                    .find(label => label.textContent === 'Front').getBoundingClientRect();
+                  const ray = new T.Raycaster();
+                  ray.setFromCamera(new T.Vector2(
+                    2 * (rect.x + rect.width / 2) / innerWidth - 1,
+                    1 - 2 * (rect.y + rect.height / 2) / innerHeight
+                  ), h.getCamera());
+                  return ray.intersectObject(h.loadedRoot, true)
+                    .every(hit => !hit.object.isMesh);
+                }"""
+            )
+        finally:
+            browser.close()
+
+
+def test_static_box_label_uses_same_browser_and_raster_placement(tmp_path):
+    import base64
+    import io
+    from PIL import Image
+    from hakowan.common.overlay import _place_world_label
+
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = hkw.layer(_box()).annotate(hkw.WorldAnnotation("Front", (0, 0, 0.5)))
+    figure = hkw.figure(layer).camera("orthographic", eye=(1, 1, 5))
+    viewer = hkw.render(
+        figure, filename=tmp_path / "placement.html", backend="webgl", offline=True
+    )
+    anchor = hkw.compile(layer).world_annotations[0].position
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 1024, "height": 800})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            page.evaluate("() => window.__hakowan.prepareCapture(1024, 800)")
+            normal_url = page.evaluate("() => window.__hakowan.capturePng('normal')")
+            page.evaluate("() => window.__hakowan.setPass('beauty')")
+            layout = page.evaluate(
+                """anchor => {
+                  const h = window.__hakowan;
+                  const p = new h.THREE.Vector3(...anchor).project(h.getCamera());
+                  const box = document.querySelector('.world-callout').getBoundingClientRect();
+                  return {anchor: [(p.x + 1) * 512, (1 - p.y) * 400],
+                    size: [box.width, box.height], rect: [box.left, box.top, box.right, box.bottom]};
+                }""",
+                list(anchor),
+            )
+            with Image.open(io.BytesIO(base64.b64decode(normal_url.split(",", 1)[1]))) as image:
+                mask = np.any(np.asarray(image.convert("RGB")) != 0, axis=2)
+
+            def geometry_at(x, y):
+                return bool(mask[min(799, int(y)), min(1023, int(x))])
+
+            raster = _place_world_label(
+                layout["anchor"], layout["size"], (1024, 800), [], geometry_at
+            )
+            assert raster is not None
+            np.testing.assert_allclose(raster, layout["rect"], atol=1.0)
+        finally:
+            browser.close()
+
+
+def test_box_snapshot_places_world_text_outside_mesh():
+    pytest.importorskip("playwright.sync_api")
+    layer = hkw.layer(_box()).annotate(
+        hkw.WorldAnnotation("Front", (0, 0, 0.5), background="magenta", color="white")
+    )
+    figure = (
+        hkw.figure(layer)
+        .camera("orthographic", eye=(1, 1, 5))
+        .output(width=320, height=240, background="black")
+    )
+    beauty = np.asarray(hkw.snapshot(figure).image.convert("RGB"))
+    normal = np.asarray(hkw.snapshot(figure, pass_name="normal").image.convert("RGB"))
+    panel = (beauty[..., 0] > 150) & (beauty[..., 1] < 25) & (beauty[..., 2] > 150)
+    geometry = np.any(normal != 0, axis=2)
+    assert panel.any()
+    assert not np.any(panel & geometry)

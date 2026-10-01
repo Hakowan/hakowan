@@ -286,7 +286,7 @@ FIELD_OVERRIDES = {
     ): "Full vertical world-space extent of the orthographic view.",
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
     ("OutputSettingsSpec", "background"): (
-        "Optional opaque light or dark raster background; null preserves "
+        "Optional opaque light, dark, or black raster background; null preserves "
         "backend transparency. WebGL falls back to its dark viewer background."
     ),
     (

@@ -126,17 +126,23 @@ display the interactive viewer; link to the HTML page instead.
 
 **Background:**
 
-The beauty view uses a soft "studio" radial gradient — a bright spot in the centre falling off
-towards the edges. Two presets are available via the `background` option:
+The WebGL beauty view defaults to a soft dark studio gradient; `"light"` is
+another gradient, and `"black"` matches an opaque black raster background:
 
 ```py
-hkw.render(layer, filename="output.html", backend="webgl", background="dark")   # default
+hkw.render(layer, filename="output.html", backend="webgl", background="dark")  # default
 hkw.render(layer, filename="output.html", backend="webgl", background="light")
+hkw.render(layer, filename="output.html", backend="webgl", background="black")
 ```
 
-The `background` option only sets the *initial* look. The interactive viewer includes a small
-**☀ / ☾ button** (top-right) to toggle light/dark at any time. Transparent materials (e.g.
-`ThinDielectric` glass) refract whichever background is active.
+The `background` option sets the *initial* look. The interactive viewer's
+**☀ / ☾ button** switches to light/dark gradients, including when it starts
+black. Transparent materials (e.g. `ThinDielectric` glass) refract the active
+background. Use `figure.output(background="black")` to request a black background
+in WebGL **and** opaque raster renders. Orthographic `scale` is now the full
+vertical extent in WebGL and Mitsuba, independent of aspect ratio. WebGL Diffuse
+shading no longer adds the glTF dielectric specular lobe, but Three.js PMREM
+lighting and Mitsuba path tracing can still give slightly different colors.
 
 ## Render result
 

@@ -3,8 +3,10 @@ from ...setup.sensor import Sensor, Perspective, Orthographic, ThinLens
 import mitsuba as mi
 
 
-def generate_sensor_config(sensor: Sensor) -> dict:
-    """Generate a Mitsuba sensor description dict from a Sensor."""
+def generate_sensor_config(
+    sensor: Sensor, *, film_width: int, film_height: int
+) -> dict:
+    """Generate a Mitsuba sensor description for the given film dimensions."""
 
     mi_config = {
         "to_world": mi.ScalarTransform4f().look_at(  # type: ignore
@@ -23,10 +25,14 @@ def generate_sensor_config(sensor: Sensor) -> dict:
             mi_config["fov_axis"] = sensor.fov_axis
         case Orthographic():
             mi_config["type"] = "orthographic"
+            # Mitsuba's orthographic film already applies the inverse aspect ratio
+            # to its vertical rays. Scale both axes by the aspect ratio so the
+            # full vertical extent stays at sensor.scale for any film shape.
+            half_width = sensor.scale * film_width / film_height * 0.5
             mi_config["to_world"] = mi_config[
                 "to_world"
             ] @ mi.ScalarTransform4f().scale(  # type: ignore
-                [sensor.scale * 0.5, sensor.scale * 0.5, 1.0]
+                [half_width, half_width, 1.0]
             )
         case ThinLens():
             mi_config["type"] = "thinlens"

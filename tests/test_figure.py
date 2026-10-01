@@ -72,6 +72,52 @@ def test_figure_fluent_scene_settings_are_immutable(tmp_path):
     assert len(config.emitters) == 3  # environment + point + directional
 
 
+
+def test_black_background_matches_webgl_snapshot_and_raster_compositor(
+    playwright_browser,
+):
+    from hakowan.common.overlay import composite_overlays
+    from PIL import Image
+
+    figure = hkw.figure(hkw.layer(_triangle())).output(
+        width=96, height=64, background="black"
+    )
+    assert figure.to_config().background == "black"
+
+    snapshot = hkw.snapshot(figure)
+    assert snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
+
+    transparent = Image.new("RGBA", (96, 64), (255, 255, 255, 0))
+    raster = composite_overlays(transparent, [], [], figure.scene.output.background)
+    assert raster.getpixel((0, 0)) == (0, 0, 0, 255)
+
+
+def test_black_viewer_switches_to_light_background(playwright_browser, tmp_path):
+    import io
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+
+    figure = hkw.figure(hkw.layer(_triangle())).output(background="black")
+    viewer = hkw.render(
+        figure, backend="webgl", filename=tmp_path / "black.html", offline=True
+    )
+    with sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 1024, "height": 800})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            with Image.open(io.BytesIO(page.screenshot())) as screenshot:
+                assert screenshot.convert("RGB").getpixel((2, 2)) == (0, 0, 0)
+            page.locator("#btn-bg").click()
+            with Image.open(io.BytesIO(page.screenshot())) as screenshot:
+                assert min(screenshot.convert("RGB").getpixel((2, 2))) > 100
+        finally:
+            browser.close()
+
+
 def test_clear_lights_and_disabled_environment():
     figure = (
         hkw.figure(hkw.layer(_triangle()))
@@ -198,7 +244,9 @@ def test_figure_schema_1_1_round_trip_and_relative_environment(tmp_path):
         .camera("thin_lens", eye=(2, 3, 4), aperture_radius=0.2)
         .light("directional", direction=(0, 0, -1), color="white", intensity=3)
         .environment("studio.exr", visible=True)
-        .output(width=320, height=200, passes=("beauty", "depth"))
+        .output(
+            width=320, height=200, background="black", passes=("beauty", "depth")
+        )
     )
 
     spec = hkw.to_spec(figure, data_ids={id(mesh): "mesh"})
@@ -209,6 +257,7 @@ def test_figure_schema_1_1_round_trip_and_relative_environment(tmp_path):
     assert spec.scene.camera.kind == "thin_lens"
     assert isinstance(restored, hkw.Figure)
     assert restored.scene.environment.path == tmp_path / "studio.exr"
+    assert spec.scene.output.background == "black"
     assert round_trip.to_json(canonical=True) == spec.to_json(canonical=True)
 
 

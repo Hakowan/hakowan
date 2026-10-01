@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import math
 import re
@@ -14,6 +15,7 @@ import pytest
 
 pygltflib = pytest.importorskip("pygltflib")
 import lagrange
+from PIL import Image
 
 import hakowan as hkw
 from hakowan.setup.emitter import Envmap, Point as PointEmitter
@@ -635,6 +637,34 @@ def test_world_callouts_serialize_layer_cell_and_safe_text(tmp_path):
     assert all(item["padding"] == 7 and item["color"] == [1, 0, 0] for item in world)
     assert [item["text"] for item in screen] == ["Screen"]
     assert payload not in html  # The inline JSON must not close the script tag.
+
+
+def test_diffuse_webgl_env_has_no_white_specular_highlight(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = hkw.layer(_make_icosphere()).material("Diffuse", "red")
+    result = hkw.render(
+        layer, filename=tmp_path / "diffuse.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        try:
+            browser = runtime.chromium.launch(
+                headless=True, args=["--allow-file-access-from-files"]
+            )
+        except playwright.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page(viewport={"width": 160, "height": 160})
+            page.goto(result.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            image_url = page.evaluate("() => window.__hakowan.capturePng('beauty')")
+            image_bytes = base64.b64decode(image_url.split(",", 1)[1])
+            with Image.open(io.BytesIO(image_bytes)) as image:
+                r, g, b, _ = image.convert("RGBA").getpixel((80, 80))
+            assert r > 50
+            assert g <= 2 and b <= 2
+        finally:
+            browser.close()
 
 
 def test_render_unknown_kwarg_raises(tmp_path):

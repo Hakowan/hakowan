@@ -191,9 +191,10 @@ Output settings describe semantic intent. Filename, backend, browser executable,
 render device, and performance-specific sample counts remain invocation options.
 
 `background` defaults to `None`: Mitsuba and Blender retain backend alpha in
-formats that support it. Set `"light"` or `"dark"` to flatten transparent pixels
-onto an opaque raster background. WebGL still uses its dark viewer background
-when no override is specified.
+formats that support it. Set `"light"`, `"dark"`, or `"black"` to flatten
+transparent pixels onto an opaque raster background. WebGL uses its dark studio
+gradient by default; `"black"` makes its initial viewer background solid black
+to match a black raster output.
 
 ## Precedence
 

@@ -144,11 +144,21 @@ or hidden by geometry are not displayed; crowded scenes may hide labels that
 cannot be placed without overlap. Existing `Annotation` remains a fixed
 screen-space overlay.
 
+WebGL and raster callouts use the same placement policy: try the same ordered
+directions, expand the distance until the text clears the rendered geometry,
+keep a six-pixel viewport inset and a twelve-pixel exclusion around the anchor,
+and avoid fixed overlays and previously placed labels. If no legal position
+exists, hide the callout rather than cover the mesh. WebGL additionally avoids
+its controls and preserves the previous placement during interactive movement.
+For identical cameras and viewport sizes, initial placements are comparable;
+browser and Pillow font measurements can produce small pixel differences.
+
 Beauty snapshots and LDR images from Mitsuba and Blender project the point
-through their fixed render camera and composite a callout at that view. Raster
-output cannot continuously reposition the label or reliably test geometry
-occlusion; diagnostic passes never include labels. As with other raster
-overlays, EXR/HDR output skips compositing.
+through their fixed render camera. Mitsuba casts a camera ray per annotation and
+hides anchors behind other geometry; WebGL beauty snapshots currently only
+project anchors, and Blender raster overlays do not perform this occlusion test.
+Diagnostic passes never include labels. As with other raster overlays, EXR/HDR
+output skips compositing.
 
 ## Backend behavior
 

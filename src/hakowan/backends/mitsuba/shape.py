@@ -645,6 +645,15 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     # resulting per-vertex normals reproduce the original facet / corner / vertex
     # normals (flat shading included) without losing any values.
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    clear_computed_edges = not normal_ids and not mesh.has_edges
+    if not normal_ids:
+        # Mitsuba otherwise smooths every shared vertex, even across cube
+        # edges. Match WebGL's default feature-angle normals so hard surfaces
+        # retain their facets while smooth meshes remain smooth.
+        lagrange.compute_normal(mesh)
+        normal_ids = mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
     use_facet_normal = False
     if len(normal_ids) > 0:
         keep_name = mesh.get_attribute_name(normal_ids[0])
@@ -656,6 +665,10 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
                 mesh, keep_name, lagrange.AttributeElement.Indexed
             )
         mesh = lagrange.unify_index_buffer(mesh, [keep_name])
+    if clear_computed_edges:
+        # Computing feature-angle normals initializes edge adjacency. The PLY
+        # plugin does not need it and warns about its extra "edge" element.
+        mesh.clear_edges()
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"

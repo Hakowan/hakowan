@@ -3200,7 +3200,8 @@
             {
               "enum": [
                 "light",
-                "dark"
+                "dark",
+                "black"
               ],
               "type": "string"
             },
@@ -3209,7 +3210,7 @@
             }
           ],
           "default": null,
-          "description": "Optional opaque light or dark raster background; null preserves backend transparency. WebGL falls back to its dark viewer background.",
+          "description": "Optional opaque light, dark, or black raster background; null preserves backend transparency. WebGL falls back to its dark viewer background.",
           "title": "Background"
         },
         "height": {

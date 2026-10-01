@@ -7,6 +7,8 @@ from html import escape
 from importlib import resources
 from typing import Any
 
+from ...common.overlay import CALLOUT_POLICY
+
 
 def _load_template() -> str:
     pkg = resources.files("hakowan.backends.webgl") / "templates" / "viewer.html"
@@ -93,6 +95,7 @@ def render_html(
         "{{WORLD_ANNOTATIONS_JSON}}": _script_json(
             world_annotations if world_annotations is not None else []
         ),
+        "{{CALLOUT_POLICY_JSON}}": _script_json(CALLOUT_POLICY),
     }
     for key, value in replacements.items():
         template = template.replace(key, value)

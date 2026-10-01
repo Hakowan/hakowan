@@ -133,6 +133,7 @@ const LAYERS = {{LAYERS_JSON}};
 const LEGENDS = {{LEGENDS_JSON}};
 const ANNOTATIONS = {{ANNOTATIONS_JSON}};
 const WORLD_ANNOTATIONS = {{WORLD_ANNOTATIONS_JSON}};
+const CALLOUT_POLICY = {{CALLOUT_POLICY_JSON}};
 // index -> array of top-level scene nodes tagged with that layer (populated on load).
 let layerNodeMap = new Map();
 
@@ -149,15 +150,15 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1.0;
 
-// Soft "studio" background: a radial gradient texture, bright at the centre
-// falling off to the edge colour, for the selected light/dark preset. Assigned
-// to scene.background so three's pipeline — including the transmission render
-// pass used by glass (ThinDielectric) — samples it, keeping transparent
-// materials glass-like instead of dark. Regenerated on resize and on toggle.
+// The light/dark studio backgrounds are radial gradients; black is flat.
+// Assign the result to scene.background so transmission materials can sample
+// the active background. Regenerate when the viewport or preset changes.
 function _rgb(c) {
   return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
 }
+const blackBackground = new THREE.Color(0, 0, 0);
 function makeStudioBackground(w, h) {
+  if (bgMode === 'black') return blackBackground;
   const palette = BG_PRESETS[bgMode];
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, w);
@@ -192,7 +193,7 @@ function setBackgroundMode(mode) {
   if (currentPass === 'beauty' && envBackground === null) {
     scene.background = studioBackground;
   }
-  if (previous) previous.dispose();
+  if (previous.isTexture) previous.dispose();
   document.body.style.background = _rgb(BG_PRESETS[mode].edge);
   const btn = document.getElementById('btn-bg');
   if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
@@ -307,13 +308,13 @@ function resize() {
   if (canvas.width !== w || canvas.height !== h) {
     renderer.setSize(w, h, false);
     updateCameraProjection();
-    // Regenerate the studio gradient at the new aspect so it stays circular.
+    // The studio gradients depend on the viewport's aspect ratio.
     const old = studioBackground;
     studioBackground = makeStudioBackground(w, h);
     if (currentPass === 'beauty' && envBackground === null) {
       scene.background = studioBackground;
     }
-    if (old) old.dispose();
+    if (old.isTexture) old.dispose();
   }
 }
 window.addEventListener('resize', resize);
@@ -1492,11 +1493,7 @@ function _rectOverlap(a, b) {
   return Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
        * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 }
-const calloutFootprintSamples = [
-  [0.03, 0.03], [0.5, 0.03], [0.97, 0.03],
-  [0.03, 0.5], [0.5, 0.5], [0.97, 0.5],
-  [0.03, 0.97], [0.5, 0.97], [0.97, 0.97],
-];
+const calloutFootprintSamples = CALLOUT_POLICY.footprint;
 
 function _visibleHit(hits) {
   for (const hit of hits) {
@@ -1602,9 +1599,12 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
     }
     const label = item.label;
     const width = label.offsetWidth, height = label.offsetHeight;
-    const edge = 6;
+    const edge = CALLOUT_POLICY.edge;
     const placements = [];
-    for (const gap of [20, 55, 95]) {
+    // A large front-facing surface can cover every nearby candidate. Expand
+    // the search toward the viewport edge before deciding to hide its label.
+    for (let gap = CALLOUT_POLICY.gap; gap <= Math.hypot(w, h);
+         gap = Math.round(gap * CALLOUT_POLICY.gap_growth + CALLOUT_POLICY.gap_step)) {
       placements.push(
         [ax + gap, ay - gap - height], [ax - gap - width, ay - gap - height],
         [ax + gap, ay + gap], [ax - gap - width, ay + gap],
@@ -1618,7 +1618,8 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
       const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
       if (w < width + 2 * edge || h < height + 2 * edge) break;
       const rect = { x, y, w: width, h: height };
-      if (_rectOverlap(rect, { x: ax - 12, y: ay - 12, w: 24, h: 24 })) continue;
+      const radius = CALLOUT_POLICY.anchor_radius;
+      if (_rectOverlap(rect, { x: ax - radius, y: ay - radius, w: radius * 2, h: radius * 2 })) continue;
       const score = i * 3 + (item.candidate < 0 || item.candidate === i ? 0 : 35);
       // A crowded viewport is better served by hiding the callout than by
       // covering controls or another label.
@@ -1637,7 +1638,8 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
       y = item.previous.y + (y - item.previous.y) * 0.3;
       // A smooth transition may cross geometry even when its destination is clear.
       if (_rectOverlap({ x, y, w: width, h: height },
-          { x: ax - 12, y: ay - 12, w: 24, h: 24 })
+          { x: ax - CALLOUT_POLICY.anchor_radius, y: ay - CALLOUT_POLICY.anchor_radius,
+            w: CALLOUT_POLICY.anchor_radius * 2, h: CALLOUT_POLICY.anchor_radius * 2 })
           || occupied.some(other => _rectOverlap({ x, y, w: width, h: height }, other) > 0)
           || calloutPanelObstructed(x, y, width, height, w, h)) {
         x = best.x;

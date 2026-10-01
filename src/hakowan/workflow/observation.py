@@ -627,7 +627,7 @@ def _capture_sync(
     *,
     cameras: dict[str, CameraState] | None,
     config: Config | None,
-    background: Literal["light", "dark"],
+    background: Literal["light", "dark", "black"],
     up_axis: Literal["y", "z"],
     timeout: float,
 ) -> _CaptureResult:
@@ -732,6 +732,16 @@ def _capture_sync(
                         if needs_geometry
                         else None
                     )
+                    callout_geometry = None
+                    if scene.world_annotations and "beauty" in passes:
+                        # The normal pass has a black background and non-black
+                        # surface normals, so it supplies a silhouette without
+                        # per-pixel CPU raycasts or any dependence on beauty RGB.
+                        normal_url = page.evaluate(
+                            "() => window.__hakowan.capturePng('normal')"
+                        )
+                        normal_pixels = np.asarray(_decode_png(normal_url).convert("RGB"))
+                        callout_geometry = np.any(normal_pixels != 0, axis=2)
                     for pass_name in passes:
                         if pass_name in {"element_id", "layer_id"}:
                             data_url = page.evaluate(
@@ -787,6 +797,7 @@ def _capture_sync(
                                 image, scene.legends, scene.annotations, background,
                                 world_annotations=scene.world_annotations,
                                 world_to_camera=world_to_camera, projection=projection,
+                                geometry_mask=callout_geometry,
                             )
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
@@ -832,8 +843,8 @@ def _capture_context(
     root: Layer | Figure,
     config: Config | None,
     resolution: tuple[int, int] | None,
-    background: Literal["light", "dark"] | None,
-) -> tuple[Layer, Config | None, tuple[int, int], Literal["light", "dark"], bool]:
+    background: Literal["light", "dark", "black"] | None,
+) -> tuple[Layer, Config | None, tuple[int, int], Literal["light", "dark", "black"], bool]:
     explicit_config = config is not None
     figure = root if isinstance(root, Figure) else None
     runtime_layer = cast(Layer, figure.layer if figure is not None else root)
@@ -867,7 +878,7 @@ def snapshot(
     camera: CameraState | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark"] | None = None,
+    background: Literal["light", "dark", "black"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     filename: str | Path | None = None,
     timeout: float = 60.0,
@@ -946,7 +957,7 @@ def observe(
     cameras: dict[str, CameraState] | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark"] | None = None,
+    background: Literal["light", "dark", "black"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     output_dir: str | Path | None = None,
     timeout: float = 60.0,
