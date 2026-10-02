@@ -80,6 +80,9 @@ Use `hkw.inspect()` before building a layer to obtain a JSON-safe summary of the
 geometry and its attributes. This is useful for scripts and agents that must
 choose fields without guessing their names or shapes.
 
+The CLI equivalent is `hkw inspect shape.ply`. It prints one line per attribute,
+with channel-wise extrema as `min=(...) max=(...)`.
+
 ```py
 summary = hkw.inspect("shape.ply")
 

@@ -670,11 +670,55 @@ def test_cli_missing_normal_is_actionable(monkeypatch, tmp_path):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hakowan", str(mesh_path), "--normal", "missing"],
+        ["hakowan", "view", str(mesh_path), "--normal", "missing"],
     )
 
     with pytest.raises(SystemExit, match="Normal attribute 'missing' not found"):
         main_module.main()
+
+
+def test_cli_render_falls_back_to_webgl_image(monkeypatch, tmp_path, playwright_browser):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, _triangle())
+    output = mesh_path.with_suffix(".png")
+    main_module = importlib.import_module("hakowan.__main__")
+    monkeypatch.setattr(main_module.hkw, "list_backends", lambda: ["webgl"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hkw",
+            "render",
+            str(mesh_path),
+            "--resolution",
+            "24",
+            "16",
+            "--depth",
+        ],
+    )
+
+    main_module.main()
+
+    assert output.is_file()
+    with Image.open(output) as image:
+        assert image.size == (24, 16)
+        assert image.format == "PNG"
+    assert not output.with_suffix(".html").exists()
+
+
+def test_cli_view_keeps_webgl_html_output(monkeypatch, tmp_path):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, _triangle())
+    output = mesh_path.with_suffix(".html")
+    main_module = importlib.import_module("hakowan.__main__")
+    monkeypatch.setattr(
+        sys, "argv", ["hkw", "view", str(mesh_path), "--no-open"]
+    )
+
+    main_module.main()
+
+    assert output.is_file()
+    assert not mesh_path.with_suffix(".png").exists()
 
 
 def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
@@ -694,9 +738,8 @@ def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
         "argv",
         [
             "hakowan",
+            "view",
             str(mesh_path),
-            "--backend",
-            "webgl",
             "--turn-table",
             "2",
             "--resolution",

@@ -41,6 +41,9 @@ docs = [
     "mkdocstrings[python]>=0.24",
 ]
 
+[project.scripts]
+hkw = "hakowan.__main__:main"
+
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]

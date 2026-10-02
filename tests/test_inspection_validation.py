@@ -1,6 +1,7 @@
 import json
 
 import hakowan as hkw
+import hakowan.__main__ as main_module
 import lagrange
 import numpy as np
 import pytest
@@ -75,6 +76,36 @@ def test_inspect_loads_mesh_file(triangle, tmp_path):
     assert summary.source == str(path)
     assert summary.vertex_count == 3
     assert summary.facet_count == 1
+
+
+def test_cli_inspect_lists_mesh_attributes_without_render_backend(
+    triangle, tmp_path, monkeypatch, capsys
+):
+    triangle.create_attribute(
+        "velocity",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Vector,
+        initial_values=np.array(
+            [[1.0, 10.0, -1.0], [2.0, 20.0, -2.0], [3.0, 30.0, -3.0]]
+        ),
+    )
+    path = tmp_path / "triangle.ply"
+    lagrange.io.save_mesh(path, triangle)
+    monkeypatch.setattr(main_module.sys, "argv", ["hkw", "inspect", str(path)])
+    monkeypatch.setattr(
+        main_module,
+        "_render_backend",
+        lambda: pytest.fail("inspect must not select a renderer"),
+    )
+
+    main_module.main()
+
+    output = capsys.readouterr().out
+    assert "vertex_data (indexed, 1 channel): min=1.0 max=3.0" in output
+    assert (
+        "velocity (indexed, 3 channels): min=(1.0, 10.0, -3.0) "
+        "max=(3.0, 30.0, -1.0)"
+    ) in output
 
 
 def test_inspect_loads_point_cloud_attributes_from_file(tmp_path):

@@ -2,6 +2,7 @@
 
 import argparse
 import copy
+import sys
 import hakowan as hkw
 from pathlib import Path
 import math
@@ -15,6 +16,26 @@ from tqdm import tqdm
 
 
 _CLIP_AXES = {"x", "-x", "y", "-y", "z", "-z"}
+
+
+def _render_backend() -> str:
+    """Choose the best installed backend for the image-render action."""
+    available = set(hkw.list_backends())
+    for backend in ("mitsuba", "blender", "webgl"):
+        if backend in available:
+            return backend
+    raise SystemExit("No rendering backend is available.")
+
+
+def _validate_image_output(path: Path) -> None:
+    """Reject paths that Pillow cannot use for a captured image."""
+    Image.init()
+    image_format = Image.registered_extensions().get(path.suffix.lower())
+    if image_format not in Image.SAVE:
+        raise SystemExit(
+            f"WebGL render fallback requires an image output path; unsupported "
+            f"extension {path.suffix or '(none)'!r}."
+        )
 
 
 def _clip_arg(value: str) -> tuple[str, float]:
@@ -74,14 +95,28 @@ def _whiteness_arg(value: str) -> float:
     return v
 
 
-def parse_args():
-    """
-    Parse command-line arguments for the mesh renderer.
+def parse_args(argv=None):
+    """Parse the action and mesh-rendering options."""
+    argv = sys.argv[1:] if argv is None else list(argv)
+    action_parser = argparse.ArgumentParser(
+        description="Render, view, or inspect a mesh."
+    )
+    action_parser.add_argument("action", choices=("render", "view", "inspect"))
+    action = action_parser.parse_args(argv[:1]).action
 
-    Returns:
-        argparse.Namespace: The parsed command-line arguments.
-    """
-    parser = argparse.ArgumentParser(description="Render a mesh.")
+    if action == "inspect":
+        parser = argparse.ArgumentParser(
+            description="List attributes in a mesh.",
+            prog=f"{action_parser.prog} inspect",
+        )
+        parser.add_argument("input_mesh", help="Input mesh file to inspect.")
+        args = parser.parse_args(argv[1:])
+        args.action = action
+        return args
+
+    parser = argparse.ArgumentParser(
+        description="Render a mesh.", prog=f"{action_parser.prog} {action}"
+    )
     parser.add_argument("--point-cloud", help="Render point cloud", action="store_true")
     parser.add_argument(
         "--point-size",
@@ -260,12 +295,6 @@ def parse_args():
         default=0.0,
     )
     parser.add_argument(
-        "--backend",
-        choices=hkw.list_backends(),
-        default=None,
-        help="Rendering backend to use (default: webgl)",
-    )
-    parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error"],
         default="warning",
@@ -274,7 +303,7 @@ def parse_args():
     parser.add_argument("--serialize", help="Serialize the config", action="store_true")
     parser.add_argument(
         "--no-open",
-        help="Do not auto-open the output file in a browser (webgl backend only).",
+        help="Do not auto-open the WebGL viewer.",
         action="store_true",
     )
     parser.add_argument(
@@ -285,7 +314,10 @@ def parse_args():
         ),
         default=None,
     )
-    return parser.parse_args()
+    args = parser.parse_args(argv[1:])
+    args.action = action
+    args.backend = _render_backend() if action == "render" else "webgl"
+    return args
 
 
 def node_to_layer(scene, node: lagrange.scene.Node, mats: list[hkw.material.Material]):
@@ -1034,16 +1066,33 @@ def main():
     """
     args = parse_args()
 
+    if args.action == "inspect":
+        summary = hkw.inspect(args.input_mesh)
+        print(f"Attributes in {args.input_mesh}:")
+        if not summary.attributes:
+            print("  (none)")
+        for attribute in summary.attributes:
+            minimum = (
+                f"({', '.join(map(str, attribute.minimum))})"
+                if isinstance(attribute.minimum, list)
+                else str(attribute.minimum)
+            )
+            maximum = (
+                f"({', '.join(map(str, attribute.maximum))})"
+                if isinstance(attribute.maximum, list)
+                else str(attribute.maximum)
+            )
+            channel_label = "channel" if attribute.channels == 1 else "channels"
+            print(
+                f"  {attribute.name} ({attribute.element}, "
+                f"{attribute.channels} {channel_label}): min={minimum} max={maximum}"
+            )
+        return
+
     if len(args.input_mesh) > 6:
         raise SystemExit(
             f"At most 6 input meshes are supported, got {len(args.input_mesh)}."
         )
-
-    # Resolve the effective backend early so string comparisons below are safe.
-    if args.backend is None:
-        from hakowan.backends import resolve_backend_name
-
-        args.backend = resolve_backend_name()
 
     hkw.logger.setLevel(args.log_level.upper())
     lagrange.logger.setLevel(args.log_level.upper())
@@ -1082,15 +1131,21 @@ def main():
     if args.output:
         output_file = Path(args.output)
     else:
-        default_suffix = ".html" if args.backend == "webgl" else ".png"
+        default_suffix = ".html" if args.action == "view" else ".png"
         output_file = Path(args.input_mesh[0]).with_suffix(default_suffix)
+
+    if args.action == "render" and args.backend == "webgl":
+        _validate_image_output(output_file)
+
+    if args.action == "render" and args.backend == "webgl" and args.serialize:
+        raise SystemExit("WebGL image capture does not support --serialize.")
 
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
         save_camera_matrix(cam_data, Path(args.camera_matrix))
 
     turntable_pass = "beauty"
-    if args.turn_table and args.backend == "webgl":
+    if args.backend == "webgl" and (args.turn_table or args.action == "render"):
         requested_passes = [
             name
             for name, enabled in (
@@ -1102,35 +1157,44 @@ def main():
             if enabled
         ]
         if len(requested_passes) > 1:
-            raise SystemExit("WebGL turn-table supports at most one render pass.")
+            raise SystemExit("WebGL image capture supports at most one render pass.")
         if requested_passes == ["facet_id"]:
-            raise SystemExit("WebGL turn-table does not support the facet_id pass.")
+            raise SystemExit("WebGL image capture does not support the facet_id pass.")
         if requested_passes:
             turntable_pass = requested_passes[0]
 
     if args.turn_table == 0:
-        kwargs = {}
-        if args.serialize:
-            kwargs["yaml_file"] = output_file.with_suffix(".yaml")
-            if args.backend == "blender":
-                kwargs["blend_file"] = output_file.with_suffix(".blend")
-        result = hkw.render(
-            layer,
-            config,
-            filename=output_file,
-            backend=args.backend,
-            **kwargs,
-        )
-        if args.backend == "webgl" and not args.no_open:
-            # The webgl backend always lands at <stem>.html (even when the
-            # user passed a .png filename, render() rewrites the suffix).
-            # Trust the backend's returned path when available.
-            opened_path = (
-                Path(result)
-                if isinstance(result, (str, Path))
-                else (output_file.with_suffix(".html"))
+        if args.action == "render" and args.backend == "webgl":
+            try:
+                hkw.snapshot(
+                    layer,
+                    pass_name=turntable_pass,
+                    resolution=tuple(args.resolution),
+                    config=config,
+                    filename=output_file,
+                )
+            except hkw.ObservationError as exc:
+                raise SystemExit(str(exc)) from exc
+        else:
+            kwargs = {}
+            if args.serialize:
+                kwargs["yaml_file"] = output_file.with_suffix(".yaml")
+                if args.backend == "blender":
+                    kwargs["blend_file"] = output_file.with_suffix(".blend")
+            result = hkw.render(
+                layer,
+                config,
+                filename=output_file,
+                backend=args.backend,
+                **kwargs,
             )
-            webbrowser.open(opened_path.resolve().as_uri())
+            if args.action == "view" and not args.no_open:
+                opened_path = (
+                    Path(result)
+                    if isinstance(result, (str, Path))
+                    else output_file.with_suffix(".html")
+                )
+                webbrowser.open(opened_path.resolve().as_uri())
     else:
         if args.z_up:
             axis = np.array([0, 0, 1], dtype=float)
