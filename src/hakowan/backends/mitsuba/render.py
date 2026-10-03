@@ -25,44 +25,50 @@ import numpy as np
 import yaml
 
 
-def _camera_axis_cosine(shape: tuple[int, ...], sensor: Any) -> np.ndarray:
+def _camera_axis_cosine(
+    shape: tuple[int, ...],
+    sensor: Any,
+    *,
+    film_size: tuple[int, int] | None = None,
+    crop_offset: tuple[int, int] = (0, 0),
+) -> np.ndarray:
     """Per-pixel cos(theta) between each camera ray and the optical axis.
 
-    Multiplying Mitsuba's ray-distance ``depth`` AOV by this converts it to
-    planar Z-depth (distance measured along the optical axis), which matches
-    Blender's Z pass: a plane facing the camera then reads a constant depth
-    instead of bowing outward.
-
-    Args:
-        shape: ``(height, width, ...)`` of the depth array.
-        sensor: The configured sensor (uses ``fov``/``fov_axis`` for perspective
-            cameras; orthographic cameras have no field of view).
-
-    Returns:
-        ``(height, width)`` float32 array of cos(theta), all ones for cameras
-        without a field of view.
+    Cropped arrays retain their coordinates in the full sensor film so depth
+    normalization stays identical to the corresponding uncropped pixels.
     """
-    h, w = int(shape[0]), int(shape[1])
+    height, width = int(shape[0]), int(shape[1])
+    film_width, film_height = film_size or (width, height)
+    crop_x, crop_y = crop_offset
     fov = getattr(sensor, "fov", None)
     if fov is None:
-        return np.ones((h, w), dtype=np.float32)
+        return np.ones((height, width), dtype=np.float32)
 
     half_tan = float(np.tan(np.radians(float(fov)) * 0.5))
     fov_axis = getattr(sensor, "fov_axis", "smaller")
-    ref = {
-        "x": w,
-        "y": h,
-        "larger": max(w, h),
-        "diagonal": float(np.hypot(w, h)),
-    }.get(fov_axis, min(w, h))  # default: "smaller" (Mitsuba's default)
-
-    # Pixel-center tangent offset from the optical axis; the fov axis spans
-    # [-half_tan, half_tan], other axes scale with the same per-pixel step.
-    step = 2.0 * half_tan / ref
-    xs = ((np.arange(w, dtype=np.float64) + 0.5) - w * 0.5) * step
-    ys = ((np.arange(h, dtype=np.float64) + 0.5) - h * 0.5) * step
+    reference = {
+        "x": film_width,
+        "y": film_height,
+        "larger": max(film_width, film_height),
+        "diagonal": float(np.hypot(film_width, film_height)),
+    }.get(fov_axis, min(film_width, film_height))
+    step = 2.0 * half_tan / reference
+    xs = ((np.arange(width, dtype=np.float64) + crop_x + 0.5) - film_width * 0.5) * step
+    ys = (
+        (np.arange(height, dtype=np.float64) + crop_y + 0.5) - film_height * 0.5
+    ) * step
     cos = 1.0 / np.sqrt(xs[None, :] ** 2 + ys[:, None] ** 2 + 1.0)
     return cos.astype(np.float32)
+
+
+def _film_render_window(sensor: Any):
+    """Return full film size, active crop size, and crop offset in pixels."""
+    film = sensor.film()
+    return (
+        tuple(int(value) for value in film.size()),
+        tuple(int(value) for value in film.crop_size()),
+        tuple(int(value) for value in film.crop_offset()),
+    )
 
 
 def _show_emitters(integrator: dict[str, Any]) -> None:
@@ -138,25 +144,28 @@ def _beauty_rgba_indexes(
 def _point_glyph_owns_anchor(
     hit: Any, compiled_scene: Scene | None, annotation: CompiledWorldAnnotation
 ) -> bool:
-    """Whether a Mitsuba point-mark hit is the glyph at this annotation anchor."""
+    """Whether a Mitsuba point-mark hit belongs to this annotation anchor."""
     if compiled_scene is None or not hit.is_valid():
         return False
-    prefix = f"view_{annotation.layer:03}_shape_"
     shape_id = hit.shape.id()
-    if not shape_id.startswith(prefix):
-        return False
-    view = compiled_scene[annotation.layer]
-    if view.mark is not mark.Point or view.data_frame is None:
-        return False
-    try:
-        vertex_index = int(shape_id[len(prefix) :])
-    except ValueError:
-        return False
-    vertices = view.data_frame.mesh.vertices
-    if vertex_index >= len(vertices):
-        return False
-    point = view.global_transform @ np.array((*vertices[vertex_index], 1.0))
-    return bool(np.allclose(point[:3], annotation.position, rtol=0.0, atol=1e-7))
+    for owner in annotation.layers or (annotation.layer,):
+        prefix = f"view_{owner:03}_shape_"
+        if not shape_id.startswith(prefix):
+            continue
+        view = compiled_scene[owner]
+        if view.mark is not mark.Point or view.data_frame is None:
+            continue
+        try:
+            vertex_index = int(shape_id[len(prefix) :])
+        except ValueError:
+            continue
+        vertices = view.data_frame.mesh.vertices
+        if vertex_index >= len(vertices):
+            continue
+        point = view.global_transform @ np.array((*vertices[vertex_index], 1.0))
+        if np.allclose(point[:3], annotation.position, rtol=0.0, atol=1e-7):
+            return True
+    return False
 
 
 def _visible_world_annotations(
@@ -175,14 +184,25 @@ def _visible_world_annotations(
         return annotations
 
     sensor = scene.sensors()[0]
-    width, height = map(int, sensor.film().size())
+    film_size, (width, height), crop_offset = _film_render_window(sensor)
     projected = _project_world_annotations(
         annotations,
         (width, height),
         sensor=camera,
         world_to_camera=None,
         projection=None,
+        film_size=film_size,
+        crop_offset=crop_offset,
     )
+
+    scene_scale = 1.0
+    if compiled_scene is not None:
+        for view in compiled_scene:
+            if view.bbox is not None:
+                scene_scale = max(
+                    scene_scale,
+                    float(np.linalg.norm(view.bbox[1] - view.bbox[0])),
+                )
     visible = []
     for annotation, x, y in projected:
         ray, _ = sensor.sample_ray(
@@ -195,7 +215,7 @@ def _visible_world_annotations(
             )
         )
         hit = scene.ray_intersect(ray)
-        tolerance = 1e-4 * max(1.0, abs(anchor_distance))
+        tolerance = max(5e-5, scene_scale * 1e-6)
         if (
             not hit.is_valid()
             or _point_glyph_owns_anchor(hit, compiled_scene, annotation)
@@ -367,7 +387,24 @@ class MitsubaBackend(RenderBackend):
                 yaml.dump(serializable, f, default_flow_style=False, sort_keys=False)
             logger.info(f"Scene saved to {yaml_file}")
 
+        film_settings = mi_config["camera"]["film"]
+        crop_offset_value = film_settings.pop("crop_offset", None)
+        crop_size_value = film_settings.pop("crop_size", None)
+        if crop_offset_value is None or crop_size_value is None:
+            crop_offset_value = crop_size_value = None
+
         mi_scene = mi.load_dict(mi_config)
+        if crop_offset_value is not None:
+            film_parameters = mi.traverse(mi_scene.sensors()[0].film())
+            film_parameters["crop_offset"] = mi.Point2u(
+                *(int(value) for value in crop_offset_value)
+            )
+            film_parameters["crop_size"] = mi.Vector2u(
+                *(int(value) for value in crop_size_value)
+            )
+            film_parameters.update()
+        film_size, crop_size, crop_offset = _film_render_window(mi_scene.sensors()[0])
+
         image = mi.render(scene=mi_scene)  # type: ignore
         logger.info("Rendering done")
         image_layers = image
@@ -442,7 +479,12 @@ class MitsubaBackend(RenderBackend):
                 # the optical axis) by multiplying by cos(theta) per pixel, so a
                 # plane reads constant and only relief remains — matching the
                 # Blender Z pass.
-                depth = depth * _camera_axis_cosine(depth.shape, config.sensor)
+                depth = depth * _camera_axis_cosine(
+                    depth.shape,
+                    config.sensor,
+                    film_size=film_size,
+                    crop_offset=crop_offset,
+                )
                 # Normalize over the foreground only. The background depth AOV is
                 # 0 (no hit); including it (and anti-aliased silhouette pixels,
                 # whose depth blends the object with the 0 background) collapses
@@ -502,7 +544,7 @@ class MitsubaBackend(RenderBackend):
                     mi_scene, config.sensor, world_annotations, scene
                 )
                 sensor = mi_scene.sensors()[0]
-                width, height = map(int, sensor.film().size())
+                width, height = crop_size
 
                 def world_geometry_at(x: float, y: float) -> bool:
                     ray, _ = sensor.sample_ray(
@@ -522,6 +564,8 @@ class MitsubaBackend(RenderBackend):
                 world_annotations=world_annotations,
                 sensor=config.sensor,
                 geometry_at=geometry_at,
+                film_size=film_size,
+                crop_offset=crop_offset,
             ):
                 logger.warning(
                     "Legends and annotations (including world annotations) are not "

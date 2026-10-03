@@ -87,6 +87,32 @@ class TestCamera:
         assert cd.sensor_fit == "HORIZONTAL"
 
 
+def test_annotation_geometry_raycast_respects_pixel_aspect():
+    from hakowan.backends.blender.render import _world_geometry_at
+
+    camera, _ = _setup_camera(
+        S.Perspective(location=[0, 0, 4], target=[0, 0, 0], up=[0, 1, 0]),
+        width=100,
+        height=100,
+    )
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0))
+    scene = bpy.context.scene
+    scene.render.pixel_aspect_x = 2.0
+    scene.render.pixel_aspect_y = 1.0
+    projection = camera.calc_matrix_camera(
+        bpy.context.evaluated_depsgraph_get(),
+        x=100,
+        y=100,
+        scale_x=scene.render.pixel_aspect_x,
+        scale_y=scene.render.pixel_aspect_y,
+    )
+
+    geometry_at = _world_geometry_at(camera, projection, (100, 100))
+
+    assert geometry_at(50, 50)
+    assert not geometry_at(0, 0)
+
+
 # --------------------------------------------------------------------------- #
 # Image / normal / bump textures                                              #
 # --------------------------------------------------------------------------- #
@@ -587,3 +613,54 @@ def test_blender_directional_light_and_environment_visibility():
         config, engine="BLENDER_EEVEE", environment_visible=True
     )
     assert not bpy.context.scene.render.film_transparent
+
+
+def test_blender_opaque_callout_jpeg_avoids_rendered_geometry(tmp_path, monkeypatch):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0, 0.5, 0.0]]))
+    mesh.add_triangle(0, 1, 2)
+    layer = hkw.layer(mesh).mark("Surface").material("Diffuse", "red")
+    config = hkw.config()
+    config.film.width, config.film.height = 128, 96
+    config.sensor = S.Orthographic(
+        scale=2.0, location=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0)
+    )
+    config.sampler.sample_count = 1
+    config.environment_visible = True
+    monkeypatch.setattr(bpy.context.scene.render, "pixel_aspect_x", 1.5)
+    monkeypatch.setattr(bpy.context.scene.render, "pixel_aspect_y", 1.0)
+    backend_options = {"backend": "blender", "blender_engine": "BLENDER_EEVEE"}
+
+    base_path = tmp_path / "base.jpg"
+    hkw.render(layer, config, filename=base_path, **backend_options)
+    callout_path = tmp_path / "callout.jpg"
+    hkw.render(
+        layer.annotate(
+            hkw.WorldAnnotation(
+                "point",
+                (0, 0, 0),
+                color="white",
+                background="magenta",
+                arrow=False,
+                font_size=12,
+            )
+        ),
+        config,
+        filename=callout_path,
+        **backend_options,
+    )
+
+    with (
+        PILImage.open(base_path) as base_image,
+        PILImage.open(callout_path) as callout_image,
+    ):
+        base = np.asarray(base_image.convert("RGB"), dtype=np.int16)
+        callout = np.asarray(callout_image.convert("RGB"), dtype=np.int16)
+    background = base[0, 0]
+    geometry = np.any(np.abs(base - background) > 30, axis=2)
+    magenta = (
+        (callout[:, :, 0] > 120) & (callout[:, :, 1] < 140) & (callout[:, :, 2] > 120)
+    )
+
+    assert magenta.any()
+    assert not np.any(magenta & geometry)

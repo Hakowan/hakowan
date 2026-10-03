@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from html import escape
 from importlib import resources
 from typing import Any
@@ -97,6 +98,5 @@ def render_html(
         ),
         "{{CALLOUT_POLICY_JSON}}": _script_json(CALLOUT_POLICY),
     }
-    for key, value in replacements.items():
-        template = template.replace(key, value)
-    return template
+    placeholders = re.compile("|".join(re.escape(key) for key in replacements))
+    return placeholders.sub(lambda match: replacements[match.group(0)], template)

@@ -154,6 +154,24 @@ def _draw_legend_panel(
     return panel
 
 
+def _alpha_composite_rectangle(
+    image: Image.Image,
+    bounds: tuple[float, float, float, float],
+    color: tuple[int, int, int],
+    alpha: int,
+) -> None:
+    """Blend a translucent rectangle over the existing RGBA pixels."""
+    left, top, right, bottom = bounds
+    x0, y0 = max(0, int(left)), max(0, int(top))
+    x1, y1 = min(image.width, int(right) + 1), min(image.height, int(bottom) + 1)
+    if x1 <= x0 or y1 <= y0:
+        return
+    bounds = (x0, y0, x1, y1)
+    base = image.crop(bounds)
+    panel = Image.new("RGBA", base.size, (*color, alpha))
+    image.paste(Image.alpha_composite(base, panel), (x0, y0))
+
+
 def _draw_annotations(
     image: Image.Image,
     annotations: Sequence[CompiledAnnotation],
@@ -184,14 +202,16 @@ def _draw_annotations(
                 )
             )
         if annotation.background is not None:
-            draw.rectangle(
+            _alpha_composite_rectangle(
+                image,
                 (
                     x - padding,
                     y - padding,
                     x + text_width + padding,
                     y + text_height + padding,
                 ),
-                fill=(*_rgb(annotation.background), 220),
+                _rgb(annotation.background),
+                220,
             )
         draw.text(
             (x, y), annotation.text, fill=(*_rgb(annotation.color), 255), font=font
@@ -205,9 +225,13 @@ def _project_world_annotations(
     sensor: Sensor | None,
     world_to_camera: np.ndarray | None,
     projection: np.ndarray | None,
+    film_size: tuple[int, int] | None = None,
+    crop_offset: tuple[int, int] = (0, 0),
 ) -> list[tuple[CompiledWorldAnnotation, float, float]]:
-    """Project world anchors into image pixels; reject clipped and rear-facing points."""
+    """Project anchors into output pixels, accounting for a cropped film."""
     width, height = size
+    film_width, film_height = film_size or size
+    crop_x, crop_y = crop_offset
     result: list[tuple[CompiledWorldAnnotation, float, float]] = []
     if world_to_camera is not None and projection is not None:
         transform = np.asarray(projection, dtype=np.float64) @ np.asarray(
@@ -218,11 +242,12 @@ def _project_world_annotations(
             if not np.all(np.isfinite(clip)) or clip[3] <= 1e-10:
                 continue
             ndc = clip[:3] / clip[3]
-            if np.any(np.abs(ndc) > 1.0):
+            if not np.all(np.isfinite(ndc)) or abs(ndc[2]) > 1.0:
                 continue
-            result.append(
-                (annotation, (ndc[0] + 1) * width / 2, (1 - ndc[1]) * height / 2)
-            )
+            x = (ndc[0] + 1) * film_width / 2 - crop_x
+            y = (1 - ndc[1]) * film_height / 2 - crop_y
+            if 0 <= x < width and 0 <= y < height:
+                result.append((annotation, x, y))
         return result
     if sensor is None:
         raise ValueError("World annotations require a sensor or camera matrices.")
@@ -245,15 +270,15 @@ def _project_world_annotations(
         # Orthographic scale is the full vertical camera extent. The same
         # projection is used by the WebGL and Mitsuba backends.
         vertical_extent = float(sensor.scale)
-        horizontal_extent = vertical_extent * width / height
+        horizontal_extent = vertical_extent * film_width / film_height
     elif isinstance(sensor, Perspective):
         axis = sensor.fov_axis
         reference = {
-            "x": width,
-            "y": height,
-            "larger": max(width, height),
-            "diagonal": np.hypot(width, height),
-        }.get(axis, min(width, height))
+            "x": film_width,
+            "y": film_height,
+            "larger": max(film_width, film_height),
+            "diagonal": np.hypot(film_width, film_height),
+        }.get(axis, min(film_width, film_height))
         tangent_per_pixel = 2 * np.tan(np.radians(float(sensor.fov)) / 2) / reference
     else:
         raise TypeError(f"Unsupported world-annotation sensor: {type(sensor)!r}")
@@ -265,11 +290,13 @@ def _project_world_annotations(
         x = float(np.dot(displacement, right))
         y = float(np.dot(displacement, up))
         if isinstance(sensor, Orthographic):
-            px = (0.5 + x / horizontal_extent) * width
-            py = (0.5 - y / vertical_extent) * height
+            px = (0.5 + x / horizontal_extent) * film_width
+            py = (0.5 - y / vertical_extent) * film_height
         else:
-            px = width / 2 + x / (depth * tangent_per_pixel)
-            py = height / 2 - y / (depth * tangent_per_pixel)
+            px = film_width / 2 + x / (depth * tangent_per_pixel)
+            py = film_height / 2 - y / (depth * tangent_per_pixel)
+        px -= crop_x
+        py -= crop_y
         if np.isfinite(px) and np.isfinite(py) and 0 <= px < width and 0 <= py < height:
             result.append((annotation, px, py))
     return result
@@ -311,6 +338,7 @@ def _place_world_label(
     viewport: tuple[int, int],
     occupied: Sequence[tuple[float, float, float, float]],
     geometry_at: Callable[[float, float], bool] | None = None,
+    anchors: Sequence[tuple[float, float]] = (),
 ) -> tuple[float, float, float, float] | None:
     """Return the first legal static callout rectangle (left, top, right, bottom)."""
     ax, ay = anchor
@@ -344,6 +372,15 @@ def _place_world_label(
             ):
                 continue
             if any(
+                other != anchor
+                and left < other[0] + radius
+                and right > other[0] - radius
+                and top < other[1] + radius
+                and bottom > other[1] - radius
+                for other in anchors
+            ):
+                continue
+            if any(
                 left < other_right
                 and right > other_left
                 and top < other_bottom
@@ -370,7 +407,8 @@ def _draw_world_annotations(
 ) -> None:
     """Lay out labels in screen space while retaining leaders to their anchors."""
     draw = ImageDraw.Draw(image, "RGBA")
-    for annotation, ax, ay in annotations:
+    anchor_points = tuple((x, y) for _, x, y in annotations)
+    for annotation_index, (annotation, ax, ay) in enumerate(annotations):
         font = _font(annotation.font_size)
         max_text_width = min(260, image.width * 0.35)
         lines = []
@@ -404,7 +442,16 @@ def _draw_world_annotations(
             placement = (left, top, left + panel_width, top + panel_height)
         else:
             placement = _place_world_label(
-                (ax, ay), (panel_width, panel_height), image.size, occupied, geometry_at
+                (ax, ay),
+                (panel_width, panel_height),
+                image.size,
+                occupied,
+                geometry_at,
+                tuple(
+                    point
+                    for i, point in enumerate(anchor_points)
+                    if i != annotation_index
+                ),
             )
         if placement is None:
             continue
@@ -442,7 +489,9 @@ def _draw_world_annotations(
                 fill=color,
             )
         if annotation.background is not None:
-            draw.rectangle(placement, fill=(*_rgb(annotation.background), 220))
+            _alpha_composite_rectangle(
+                image, placement, _rgb(annotation.background), 220
+            )
         for index, line in enumerate(lines):
             bbox = draw.textbbox((0, 0), line, font=font)
             draw.text(
@@ -474,6 +523,8 @@ def composite_overlays(
     projection: np.ndarray | None = None,
     geometry_mask: np.ndarray | None = None,
     geometry_at: Callable[[float, float], bool] | None = None,
+    film_size: tuple[int, int] | None = None,
+    crop_offset: tuple[int, int] = (0, 0),
 ) -> Image.Image:
     """Overlay legends, fixed annotations and camera-projected callouts.
 
@@ -540,6 +591,8 @@ def composite_overlays(
             sensor=sensor,
             world_to_camera=world_to_camera,
             projection=projection,
+            film_size=film_size,
+            crop_offset=crop_offset,
         )
         _draw_world_annotations(output, projected, occupied, geometry_at)
     return output
@@ -557,6 +610,8 @@ def composite_overlay_file(
     projection: np.ndarray | None = None,
     geometry_mask: np.ndarray | None = None,
     geometry_at: Callable[[float, float], bool] | None = None,
+    film_size: tuple[int, int] | None = None,
+    crop_offset: tuple[int, int] = (0, 0),
 ) -> bool:
     """Composite overlays into a Pillow-readable image file.
 
@@ -579,6 +634,8 @@ def composite_overlay_file(
             projection=projection,
             geometry_mask=geometry_mask,
             geometry_at=geometry_at,
+            film_size=film_size,
+            crop_offset=crop_offset,
         )
     _write(result, filename)
     return True

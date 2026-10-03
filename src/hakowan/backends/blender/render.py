@@ -14,9 +14,45 @@ from pathlib import Path
 from typing import Any
 
 import bpy
+import mathutils
+import numpy as np
 from .geometry import _GeometryMixin
 from .materials import _MaterialMixin
 from .scene import _SceneMixin
+
+
+def _world_geometry_at(camera, projection, size: tuple[int, int]):
+    """Return a screen-pixel ray test for the current Blender render scene."""
+    width, height = size
+    inverse_projection = projection.inverted()
+    camera_world = camera.matrix_world.copy()
+    camera_forward = camera_world.to_3x3() @ mathutils.Vector((0.0, 0.0, -1.0))
+    camera_forward.normalize()
+    orthographic = camera.data.type == "ORTHO"
+    render_scene = bpy.context.scene
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    def has_geometry(x: float, y: float) -> bool:
+        clip = mathutils.Vector((2 * x / width - 1, 1 - 2 * y / height, -1, 1))
+        camera_point = inverse_projection @ clip
+        if abs(camera_point.w) < 1e-12:
+            return False
+        camera_point /= camera_point.w
+        near_point = camera_world @ mathutils.Vector(
+            (camera_point.x, camera_point.y, camera_point.z)
+        )
+        if orthographic:
+            origin, direction = near_point, camera_forward
+        else:
+            origin = camera_world.translation
+            direction = near_point - origin
+            if direction.length_squared == 0:
+                return False
+            direction.normalize()
+        hit, *_ = render_scene.ray_cast(depsgraph, origin, direction)
+        return bool(hit)
+
+    return has_geometry
 
 
 class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend):
@@ -185,6 +221,19 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         if _temp_blend is not None and _temp_blend.exists():
             _temp_blend.unlink()
 
+        geometry_mask: np.ndarray | None = None
+        if (
+            scene.world_annotations
+            and render_filename is not None
+            and not is_hdr_suffix(render_filename.suffix.lower())
+        ):
+            from PIL import Image as PILImage
+
+            with PILImage.open(render_filename) as rendered:
+                alpha = np.asarray(rendered.convert("RGBA").getchannel("A"))
+            if np.any(alpha < 255):
+                geometry_mask = alpha > 0
+
         # Convert Blender's native PNG output into the user's requested format
         # when it differs (e.g. .webp/.jpg). EXR and PNG need no conversion.
         if (
@@ -196,22 +245,33 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
 
         if filename is not None:
             camera_matrices = {}
+            geometry_at = None
             if scene.world_annotations and not is_hdr_suffix(filename.suffix.lower()):
                 camera = bpy.context.scene.camera
+                scene_render = bpy.context.scene.render
+                projection = camera.calc_matrix_camera(
+                    bpy.context.evaluated_depsgraph_get(),
+                    x=config.film.width,
+                    y=config.film.height,
+                    scale_x=scene_render.pixel_aspect_x,
+                    scale_y=scene_render.pixel_aspect_y,
+                )
                 camera_matrices = {
                     "world_to_camera": camera.matrix_world.inverted(),
-                    "projection": camera.calc_matrix_camera(
-                        bpy.context.evaluated_depsgraph_get(),
-                        x=config.film.width,
-                        y=config.film.height,
-                    ),
+                    "projection": projection,
                 }
+                if geometry_mask is None:
+                    geometry_at = _world_geometry_at(
+                        camera, projection, (config.film.width, config.film.height)
+                    )
             if not composite_overlay_file(
                 filename,
                 scene.legends,
                 scene.annotations,
                 config.background,
                 world_annotations=scene.world_annotations,
+                geometry_mask=geometry_mask,
+                geometry_at=geometry_at,
                 **camera_matrices,
             ):
                 logger.warning(

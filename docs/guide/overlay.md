@@ -1,9 +1,7 @@
 # Legends and annotations
 
-Hakowan treats legends and annotations as semantic figure overlays. They are
-part of the layer specification, survive canonical JSON round-trips, appear in
-WebGL viewers and beauty snapshots, and are composited into PNG/JPEG/WebP/TIFF
-outputs from Mitsuba and Blender.
+Add legends and labels to layers to explain the data shown in a visualization.
+They appear in WebGL viewers, snapshots, and supported raster image outputs.
 
 ## Automatic scalar-field legends
 
@@ -19,9 +17,9 @@ layer = hkw.layer(mesh).material(
 )
 ```
 
-The title defaults to the mesh attribute name. Units come from
-`hkw.attribute(..., unit=...)`. The compiler records the effective numeric
-domain after user-supplied attribute scales and before color normalization.
+The title defaults to the mesh attribute name, and units come from
+`hkw.attribute(..., unit=...)`. Legend values reflect the attribute's configured
+scale before the colormap is applied.
 
 Customize the colorbar with `hkw.Legend`:
 
@@ -116,13 +114,12 @@ label = hkw.Annotation("Simulation A", position=(0.02, 0.02))
 layer = hkw.layer(mesh, annotations=[label])
 ```
 
-Annotations inherited by multiple child views are deduplicated when the scene is
-compiled.
+A label inherited from a shared layer appears once in each view.
 
 ## World-space callouts
 
-Use `WorldAnnotation` to attach a label to a point in the **view's post-baked
-local geometry coordinates**, rather than a fixed pixel location:
+Use `WorldAnnotation` to attach a label to a point in a layer's 3D geometry,
+rather than at a fixed position on the image:
 
 ```py
 layer = hkw.layer(mesh).annotate(
@@ -131,63 +128,44 @@ layer = hkw.layer(mesh).annotate(
         position=(0.4, 0.2, 0.1),
         color="white",
         background="black",
-        offset=(0, -10),  # label sits 10 px above the projected anchor
+        offset=(0, -10),  # label sits 10 px above the point
         arrow=False,      # omit the leader; the default is True
     )
 )
 ```
 
-Coordinates are expressed after transforms that bake changes into mesh vertices
-(such as `Normalize`) and before the view's global transform and scene layout.
-The compiler applies those global transforms and layouts to the anchor, so the
-callout follows its view when the scene is juxtaposed. The label remains screen-facing.
-When `arrow` is true (the default), a leader connects the panel to the projected point. `arrow=False` draws the text alone.
+Use the 3D coordinates of the point in the layer's geometry, after any
+geometry-changing transforms. The callout follows the point when layers are
+transformed or arranged into multiple views, while the label stays screen-facing.
+When `arrow` is true (the default), a leader connects the label to the point;
+`arrow=False` omits it.
 
-`offset` is an optional screen-space pixel vector from the projected anchor
-to the panel edge that faces it. `+x` is right and `+y` is down. A zero
-component centers the panel on that axis, so `offset=(0, -10)` places the
-label 10 pixels above the anchor. `offset=None` keeps automatic placement;
-it is not the same as `(0, 0)`. An explicit offset is not inset,
-collision-checked, or hidden when it overlaps geometry, and the viewport may
-clip it.
+`offset` is an optional screen-space pixel vector from the point to the nearest
+edge of the label. `+x` is right and `+y` is down; for example,
+`offset=(0, -10)` places the label 10 pixels above the point. With
+`offset=None`, Hakowan places the label automatically. An explicit offset may
+overlap geometry or place the label partly outside the viewport.
 
-When `offset` is omitted, WebGL and raster callouts use the same placement
-policy: try the same ordered directions, expand the distance until the text
-clears the rendered geometry, keep a six-pixel viewport inset and a
-twelve-pixel exclusion around the anchor, and avoid fixed overlays and
-previously placed labels. If no legal position exists, hide the callout rather
-than cover the mesh. WebGL additionally avoids its controls and preserves the
-previous placement during interactive movement. For identical cameras and
-viewport sizes, initial placements are comparable; browser and Pillow font
-measurements can produce small pixel differences.
+Automatic placement looks for available space around the point. If there is no
+room for a readable label, Hakowan may hide it. In WebGL, placement adjusts as
+you move the camera.
 
-Callouts behind the camera, outside the viewport, or hidden by geometry are
-not displayed. Existing `Annotation` remains a fixed screen-space overlay.
-
-Beauty snapshots and LDR images from Mitsuba and Blender project the point
-through their fixed render camera. Mitsuba casts a camera ray per annotation and
-hides anchors behind other geometry; WebGL beauty snapshots currently only
-project anchors, and Blender raster overlays do not perform this occlusion test.
-Diagnostic passes never include labels. As with other raster overlays, EXR/HDR
-output skips compositing.
+Callouts outside the view are not displayed. Mitsuba hides callouts whose
+points are obscured by geometry; WebGL and Blender may show callouts even when
+their points are hidden.
 
 ## Backend behavior
 
-| Backend/output | Behavior |
+| Output | Behavior |
 |---|---|
-| WebGL viewer | HTML/CSS legend panels and annotations over the interactive canvas. |
-| `snapshot()` / `observe()` beauty pass | Pillow-composited overlays within the original image bounds. |
-| Mitsuba LDR file | Pillow-composited within the rendered image after rendering. The in-memory Mitsuba tensor remains uncomposited. |
-| Blender LDR file | Pillow-composited within the rendered image after format conversion. |
-| EXR/HDR files | Overlay is skipped with a warning because raster text cannot be represented faithfully. |
-| Diagnostic passes | No overlays; raw depth, normal, and ID dimensions stay aligned. |
+| WebGL viewer | Legends and annotations appear with the interactive scene. |
+| Beauty images and snapshots | Include legends and annotations without changing image dimensions. |
+| Mitsuba `result.image` | Does not include raster overlays. |
+| EXR/HDR and diagnostic passes | Do not include legends or annotations. |
 
-Raster legends do not change the requested output dimensions. A left or right
-legend is drawn over that edge of the beauty image with an eight-pixel inset.
-The panel uses the same rounded corners and semi-transparent dark background as
-the WebGL legend. Pixels outside that rounded rectangle retain the original
-render, including its alpha values. An explicit light or dark raster background
-override still flattens transparent render pixels before overlays are drawn.
+Raster legends and annotations are drawn over the beauty image without changing
+its dimensions. Use the `background` option to flatten transparent renders onto
+a light, dark, or black background.
 
 ## Observation manifests
 
@@ -199,5 +177,5 @@ observation.manifest["legends"]
 observation.manifest["annotations"]
 ```
 
-This lets an AI associate colors with fields, ranges, units, scale pipelines,
-and category labels without inferring them from pixels.
+Use the observation manifest to retrieve legend and annotation details
+programmatically, without inferring them from rendered pixels.

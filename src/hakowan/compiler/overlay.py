@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields, is_dataclass
+from dataclasses import asdict, dataclass, fields, is_dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -58,6 +58,8 @@ class CompiledWorldAnnotation:
     padding: int
     offset: tuple[float, float] | None = None
     arrow: bool = True
+
+    layers: tuple[int, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -184,6 +186,7 @@ def collect_overlays(scene: Scene) -> None:
 
 def collect_world_annotations(scene: Scene) -> None:
     """Resolve local annotation points after layout and scene transforms."""
+    view_indices: dict[tuple[Any, ...], int] = {}
     result: list[CompiledWorldAnnotation] = []
     for index, view in enumerate(scene):
         cell = (
@@ -202,25 +205,46 @@ def collect_world_annotations(scene: Scene) -> None:
                 if annotation.background is not None
                 else None
             )
+            position = (
+                float(transformed[0]),
+                float(transformed[1]),
+                float(transformed[2]),
+            )
+            rgb = (float(color[0]), float(color[1]), float(color[2]))
+            rgb_background = (
+                (float(background[0]), float(background[1]), float(background[2]))
+                if background is not None
+                else None
+            )
+            key = (
+                cell,
+                annotation.text,
+                position,
+                rgb,
+                annotation.font_size,
+                rgb_background,
+                annotation.padding,
+                annotation.offset,
+                annotation.arrow,
+            )
+            if key in view_indices:
+                result_index = view_indices[key]
+                existing = result[result_index]
+                owners = existing.layers or (existing.layer,)
+                if index not in owners:
+                    result[result_index] = replace(existing, layers=owners + (index,))
+                continue
+            view_indices[key] = len(result)
             result.append(
                 CompiledWorldAnnotation(
                     text=annotation.text,
-                    position=(
-                        float(transformed[0]),
-                        float(transformed[1]),
-                        float(transformed[2]),
-                    ),
+                    position=position,
                     layer=index,
+                    layers=(index,),
                     cell=cell,
-                    color=(float(color[0]), float(color[1]), float(color[2])),
+                    color=rgb,
                     font_size=annotation.font_size,
-                    background=(
-                        float(background[0]),
-                        float(background[1]),
-                        float(background[2]),
-                    )
-                    if background is not None
-                    else None,
+                    background=rgb_background,
                     padding=annotation.padding,
                     offset=annotation.offset,
                     arrow=annotation.arrow,

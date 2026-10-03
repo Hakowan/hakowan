@@ -52,6 +52,17 @@ def _box():
     return mesh
 
 
+@pytest.fixture(scope="module")
+def playwright_browser():
+    playwright = pytest.importorskip("playwright.sync_api")
+    try:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(headless=True)
+            browser.close()
+    except playwright.Error as exc:
+        pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+
+
 def test_world_callouts_follow_layout_and_remain_attached_to_views():
     mesh = _triangle()
     layer = hkw.layer(mesh).annotate(hkw.WorldAnnotation("vertex", position=(0, 0, 0)))
@@ -68,6 +79,53 @@ def test_world_callouts_follow_layout_and_remain_attached_to_views():
         local_vertex = np.asarray(view.data_frame.mesh.vertices[0], dtype=float)
         world_vertex = view.global_transform @ np.append(local_vertex, 1.0)
         np.testing.assert_allclose(item.position, world_vertex[:3], atol=1e-6)
+
+
+def test_world_annotation_on_overlay_is_emitted_once_for_all_views():
+    layer = (
+        hkw.layer(_triangle())
+        .show_edges()
+        .annotate(hkw.WorldAnnotation("edge overlay", position=(0.25, 0.25, 0.0)))
+    )
+
+    scene = hkw.compile(layer)
+
+    assert len(scene) == 2
+    assert len(scene.world_annotations) == 1
+    assert scene.world_annotations[0].layers == (0, 1)
+
+
+def test_browser_overlay_callout_follows_any_visible_owner_layer(
+    tmp_path, playwright_browser
+):
+    import playwright.sync_api as playwright_api
+
+    layer = (
+        hkw.layer(_triangle())
+        .show_edges()
+        .annotate(hkw.WorldAnnotation("shared overlay", position=(0.25, 0.25, 0.0)))
+    )
+    viewer = hkw.render(
+        layer, filename=tmp_path / "shared_overlay.html", backend="webgl", offline=True
+    )
+    with playwright_api.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            label = page.locator(".world-callout", has_text="shared overlay")
+            checkboxes = page.locator("#layers input")
+            assert label.count() == 1
+            assert checkboxes.count() == 2
+            checkboxes.first.uncheck()
+            assert label.is_visible()
+            checkboxes.nth(1).uncheck()
+            assert not label.is_visible()
+        finally:
+            browser.close()
 
 
 def test_world_annotation_position_uses_post_baked_local_coordinates():
@@ -287,7 +345,96 @@ def test_browser_callouts_track_rotation_and_layer_visibility(tmp_path):
             browser.close()
 
 
-def test_browser_box_front_face_callout_finds_space_outside_geometry(tmp_path):
+def test_two_sided_toggle_recomputes_callout_visibility(tmp_path, playwright_browser):
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = (
+        hkw.layer(_triangle())
+        .mark(hkw.mark.Surface)
+        .material("Diffuse", "red")
+        .annotate(hkw.WorldAnnotation("behind", (0.25, 0.25, 0.1)))
+    )
+    figure = hkw.figure(layer).camera(
+        "perspective",
+        eye=(0.25, 0.25, -4.0),
+        target=(0.25, 0.25, 0.0),
+        up=(0.0, 1.0, 0.0),
+    )
+    viewer = hkw.render(
+        figure, filename=tmp_path / "two_sided.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            label = page.locator(".world-callout", has_text="behind")
+            assert label.is_visible()
+
+            page.locator("#btn-twosided").click()
+            page.wait_for_function(
+                "document.querySelector('.world-callout').style.visibility === 'hidden'"
+            )
+        finally:
+            browser.close()
+
+
+def test_minimizing_layer_list_relayouts_obstructed_callout(
+    tmp_path, playwright_browser
+):
+    import playwright.sync_api as playwright_api
+
+    left = hkw.layer(_triangle()).annotate(
+        hkw.WorldAnnotation("panel obstacle", (0.25, 0.25, 0.0))
+    )
+    viewer = hkw.render(
+        left | hkw.layer(_triangle()),
+        filename=tmp_path / "minimize_callout.html",
+        backend="webgl",
+        offline=True,
+    )
+    with playwright_api.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 1000, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            label = page.locator(".world-callout", has_text="panel obstacle")
+            assert label.is_visible()
+            page.add_style_tag(
+                content="#layers.minimized { width:auto!important; height:auto!important; "
+                "min-width:0!important; min-height:0!important; max-height:none!important; }"
+            )
+            page.evaluate(
+                """() => {
+                  const panel = document.querySelector('#layers');
+                  panel.style.top = '0'; panel.style.bottom = 'auto';
+                  panel.style.left = '0'; panel.style.width = '100vw';
+                  panel.style.height = '100vh'; panel.style.maxHeight = 'none';
+                  const h = window.__hakowan;
+                  h.controls.target.x += 0.001;
+                  h.controls.update();
+                }"""
+            )
+            page.wait_for_function(
+                "document.querySelector('.world-callout').style.visibility === 'hidden'"
+            )
+            page.get_by_role("button", name="Minimize layer list").click()
+            page.wait_for_function(
+                "document.querySelector('.world-callout').style.visibility === 'visible'"
+            )
+        finally:
+            browser.close()
+
+
+def test_browser_box_front_face_callout_finds_space_outside_geometry(
+    tmp_path, playwright_browser
+):
     playwright = pytest.importorskip("playwright.sync_api")
     layer = (
         hkw.layer(_box())
@@ -327,7 +474,9 @@ def test_browser_box_front_face_callout_finds_space_outside_geometry(tmp_path):
             browser.close()
 
 
-def test_static_box_label_uses_same_browser_and_raster_placement(tmp_path):
+def test_static_box_label_uses_same_browser_and_raster_placement(
+    tmp_path, playwright_browser
+):
     import base64
     import io
     from PIL import Image
@@ -378,7 +527,7 @@ def test_static_box_label_uses_same_browser_and_raster_placement(tmp_path):
             browser.close()
 
 
-def test_box_snapshot_places_world_text_outside_mesh():
+def test_box_snapshot_places_world_text_outside_mesh(playwright_browser):
     pytest.importorskip("playwright.sync_api")
     layer = hkw.layer(_box()).annotate(
         hkw.WorldAnnotation("Front", (0, 0, 0.5), background="magenta", color="white")

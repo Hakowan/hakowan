@@ -14,6 +14,7 @@ from hakowan.common.overlay import (
     _place_world_label,
     composite_overlay_file,
     composite_overlays,
+    _project_world_annotations,
 )
 from hakowan.common.colormap.named_colormaps import get_colormap
 from hakowan.compiler.overlay import (
@@ -293,6 +294,8 @@ def test_world_callouts_project_with_sensor_and_avoid_anchor_overlap(tmp_path):
     result = composite_overlays(
         source, [], [], world_annotations=annotations, sensor=camera
     )
+
+    assert np.all(np.asarray(result)[:, :, 3] == 255)
     assert result.getpixel((120, 80)) == (255, 0, 0, 255)
     # Distinct labels fit in different locations, neither occluding the anchor.
     dark = np.all(np.asarray(result)[:, :, :3] < 100, axis=2)
@@ -326,6 +329,63 @@ def test_world_callouts_project_with_sensor_and_avoid_anchor_overlap(tmp_path):
         world_annotations=annotations[:1],
         sensor=camera,
     )
+
+
+def test_world_callout_renders_text_pixels_without_panel_or_arrow():
+    source = Image.new("RGB", (240, 160), "white")
+    camera = Perspective(
+        location=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0), fov=90, fov_axis="y"
+    )
+    annotation = replace(
+        _world_callout(text="glyph"),
+        color=(0.0, 0.0, 0.0),
+        background=None,
+        arrow=False,
+    )
+
+    result = composite_overlays(
+        source, [], [], world_annotations=[annotation], sensor=camera
+    )
+
+    assert np.any(np.all(np.asarray(result)[:, :, :3] < 100, axis=2))
+
+
+@pytest.mark.parametrize("position", [(1.0, 0.0, 0.0), (0.0, -1.0, 0.0)])
+def test_matrix_projection_rejects_right_and_bottom_edges(position):
+    projected = _project_world_annotations(
+        [_world_callout(position)],
+        (240, 160),
+        sensor=None,
+        world_to_camera=np.eye(4),
+        projection=np.eye(4),
+    )
+
+    assert projected == []
+
+
+def test_callout_projection_uses_full_film_with_crop_offset():
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0), scale=4)
+    projected = _project_world_annotations(
+        [_world_callout()],
+        (160, 100),
+        sensor=camera,
+        world_to_camera=None,
+        projection=None,
+        film_size=(240, 160),
+        crop_offset=(20, 10),
+    )
+
+    assert projected[0][1:] == (100.0, 70.0)
+
+
+def test_auto_callout_keeps_other_anchors_outside_its_panel():
+    placement = _place_world_label(
+        (200, 160), (60, 40), (400, 300), [], anchors=[(250, 120)]
+    )
+
+    assert placement is not None
+    left, top, right, bottom = placement
+    assert not (left <= 250 <= right and top <= 120 <= bottom)
 
 
 def test_world_label_expands_beyond_mesh_before_hiding():
@@ -397,7 +457,8 @@ def test_world_callout_avoids_foreground_and_preserves_arrow_color(transparent):
         sensor=Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2),
         geometry_mask=None if transparent else mask,
     )
-    panel = np.all(np.asarray(result)[:, :, :3] == 0, axis=2)
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
     assert np.any(panel)
     assert not np.any(panel & mask)
     assert result.getpixel((210, 160)) == (255, 0, 0, 255)
@@ -433,9 +494,12 @@ def test_world_callout_relative_offset_placement_and_optional_arrow():
         source, [], [], world_annotations=[above], sensor=camera
     )
     assert result.getpixel((200, 150)) == (255, 255, 255, 255)
-    assert result.getpixel((200, 135))[:3] == (0, 0, 0)
-    black = np.all(np.asarray(result)[:, :, :3] == 0, axis=2)
-    rows = np.where(black)[0]
+    assert result.getpixel((200, 135))[:3] == (35, 35, 35)
+    panel = np.all(
+        (np.asarray(result)[:, :, :3] > 20) & (np.asarray(result)[:, :, :3] < 50),
+        axis=2,
+    )
+    rows = np.where(panel)[0]
     assert rows.size
     assert 150 - int(rows.max()) >= 10
 
@@ -443,7 +507,7 @@ def test_world_callout_relative_offset_placement_and_optional_arrow():
         source, [], [], world_annotations=[replace(above, arrow=True)], sensor=camera
     )
     assert with_arrow.getpixel((200, 150)) != (255, 255, 255, 255)
-    assert with_arrow.getpixel((200, 135))[:3] == (0, 0, 0)
+    assert with_arrow.getpixel((200, 135))[:3] == (35, 35, 35)
 
 
 def test_world_callout_geometry_callback_precedes_mask_and_file_forwards(tmp_path):
@@ -505,7 +569,8 @@ def test_world_callout_avoids_fixed_annotation_and_legend():
         world_annotations=[_world_callout()],
         sensor=camera,
     )
-    panel = np.all(np.asarray(result)[:, :, :3] == 0, axis=2)
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
     # The fixed annotation blocks upper-right and the legend blocks upper-left.
     assert np.any(panel[180:, 220:])
     assert not np.any(panel[:150])
@@ -520,7 +585,8 @@ def test_world_callout_wraps_multiline_text_inside_viewport():
         world_annotations=[_world_callout(text="abcdefghij" * 10 + "\nlast")],
         sensor=Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2),
     )
-    panel = np.all(np.asarray(result)[:, :, :3] == 0, axis=2)
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
     ys, xs = np.where(panel)
     assert xs.max() - xs.min() <= 146  # 35% content width plus padding
     assert ys.max() - ys.min() >= 4 * 14 * 1.25 + 6

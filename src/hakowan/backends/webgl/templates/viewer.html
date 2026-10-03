@@ -844,6 +844,7 @@ function toggleTwoSided() {
   const btn = document.getElementById('btn-twosided');
   if (btn) btn.classList.toggle('active', twoSided);
   applyTwoSided();
+  updateWorldCallouts(false, true);
 }
 
 // The renderer is sRGB-output; built-in materials like MeshBasic include the
@@ -1376,8 +1377,14 @@ function buildLayerUI() {
   restore.textContent = 'layers +';
   restore.setAttribute('aria-label', 'Restore layer list');
   restore.title = 'Restore layer list';
-  minimize.addEventListener('click', () => container.classList.add('minimized'));
-  restore.addEventListener('click', () => container.classList.remove('minimized'));
+  minimize.addEventListener('click', () => {
+    container.classList.add('minimized');
+    requestAnimationFrame(() => updateWorldCallouts(false, true));
+  });
+  restore.addEventListener('click', () => {
+    container.classList.remove('minimized');
+    requestAnimationFrame(() => updateWorldCallouts(false, true));
+  });
   container.appendChild(restore);
   for (const entry of LAYERS) {
     const label = document.createElement('label');
@@ -1599,8 +1606,10 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
     }
   }
   for (const item of callouts) {
-    const nodes = layerNodeMap.get(item.annotation.layer);
-    if (!nodes || !nodes.some(node => node.visible)) {
+    const ownerLayers = Array.isArray(item.annotation.layers) && item.annotation.layers.length
+      ? item.annotation.layers : [item.annotation.layer];
+    const nodes = ownerLayers.flatMap(index => layerNodeMap.get(index) || []);
+    if (!nodes.some(node => node.visible)) {
       hideWorldCallout(item);
       continue;
     }
@@ -1667,7 +1676,7 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
         const rect = { x, y, w: width, h: height };
         const radius = CALLOUT_POLICY.anchor_radius;
         if (_rectOverlap(rect, { x: ax - radius, y: ay - radius, w: radius * 2, h: radius * 2 })) continue;
-        const score = i * 3 + (item.candidate < 0 || item.candidate === i ? 0 : 35);
+        const score = i * 3 + (!staticLayout && item.candidate >= 0 && item.candidate !== i ? 35 : 0);
         // A crowded viewport is better served by hiding the callout than by
         // covering controls or another label.
         if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;

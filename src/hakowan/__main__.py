@@ -4,6 +4,7 @@ import argparse
 import copy
 import sys
 import hakowan as hkw
+from hakowan.common.image_io import save_array
 from pathlib import Path
 import math
 import lagrange
@@ -18,9 +19,13 @@ from tqdm import tqdm
 _CLIP_AXES = {"x", "-x", "y", "-y", "z", "-z"}
 
 
-def _render_backend() -> str:
-    """Choose the best installed backend for the image-render action."""
+def _render_backend(*, facet_id: bool = False) -> str:
+    """Choose an installed renderer that can produce the requested image."""
     available = set(hkw.list_backends())
+    if facet_id:
+        if "blender" in available:
+            return "blender"
+        raise SystemExit("The --facet-id pass requires the Blender backend.")
     for backend in ("mitsuba", "blender", "webgl"):
         if backend in available:
             return backend
@@ -316,7 +321,11 @@ def parse_args(argv=None):
     )
     args = parser.parse_args(argv[1:])
     args.action = action
-    args.backend = _render_backend() if action == "render" else "webgl"
+    if action == "view" and args.facet_id:
+        raise SystemExit("The --facet-id pass is only available with hkw render.")
+    args.backend = (
+        _render_backend(facet_id=args.facet_id) if action == "render" else "webgl"
+    )
     return args
 
 
@@ -1166,15 +1175,21 @@ def main():
     if args.turn_table == 0:
         if args.action == "render" and args.backend == "webgl":
             try:
-                hkw.snapshot(
+                snapshot = hkw.snapshot(
                     layer,
                     pass_name=turntable_pass,
                     resolution=tuple(args.resolution),
                     config=config,
-                    filename=output_file,
                 )
             except hkw.ObservationError as exc:
                 raise SystemExit(str(exc)) from exc
+            save_array(np.asarray(snapshot.image), output_file)
+            if snapshot.data is not None:
+                np.save(
+                    output_file.with_suffix(".npy"),
+                    snapshot.data,
+                    allow_pickle=False,
+                )
         else:
             kwargs = {}
             if args.serialize:

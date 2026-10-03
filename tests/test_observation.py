@@ -677,34 +677,43 @@ def test_cli_missing_normal_is_actionable(monkeypatch, tmp_path):
         main_module.main()
 
 
+@pytest.mark.parametrize(
+    ("suffix", "image_format"), [(".png", "PNG"), (".jpg", "JPEG")]
+)
 def test_cli_render_falls_back_to_webgl_image(
-    monkeypatch, tmp_path, playwright_browser
+    monkeypatch, tmp_path, playwright_browser, suffix, image_format
 ):
     mesh_path = tmp_path / "mesh.ply"
     lagrange.io.save_mesh(mesh_path, _triangle())
-    output = mesh_path.with_suffix(".png")
+    output = mesh_path.with_suffix(suffix)
     main_module = importlib.import_module("hakowan.__main__")
     monkeypatch.setattr(main_module.hkw, "list_backends", lambda: ["webgl"])
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "hkw",
-            "render",
-            str(mesh_path),
-            "--resolution",
-            "24",
-            "16",
-            "--depth",
-        ],
-    )
+    argv = [
+        "hkw",
+        "render",
+        str(mesh_path),
+        "--resolution",
+        "24",
+        "16",
+        "--material",
+        "diffuse",
+        "--color",
+        "red",
+        "--depth",
+    ]
+    if suffix != ".png":
+        argv.extend(["--output", str(output)])
+    monkeypatch.setattr(sys, "argv", argv)
 
     main_module.main()
 
     assert output.is_file()
     with Image.open(output) as image:
         assert image.size == (24, 16)
-        assert image.format == "PNG"
+        assert image.format == image_format
+        pixels = np.asarray(image.convert("RGB"), dtype=np.int16)
+        assert np.max(np.abs(pixels[:, :, 0] - pixels[:, :, 1])) <= 3
+        assert np.max(np.abs(pixels[:, :, 1] - pixels[:, :, 2])) <= 3
     assert not output.with_suffix(".html").exists()
 
 

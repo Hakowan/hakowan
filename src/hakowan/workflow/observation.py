@@ -868,7 +868,9 @@ def _capture_context(
         else:
             resolution = (512, 512)
     if background is None:
-        if (
+        if explicit_config and config is not None and config.background is not None:
+            background = config.background
+        elif (
             figure is not None
             and not explicit_config
             and figure.scene.output is not None

@@ -52,9 +52,6 @@ pixi shell -e observe
 playwright install chromium
 ```
 
-Three.js modules are downloaded once into `~/.cache/hakowan/three/` (or
-`HAKOWAN_CACHE_DIR`) and reused, so later captures do not require the CDN.
-
 ## One snapshot
 
 ```py
@@ -88,11 +85,9 @@ preset explicitly.
 
 ## Render passes
 
-
-Without ID passes, depth and normal arrays are decoded from the GPU pass image;
-depth therefore has 8-bit display quantization. When `element_id` or `layer_id`
-is requested for the same view, Hakowan reuses the pixel-center raycast data for
-full `float32` depth and world normals.
+Request `element_id` or `layer_id` when you need full-precision depth and
+normal data. Without those passes, depth and normals have display-image
+precision.
 
 | Pass | Image | Raw `Snapshot.data` |
 |---|---|---|
@@ -267,18 +262,12 @@ camera = hkw.CameraState(
 snapshot = hkw.snapshot(layer, camera=camera)
 ```
 
-`view` remains the result label when an explicit camera is supplied. In an
-`observe()` call, pass `cameras={"front": camera}` to override selected presets.
-
-Custom camera keys also become artifact name prefixes. They may contain spaces
-and Unicode text, but empty labels, `.`/`..`, path separators, and NUL bytes are
-rejected so `output_dir` remains the artifact boundary. The `timeout=` value
-applies to navigation and every Playwright capture operation.
+The camera key is used as the view label and in output filenames. Use
+`cameras={"front": camera}` with `observe()` to override a named preset.
 
 ## Offline WebGL viewers
 
-Interactive HTML normally imports Three.js from a CDN. Produce a portable
-folder bundle instead:
+Create a portable viewer folder with `offline=True`:
 
 ```py
 hkw.render(
@@ -289,26 +278,15 @@ hkw.render(
 )
 ```
 
-This writes `viewer.html` and `viewer_assets/`. The first offline build downloads
-the pinned Three.js core, controls, geometry utilities, and environment-map
-loader dependencies into Hakowan's cache and verifies their SHA-256 digests.
-Subsequent bundles are copied from that cache and work without network access.
-Keep the HTML and asset directory together. Because browsers block JavaScript
-modules loaded from `file://`, serve the directory over HTTP:
-
-```sh
-python -m http.server --directory /path/to/output 8000
-```
-
-Then open `http://127.0.0.1:8000/viewer.html`.
+This writes `viewer.html` and a sibling `viewer_assets/` directory. Keep both
+items together when sharing or hosting the viewer.
 
 ## Determinism and limitations
 
-Hakowan fixes camera framing, viewport size, device pixel ratio, pass behavior,
-random seeds already present in the layer, layer ordering, and output naming.
-WebGL output can still differ across browser/GPU implementations at antialiased
-edges. Raw ID and raycast data are sampled at pixel centers and are preferable
-to false-color PNGs for programmatic comparison.
+Hakowan uses consistent camera framing and output settings for repeatable
+captures. Exact pixels may vary across browser and GPU implementations,
+especially at antialiased edges. Use raw ID, depth, or normal data for
+programmatic comparisons rather than false-color images.
 
 The headless API currently supports `backend="webgl"`. Mitsuba and Blender keep
 their existing render APIs but do not yet implement the `Snapshot` contract.

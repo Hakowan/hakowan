@@ -142,6 +142,26 @@ class TestEndToEnd:
         with pytest.raises(ValueError, match="HTTP"):
             result.embed_html(src=src)
 
+    def test_world_annotation_text_cannot_replace_template_placeholders(self):
+        from hakowan.backends.webgl.template import render_html
+
+        marker = "{{CALLOUT_POLICY_JSON}}"
+        html = render_html(
+            glb_uri="data:model/gltf-binary;base64,",
+            three_version="0.170.0",
+            backgrounds={"dark": ((0.1, 0.1, 0.1), (0.0, 0.0, 0.0))},
+            background="dark",
+            initial_view={"eye": [0, 0, 5], "target": [0, 0, 0], "up": [0, 1, 0]},
+            title="test",
+            world_annotations=[{"text": marker}],
+        )
+        start = html.index("const WORLD_ANNOTATIONS = ") + len(
+            "const WORLD_ANNOTATIONS = "
+        )
+        end = html.index(";", start)
+
+        assert json.loads(html[start:end])[0]["text"] == marker
+
     def test_embed_html_requires_saved_webgl_viewer(self):
         with pytest.raises(ValueError, match="saved WebGL viewer"):
             hkw.RenderResult(backend="mitsuba", path=Path("image.png")).embed_html()

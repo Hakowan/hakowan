@@ -244,6 +244,74 @@ class TestRender:
             assert image.mode == "RGBA"
             assert np.asarray(image)[:, :80, 3].min() == 0
 
+    def test_mitsuba_cropped_film_projects_callouts_to_crop_pixels(self, tmp_path):
+        from PIL import Image
+        from hakowan.common.overlay import _project_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        layer = hkw.layer(_box_mesh()).annotate(
+            hkw.WorldAnnotation("crop", position=(0.0, 0.0, 0.5), arrow=False)
+        )
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.film.crop_offset = np.array([20, 10], dtype=np.uint32)
+        config.film.crop_size = np.array([160, 100], dtype=np.uint32)
+        config.sensor = Orthographic(
+            scale=2.6,
+            location=(0, 0, 4),
+            target=(0, 0, 0),
+            up=(0, 1, 0),
+        )
+        compiled = hkw.prepare_scene(hkw.compile(layer), config)
+        projected = _project_world_annotations(
+            compiled.world_annotations,
+            (160, 100),
+            sensor=config.sensor,
+            world_to_camera=None,
+            projection=None,
+            film_size=(240, 160),
+            crop_offset=(20, 10),
+        )
+        assert projected[0][1:] == pytest.approx((100, 70))
+
+        output = tmp_path / "crop.png"
+        hkw.render(layer, config, filename=output, backend="mitsuba")
+        with Image.open(output) as image:
+            assert image.size == (160, 100)
+
+    def test_mitsuba_occlusion_epsilon_does_not_grow_with_camera_distance(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
+        )
+        mesh.add_triangle(0, 1, 2)
+        layer = hkw.layer(mesh).annotate(
+            hkw.WorldAnnotation("occluded", position=(0.0, 0.0, -0.02))
+        )
+        config = hkw.config()
+        config.film.width = config.film.height = 64
+        config.sensor = Orthographic(
+            location=(0.0, 0.0, 500.0),
+            target=(0.0, 0.0, 0.0),
+            up=(0.0, 1.0, 0.0),
+            scale=2.0,
+            near_clip=0.01,
+            far_clip=1000.0,
+        )
+        scene = hkw.prepare_scene(hkw.compile(layer), config)
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
+
+        assert visible == []
+
     def test_point_mark_anchor_is_not_occluded_by_its_own_glyph(self):
         from hakowan.backends.mitsuba.render import _visible_world_annotations
 

@@ -48,7 +48,8 @@ Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender ba
 available backend in this order: Mitsuba, Blender, then WebGL. `view` creates
 an interactive WebGL HTML viewer. `inspect` lists a mesh's attributes, domains,
 and each channel's min/max without selecting a render backend. Run `hkw --help`
-or an action's help for details:
+or an action's help for details. `--facet-id` selects Blender for `render` and
+reports an error if Blender is unavailable.
 
 `render` uses Mitsuba or Blender when installed. If neither is available, WebGL
 image capture requires `pip install "hakowan[observe]"` and
@@ -99,7 +100,7 @@ hosts without adding model-provider dependencies to this package.
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.6.0},
+    version = {0.6.1},
     year = 2026,
 }
 ```

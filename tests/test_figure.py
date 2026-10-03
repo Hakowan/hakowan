@@ -86,6 +86,18 @@ def test_black_background_matches_webgl_snapshot_and_raster_compositor(
     snapshot = hkw.snapshot(figure)
     assert snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
 
+    layer = hkw.layer(_triangle())
+    config = hkw.config()
+    config.background = "black"
+    configured_snapshot = hkw.snapshot(layer, config=config, resolution=(96, 64))
+    assert configured_snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
+    observation = hkw.observe(
+        layer, views=["front"], passes=["beauty"], resolution=(96, 64), config=config
+    )
+    assert observation.snapshot("front", "beauty").image.convert("RGB").getpixel(
+        (0, 0)
+    ) == (0, 0, 0)
+
     transparent = Image.new("RGBA", (96, 64), (255, 255, 255, 0))
     raster = composite_overlays(transparent, [], [], figure.scene.output.background)
     assert raster.getpixel((0, 0)) == (0, 0, 0, 255)

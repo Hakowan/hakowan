@@ -1,19 +1,17 @@
 # Rendering Backends
 
-Hakowan supports multiple rendering backends, allowing you to choose the renderer that best suits
-your needs. Three backends are available: **WebGL** (interactive browser viewer), **Mitsuba**
-(photorealistic), and **Blender** (Cycles/EEVEE). WebGL ships with the base install and is used by
-default; Mitsuba and Blender are optional extras (`pip install hakowan[mitsuba]` /
+Hakowan offers three backends: **WebGL** for interactive browser viewing,
+**Mitsuba** for photorealistic rendering, and **Blender** for Cycles or EEVEE
+rendering. WebGL is included in the base install and is the default; Mitsuba
+and Blender are optional extras (`pip install hakowan[mitsuba]` /
 `pip install hakowan[blender]`).
 
 ## Available Backends
 
 ### Mitsuba Backend
 
-The Mitsuba backend is based on the
-[Mitsuba 3](https://www.mitsuba-renderer.org/) physically-based rendering system, which provides
-high-quality, photorealistic rendering with advanced lighting and material models. It is an
-optional extra — install it with `pip install hakowan[mitsuba]`.
+Use Mitsuba for photorealistic renders with advanced lighting and materials.
+Install the optional backend with `pip install hakowan[mitsuba]`.
 
 **Advantages:**
 - High-quality photorealistic rendering
@@ -34,9 +32,8 @@ hkw.render(layer, filename="output.exr", backend="mitsuba")
 
 ### Blender Backend
 
-The Blender backend uses [Blender](https://www.blender.org/)'s rendering engine through the `bpy`
-Python API. This backend is useful if you want to leverage Blender's rendering capabilities or
-integrate Hakowan into a Blender-based workflow.
+Use Blender to render with Cycles or EEVEE, save editable `.blend` scenes, or
+produce render passes such as albedo, depth, normal, and facet ID.
 
 **Advantages:**
 - Integration with Blender ecosystem
@@ -67,17 +64,15 @@ hkw.render(
 
 ### WebGL Backend
 
-The WebGL backend generates an interactive HTML viewer using
-[three.js](https://threejs.org/) and glTF 2.0. The scene data is embedded in the
-HTML. By default, the viewer imports version-pinned Three.js modules from unpkg;
-`offline=True` writes those modules into a sibling asset directory instead.
-WebGL ships with the base install and is the default backend.
+WebGL creates an interactive HTML viewer for exploring a scene. It is included
+in the base install and is the default backend. Set `offline=True` to save the
+viewer with the assets needed to use it without a network connection.
 
 **Advantages:**
 - Default backend — ships with the base install
 - Immediate interactive browser output
-- Embedded glTF scene data
-- Optional offline module bundle
+- The complete scene can be shared as an HTML viewer
+- Optional offline viewer assets
 - Live albedo, depth, and normal passes
 - Deterministic headless snapshots with `hakowan[observe]`
 
@@ -102,32 +97,18 @@ restore it. Minimizing the panel does not change layer visibility.
 
 **Embed in a webpage:**
 
-Render the viewer to an HTML file, publish it on an HTTP(S) static host, and paste
-an iframe into the page where it should appear:
+Use `embed_html()` to add the viewer to a webpage:
 
 ```py
 result = hkw.render(layer, filename="output.html", backend="webgl")
-print(result.embed_html(src="https://example.org/visualizations/output.html", height=420))
+iframe = result.embed_html(src="visualizations/output.html", height=420)
 ```
 
-```html
-<iframe src="https://example.org/visualizations/output.html" title="Interactive 3D visualization" width="100%" height="420" loading="lazy" style="border:0;"></iframe>
-```
+Set `src` to the published viewer path. If the viewer and embedding page are in
+the same directory, omit `src`. Adjust `title`, `width`, and `height` as needed.
 
-If the embedding page and viewer are published in the same directory, call
-`result.embed_html()` without `src`: it uses the generated viewer's filename,
-even when the render output path on your computer is absolute. Set `src` to the
-published path or URL for any other layout. You can also set `title` and `width`.
-The viewer's styles, scripts, and controls stay inside the iframe; no Three.js
-code is needed in the embedding page.
-
-The default output embeds scene data but loads Three.js modules from unpkg. For
-an offline/self-hosted deployment, render with `offline=True` and publish both
-`output.html` **and** the sibling `output_assets/` directory at the same relative
-paths. The viewer's host must allow framing (for example, through its
-`frame-ancestors` policy), and the embedding page must allow the viewer's URL in
-its iframe/CSP policy. Hosts that strip iframes or disallow scripts cannot
-display the interactive viewer; link to the HTML page instead.
+For offline sharing, render with `offline=True` and publish `output.html` and
+its sibling `output_assets/` directory together, preserving their relative paths.
 
 **Background:**
 
@@ -140,14 +121,11 @@ hkw.render(layer, filename="output.html", backend="webgl", background="light")
 hkw.render(layer, filename="output.html", backend="webgl", background="black")
 ```
 
-The `background` option sets the *initial* look. The interactive viewer's
-**☀ / ☾ button** switches to light/dark gradients, including when it starts
-black. Transparent materials (e.g. `ThinDielectric` glass) refract the active
-background. Use `figure.output(background="black")` to request a black background
-in WebGL **and** opaque raster renders. Orthographic `scale` is now the full
-vertical extent in WebGL and Mitsuba, independent of aspect ratio. WebGL Diffuse
-shading no longer adds the glTF dielectric specular lobe, but Three.js PMREM
-lighting and Mitsuba path tracing can still give slightly different colors.
+The `background` option sets the initial look. The interactive viewer's **☀ / ☾
+button** switches between light and dark gradients, including when it starts
+black. Transparent materials, such as `ThinDielectric` glass, show the active
+background. Use `figure.output(background="black")` to request a black
+background in WebGL and opaque raster renders.
 
 ## Render result
 
@@ -268,10 +246,10 @@ hkw.render(
 ### WebGL Backend Options
 
 ```py
-# Default: compact HTML that imports Three.js from the pinned CDN URL.
+# Standard interactive viewer output.
 hkw.render(layer, filename="output.html", backend="webgl")
 
-# Portable offline folder: output.html + output_assets/.
+# Include assets alongside the HTML for offline use.
 hkw.render(
     layer,
     filename="output.html",
@@ -280,10 +258,8 @@ hkw.render(
 )
 ```
 
-The first offline build downloads the pinned core, controls, geometry utilities,
-and environment-map loader dependencies into `~/.cache/hakowan/three/` and
-verifies their SHA-256 digests. Subsequent bundles are copied from that cache.
-See [Snapshot and observation](observation.md) for deterministic PNG capture.
+Publish `output.html` and `output_assets/` together when sharing an offline
+viewer. See [Snapshot and observation](observation.md) for PNG capture.
 
 ## Choosing a Backend
 
