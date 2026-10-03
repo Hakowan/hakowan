@@ -113,7 +113,9 @@ class WorldAnnotation:
         if len(self.position) != 3 or not all(
             math.isfinite(value) for value in self.position
         ):
-            raise ValueError("WorldAnnotation.position must contain three finite coordinates.")
+            raise ValueError(
+                "WorldAnnotation.position must contain three finite coordinates."
+            )
         if self.font_size <= 0:
             raise ValueError("WorldAnnotation.font_size must be positive.")
         if self.padding < 0:

@@ -477,7 +477,8 @@ class MitsubaBackend(RenderBackend):
 
                 def world_geometry_at(x: float, y: float) -> bool:
                     ray, _ = sensor.sample_ray(
-                        0.0, 0.0,
+                        0.0,
+                        0.0,
                         mi.Point2f(x / width, y / height),
                         mi.Point2f(0.5, 0.5),
                     )
@@ -485,8 +486,12 @@ class MitsubaBackend(RenderBackend):
 
                 geometry_at = world_geometry_at
             if not composite_overlay_file(
-                filename, scene.legends, scene.annotations, config.background,
-                world_annotations=world_annotations, sensor=config.sensor,
+                filename,
+                scene.legends,
+                scene.annotations,
+                config.background,
+                world_annotations=world_annotations,
+                sensor=config.sensor,
                 geometry_at=geometry_at,
             ):
                 logger.warning(

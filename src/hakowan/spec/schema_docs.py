@@ -251,7 +251,10 @@ FIELD_OVERRIDES = {
         "WorldAnnotationSpec",
         "position",
     ): "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit.",
-    ("WorldAnnotationSpec", "color"): "World annotation text color, also used for the leader when one is drawn.",
+    (
+        "WorldAnnotationSpec",
+        "color",
+    ): "World annotation text color, also used for the leader when one is drawn.",
     (
         "WorldAnnotationSpec",
         "offset",

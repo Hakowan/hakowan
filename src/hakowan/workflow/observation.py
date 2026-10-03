@@ -740,7 +740,9 @@ def _capture_sync(
                         normal_url = page.evaluate(
                             "() => window.__hakowan.capturePng('normal')"
                         )
-                        normal_pixels = np.asarray(_decode_png(normal_url).convert("RGB"))
+                        normal_pixels = np.asarray(
+                            _decode_png(normal_url).convert("RGB")
+                        )
                         callout_geometry = np.any(normal_pixels != 0, axis=2)
                     for pass_name in passes:
                         if pass_name in {"element_id", "layer_id"}:
@@ -791,12 +793,18 @@ def _capture_sync(
                         else:
                             data = None
                         if pass_name == "beauty" and (
-                            scene.legends or scene.annotations or scene.world_annotations
+                            scene.legends
+                            or scene.annotations
+                            or scene.world_annotations
                         ):
                             image = composite_overlays(
-                                image, scene.legends, scene.annotations, background,
+                                image,
+                                scene.legends,
+                                scene.annotations,
+                                background,
                                 world_annotations=scene.world_annotations,
-                                world_to_camera=world_to_camera, projection=projection,
+                                world_to_camera=world_to_camera,
+                                projection=projection,
                                 geometry_mask=callout_geometry,
                             )
                         snapshots[(view, pass_name)] = Snapshot(
@@ -844,7 +852,9 @@ def _capture_context(
     config: Config | None,
     resolution: tuple[int, int] | None,
     background: Literal["light", "dark", "black"] | None,
-) -> tuple[Layer, Config | None, tuple[int, int], Literal["light", "dark", "black"], bool]:
+) -> tuple[
+    Layer, Config | None, tuple[int, int], Literal["light", "dark", "black"], bool
+]:
     explicit_config = config is not None
     figure = root if isinstance(root, Figure) else None
     runtime_layer = cast(Layer, figure.layer if figure is not None else root)

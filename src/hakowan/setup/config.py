@@ -61,7 +61,9 @@ class Config:
 
     def __setattr__(self, name, value):
         if name == "background" and value not in {None, "light", "dark", "black"}:
-            raise ValueError("Config.background must be 'light', 'dark', 'black', or None.")
+            raise ValueError(
+                "Config.background must be 'light', 'dark', 'black', or None."
+            )
         object.__setattr__(self, name, value)
 
     def z_up(self) -> None:

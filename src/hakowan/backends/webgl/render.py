@@ -118,7 +118,9 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
-            world_annotations=[annotation.to_dict() for annotation in scene.world_annotations],
+            world_annotations=[
+                annotation.to_dict() for annotation in scene.world_annotations
+            ],
         )
         out_path.write_bytes(html.encode("utf-8"))
         logger.info(f"WebGL viewer saved to {out_path}")
@@ -173,7 +175,9 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
-            world_annotations=[annotation.to_dict() for annotation in scene.world_annotations],
+            world_annotations=[
+                annotation.to_dict() for annotation in scene.world_annotations
+            ],
         )
 
     # ------------------------------------------------------------------ #

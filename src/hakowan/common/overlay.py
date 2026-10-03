@@ -9,7 +9,11 @@ from typing import Callable, Sequence, TypedDict
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from ..compiler.overlay import CompiledAnnotation, CompiledLegend, CompiledWorldAnnotation
+from ..compiler.overlay import (
+    CompiledAnnotation,
+    CompiledLegend,
+    CompiledWorldAnnotation,
+)
 from ..setup.sensor import Orthographic, Perspective, Sensor
 from .image_io import _write
 
@@ -30,9 +34,15 @@ CALLOUT_POLICY: _CalloutPolicy = {
     "gap_growth": 1.5,
     "gap_step": 15,
     "footprint": [
-        (0.03, 0.03), (0.5, 0.03), (0.97, 0.03),
-        (0.03, 0.5), (0.5, 0.5), (0.97, 0.5),
-        (0.03, 0.97), (0.5, 0.97), (0.97, 0.97),
+        (0.03, 0.03),
+        (0.5, 0.03),
+        (0.97, 0.03),
+        (0.03, 0.5),
+        (0.5, 0.5),
+        (0.97, 0.5),
+        (0.03, 0.97),
+        (0.5, 0.97),
+        (0.97, 0.97),
     ],
 }
 
@@ -165,10 +175,14 @@ def _draw_annotations(
             x -= text_width
         padding = annotation.padding
         if occupied is not None:
-            occupied.append((
-                x - padding, y - padding,
-                x + text_width + padding, y + max(text_height, bbox[3]) + padding,
-            ))
+            occupied.append(
+                (
+                    x - padding,
+                    y - padding,
+                    x + text_width + padding,
+                    y + max(text_height, bbox[3]) + padding,
+                )
+            )
         if annotation.background is not None:
             draw.rectangle(
                 (
@@ -309,21 +323,31 @@ def _place_world_label(
     gap = CALLOUT_POLICY["gap"]
     while gap <= np.hypot(viewport_width, viewport_height):
         candidates = (
-            (ax + gap, ay - gap - height), (ax - gap - width, ay - gap - height),
-            (ax + gap, ay + gap), (ax - gap - width, ay + gap),
-            (ax - width / 2, ay - gap - height), (ax - width / 2, ay + gap),
-            (ax - gap - width, ay - height / 2), (ax + gap, ay - height / 2),
+            (ax + gap, ay - gap - height),
+            (ax - gap - width, ay - gap - height),
+            (ax + gap, ay + gap),
+            (ax - gap - width, ay + gap),
+            (ax - width / 2, ay - gap - height),
+            (ax - width / 2, ay + gap),
+            (ax - gap - width, ay - height / 2),
+            (ax + gap, ay - height / 2),
         )
         for x, y in candidates:
             left = max(edge, min(viewport_width - width - edge, x))
             top = max(edge, min(viewport_height - height - edge, y))
             right, bottom = left + width, top + height
-            if (left < ax + radius and right > ax - radius
-                    and top < ay + radius and bottom > ay - radius):
+            if (
+                left < ax + radius
+                and right > ax - radius
+                and top < ay + radius
+                and bottom > ay - radius
+            ):
                 continue
             if any(
-                left < other_right and right > other_left
-                and top < other_bottom and bottom > other_top
+                left < other_right
+                and right > other_left
+                and top < other_bottom
+                and bottom > other_top
                 for other_left, other_top, other_right, other_bottom in occupied
             ):
                 continue
@@ -354,11 +378,16 @@ def _draw_world_annotations(
             remaining = paragraph
             while remaining and draw.textlength(remaining, font=font) > max_text_width:
                 end = 1
-                while (end < len(remaining)
-                       and draw.textlength(remaining[:end + 1], font=font) <= max_text_width):
+                while (
+                    end < len(remaining)
+                    and draw.textlength(remaining[: end + 1], font=font)
+                    <= max_text_width
+                ):
                     end += 1
                 # Prefer a word boundary, but split long words like overflow-wrap:anywhere.
-                boundary = max(remaining.rfind(" ", 0, end), remaining.rfind("\t", 0, end))
+                boundary = max(
+                    remaining.rfind(" ", 0, end), remaining.rfind("\t", 0, end)
+                )
                 if boundary > 0:
                     end = boundary + 1
                 lines.append(remaining[:end])
@@ -397,13 +426,19 @@ def _draw_world_annotations(
             draw.line((end_x, end_y, ax, ay), fill=color, width=2)
             base_x, base_y = ax - ux * 8, ay - uy * 8
             draw.polygon(
-                ((ax, ay), (base_x - uy * 6, base_y + ux * 6),
-                 (base_x + uy * 6, base_y - ux * 6)),
+                (
+                    (ax, ay),
+                    (base_x - uy * 6, base_y + ux * 6),
+                    (base_x + uy * 6, base_y - ux * 6),
+                ),
                 fill=contrast,
             )
             draw.polygon(
-                ((ax, ay), (base_x - uy * 4, base_y + ux * 4),
-                 (base_x + uy * 4, base_y - ux * 4)),
+                (
+                    (ax, ay),
+                    (base_x - uy * 4, base_y + ux * 4),
+                    (base_x + uy * 4, base_y - ux * 4),
+                ),
                 fill=color,
             )
         if annotation.background is not None:
@@ -411,10 +446,19 @@ def _draw_world_annotations(
         for index, line in enumerate(lines):
             bbox = draw.textbbox((0, 0), line, font=font)
             draw.text(
-                (left + annotation.padding - bbox[0],
-                 top + annotation.padding + index * line_height
-                 + (line_height - (bbox[3] - bbox[1])) / 2 - bbox[1]),
-                line, fill=color, font=font, stroke_width=1, stroke_fill=contrast,
+                (
+                    left + annotation.padding - bbox[0],
+                    top
+                    + annotation.padding
+                    + index * line_height
+                    + (line_height - (bbox[3] - bbox[1])) / 2
+                    - bbox[1],
+                ),
+                line,
+                fill=color,
+                font=font,
+                stroke_width=1,
+                stroke_fill=contrast,
             )
 
 
@@ -465,8 +509,14 @@ def composite_overlays(
         width = min(max(legend.width for legend in right), available_width)
         panel = _draw_legend_panel(right, width, available_height)
         output.alpha_composite(panel, (source.width - width - margin, margin))
-        occupied.append((source.width - width - margin, margin,
-                         source.width - margin, margin + panel.height))
+        occupied.append(
+            (
+                source.width - width - margin,
+                margin,
+                source.width - margin,
+                margin + panel.height,
+            )
+        )
     _draw_annotations(output, annotations, 0, source.width, occupied)
     if world_annotations:
         if geometry_at is None:
@@ -475,14 +525,21 @@ def composite_overlays(
                 if np.any(alpha < 255):
                     geometry_mask = alpha > 0
             if geometry_mask is not None:
+
                 def geometry_at(x: float, y: float) -> bool:
-                    return bool(geometry_mask[
-                        min(max(int(y), 0), geometry_mask.shape[0] - 1),
-                        min(max(int(x), 0), geometry_mask.shape[1] - 1),
-                    ])
+                    return bool(
+                        geometry_mask[
+                            min(max(int(y), 0), geometry_mask.shape[0] - 1),
+                            min(max(int(x), 0), geometry_mask.shape[1] - 1),
+                        ]
+                    )
+
         projected = _project_world_annotations(
-            world_annotations, source.size, sensor=sensor,
-            world_to_camera=world_to_camera, projection=projection,
+            world_annotations,
+            source.size,
+            sensor=sensor,
+            world_to_camera=world_to_camera,
+            projection=projection,
         )
         _draw_world_annotations(output, projected, occupied, geometry_at)
     return output
@@ -512,10 +569,16 @@ def composite_overlay_file(
         return False
     with Image.open(filename) as source:
         result = composite_overlays(
-            source, legends, annotations, background,
-            world_annotations=world_annotations, sensor=sensor,
-            world_to_camera=world_to_camera, projection=projection,
-            geometry_mask=geometry_mask, geometry_at=geometry_at,
+            source,
+            legends,
+            annotations,
+            background,
+            world_annotations=world_annotations,
+            sensor=sensor,
+            world_to_camera=world_to_camera,
+            projection=projection,
+            geometry_mask=geometry_mask,
+            geometry_at=geometry_at,
         )
     _write(result, filename)
     return True

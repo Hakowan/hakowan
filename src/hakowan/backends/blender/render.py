@@ -202,12 +202,17 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
                     "world_to_camera": camera.matrix_world.inverted(),
                     "projection": camera.calc_matrix_camera(
                         bpy.context.evaluated_depsgraph_get(),
-                        x=config.film.width, y=config.film.height,
+                        x=config.film.width,
+                        y=config.film.height,
                     ),
                 }
             if not composite_overlay_file(
-                filename, scene.legends, scene.annotations, config.background,
-                world_annotations=scene.world_annotations, **camera_matrices,
+                filename,
+                scene.legends,
+                scene.annotations,
+                config.background,
+                world_annotations=scene.world_annotations,
+                **camera_matrices,
             ):
                 logger.warning(
                     "Legends and annotations (including world annotations) are not "

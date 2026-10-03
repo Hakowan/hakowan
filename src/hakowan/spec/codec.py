@@ -1188,7 +1188,9 @@ def _properties_to_spec(
                     kind="world",
                     text=item.text,
                     position=item.position,
-                    color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
+                    color=cast(
+                        Any, _json_value(item.color, f"{path}.annotations.color")
+                    ),
                     font_size=item.font_size,
                     background=cast(
                         Any,
@@ -1202,7 +1204,9 @@ def _properties_to_spec(
                 else sm.AnnotationSpec(
                     text=item.text,
                     position=item.position,
-                    color=cast(Any, _json_value(item.color, f"{path}.annotations.color")),
+                    color=cast(
+                        Any, _json_value(item.color, f"{path}.annotations.color")
+                    ),
                     font_size=item.font_size,
                     anchor=item.anchor,
                     background=cast(
