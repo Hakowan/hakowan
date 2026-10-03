@@ -20,17 +20,39 @@ from hakowan.backends.mitsuba.render import generate_base_config, generate_scene
 
 def _box_mesh():
     mesh = lagrange.SurfaceMesh()
-    mesh.add_vertices(np.array([
-        [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
-        [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
-        [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
-        [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
-    ]))
-    mesh.add_triangles(np.array([
-        [4, 5, 6], [4, 6, 7], [0, 2, 1], [0, 3, 2],
-        [0, 4, 7], [0, 7, 3], [1, 2, 6], [1, 6, 5],
-        [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4],
-    ], dtype=np.uint32))
+    mesh.add_vertices(
+        np.array(
+            [
+                [-0.5, -0.5, -0.5],
+                [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [-0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5],
+                [0.5, -0.5, 0.5],
+                [0.5, 0.5, 0.5],
+                [-0.5, 0.5, 0.5],
+            ]
+        )
+    )
+    mesh.add_triangles(
+        np.array(
+            [
+                [4, 5, 6],
+                [4, 6, 7],
+                [0, 2, 1],
+                [0, 3, 2],
+                [0, 4, 7],
+                [0, 7, 3],
+                [1, 2, 6],
+                [1, 6, 5],
+                [3, 7, 6],
+                [3, 6, 2],
+                [0, 1, 5],
+                [0, 5, 4],
+            ],
+            dtype=np.uint32,
+        )
+    )
     return mesh
 
 
@@ -222,44 +244,78 @@ class TestRender:
             assert image.mode == "RGBA"
             assert np.asarray(image)[:, :80, 3].min() == 0
 
+    def test_point_mark_anchor_is_not_occluded_by_its_own_glyph(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        layer = hkw.layer(mesh, mark=hkw.mark.Point).annotate(
+            hkw.WorldAnnotation("point", position=(0.0, 0.0, 0.0))
+        )
+        config = hkw.config()
+        scene = hkw.prepare_scene(hkw.compile(layer), config)
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
+
+        assert [annotation.text for annotation in visible] == ["point"]
+
     @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
-    def test_mitsuba_box_callouts_use_camera_first_hit(
-        self, camera_type, tmp_path
-    ):
+    def test_mitsuba_box_callouts_use_camera_first_hit(self, camera_type, tmp_path):
         from PIL import Image
         from hakowan.backends.mitsuba.render import (
-            MitsubaBackend, _visible_world_annotations,
+            MitsubaBackend,
+            _visible_world_annotations,
         )
         from hakowan.common.overlay import _project_world_annotations
         from hakowan.setup.sensor import Orthographic, Perspective
 
         mesh = _box_mesh()
         anchors = {
-            "Front": (0, 0, 0.5), "Right": (0.5, 0, 0),
-            "Top": (0, 0.5, 0), "Back": (0, 0, -0.5),
-            "Left": (-0.5, 0, 0), "Bottom": (0, -0.5, 0),
+            "Front": (0, 0, 0.5),
+            "Right": (0.5, 0, 0),
+            "Top": (0, 0.5, 0),
+            "Back": (0, 0, -0.5),
+            "Left": (-0.5, 0, 0),
+            "Bottom": (0, -0.5, 0),
             "Near surface": (0, 0, 0.50001),
         }
         layer = hkw.layer(mesh)
         for name, position in anchors.items():
-            layer = layer.annotate(hkw.WorldAnnotation(
-                name, position=position,
-                color="blue" if name in {"Back", "Left", "Bottom"} else "red",
-                font_size=11, background=None,
-            ))
+            layer = layer.annotate(
+                hkw.WorldAnnotation(
+                    name,
+                    position=position,
+                    color="blue" if name in {"Back", "Left", "Bottom"} else "red",
+                    font_size=11,
+                    background=None,
+                )
+            )
         scene = hkw.compile(layer)
         config = hkw.config()
         config.film.width, config.film.height = 240, 160
         config.sampler.sample_count = 4
         common = dict(location=(3, 2.4, 4), target=(0, 0, 0), up=(0, 1, 0))
         config.sensor = (
-            Orthographic(scale=2.6, **common) if camera_type == "orthographic"
+            Orthographic(scale=2.6, **common)
+            if camera_type == "orthographic"
             else Perspective(fov=46, fov_axis="y", **common)
         )
-        mi_scene = mi.load_dict(generate_base_config(config) | generate_scene_config(scene))
-        visible = _visible_world_annotations(mi_scene, config.sensor, scene.world_annotations)
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
         assert {item.text for item in visible} == {
-            "Front", "Right", "Top", "Near surface"
+            "Front",
+            "Right",
+            "Top",
+            "Near surface",
         }
 
         if camera_type == "orthographic":
@@ -271,34 +327,42 @@ class TestRender:
                 (pixels[..., 2] > 240) & (pixels[..., 0] < 10) & (pixels[..., 1] < 10)
             )
             projected = _project_world_annotations(
-                scene.world_annotations, (240, 160), sensor=config.sensor,
-                world_to_camera=None, projection=None,
+                scene.world_annotations,
+                (240, 160),
+                sensor=config.sensor,
+                world_to_camera=None,
+                projection=None,
             )
             for annotation, x, y in projected:
                 ix, iy = round(x), round(y)
-                area = pixels[iy - 2:iy + 3, ix - 2:ix + 3]
+                area = pixels[iy - 2 : iy + 3, ix - 2 : ix + 3]
                 red = (area[..., 0] > 230) & (area[..., 1] < 30) & (area[..., 2] < 30)
                 if annotation.text in {"Front", "Right", "Top"}:
                     assert red.any(), annotation.text
 
     @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
-    def test_mitsuba_box_label_clears_rendered_silhouette(
-        self, camera_type, tmp_path
-    ):
+    def test_mitsuba_box_label_clears_rendered_silhouette(self, camera_type, tmp_path):
         from PIL import Image
         from hakowan.backends.mitsuba.render import MitsubaBackend
         from hakowan.setup.sensor import Orthographic, Perspective
 
-        layer = hkw.layer(_box_mesh()).annotate(hkw.WorldAnnotation(
-            "Front face", position=(0, 0, 0.5), color="black",
-            font_size=14, background="#ff00ff", padding=4,
-        ))
+        layer = hkw.layer(_box_mesh()).annotate(
+            hkw.WorldAnnotation(
+                "Front face",
+                position=(0, 0, 0.5),
+                color="black",
+                font_size=14,
+                background="#ff00ff",
+                padding=4,
+            )
+        )
         config = hkw.config()
         config.film.width, config.film.height = 320, 240
         config.sampler.sample_count = 4
         common = dict(location=(0, 0, 4), target=(0, 0, 0), up=(0, 1, 0))
         config.sensor = (
-            Orthographic(scale=2.6, **common) if camera_type == "orthographic"
+            Orthographic(scale=2.6, **common)
+            if camera_type == "orthographic"
             else Perspective(fov=46, fov_axis="y", **common)
         )
         output = tmp_path / "box-label.png"
@@ -307,8 +371,7 @@ class TestRender:
         with Image.open(output) as rendered:
             pixels = np.asarray(rendered.convert("RGB"))
         label_background = (
-            (pixels[..., 0] > 240) & (pixels[..., 1] < 15)
-            & (pixels[..., 2] > 240)
+            (pixels[..., 0] > 240) & (pixels[..., 1] < 15) & (pixels[..., 2] > 240)
         )
         assert label_background.any()
         assert not np.any(label_background & silhouette)
@@ -341,21 +404,31 @@ class TestRender:
         config = hkw.config()
         config.film.width, config.film.height = 180, 120
         config.sensor = Orthographic(
-            location=(0, 0, 5), target=(0, 0, 0), scale=2,
+            location=(0, 0, 5),
+            target=(0, 0, 0),
+            scale=2,
         )
         scene_config = generate_base_config(config)
         scene_config["front"] = {
-            "type": "cube", "to_world": mi.ScalarTransform4f().translate([0, 0, 0.5])
+            "type": "cube",
+            "to_world": mi.ScalarTransform4f().translate([0, 0, 0.5])
             @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
         }
         scene_config["back"] = {
-            "type": "cube", "to_world": mi.ScalarTransform4f().translate([0, 0, -0.5])
+            "type": "cube",
+            "to_world": mi.ScalarTransform4f().translate([0, 0, -0.5])
             @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
         }
         annotations = [
             CompiledWorldAnnotation(
-                text=name, position=(0, 0, z), layer=layer, cell=None,
-                color=(1, 0, 0), font_size=11, background=None, padding=0,
+                text=name,
+                position=(0, 0, z),
+                layer=layer,
+                cell=None,
+                color=(1, 0, 0),
+                font_size=11,
+                background=None,
+                padding=0,
             )
             for name, z, layer in (("front", 0.6, 0), ("back", -0.4, 1))
         ]

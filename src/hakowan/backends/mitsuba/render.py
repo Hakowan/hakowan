@@ -135,12 +135,37 @@ def _beauty_rgba_indexes(
     return (red, green, blue, alpha)
 
 
+def _point_glyph_owns_anchor(
+    hit: Any, compiled_scene: Scene | None, annotation: CompiledWorldAnnotation
+) -> bool:
+    """Whether a Mitsuba point-mark hit is the glyph at this annotation anchor."""
+    if compiled_scene is None or not hit.is_valid():
+        return False
+    prefix = f"view_{annotation.layer:03}_shape_"
+    shape_id = hit.shape.id()
+    if not shape_id.startswith(prefix):
+        return False
+    view = compiled_scene[annotation.layer]
+    if view.mark is not mark.Point or view.data_frame is None:
+        return False
+    try:
+        vertex_index = int(shape_id[len(prefix) :])
+    except ValueError:
+        return False
+    vertices = view.data_frame.mesh.vertices
+    if vertex_index >= len(vertices):
+        return False
+    point = view.global_transform @ np.array((*vertices[vertex_index], 1.0))
+    return bool(np.allclose(point[:3], annotation.position, rtol=0.0, atol=1e-7))
+
+
 def _visible_world_annotations(
     scene: "mi.Scene",
     camera: Any,
     annotations: list[CompiledWorldAnnotation],
+    compiled_scene: Scene | None = None,
 ) -> list[CompiledWorldAnnotation]:
-    """Keep anchors whose camera ray first hits their surface (or empty space).
+    """Keep anchors whose camera ray first hits their surface or empty space.
 
     Cast one ray through each projected anchor using the loaded Mitsuba sensor,
     so orthographic rays originate on the corresponding part of the film rather
@@ -171,7 +196,11 @@ def _visible_world_annotations(
         )
         hit = scene.ray_intersect(ray)
         tolerance = 1e-4 * max(1.0, abs(anchor_distance))
-        if not hit.is_valid() or float(hit.t) >= anchor_distance - tolerance:
+        if (
+            not hit.is_valid()
+            or _point_glyph_owns_anchor(hit, compiled_scene, annotation)
+            or float(hit.t) >= anchor_distance - tolerance
+        ):
             visible.append(annotation)
     return visible
 
@@ -470,7 +499,7 @@ class MitsubaBackend(RenderBackend):
             geometry_at: Callable[[float, float], bool] | None = None
             if world_annotations and not is_hdr_suffix(filename.suffix):
                 world_annotations = _visible_world_annotations(
-                    mi_scene, config.sensor, world_annotations
+                    mi_scene, config.sensor, world_annotations, scene
                 )
                 sensor = mi_scene.sensors()[0]
                 width, height = map(int, sensor.film().size())

@@ -5659,7 +5659,7 @@
           ],
           "title": "Position",
           "type": "array",
-          "description": "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit."
+          "description": "Three finite coordinates in the referenced view's local geometry after mesh-baked transforms, before its global transform and layout fit."
         },
         "color": {
           "anyOf": [

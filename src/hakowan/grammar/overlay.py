@@ -80,12 +80,13 @@ class Annotation:
 class WorldAnnotation:
     """Text callout anchored to a point in a view's local 3D coordinates.
 
-    The label remains screen-facing; renderers project ``position`` through
-    the view's geometry transform and the active camera.
+    ``position`` uses the geometry's local frame after transforms that bake
+    coordinates into mesh vertices. The label remains screen-facing; renderers
+    then apply the view's global transform, layout, and active camera.
 
     Parameters:
         text: Text string to display.
-        position: 3D point in the layer's local coordinates.
+        position: 3D point in the view's post-baked local geometry coordinates.
         color: Text and arrow color.
         font_size: Font size in pixels.
         background: Background color of the text callout panel.

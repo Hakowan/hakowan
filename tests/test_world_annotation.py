@@ -19,19 +19,32 @@ def _box():
     mesh.add_vertices(
         np.array(
             [
-                [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
-                [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
-                [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
-                [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
+                [-0.5, -0.5, -0.5],
+                [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [-0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5],
+                [0.5, -0.5, 0.5],
+                [0.5, 0.5, 0.5],
+                [-0.5, 0.5, 0.5],
             ]
         )
     )
     mesh.add_triangles(
         np.array(
             [
-                [4, 5, 6], [4, 6, 7], [0, 2, 1], [0, 3, 2],
-                [0, 4, 7], [0, 7, 3], [1, 2, 6], [1, 6, 5],
-                [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4],
+                [4, 5, 6],
+                [4, 6, 7],
+                [0, 2, 1],
+                [0, 3, 2],
+                [0, 4, 7],
+                [0, 7, 3],
+                [1, 2, 6],
+                [1, 6, 5],
+                [3, 7, 6],
+                [3, 6, 2],
+                [0, 1, 5],
+                [0, 5, 4],
             ],
             dtype=np.uint32,
         )
@@ -55,6 +68,19 @@ def test_world_callouts_follow_layout_and_remain_attached_to_views():
         local_vertex = np.asarray(view.data_frame.mesh.vertices[0], dtype=float)
         world_vertex = view.global_transform @ np.append(local_vertex, 1.0)
         np.testing.assert_allclose(item.position, world_vertex[:3], atol=1e-6)
+
+
+def test_world_annotation_position_uses_post_baked_local_coordinates():
+    layer = hkw.layer(_triangle()).transform(hkw.transform.Normalize())
+    normalized_vertex = np.asarray(hkw.compile(layer)[0].data_frame.mesh.vertices[0])
+    assert not np.allclose(normalized_vertex, _triangle().vertices[0])
+
+    annotated = layer.annotate(
+        hkw.WorldAnnotation("vertex", tuple(float(x) for x in normalized_vertex))
+    )
+    scene = hkw.compile(annotated)
+
+    np.testing.assert_allclose(scene.world_annotations[0].position, normalized_vertex)
 
 
 def test_world_annotations_coexist_with_fixed_screen_annotations():
@@ -176,7 +202,10 @@ def test_browser_callout_offset_and_optional_arrow(tmp_path):
             by_text = {item["text"]: item for item in placed}
             above = by_text["Above"]
             right = by_text["Right"]
-            assert abs(above["ax"] - above["centerX"]) > 15 or abs(above["ay"] - above["centerY"]) > 15
+            assert (
+                abs(above["ax"] - above["centerX"]) > 15
+                or abs(above["ay"] - above["centerY"]) > 15
+            )
             assert abs(above["left"] - (above["ax"] - above["width"] / 2)) < 1
             assert abs(above["top"] - (above["ay"] - 10 - above["height"])) < 1
             assert above["line"] == "hidden"
@@ -196,7 +225,10 @@ def test_browser_callouts_track_rotation_and_layer_visibility(tmp_path):
         hkw.WorldAnnotation("Point", position=(0.25, 0.25, 0.04))
     )
     viewer = hkw.render(
-        layer | layer, filename=tmp_path / "callouts.html", backend="webgl", offline=True
+        layer | layer,
+        filename=tmp_path / "callouts.html",
+        backend="webgl",
+        offline=True,
     )
 
     with playwright.sync_playwright() as runtime:
@@ -329,7 +361,9 @@ def test_static_box_label_uses_same_browser_and_raster_placement(tmp_path):
                 }""",
                 list(anchor),
             )
-            with Image.open(io.BytesIO(base64.b64decode(normal_url.split(",", 1)[1]))) as image:
+            with Image.open(
+                io.BytesIO(base64.b64decode(normal_url.split(",", 1)[1]))
+            ) as image:
                 mask = np.any(np.asarray(image.convert("RGB")) != 0, axis=2)
 
             def geometry_at(x, y):

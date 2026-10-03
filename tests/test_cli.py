@@ -35,4 +35,3 @@ def test_view_always_selects_webgl(monkeypatch):
 def test_action_is_required_and_limited(argv):
     with pytest.raises(SystemExit):
         cli.parse_args(argv)
-

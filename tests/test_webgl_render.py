@@ -120,15 +120,27 @@ class TestEndToEnd:
         assert parser.attributes["height"] == "500"
         assert parser.attributes["loading"] == "lazy"
 
+        reserved_path = hkw.RenderResult(
+            backend="webgl", path=Path("viewer #1.html")
+        ).embed_html()
+        parser = _IframeParser()
+        parser.feed(reserved_path)
+        assert parser.attributes["src"] == "viewer%20%231.html"
         src = 'https://example.org/scene.html?a=" onload="alert(1)&b=2'
         parser = _IframeParser()
-        parser.feed(
-            result.embed_html(src=src, title='3D "model" & view', height=320)
-        )
+        parser.feed(result.embed_html(src=src, title='3D "model" & view', height=320))
         assert parser.attributes["src"] == src
         assert parser.attributes["title"] == '3D "model" & view'
         assert parser.attributes["height"] == "320"
         assert "onload" not in parser.attributes
+
+    @pytest.mark.parametrize(
+        "src", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]
+    )
+    def test_embed_html_rejects_executable_source_schemes(self, src):
+        result = hkw.RenderResult(backend="webgl", path=Path("viewer.html"))
+        with pytest.raises(ValueError, match="HTTP"):
+            result.embed_html(src=src)
 
     def test_embed_html_requires_saved_webgl_viewer(self):
         with pytest.raises(ValueError, match="saved WebGL viewer"):
@@ -622,10 +634,14 @@ def test_world_callouts_serialize_layer_cell_and_safe_text(tmp_path):
     layer = (
         hkw.layer(sphere)
         .mark(hkw.mark.Surface)
-        .annotate(hkw.WorldAnnotation(payload, position=(0, 0, 1), color="red", padding=7))
+        .annotate(
+            hkw.WorldAnnotation(payload, position=(0, 0, 1), color="red", padding=7)
+        )
         .annotate("Screen", position=(0.2, 0.3))
     )
-    result = hkw.render(layer | layer, filename=tmp_path / "callouts.html", backend="webgl")
+    result = hkw.render(
+        layer | layer, filename=tmp_path / "callouts.html", backend="webgl"
+    )
     html = result.path.read_text(encoding="utf-8")
 
     world = json.loads(re.search(r"const WORLD_ANNOTATIONS = (.*?);", html).group(1))

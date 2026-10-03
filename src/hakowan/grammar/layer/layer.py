@@ -381,8 +381,8 @@ class Layer:
         """Add a screen-space or world-space text annotation.
 
         A string is shorthand for ``Annotation(text=annotation, **kwargs)``.
-        Pass ``WorldAnnotation(text, position=(x, y, z))`` to anchor text to
-        a point in the local coordinates of this layer's geometry.
+        A ``WorldAnnotation`` position uses the layer geometry's local frame
+        after transforms that bake coordinates into mesh vertices.
         The returned wrapper follows the usual immutable-by-default behavior.
         """
         layer = self.__get_working_layer(in_place)

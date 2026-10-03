@@ -1,9 +1,18 @@
 """Mitsuba camera coverage across square and non-square films."""
 
+import os
+import sys
+
 import numpy as np
 import pytest
 
-mi = pytest.importorskip("mitsuba")
+if sys.platform == "win32" and os.environ.get("CI") == "true":
+    pytest.skip(
+        "mitsuba/Dr.Jit causes process crash on Windows CI during Python shutdown",
+        allow_module_level=True,
+    )
+
+mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
 
 from hakowan.backends.mitsuba.render import generate_base_config
 from hakowan.setup import Config
@@ -20,9 +29,7 @@ def test_orthographic_rays_cover_full_vertical_scale(width, height):
     sensor = mi.load_dict(generate_base_config(config)["camera"])
 
     def origin(x, y):
-        ray, _ = sensor.sample_ray(
-            0.0, 0.0, mi.Point2f(x, y), mi.Point2f(0.5, 0.5)
-        )
+        ray, _ = sensor.sample_ray(0.0, 0.0, mi.Point2f(x, y), mi.Point2f(0.5, 0.5))
         return np.asarray(ray.o)
 
     center = origin(0.5, 0.5)

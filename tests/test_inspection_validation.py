@@ -103,8 +103,7 @@ def test_cli_inspect_lists_mesh_attributes_without_render_backend(
     output = capsys.readouterr().out
     assert "vertex_data (indexed, 1 channel): min=1.0 max=3.0" in output
     assert (
-        "velocity (indexed, 3 channels): min=(1.0, 10.0, -3.0) "
-        "max=(3.0, 30.0, -1.0)"
+        "velocity (indexed, 3 channels): min=(1.0, 10.0, -3.0) max=(3.0, 30.0, -1.0)"
     ) in output
 
 

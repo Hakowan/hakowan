@@ -121,8 +121,8 @@ compiled.
 
 ## World-space callouts
 
-Use `WorldAnnotation` to attach a label to a point in the **local coordinates of
-the layer's geometry**, rather than a fixed pixel location:
+Use `WorldAnnotation` to attach a label to a point in the **view's post-baked
+local geometry coordinates**, rather than a fixed pixel location:
 
 ```py
 layer = hkw.layer(mesh).annotate(
@@ -137,10 +137,11 @@ layer = hkw.layer(mesh).annotate(
 )
 ```
 
-The compiler applies the layer transform and scene layout to the anchor, so
-the callout follows its view when the scene is juxtaposed. The label stays
-screen-facing. When `arrow` is true (the default), a leader connects the
-panel to the projected point. `arrow=False` draws the text alone.
+Coordinates are expressed after transforms that bake changes into mesh vertices
+(such as `Normalize`) and before the view's global transform and scene layout.
+The compiler applies those global transforms and layouts to the anchor, so the
+callout follows its view when the scene is juxtaposed. The label remains screen-facing.
+When `arrow` is true (the default), a leader connects the panel to the projected point. `arrow=False` draws the text alone.
 
 `offset` is an optional screen-space pixel vector from the projected anchor
 to the panel edge that faces it. `+x` is right and `+y` is down. A zero

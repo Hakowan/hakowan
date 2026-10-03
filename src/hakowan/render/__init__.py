@@ -17,6 +17,7 @@ from ..common import logger
 from dataclasses import dataclass, field
 from html import escape
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 from typing import Any
 
 # NOTE: Mitsuba is intentionally NOT imported here. Variant selection (which
@@ -74,15 +75,23 @@ class RenderResult:
     ) -> str:
         """Return an iframe snippet for a published WebGL viewer.
 
-        By default, the iframe looks for the viewer beside the embedding page.
-        Pass ``src`` when the viewer is hosted at another path or URL. Publish
-        the entire output directory when rendering with ``offline=True``.
+        ``src`` must be a relative path or HTTP(S) URL. By default, the
+        published viewer filename is URL-encoded and resolved beside the page.
+        Publish the entire output directory when rendering with ``offline=True``.
         """
         if self.backend != "webgl" or self.path is None:
             raise ValueError("Embedding requires a saved WebGL viewer.")
         if height <= 0:
             raise ValueError("Iframe height must be positive.")
-        viewer_src = self.path.name if src is None else src
+        if src is None:
+            viewer_src = quote(self.path.name, safe="")
+        else:
+            if not src.strip():
+                raise ValueError("Iframe src must not be empty.")
+            scheme = urlsplit(src.strip()).scheme.lower()
+            if scheme and scheme not in {"http", "https"}:
+                raise ValueError("Iframe src must use a relative path or HTTP(S) URL.")
+            viewer_src = src
         return (
             f'<iframe src="{escape(viewer_src, quote=True)}" '
             f'title="{escape(title, quote=True)}" '

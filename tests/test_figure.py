@@ -72,7 +72,6 @@ def test_figure_fluent_scene_settings_are_immutable(tmp_path):
     assert len(config.emitters) == 3  # environment + point + directional
 
 
-
 def test_black_background_matches_webgl_snapshot_and_raster_compositor(
     playwright_browser,
 ):
@@ -244,9 +243,7 @@ def test_figure_schema_1_1_round_trip_and_relative_environment(tmp_path):
         .camera("thin_lens", eye=(2, 3, 4), aperture_radius=0.2)
         .light("directional", direction=(0, 0, -1), color="white", intensity=3)
         .environment("studio.exr", visible=True)
-        .output(
-            width=320, height=200, background="black", passes=("beauty", "depth")
-        )
+        .output(width=320, height=200, background="black", passes=("beauty", "depth"))
     )
 
     spec = hkw.to_spec(figure, data_ids={id(mesh): "mesh"})

@@ -229,9 +229,7 @@ def test_world_annotation_spec_rejects_nonfinite_or_nonthree_position(position):
         "root": {
             "kind": "layer",
             "spec": {
-                "annotations": [
-                    {"kind": "world", "text": "peak", "position": position}
-                ]
+                "annotations": [{"kind": "world", "text": "peak", "position": position}]
             },
         }
     }

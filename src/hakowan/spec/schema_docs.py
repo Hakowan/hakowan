@@ -250,7 +250,7 @@ FIELD_OVERRIDES = {
     (
         "WorldAnnotationSpec",
         "position",
-    ): "Three finite coordinates in the referenced view's source geometry, before its global transform and layout fit.",
+    ): "Three finite coordinates in the referenced view's local geometry after mesh-baked transforms, before its global transform and layout fit.",
     (
         "WorldAnnotationSpec",
         "color",

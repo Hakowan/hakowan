@@ -677,7 +677,9 @@ def test_cli_missing_normal_is_actionable(monkeypatch, tmp_path):
         main_module.main()
 
 
-def test_cli_render_falls_back_to_webgl_image(monkeypatch, tmp_path, playwright_browser):
+def test_cli_render_falls_back_to_webgl_image(
+    monkeypatch, tmp_path, playwright_browser
+):
     mesh_path = tmp_path / "mesh.ply"
     lagrange.io.save_mesh(mesh_path, _triangle())
     output = mesh_path.with_suffix(".png")
@@ -711,9 +713,7 @@ def test_cli_view_keeps_webgl_html_output(monkeypatch, tmp_path):
     lagrange.io.save_mesh(mesh_path, _triangle())
     output = mesh_path.with_suffix(".html")
     main_module = importlib.import_module("hakowan.__main__")
-    monkeypatch.setattr(
-        sys, "argv", ["hkw", "view", str(mesh_path), "--no-open"]
-    )
+    monkeypatch.setattr(sys, "argv", ["hkw", "view", str(mesh_path), "--no-open"])
 
     main_module.main()
 
