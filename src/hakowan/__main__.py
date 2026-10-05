@@ -113,12 +113,16 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Render a mesh.", prog=f"{action_parser.prog} {action}"
     )
-    parser.add_argument("--point-cloud", help="Render point cloud", action="store_true")
+    parser.add_argument(
+        "--point-cloud",
+        help="Render point cloud (enabled automatically for facet-free inputs)",
+        action="store_true",
+    )
     parser.add_argument(
         "--point-size",
-        help="Point size (absolute)",
+        help="Point diameter in output pixels",
         type=float,
-        default=0.002,
+        default=5.0,
     )
     parser.add_argument(
         "--z-up", help="Use Z-up coordinate system.", action="store_true"
@@ -624,7 +628,7 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
+def build_layer(args, mesh_path: str, normalize: bool = False, mesh=None) -> "hkw.layer":
     """Build the styled layer for a single input mesh.
 
     Holds all per-mesh logic (geometry load, material, overlays, transforms) so
@@ -636,11 +640,13 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
         normalize (bool): Scale the result to unit bounding-sphere radius so
             meshes from unrelated coordinate systems show at the same on-screen
             size. Used when laying out multiple meshes in a grid.
+        mesh: Preloaded mesh. When omitted, load mesh_path.
 
     Returns:
         hkw.layer: The fully styled layer for this mesh.
     """
-    mesh = lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
+    if mesh is None:
+        mesh = lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
 
     if args.quad_only:
         # Filter to only keep quad facets
@@ -822,7 +828,9 @@ def build_layer(args, mesh_path: str, normalize: bool = False) -> "hkw.layer":
     if args.point_cloud:
         if args.comp:
             raise SystemExit("--point-cloud and --comp options are mutually exclusive")
-        layer = layer.mark("Point").channel(size=args.point_size)
+        layer = layer.mark("Point").channel(
+            size=hkw.channel.Size(data=args.point_size, space="screen")
+        )
 
     if args.comp:
         layer = layer.transform(hkw.transform.Compute(component="comp"))
@@ -1097,14 +1105,22 @@ def main():
     hkw.logger.setLevel(args.log_level.upper())
     lagrange.logger.setLevel(args.log_level.upper())
 
-    # Build one styled layer per input mesh; multiple meshes are arranged in a
-    # near-square grid facing the camera (rows stacked along the up-axis). With
-    # more than one mesh, normalize each to unit size so they show at the same
-    # on-screen scale despite unrelated source coordinate systems.
-    normalize = len(args.input_mesh) > 1
-    layers = [
-        build_layer(args, mesh_path, normalize=normalize)
+    # Load each mesh once so facet-free inputs can select point rendering before
+    # their layers are styled. Multiple meshes are arranged in a near-square grid
+    # facing the camera (rows stacked along the up-axis). With more than one mesh,
+    # normalize each to unit size so they show at the same on-screen scale despite
+    # unrelated source coordinate systems.
+    meshes = [
+        lagrange.io.load_mesh(mesh_path, quiet=True, stitch_vertices=True)
         for mesh_path in args.input_mesh
+    ]
+    if not args.point_cloud and all(mesh.num_facets == 0 for mesh in meshes):
+        args.point_cloud = True
+
+    normalize = len(meshes) > 1
+    layers = [
+        build_layer(args, mesh_path, normalize=normalize, mesh=mesh)
+        for mesh_path, mesh in zip(args.input_mesh, meshes, strict=True)
     ]
     layer = hkw.grid(
         layers,
