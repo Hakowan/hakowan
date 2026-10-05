@@ -1139,6 +1139,9 @@ def main():
 
     if args.output:
         output_file = Path(args.output)
+    elif args.action == "view" and args.turn_table == 0 and not args.no_open:
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as temp_file:
+            output_file = Path(temp_file.name)
     else:
         default_suffix = ".html" if args.action == "view" else ".png"
         output_file = Path(args.input_mesh[0]).with_suffix(default_suffix)

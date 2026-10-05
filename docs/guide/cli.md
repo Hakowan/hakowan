@@ -43,8 +43,11 @@ pass.
 
 ## Create an interactive viewer
 
-`hkw view` always uses WebGL and writes an HTML viewer. The default output is the
-input filename with a `.html` extension.
+`hkw view` uses WebGL to create an interactive HTML viewer. By default, it
+writes the viewer to a temporary `.html` file and opens it. Pass `-o` to keep a
+viewer at a chosen path, or `--no-open` to save it as the input filename with a
+`.html` extension. `--turn-table` instead saves an animated GIF; WebGL
+turn-table capture requires `hakowan[observe]` and Playwright Chromium.
 
 ```sh
 hkw view mesh.obj -o viewer.html

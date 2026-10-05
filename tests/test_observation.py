@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import json
 import sys
+import urllib.parse
 import urllib.error
 import threading
 from pathlib import Path
@@ -675,6 +676,25 @@ def test_cli_missing_normal_is_actionable(monkeypatch, tmp_path):
 
     with pytest.raises(SystemExit, match="Normal attribute 'missing' not found"):
         main_module.main()
+
+
+def test_cli_view_opens_temporary_webgl_html(monkeypatch, tmp_path):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, _triangle())
+    output = mesh_path.with_suffix(".html")
+    opened = []
+    main_module = importlib.import_module("hakowan.__main__")
+    monkeypatch.setattr(sys, "argv", ["hkw", "view", str(mesh_path)])
+    monkeypatch.setattr(main_module.webbrowser, "open", opened.append)
+
+    main_module.main()
+
+    assert not output.exists()
+    assert len(opened) == 1
+    temporary_output = Path(urllib.parse.unquote(urllib.parse.urlparse(opened[0]).path))
+    assert temporary_output.is_file()
+    assert temporary_output.parent != tmp_path
+    temporary_output.unlink()
 
 
 @pytest.mark.parametrize(
