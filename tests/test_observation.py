@@ -5,8 +5,8 @@ import hashlib
 import importlib
 import json
 import sys
-import urllib.parse
 import urllib.error
+import urllib.parse
 import threading
 from pathlib import Path
 
@@ -697,47 +697,7 @@ def test_cli_view_opens_temporary_webgl_html(monkeypatch, tmp_path):
     temporary_output.unlink()
 
 
-@pytest.mark.parametrize(
-    ("suffix", "image_format"), [(".png", "PNG"), (".jpg", "JPEG")]
-)
-def test_cli_render_falls_back_to_webgl_image(
-    monkeypatch, tmp_path, playwright_browser, suffix, image_format
-):
-    mesh_path = tmp_path / "mesh.ply"
-    lagrange.io.save_mesh(mesh_path, _triangle())
-    output = mesh_path.with_suffix(suffix)
-    main_module = importlib.import_module("hakowan.__main__")
-    monkeypatch.setattr(main_module.hkw, "list_backends", lambda: ["webgl"])
-    argv = [
-        "hkw",
-        "render",
-        str(mesh_path),
-        "--resolution",
-        "24",
-        "16",
-        "--material",
-        "diffuse",
-        "--color",
-        "red",
-        "--depth",
-    ]
-    if suffix != ".png":
-        argv.extend(["--output", str(output)])
-    monkeypatch.setattr(sys, "argv", argv)
-
-    main_module.main()
-
-    assert output.is_file()
-    with Image.open(output) as image:
-        assert image.size == (24, 16)
-        assert image.format == image_format
-        pixels = np.asarray(image.convert("RGB"), dtype=np.int16)
-        assert np.max(np.abs(pixels[:, :, 0] - pixels[:, :, 1])) <= 3
-        assert np.max(np.abs(pixels[:, :, 1] - pixels[:, :, 2])) <= 3
-    assert not output.with_suffix(".html").exists()
-
-
-def test_cli_view_keeps_webgl_html_output(monkeypatch, tmp_path):
+def test_cli_view_no_open_keeps_webgl_html_output(monkeypatch, tmp_path):
     mesh_path = tmp_path / "mesh.ply"
     lagrange.io.save_mesh(mesh_path, _triangle())
     output = mesh_path.with_suffix(".html")

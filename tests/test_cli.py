@@ -8,10 +8,11 @@ import hakowan.__main__ as cli
     [
         (["webgl", "blender", "mitsuba"], "mitsuba"),
         (["webgl", "blender"], "blender"),
-        (["webgl"], "webgl"),
     ],
 )
-def test_render_selects_first_available_backend(monkeypatch, installed, expected):
+def test_render_selects_first_available_native_backend(
+    monkeypatch, installed, expected
+):
     monkeypatch.setattr(cli.hkw, "list_backends", lambda: installed)
 
     args = cli.parse_args(["render", "mesh.obj"])
@@ -19,6 +20,14 @@ def test_render_selects_first_available_backend(monkeypatch, installed, expected
     assert args.action == "render"
     assert args.backend == expected
     assert args.input_mesh == ["mesh.obj"]
+
+
+def test_render_requires_mitsuba_or_blender(monkeypatch):
+    monkeypatch.setattr(cli.hkw, "list_backends", lambda: ["webgl"])
+    monkeypatch.setattr(cli.sys, "argv", ["hkw", "render", "mesh.obj"])
+
+    with pytest.raises(SystemExit, match="requires Mitsuba or Blender"):
+        cli.main()
 
 
 def test_render_selects_blender_for_facet_id(monkeypatch):

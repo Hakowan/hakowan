@@ -19,9 +19,10 @@ hkw inspect --help
 
 ## Render an image
 
-`hkw render` writes a still image. By default, it uses the first available
-backend in this order: Mitsuba, Blender, then WebGL. The default output is the
-input filename with a `.png` extension; use `-o` to choose another path.
+`hkw render` writes a still image using Mitsuba, then Blender. One of those
+optional backends must be installed; the command reports an error if neither is
+available. Use `hkw view` for an interactive WebGL viewer. The default output is
+the input filename with a `.png` extension; use `-o` to choose another path.
 
 ```sh
 hkw render mesh.ply -o mesh.png --resolution 1600 1200
@@ -29,17 +30,9 @@ hkw render mesh.ply --material temperature
 hkw render mesh.ply --wireframe --wire-thickness 1
 ```
 
-If WebGL is selected to produce an image, install the observation extra and
-Chromium:
-
-```sh
-pip install "hakowan[observe]"
-playwright install chromium
-```
 
 `--facet-id` requests a per-facet color image and selects Blender. It reports an
-error if Blender is unavailable. WebGL image capture does not support this
-pass.
+error if Blender is unavailable.
 
 ## Create an interactive viewer
 

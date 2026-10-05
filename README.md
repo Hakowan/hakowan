@@ -44,16 +44,16 @@ Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender ba
 
 ## Command line
 
-`hkw` requires an action. `render` writes a still image, choosing the first
-available backend in this order: Mitsuba, Blender, then WebGL. `view` creates
-an interactive WebGL HTML viewer. `inspect` lists a mesh's attributes, domains,
+`hkw` requires an action. `render` writes a still image using Mitsuba or Blender,
+preferring Mitsuba when both are available. One of those optional backends must
+be installed; otherwise, `render` reports an error. `view` creates an
+interactive WebGL HTML viewer. `inspect` lists a mesh's attributes, domains,
 and each channel's min/max without selecting a render backend. Run `hkw --help`
 or an action's help for details. `--facet-id` selects Blender for `render` and
 reports an error if Blender is unavailable.
 
-`render` uses Mitsuba or Blender when installed. If neither is available, WebGL
-image capture requires `pip install "hakowan[observe]"` and
-`playwright install chromium`. `view` works with the base WebGL install.
+`view` works with the base WebGL install. `render` requires the Mitsuba or
+Blender extra.
 
 ```sh
 hkw render mesh.obj

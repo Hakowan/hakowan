@@ -4,7 +4,6 @@ import argparse
 import copy
 import sys
 import hakowan as hkw
-from hakowan.common.image_io import save_array
 from pathlib import Path
 import math
 import lagrange
@@ -20,27 +19,19 @@ _CLIP_AXES = {"x", "-x", "y", "-y", "z", "-z"}
 
 
 def _render_backend(*, facet_id: bool = False) -> str:
-    """Choose an installed renderer that can produce the requested image."""
+    """Choose an installed native renderer for the CLI still-image action."""
     available = set(hkw.list_backends())
     if facet_id:
         if "blender" in available:
             return "blender"
         raise SystemExit("The --facet-id pass requires the Blender backend.")
-    for backend in ("mitsuba", "blender", "webgl"):
+    for backend in ("mitsuba", "blender"):
         if backend in available:
             return backend
-    raise SystemExit("No rendering backend is available.")
-
-
-def _validate_image_output(path: Path) -> None:
-    """Reject paths that Pillow cannot use for a captured image."""
-    Image.init()
-    image_format = Image.registered_extensions().get(path.suffix.lower())
-    if image_format not in Image.SAVE:
-        raise SystemExit(
-            f"WebGL render fallback requires an image output path; unsupported "
-            f"extension {path.suffix or '(none)'!r}."
-        )
+    raise SystemExit(
+        "hkw render requires Mitsuba or Blender. Install 'hakowan[mitsuba]' or "
+        "'hakowan[blender]', or use 'hkw view' for a WebGL viewer."
+    )
 
 
 def _clip_arg(value: str) -> tuple[str, float]:
@@ -1146,18 +1137,12 @@ def main():
         default_suffix = ".html" if args.action == "view" else ".png"
         output_file = Path(args.input_mesh[0]).with_suffix(default_suffix)
 
-    if args.action == "render" and args.backend == "webgl":
-        _validate_image_output(output_file)
-
-    if args.action == "render" and args.backend == "webgl" and args.serialize:
-        raise SystemExit("WebGL image capture does not support --serialize.")
-
     if args.camera_matrix:
         cam_data = compute_camera_matrix(config)
         save_camera_matrix(cam_data, Path(args.camera_matrix))
 
     turntable_pass = "beauty"
-    if args.backend == "webgl" and (args.turn_table or args.action == "render"):
+    if args.backend == "webgl" and args.turn_table:
         requested_passes = [
             name
             for name, enabled in (
@@ -1169,50 +1154,32 @@ def main():
             if enabled
         ]
         if len(requested_passes) > 1:
-            raise SystemExit("WebGL image capture supports at most one render pass.")
-        if requested_passes == ["facet_id"]:
-            raise SystemExit("WebGL image capture does not support the facet_id pass.")
+            raise SystemExit(
+                "WebGL turn-table capture supports at most one render pass."
+            )
         if requested_passes:
             turntable_pass = requested_passes[0]
 
     if args.turn_table == 0:
-        if args.action == "render" and args.backend == "webgl":
-            try:
-                snapshot = hkw.snapshot(
-                    layer,
-                    pass_name=turntable_pass,
-                    resolution=tuple(args.resolution),
-                    config=config,
-                )
-            except hkw.ObservationError as exc:
-                raise SystemExit(str(exc)) from exc
-            save_array(np.asarray(snapshot.image), output_file)
-            if snapshot.data is not None:
-                np.save(
-                    output_file.with_suffix(".npy"),
-                    snapshot.data,
-                    allow_pickle=False,
-                )
-        else:
-            kwargs = {}
-            if args.serialize:
-                kwargs["yaml_file"] = output_file.with_suffix(".yaml")
-                if args.backend == "blender":
-                    kwargs["blend_file"] = output_file.with_suffix(".blend")
-            result = hkw.render(
-                layer,
-                config,
-                filename=output_file,
-                backend=args.backend,
-                **kwargs,
+        kwargs = {}
+        if args.serialize:
+            kwargs["yaml_file"] = output_file.with_suffix(".yaml")
+            if args.backend == "blender":
+                kwargs["blend_file"] = output_file.with_suffix(".blend")
+        result = hkw.render(
+            layer,
+            config,
+            filename=output_file,
+            backend=args.backend,
+            **kwargs,
+        )
+        if args.action == "view" and not args.no_open:
+            opened_path = (
+                Path(result)
+                if isinstance(result, (str, Path))
+                else output_file.with_suffix(".html")
             )
-            if args.action == "view" and not args.no_open:
-                opened_path = (
-                    Path(result)
-                    if isinstance(result, (str, Path))
-                    else output_file.with_suffix(".html")
-                )
-                webbrowser.open(opened_path.resolve().as_uri())
+            webbrowser.open(opened_path.resolve().as_uri())
     else:
         if args.z_up:
             axis = np.array([0, 0, 1], dtype=float)
