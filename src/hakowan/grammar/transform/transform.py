@@ -90,7 +90,8 @@ class Clip(Transform):
     through triangles: facets straddling the plane are cut so that only the part
     on the positive side is kept. The exposed cross-section is left open (it is
     not capped). Polygonal input is triangulated before clipping when necessary;
-    the trimmed result is not triangulated afterward.
+    the compiler does not triangulate the trimmed result again. Render backends
+    may triangulate polygons as required by their renderer.
 
     The plane is defined in the data/object coordinate space (the same space the
     raw mesh lives in, before any layer-level :class:`Affine` transform), keeping

@@ -162,6 +162,20 @@ class TestClipCompiler:
         )
         return mesh
 
+    def test_clip_keeps_trimmed_quad(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
+        )
+        mesh.add_triangle(0, 1, 2)
+
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+
+        assert out.num_facets == 1
+        assert out.get_facet_size(0) == 4
+
     def test_clip_keeps_positive_side(self):
         from hakowan.compiler.transform import _clip_mesh
 
