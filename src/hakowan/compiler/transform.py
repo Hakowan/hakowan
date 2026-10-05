@@ -268,9 +268,6 @@ def _clip_mesh(
             continue
         _flatten_indexed_attribute(out, iaid)
 
-    if not out.is_triangle_mesh:
-        lagrange.triangulate_polygonal_facets(out)
-
     return out
 
 

@@ -88,8 +88,9 @@ class Clip(Transform):
 
     Unlike :class:`Filter`, which keeps or drops whole facets, ``Clip`` slices
     through triangles: facets straddling the plane are cut so that only the part
-    on the positive side of the plane is kept (partial triangles are produced).
-    The exposed cross-section is left open (it is not capped).
+    on the positive side is kept. The exposed cross-section is left open (it is
+    not capped). Polygonal input is triangulated before clipping when necessary;
+    the trimmed result is not triangulated afterward.
 
     The plane is defined in the data/object coordinate space (the same space the
     raw mesh lives in, before any layer-level :class:`Affine` transform), keeping
