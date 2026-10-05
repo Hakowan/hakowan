@@ -224,7 +224,7 @@ def parse_args(argv=None):
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
-        help="Clip the mesh: AXIS or AXIS:VALUE where AXIS is x/y/z/-x/-y/-z and VALUE is a fraction of the bbox size in [0,1] (default 0.5). E.g. '--clip x' or '--clip -y:0.3'.",
+        help="Slice the mesh at AXIS or AXIS:VALUE, keeping the selected side. AXIS is x/y/z/-x/-y/-z; VALUE is a fraction of the bbox size in [0,1] (default 0.5). The cut is left open. E.g. '--clip x' or '--clip -y:0.3'.",
         type=_clip_arg,
         default=None,
         metavar="AXIS[:VALUE]",
@@ -1022,40 +1022,12 @@ def build_layer(args, mesh_path: str, normalize: bool = False, mesh=None) -> "hk
 
     if args.clip is not None:
         clip_axis, clip_value = args.clip
-        match clip_axis:
-            case "x":
-
-                def condition(x):
-                    return x[0] - bbox_min[0] >= clip_value * bbox_size[0]
-
-            case "-x":
-
-                def condition(x):
-                    return x[0] - bbox_min[0] <= clip_value * bbox_size[0]
-
-            case "y":
-
-                def condition(x):
-                    return x[1] - bbox_min[1] >= clip_value * bbox_size[1]
-
-            case "-y":
-
-                def condition(x):
-                    return x[1] - bbox_min[1] <= clip_value * bbox_size[1]
-
-            case "z":
-
-                def condition(x):
-                    return x[2] - bbox_min[2] >= clip_value * bbox_size[2]
-
-            case "-z":
-
-                def condition(x):
-                    return x[2] - bbox_min[2] <= clip_value * bbox_size[2]
-
-            case _:
-                raise ValueError("Invalid clip axis")
-        layer = layer.transform(hkw.transform.Filter(condition=condition))
+        axis_index = "xyz".index(clip_axis[-1])
+        point = bbox_min.copy()
+        point[axis_index] += clip_value * bbox_size[axis_index]
+        normal = np.zeros(3)
+        normal[axis_index] = -1.0 if clip_axis.startswith("-") else 1.0
+        layer = layer.transform(hkw.transform.Clip(point=point, normal=normal))
 
     if normalize:
         # Outermost transform (applied after clip/rotate) so the styled result —
