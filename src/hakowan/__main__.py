@@ -439,16 +439,25 @@ def extract_material(
                 )
         elif "KHR_materials_pbrSpecularGlossiness" in material.extensions.data:
             pbr = material.extensions.data["KHR_materials_pbrSpecularGlossiness"]
-            if "diffuseTexture" in pbr and "index" in pbr["diffuseTexture"]:
-                diffuse_tex_idx = pbr["diffuseTexture"]["index"]
-            else:
-                diffuse_tex_idx = -1
-            if diffuse_tex_idx >= 0:
+            diffuse_texture = (
+                pbr.get("diffuseTexture") if isinstance(pbr, dict) else None
+            )
+            diffuse_tex_idx = None
+            if isinstance(diffuse_texture, dict):
+                raw_index = diffuse_texture.get("index")
+                if isinstance(raw_index, int) and not isinstance(raw_index, bool):
+                    diffuse_tex_idx = raw_index
+
+            if diffuse_tex_idx is not None and diffuse_tex_idx >= 0:
                 diffuse_tex = scene.textures[diffuse_tex_idx]
+                if diffuse_tex.image is None:
+                    raise ValueError("KHR texture has no associated image data.")
                 diffuse_img = scene.images[diffuse_tex.image]
-                diffuse_file = diffuse_img.uri
-                if diffuse_file is None:
-                    diffuse_file = get_tmp_image_name()
+                diffuse_file = (
+                    Path(diffuse_img.uri)
+                    if diffuse_img.uri is not None
+                    else get_tmp_image_name()
+                )
                 im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(

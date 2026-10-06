@@ -116,10 +116,8 @@ select = ["E4", "E7", "E9", "F", "W"]
 [tool.mypy]
 python_version = "3.13"
 files = ["src/hakowan"]
-# Render backends wrap untyped C-extension libraries (mitsuba, drjit, bpy,
-# lagrange, pygltflib, …). Their bundled stubs are absent or invalid (e.g.
-# mitsuba's __init__.pyi has a syntax error), so don't follow into them — treat
-# them as ``Any`` rather than letting a third-party stub error abort analysis.
+# Lagrange ships PEP 561 stubs and is checked normally. Skip optional backend
+# imports whose stubs are absent or invalid (e.g. Mitsuba's malformed stub).
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -132,8 +130,6 @@ module = [
     "bpy.*",
     "mathutils",
     "mathutils.*",
-    "lagrange",
-    "lagrange.*",
     "pygltflib",
     "pygltflib.*",
     "tqdm",

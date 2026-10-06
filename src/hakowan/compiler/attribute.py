@@ -60,14 +60,14 @@ def compute_scaled_attribute(df: DataFrame, attr: Attribute):
                 remaining = scale._child
             else:
                 if mesh.is_attribute_indexed(attr.name):
-                    mesh_attr = mesh.indexed_attribute(attr.name)
-                    if np.issubdtype(mesh_attr.values.data.dtype, np.integer):
-                        values = mesh_attr.values.data.astype(np.float64)
-                        indices = mesh_attr.indices.data.copy()
+                    indexed_attr = mesh.indexed_attribute(attr.name)
+                    if np.issubdtype(indexed_attr.values.data.dtype, np.integer):
+                        values = indexed_attr.values.data.astype(np.float64)
+                        indices = indexed_attr.indices.data.copy()
                         mesh.create_attribute(
                             attr._internal_name,
-                            element=mesh_attr.element_type,
-                            usage=mesh_attr.usage,
+                            element=indexed_attr.element_type,
+                            usage=indexed_attr.usage,
                             initial_values=values,
                             initial_indices=indices,
                         )
@@ -136,18 +136,18 @@ def _create_norm_attribute(df: DataFrame, src_name: str, dst_name: str, order: f
     )
 
     if mesh.is_attribute_indexed(src_name):
-        src = mesh.indexed_attribute(src_name)
+        indexed_src = mesh.indexed_attribute(src_name)
         # Norms are computed over the *unique* values (shape: N_unique × d → N_unique).
         # Reusing the same index array is correct for any element_type: each element
         # already points to its unique value via that index, and the norm preserves
         # that one-to-one correspondence.
-        norms = _row_norm(src.values.data, order)
+        norms = _row_norm(indexed_src.values.data, order)
         mesh.create_attribute(
             dst_name,
-            element=src.element_type,
+            element=indexed_src.element_type,
             usage=lagrange.AttributeUsage.Scalar,
             initial_values=norms,
-            initial_indices=src.indices.data.copy(),
+            initial_indices=indexed_src.indices.data.copy(),
         )
     else:
         src = mesh.attribute(src_name)
@@ -283,7 +283,7 @@ def _apply_offset(
     mesh = df.mesh
     assert mesh.has_attribute(scale.offset.name)
 
-    target_is_indexed = target_attr.element_type == lagrange.AttributeElement.Indexed
+    target_is_indexed = isinstance(target_attr, lagrange.IndexedAttribute)
     offset_is_indexed = mesh.is_attribute_indexed(scale.offset.name)
 
     if not target_is_indexed and not offset_is_indexed:
@@ -294,10 +294,12 @@ def _apply_offset(
         target_attr.data += offset_attr.data
     elif target_is_indexed and offset_is_indexed:
         assert isinstance(target_attr, lagrange.IndexedAttribute)
-        offset_attr = mesh.attribute(scale.offset.name)
-        target_attr.values[target_attr.indices] += offset_attr.values[
-            offset_attr.indices
-        ]
+        indexed_offset_attr = mesh.indexed_attribute(scale.offset.name)
+        assert target_attr.element_type == indexed_offset_attr.element_type
+        assert target_attr.values.num_channels == indexed_offset_attr.values.num_channels
+        target_attr.values.data[target_attr.indices.data] += (
+            indexed_offset_attr.values.data[indexed_offset_attr.indices.data]
+        )
     elif target_is_indexed:
         # TODO
         pass

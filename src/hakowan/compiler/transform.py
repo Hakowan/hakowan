@@ -275,10 +275,10 @@ def _apply_uv_mesh_transform(view: View, transform: UVMesh):
         logger.info(f"Automatically detected UV attribute: {uv_attr_name}")
     assert mesh.has_attribute(uv_attr_name)
     if mesh.is_attribute_indexed(uv_attr_name):
-        uv_attr = mesh.indexed_attribute(uv_attr_name)
-        uv_values = uv_attr.values.data.copy()
+        indexed_uv_attr = mesh.indexed_attribute(uv_attr_name)
+        uv_values = indexed_uv_attr.values.data.copy()
         uv_values = np.hstack((uv_values, np.zeros((uv_values.shape[0], 1))))
-        uv_indices = uv_attr.indices.data.copy()
+        uv_indices = indexed_uv_attr.indices.data.copy()
         if mesh.is_regular:
             uv_indices = uv_indices.reshape(-1, mesh.vertex_per_facet)
         else:
@@ -312,9 +312,9 @@ def _apply_uv_mesh_transform(view: View, transform: UVMesh):
                     uv_mesh, attr_name, lagrange.AttributeElement.Vertex
                 )
     else:
-        uv_attr = mesh.attribute(uv_attr_name)
-        assert uv_attr.element_type == lagrange.AttributeElement.Vertex
-        uv_values = np.hstack((uv_attr.data, np.zeros((mesh.num_vertices, 1))))
+        regular_uv_attr = mesh.attribute(uv_attr_name)
+        assert regular_uv_attr.element_type == lagrange.AttributeElement.Vertex
+        uv_values = np.hstack((regular_uv_attr.data, np.zeros((mesh.num_vertices, 1))))
         uv_mesh = copy.deepcopy(mesh)
         uv_mesh.vertices = uv_values
     df.mesh = uv_mesh
@@ -462,24 +462,28 @@ def _apply_norm_transform(view: View, transform: Norm):
         raise RuntimeError("Invalid input vector data.")
     assert mesh.has_attribute(input_attr_name)  # type: ignore
     if mesh.is_attribute_indexed(input_attr_name):
-        input_attr = mesh.indexed_attribute(input_attr_name)
-        assert input_attr.num_channels > 1
-        norm_data = np.linalg.norm(input_attr.values.data, axis=1, ord=transform.order)
+        indexed_input_attr = mesh.indexed_attribute(input_attr_name)
+        assert indexed_input_attr.num_channels > 1
+        norm_data = np.linalg.norm(
+            indexed_input_attr.values.data, axis=1, ord=transform.order
+        )
         mesh.create_attribute(
             transform.norm_attr_name,
-            element=input_attr.element_type,
-            usage=input_attr.usage,
+            element=indexed_input_attr.element_type,
+            usage=indexed_input_attr.usage,
             initial_values=norm_data,
-            initial_indices=input_attr.indices.data.copy(),
+            initial_indices=indexed_input_attr.indices.data.copy(),
         )
     else:
-        input_attr = mesh.attribute(input_attr_name)
-        assert input_attr.num_channels > 1
-        norm_data = np.linalg.norm(input_attr.data, axis=1, ord=transform.order)
+        regular_input_attr = mesh.attribute(input_attr_name)
+        assert regular_input_attr.num_channels > 1
+        norm_data = np.linalg.norm(
+            regular_input_attr.data, axis=1, ord=transform.order
+        )
         mesh.create_attribute(
             transform.norm_attr_name,
-            element=input_attr.element_type,
-            usage=input_attr.usage,
+            element=regular_input_attr.element_type,
+            usage=regular_input_attr.usage,
             initial_values=norm_data,
         )
 

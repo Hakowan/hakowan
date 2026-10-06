@@ -480,6 +480,35 @@ class TestScale:
         sc = hkw.scale.Offset(offset=offset_attr)
         self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 1)
 
+    def test_offset_indexed_attribute(self, triangle):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        indices = mesh.facets.copy()
+        target_values = np.array(
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
+        )
+        mesh.create_attribute(
+            "target",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=target_values,
+            initial_indices=indices,
+        )
+        mesh.create_attribute(
+            "offset",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.ones_like(target_values),
+            initial_indices=indices.copy(),
+        )
+
+        hkw.compiler.attribute.apply_scale(
+            df, "target", hkw.scale.Offset(offset=hkw.attribute("offset"))
+        )
+
+        actual = mesh.indexed_attribute("target").values.data
+        np.testing.assert_allclose(actual, target_values + 1.0)
+
     def test_scaled_offset(self, triangle):
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
@@ -527,6 +556,28 @@ class TestTexture:
         assert np.allclose(data[:, 0], data[:, 2])
         assert not np.allclose(data[:, 0], 0)
         assert not np.allclose(data[:, 0], 1)
+
+    def test_indexed_scalar_field_colormap_preserves_color_usage(self, triangle):
+        mesh = triangle
+        mesh.create_attribute(
+            "indexed_data",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0.0, 0.5, 1.0]),
+            initial_indices=mesh.facets,
+        )
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        tex = hkw.texture.ScalarField(
+            data=hkw.attribute("indexed_data"), colormap=["black", "white"]
+        )
+
+        hkw.compiler.texture.apply_texture(df, tex)
+        hkw.compiler.color.apply_colormap(df, tex)
+
+        assert tex.data._internal_color_field is not None
+        color = mesh.indexed_attribute(tex.data._internal_color_field)
+        assert color.usage == lagrange.AttributeUsage.Color
+        assert color.values.num_channels == 3
 
     def test_scalar_field_with_domain(self):
         mesh = lagrange.SurfaceMesh()

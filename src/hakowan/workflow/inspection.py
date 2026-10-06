@@ -94,17 +94,17 @@ def _load_data(
 
 def _attribute_values(
     mesh: lagrange.SurfaceMesh, name: str
-) -> tuple[Any, np.ndarray, np.ndarray, bool]:
-    indexed = mesh.is_attribute_indexed(name)
-    if indexed:
-        attribute = mesh.indexed_attribute(name)
-        values = np.asarray(attribute.values.data)
-        indices = np.asarray(attribute.indices.data)
-    else:
-        attribute = mesh.attribute(name)
-        values = np.asarray(attribute.data)
-        indices = np.empty(0, dtype=np.uint32)
-    return attribute, values, indices, indexed
+) -> tuple[lagrange.Attribute | lagrange.IndexedAttribute, np.ndarray, np.ndarray, bool]:
+    if mesh.is_attribute_indexed(name):
+        indexed_attribute = mesh.indexed_attribute(name)
+        values = np.asarray(indexed_attribute.values.data)
+        indices = np.asarray(indexed_attribute.indices.data)
+        return indexed_attribute, values, indices, True
+
+    attribute = mesh.attribute(name)
+    values = np.asarray(attribute.data)
+    indices = np.empty(0, dtype=np.uint32)
+    return attribute, values, indices, False
 
 
 def _summarize_attribute(mesh: lagrange.SurfaceMesh, name: str) -> AttributeSummary:

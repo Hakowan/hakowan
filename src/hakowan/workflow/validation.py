@@ -551,9 +551,11 @@ class _Validator:
                 hint=f"Available attributes: {available}",
             )
             return None
+        attribute: lagrange.Attribute | lagrange.IndexedAttribute
         if mesh.is_attribute_indexed(name):
-            attribute = mesh.indexed_attribute(name)
-            values = np.asarray(attribute.values.data)
+            indexed_attribute = mesh.indexed_attribute(name)
+            attribute = indexed_attribute
+            values = np.asarray(indexed_attribute.values.data)
         else:
             attribute = mesh.attribute(name)
             values = np.asarray(attribute.data)

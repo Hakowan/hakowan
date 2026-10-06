@@ -506,10 +506,10 @@ def _linearize_color_attributes(mesh: lagrange.SurfaceMesh):
     for cid in color_ids:
         name = mesh.get_attribute_name(cid)
         if mesh.is_attribute_indexed(name):
-            attr = mesh.indexed_attribute(name)
-            element = attr.element_type
-            values = np.array(attr.values.data, dtype=np.float64)  # copy
-            indices = np.array(attr.indices.data)  # copy
+            indexed_attr = mesh.indexed_attribute(name)
+            element = indexed_attr.element_type
+            values = np.array(indexed_attr.values.data, dtype=np.float64)  # copy
+            indices = np.array(indexed_attr.indices.data)  # copy
             values[..., :3] = srgb_to_linear_array(values[..., :3])
             mesh.delete_attribute(name)
             mesh.create_attribute(
@@ -571,10 +571,10 @@ def _expand_secondary_color_attributes(mesh: lagrange.SurfaceMesh):
     for cid in color_ids[1:]:
         name = mesh.get_attribute_name(cid)
         if mesh.is_attribute_indexed(name):
-            attr = mesh.indexed_attribute(name)
-            values = np.array(attr.values.data, dtype=np.float64)
-            indices = np.array(attr.indices.data)
-            element = attr.element_type
+            indexed_attr = mesh.indexed_attribute(name)
+            values = np.array(indexed_attr.values.data, dtype=np.float64)
+            indices = np.array(indexed_attr.indices.data)
+            element = indexed_attr.element_type
             mesh.delete_attribute(name)
             for ch in range(min(values.shape[1], 3)):
                 mesh.create_attribute(

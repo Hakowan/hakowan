@@ -435,6 +435,7 @@ def _draw_world_annotations(
         text_width = max(draw.textlength(line, font=font) for line in lines)
         panel_width = int(np.ceil(text_width + annotation.padding * 2))
         panel_height = int(np.ceil(len(lines) * line_height + annotation.padding * 2))
+        placement: tuple[float, float, float, float] | None
         if annotation.offset is not None:
             left, top = _offset_label_origin(
                 (ax, ay), (panel_width, panel_height), annotation.offset
