@@ -535,41 +535,49 @@ def composite_overlays(
     sources do not imply that the whole viewport contains geometry.
     """
     source = image.convert("RGBA")
+    left = [legend for legend in legends if legend.position == "left"]
+    right = [legend for legend in legends if legend.position == "right"]
+    margin = 8 if source.width > 16 and source.height > 16 else 0
+    available_width = source.width - 2 * margin
+    available_height = source.height - 2 * margin
+    left_width = max((legend.width for legend in left), default=0)
+    right_width = max((legend.width for legend in right), default=0)
+    left_extra = left_width if left and left_width > available_width else 0
+    right_extra = right_width if right and right_width > available_width else 0
+
     if background is None:
-        output = source.copy()
+        canvas_color = (0, 0, 0, 0)
     else:
         canvas_color = {
             "dark": (18, 18, 18, 255),
             "light": (255, 255, 255, 255),
             "black": (0, 0, 0, 255),
         }[background]
-        output = Image.new("RGBA", source.size, canvas_color)
-        output.alpha_composite(source)
+    output = Image.new(
+        "RGBA", (left_extra + source.width + right_extra, source.height), canvas_color
+    )
+    output.alpha_composite(source, (left_extra, 0))
 
     occupied: list[tuple[float, float, float, float]] = []
-    left = [legend for legend in legends if legend.position == "left"]
-    right = [legend for legend in legends if legend.position == "right"]
-    margin = 8 if source.width > 16 and source.height > 16 else 0
-    available_width = source.width - 2 * margin
-    available_height = source.height - 2 * margin
     if left:
-        width = min(max(legend.width for legend in left), available_width)
-        panel = _draw_legend_panel(left, width, available_height)
-        output.alpha_composite(panel, (margin, margin))
-        occupied.append((margin, margin, margin + panel.width, margin + panel.height))
-    if right:
-        width = min(max(legend.width for legend in right), available_width)
-        panel = _draw_legend_panel(right, width, available_height)
-        output.alpha_composite(panel, (source.width - width - margin, margin))
+        panel_x = 0 if left_extra else left_extra + margin
+        panel = _draw_legend_panel(left, left_width, available_height)
+        output.alpha_composite(panel, (panel_x, margin))
         occupied.append(
-            (
-                source.width - width - margin,
-                margin,
-                source.width - margin,
-                margin + panel.height,
-            )
+            (panel_x, margin, panel_x + panel.width, margin + panel.height)
         )
-    _draw_annotations(output, annotations, 0, source.width, occupied)
+    if right:
+        panel_x = (
+            left_extra + source.width
+            if right_extra
+            else left_extra + source.width - right_width - margin
+        )
+        panel = _draw_legend_panel(right, right_width, available_height)
+        output.alpha_composite(panel, (panel_x, margin))
+        occupied.append(
+            (panel_x, margin, panel_x + panel.width, margin + panel.height)
+        )
+    _draw_annotations(output, annotations, left_extra, source.width, occupied)
     if world_annotations:
         if geometry_at is None:
             if geometry_mask is None:
@@ -586,6 +594,17 @@ def composite_overlays(
                         ]
                     )
 
+        if left_extra and geometry_at is not None:
+            source_geometry_at = geometry_at
+
+            def shifted_geometry_at(x: float, y: float) -> bool:
+                source_x = x - left_extra
+                if not (0 <= source_x < source.width and 0 <= y < source.height):
+                    return False
+                return source_geometry_at(source_x, y)
+
+            geometry_at = shifted_geometry_at
+
         projected = _project_world_annotations(
             world_annotations,
             source.size,
@@ -595,6 +614,10 @@ def composite_overlays(
             film_size=film_size,
             crop_offset=crop_offset,
         )
+        if left_extra:
+            projected = [
+                (annotation, x + left_extra, y) for annotation, x, y in projected
+            ]
         _draw_world_annotations(output, projected, occupied, geometry_at)
     return output
 

@@ -37,6 +37,9 @@ texture = hkw.texture.ScalarField(
 )
 ```
 
+Raster outputs overlay the legend when its requested width fits beside the rendered view. If it
+does not fit, the image canvas expands to make room for the full legend panel.
+
 Suppress it explicitly:
 
 ```py
@@ -159,13 +162,14 @@ their points are hidden.
 | Output | Behavior |
 |---|---|
 | WebGL viewer | Legends and annotations appear with the interactive scene. |
-| Beauty images and snapshots | Include legends and annotations without changing image dimensions. |
+| Beauty images and snapshots | Include legends and annotations; expand the canvas when a legend cannot fit beside the view. |
 | Mitsuba `result.image` | Does not include raster overlays. |
 | EXR/HDR and diagnostic passes | Do not include legends or annotations. |
 
-Raster legends and annotations are drawn over the beauty image without changing
-its dimensions. Use the `background` option to flatten transparent renders onto
-a light, dark, or black background.
+Raster legends and annotations are drawn over the beauty image when the panels fit.
+If a legend panel exceeds the available width, the output canvas expands to make
+room. Use the `background` option to flatten transparent renders onto a light,
+dark, or black background.
 
 ## Observation manifests
 
