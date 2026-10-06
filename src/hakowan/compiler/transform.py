@@ -205,20 +205,6 @@ def _clip_mesh(
     if mesh.num_vertices == 0:
         return mesh
 
-    # Save facet attributes: trim_by_isoline resets them to zero, so we
-    # recover them afterwards via nearest-input-centroid assignment.
-    facet_attrs: dict[str, tuple[lagrange.AttributeUsage, np.ndarray]] = {}
-    for faid in mesh.get_matching_attribute_ids():
-        fname = mesh.get_attribute_name(faid)
-        if mesh.attr_name_is_reserved(fname) or mesh.is_attribute_indexed(faid):
-            continue
-        fa = mesh.attribute(faid)
-        if fa.element_type == lagrange.AttributeElement.Facet:
-            facet_attrs[fname] = (fa.usage, fa.data.copy())
-    if facet_attrs:
-        in_centroid_id = lagrange.compute_facet_centroid(mesh)
-        in_centroids = mesh.attribute(in_centroid_id).data.copy()
-
     _SD_ATTR = "_hakowan_clip_sd"
     sd = ((mesh.vertices - p) @ n).astype(np.float64)
     mesh.create_attribute(
@@ -228,8 +214,10 @@ def _clip_mesh(
         initial_values=sd,
     )
 
-    # keep_below=False keeps the side where sd >= isovalue (i.e. sd >= 0).
-    out = lagrange.trim_by_isoline(mesh, _SD_ATTR, isovalue=0.0, keep_below=False)
+    # Explicitly retain vertex and facet attributes through the trim.
+    out = lagrange.trim_by_isoline(
+        mesh, _SD_ATTR, isovalue=0.0, keep_below=False, keep_attributes=True
+    )
 
     if out.num_vertices == 0:
         logger.warning("Clip transform removed the entire mesh.")
@@ -237,26 +225,6 @@ def _clip_mesh(
 
     if out.has_attribute(_SD_ATTR):
         out.delete_attribute(_SD_ATTR)
-
-    # Recover facet attributes via nearest input centroid.
-    # TODO(perf): the brute-force distance matrix below is O(n_out * n_in) in
-    # both time and memory (it materializes an (n_out, n_in, 3) array), so it
-    # will OOM on large meshes. Replace with a spatial index (e.g. a KD-tree /
-    # lagrange nearest-facet query) or chunk the argmin over output facets.
-    if facet_attrs:
-        out_centroid_id = lagrange.compute_facet_centroid(out)
-        out_centroids = out.attribute(out_centroid_id).data
-        diff = out_centroids[:, None, :] - in_centroids[None, :, :]
-        parent_idx = np.argmin((diff * diff).sum(axis=2), axis=1)
-        for fname, (fusage, fdata) in facet_attrs.items():
-            if out.has_attribute(fname):
-                out.delete_attribute(fname)
-            out.create_attribute(
-                fname,
-                element=lagrange.AttributeElement.Facet,
-                usage=fusage,
-                initial_values=np.ascontiguousarray(fdata[parent_idx]),
-            )
 
     # Flatten indexed attributes to per-vertex (matches pre-refactor behaviour
     # and avoids surprises for downstream code that calls mesh.attribute()).

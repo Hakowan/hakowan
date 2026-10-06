@@ -14,7 +14,7 @@ resolution-markers = [
 
 [[package]]
 name = "adobe-lagrange"
-version = "6.48.0"
+version = "6.49.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama" },
@@ -24,10 +24,10 @@ dependencies = [
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/4b/02fc35131ac3ee8b2b3da4a2fc87e19fedd36392d1dfd399ac97fcf9b9cd/adobe_lagrange-6.48.0-cp310-abi3-macosx_13_0_arm64.whl", hash = "sha256:758465670b09a0a594129371795c92b1c981c782fdf92d01c0894136a701afcf", size = 20353246, upload-time = "2026-09-08T19:09:35.833Z" },
-    { url = "https://files.pythonhosted.org/packages/b9/37/003b36cfdae799cbffb880d3f54527bac5f77ca7c9c5ecbdf48e8d0908d2/adobe_lagrange-6.48.0-cp310-abi3-macosx_13_0_x86_64.whl", hash = "sha256:95037e90cc3294a819e691a059e33b55318168cd372de4e337602a14ea3e14c4", size = 22993061, upload-time = "2026-09-08T19:09:38.54Z" },
-    { url = "https://files.pythonhosted.org/packages/c9/73/6661bc6bbe4b211a64974625181fa3ff290cbeda03044dfaaa795aedd2c0/adobe_lagrange-6.48.0-cp310-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:bb5d161ea2a7bedf27797a561090ccd6d54e475820f36333454e573ba0985860", size = 39241187, upload-time = "2026-09-08T19:09:41.301Z" },
-    { url = "https://files.pythonhosted.org/packages/91/ae/9c5d2099c24f71b7c1132057ea617e513150698f8493e724cd2bf7522396/adobe_lagrange-6.48.0-cp310-abi3-win_amd64.whl", hash = "sha256:fca9299cca295d9ebed7e1f663f40f394745e6f754d703215dc54d1a8cec98e2", size = 32771314, upload-time = "2026-09-08T19:09:44.598Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/ce/fc4feb177bc16c43d73d22711d6aedd6e2019c7a1b8da3adb0641d0c9e27/adobe_lagrange-6.49.0-cp310-abi3-macosx_13_0_arm64.whl", hash = "sha256:919846cb65be88142a8c7edc7c6bd5db1efcc1cd6711bfa5ffd2cc02b0aa4adc", size = 20678575, upload-time = "2026-10-05T23:37:07.742Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/27/9bf275594030e09176d0fcf52df9cf8c2b6389bb3bdc45b7cc7be29069be/adobe_lagrange-6.49.0-cp310-abi3-macosx_13_0_x86_64.whl", hash = "sha256:9daa62219ff89a6eaa1e8a3d582d2ca97191c6f6366653fb022e379227bef107", size = 23344921, upload-time = "2026-10-05T23:37:10.26Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/d2/8e337092315796c93f69149d9fb68107f5cc60bb95751a654b945bc55aea/adobe_lagrange-6.49.0-cp310-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:217bb99205834ef4fcac630c35578eed0f924d1f1a45b808919255e866970532", size = 39348811, upload-time = "2026-10-05T23:37:12.909Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/7a/8ced966d72da4ccab143bf47cf1acbbdbf76c73f91982a1313ec17c7d6dc/adobe_lagrange-6.49.0-cp310-abi3-win_amd64.whl", hash = "sha256:6cac5bcc53c0f61fc2469af1c9c6f9f33ba62267cd22338b94ab365cc2310a16", size = 16081259, upload-time = "2026-10-05T23:37:16.359Z" },
 ]
 
 [[package]]
@@ -781,7 +781,7 @@ observe = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adobe-lagrange", specifier = ">=6.44" },
+    { name = "adobe-lagrange", specifier = ">=6.49.0" },
     { name = "bpy", marker = "python_full_version == '3.13.*' and extra == 'blender'", specifier = ">=5.1,<6" },
     { name = "colorcet", specifier = ">=3.2.1,<4" },
     { name = "mitsuba", marker = "extra == 'mitsuba'", specifier = "~=3.8" },

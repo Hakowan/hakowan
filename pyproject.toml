@@ -13,7 +13,7 @@ dynamic = ["description", "version"]
 # with no extra install. The heavier Mitsuba and Blender backends are optional
 # extras (see ``[project.optional-dependencies]``).
 dependencies=[
-    "adobe-lagrange>=6.44",
+    "adobe-lagrange>=6.49.0",
     "numpy>=2.0",
     "Pillow>=11.0",
     "PyYAML>=6.0",

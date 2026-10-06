@@ -22,7 +22,8 @@ Unlike the [Filter transform](#filter-transform), which keeps or drops whole fac
 transform slices through triangles: facets straddling the plane are cut so that only the part on the
 positive side is kept. The exposed cross-section is left open (it is not capped). Polygonal input
 is triangulated before clipping when necessary; the compiler does not triangulate the trimmed result
-again. Render backends may triangulate polygons as required by their renderer.
+again. Vertex and facet attributes are propagated through the trim. Render backends may triangulate
+polygons as required by their renderer.
 
 ```py
 # Keep the half-space where dot(normal, x - point) >= 0.

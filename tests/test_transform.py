@@ -199,10 +199,9 @@ class TestClipCompiler:
 
         mesh = self._make_square()
         out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
-        fid = out.attribute("fid").data.ravel()
-        # Child triangles inherit their parent's facet value (10 from tri 0, 20 from tri 1).
-        assert set(fid.tolist()).issubset({10.0, 20.0})
-        assert out.num_facets == len(fid)
+
+        assert out.num_facets == 2
+        assert set(out.attribute("fid").data.ravel().tolist()) == {10.0, 20.0}
 
     def test_clip_integer_attribute_not_averaged(self):
         from hakowan.compiler.transform import _clip_mesh
