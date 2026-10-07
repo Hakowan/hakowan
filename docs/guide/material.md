@@ -89,7 +89,7 @@ for more details.
 ![RoughConductor material](../images/spot_rough_conductor_CuO.png){: style="width:170px"}
 
 `RoughConductor` material gives the geometry a matte metallic look and feel. It takes a `material`
-parameter just like `Conductor`. In addition, it also takes a `distribution` parameter and a `alpha`
+parameter just like `Conductor`. In addition, it takes a `distribution` parameter and an `alpha`
 channel.
 
 | Channel | Type | Description |
@@ -99,7 +99,7 @@ channel.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `material` | `str` | Material type (see [supported material types](https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#conductor-ior-list)) |
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
 
 Here is a simple example of using `RoughConductor`.
 
@@ -157,9 +157,9 @@ for more details.
 ![RoughPlastic material](../images/spot_rough_plastic_uv.png){: style="width:200px"}
 ![RoughPlastic material](../images/spot_rough_plastic_tex.png){: style="width:200px"}
 
-Similar to `RoughConductor`, the
-`distribution` parameter controls the microfacet normal distribution, and its valid values are `ggx`
-and `beckmann` (default). The `alpha` parameter control the roughness of the material.
+Similar to `RoughConductor`, the `distribution` parameter controls the microfacet normal distribution;
+valid values are `beckmann` (default), `ggx`, and `phong`. The `alpha` parameter controls the
+roughness of the material.
 
 | Channel | Type | Description |
 |---------|------|-------------|
@@ -170,7 +170,7 @@ Addition to the above visual channels, this material also expose the following p
 
 | Parameter | Type | Description |
 |---------|------|-------------|
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
 | `alpha` | `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Here is a snippet to create a `RoughPlastic` material:
@@ -208,6 +208,18 @@ extension. It can be used to approximate almost all other materials.
 | `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
 | `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
 | `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+
+Other `Principled` properties are uniform parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `anisotropic` | `float` | Anisotropy amount from 0 to 1 (default: `0.0`) |
+| `spec_trans` | `float` | Specular transmission from 0 to 1 (default: `0.0`) |
+| `eta` | `float` | Interior index of refraction, greater than 0 (default: `1.5`) |
+| `spec_tint` | `float` | Specular tint toward the base color from 0 to 1 (default: `0.0`) |
+| `sheen` | `float` | Sheen amount from 0 to 1 (default: `0.0`) |
+| `sheen_tint` | `float` | Sheen tint toward the base color from 0 to 1 (default: `0.0`) |
+| `flatness` | `float` | Blend between thin and volumetric subsurface scattering from 0 to 1 (default: `0.0`) |
 
 As a rule of thumb, `roughness` and `metallic` are effective at encoding binary categorical data,
 but not very effective for quantitative data.
@@ -278,7 +290,9 @@ channels and have the following parameters.
 |---------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
 Note that by default, `Dielectric` material does not expose a color channel. Color is specified
 indirectly through the `medium` parameter. Medium describes the material/medium enclosed by the
@@ -318,8 +332,10 @@ Here are the parameters of this material.
 |-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
+| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
 
 Here is a snippet for creating a `RoughDielectric` material.
 
@@ -366,13 +382,20 @@ m = hkw.material.ThinDielectric(int_ior="water")
 
 ![Hair material](../images/spot_hair.png){: style="width:200px"}
 
-`Hair` material from Mitsuba provides a hair-like look and feel. This material is designed to
-specifically work with curve mark. It does not provide any channels for encoding data.
+`Hair` has uniform coloring controls rather than attribute-driven visual channels. It accepts:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| eumelanin | `float` | The amount of dark/black/brown pigments (default: 1.3) |
-| pheomelanin | `float` | The amount of red/yellow pigments (default: 0.2) |
+| `eumelanin` | `float` | Dark/brown pigment concentration (default: `1.3`); ignored when a color or root/tip gradient is set |
+| `pheomelanin` | `float` | Reddish-yellow pigment concentration (default: `0.2`); ignored when a color or gradient is set |
+| `color` | `TextureLike` or `None` | Uniform RGB/named color; defaults to `None`, which uses melanin. Data-driven colors are unsupported |
+| `root_color` | `ColorLike` or `None` | Root color for a root-to-tip gradient; overrides `color` and melanin when set |
+| `tip_color` | `ColorLike` or `None` | Tip color for a root-to-tip gradient |
+| `color_variation` | `float` | Per-strand brightness jitter from 0 to 1 (default: `0.0`) |
+
+Backend behavior differs: Blender evaluates gradients and variation per strand. Mitsuba averages a
+root/tip gradient into one color and ignores variation. WebGL approximates hair with diffuse shading,
+averages gradients, and falls back to brown for melanin. Data-driven hair colors are unsupported.
 
 Here is a snippet for creating a `Hair` material.
 
