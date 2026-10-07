@@ -120,3 +120,34 @@ def test_point_size_uses_screen_pixels(triangle):
 def test_action_is_required_and_limited(argv):
     with pytest.raises(SystemExit):
         cli.parse_args(argv)
+
+
+@pytest.mark.parametrize(
+    ("mesh_count", "expected_columns"),
+    [(1, 1), (2, 2), (3, 3), (4, 2), (5, 3), (6, 3)],
+)
+def test_main_grid_columns(monkeypatch, tmp_path, mesh_count, expected_columns):
+    paths = [tmp_path / f"input-{i}.ply" for i in range(mesh_count)]
+    captured_grid_kwargs = {}
+
+    monkeypatch.setattr(
+        cli.lagrange.io,
+        "load_mesh",
+        lambda path, *, quiet, stitch_vertices: SimpleNamespace(num_facets=1),
+    )
+    monkeypatch.setattr(cli, "build_layer", lambda args, path, *, normalize, mesh: cli.hkw.layer())
+    def fake_grid(layers, **kwargs):
+        captured_grid_kwargs.update(kwargs)
+        return cli.hkw.layer()
+
+    monkeypatch.setattr(cli.hkw, "grid", fake_grid)
+    monkeypatch.setattr(cli.hkw, "render", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        ["hkw", "view", *(str(path) for path in paths), "--no-open"],
+    )
+
+    cli.main()
+
+    assert captured_grid_kwargs["columns"] == expected_columns

@@ -1105,7 +1105,7 @@ def main():
     ]
     layer = hkw.grid(
         layers,
-        columns=min(len(layers), 3),
+        columns=2 if len(layers) == 4 else min(len(layers), 3),
         row_axis="z" if args.z_up else "y",
     )
 
