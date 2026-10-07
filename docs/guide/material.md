@@ -340,7 +340,9 @@ expose any visual channels.
 |-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
 Here is a snippet for creating a `ThinDielectric` material for a glass-like surface:
 
