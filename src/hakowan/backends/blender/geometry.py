@@ -268,7 +268,7 @@ class _GeometryMixin(_MaterialMixin):
         vertices = mesh_data.vertices
         facets = []
         for i in range(mesh_data.num_facets):
-            facet = mesh_data.facets[i].tolist()
+            facet = mesh_data.get_facet_vertices(i).tolist()
             facets.append(facet)
 
         # Create Blender mesh

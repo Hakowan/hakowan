@@ -121,9 +121,12 @@ def _apply_filter_transform(view: View, transform: Filter):
                 ]
                 df.mesh.remove_vertices(vertices_to_remove)
             elif view.mark == Mark.Surface:
-                selected_vertices = np.zeros(mesh.num_vertices, dtype=np.uint32)
-                selected_vertices[keep] = 1
-                selected_facets = np.all(selected_vertices[mesh.facets], axis=1)
+                selected_vertices = np.asarray(keep, dtype=bool)
+                selected_facets = np.empty(mesh.num_facets, dtype=bool)
+                for facet in range(mesh.num_facets):
+                    selected_facets[facet] = np.all(
+                        selected_vertices[mesh.get_facet_vertices(facet)]
+                    )
                 selected_facets = np.arange(mesh.num_facets, dtype=np.uint32)[
                     selected_facets
                 ]
@@ -182,12 +185,14 @@ def _clip_mesh(
     mesh: lagrange.SurfaceMesh,
     point: np.ndarray,
     normal: np.ndarray,
+    *,
+    point_cloud: bool = False,
 ) -> lagrange.SurfaceMesh:
-    """Clip ``mesh`` against the plane through ``point`` with the given ``normal``.
+    """Clip a surface to the half-space ``dot(normal, x - point) >= 0``.
 
-    The half-space where ``dot(normal, x - point) >= 0`` is kept. Uses
-    ``lagrange.trim_by_isoline`` on the signed-distance field, which handles
-    attribute interpolation and produces a proper connected mesh.
+    Point clouds are filtered by vertex position. Polygonal surfaces use
+    ``lagrange.trim_by_isoline`` so geometry and attributes interpolate together.
+    Line facets are unsupported.
     """
     n = np.asarray(normal, dtype=np.float64).reshape(3)
     n_len = np.linalg.norm(n)
@@ -197,6 +202,20 @@ def _clip_mesh(
     p = np.asarray(point, dtype=np.float64).reshape(3)
 
     mesh = copy.deepcopy(mesh)
+    if point_cloud or mesh.num_facets == 0:
+        signed_distance = (mesh.vertices - p) @ n
+        if mesh.has_edges:
+            mesh.clear_edges()
+        vertices_to_remove = np.flatnonzero(signed_distance < 0.0).astype(np.uint32)
+        if vertices_to_remove.size:
+            mesh.remove_vertices(vertices_to_remove)
+        return mesh
+
+    if any(mesh.get_facet_size(facet) < 3 for facet in range(mesh.num_facets)):
+        raise ValueError(
+            "Clip transform supports surface facets and point clouds, not line facets."
+        )
+
     if mesh.has_edges:
         mesh.clear_edges()
     if not mesh.is_triangle_mesh:
@@ -226,13 +245,16 @@ def _clip_mesh(
     if out.has_attribute(_SD_ATTR):
         out.delete_attribute(_SD_ATTR)
 
-    # Flatten indexed attributes to per-vertex (matches pre-refactor behaviour
-    # and avoids surprises for downstream code that calls mesh.attribute()).
+    # Preserve indexed UVs so seam extraction retains corner discontinuities;
+    # flatten other indexed attributes for downstream vertex-domain consumers.
     for iaid in list(out.get_matching_attribute_ids()):
         if not out.is_attribute_indexed(iaid):
             continue
         ianame = out.get_attribute_name(iaid)
         if out.attr_name_is_reserved(ianame):
+            continue
+        indexed_attr = out.indexed_attribute(iaid)
+        if indexed_attr.usage == lagrange.AttributeUsage.UV:
             continue
         _flatten_indexed_attribute(out, iaid)
 
@@ -249,7 +271,7 @@ def _apply_clip_transform(view: View, transform: Clip):
         return
     point = np.asarray(transform.point, dtype=np.float64).reshape(3)
     normal = np.asarray(transform.normal, dtype=np.float64).reshape(3)
-    df.mesh = _clip_mesh(mesh, point, normal)
+    df.mesh = _clip_mesh(mesh, point, normal, point_cloud=view.mark == Mark.Point)
 
 
 def _apply_uv_mesh_transform(view: View, transform: UVMesh):
@@ -279,16 +301,15 @@ def _apply_uv_mesh_transform(view: View, transform: UVMesh):
         uv_values = indexed_uv_attr.values.data.copy()
         uv_values = np.hstack((uv_values, np.zeros((uv_values.shape[0], 1))))
         uv_indices = indexed_uv_attr.indices.data.copy()
-        if mesh.is_regular:
-            uv_indices = uv_indices.reshape(-1, mesh.vertex_per_facet)
-        else:
-            raise RuntimeError(
-                "Hybrid mesh (e.g. mixture of triangles, quads and/or polygons) is not supported yet."
-            )
-
         uv_mesh = lagrange.SurfaceMesh()
         uv_mesh.add_vertices(uv_values)
-        uv_mesh.add_polygons(uv_indices)
+        if mesh.is_regular:
+            uv_mesh.add_polygons(uv_indices.reshape(-1, mesh.vertex_per_facet))
+        else:
+            for facet in range(mesh.num_facets):
+                begin = mesh.get_facet_corner_begin(facet)
+                size = mesh.get_facet_size(facet)
+                uv_mesh.add_polygon(uv_indices[begin : begin + size])
 
         # Map attributes.
         for attr_id in mesh.get_matching_attribute_ids():
@@ -304,10 +325,13 @@ def _apply_uv_mesh_transform(view: View, transform: UVMesh):
             if attr.element_type != lagrange.AttributeElement.Vertex:
                 uv_mesh.create_attribute_from(attr_name, mesh)
             else:
-                lagrange.map_attribute_in_place(
-                    mesh, attr_name, lagrange.AttributeElement.Corner
+                corner_values = attr.data[mesh.facets.ravel()]
+                uv_mesh.create_attribute(
+                    attr_name,
+                    element=lagrange.AttributeElement.Corner,
+                    usage=attr.usage,
+                    initial_values=np.ascontiguousarray(corner_values),
                 )
-                uv_mesh.create_attribute_from(attr_name, mesh)
                 lagrange.map_attribute_in_place(
                     uv_mesh, attr_name, lagrange.AttributeElement.Vertex
                 )
@@ -521,6 +545,19 @@ def _apply_boundary_transform(view: View, transform: Boundary):
     df.mesh = bd_mesh
 
 
+def _triangle_mesh_for_transform(
+    mesh: lagrange.SurfaceMesh,
+) -> lagrange.SurfaceMesh:
+    """Return a triangle mesh, triangulating a local copy when necessary."""
+    if mesh.is_triangle_mesh:
+        return mesh
+    triangulated = copy.deepcopy(mesh)
+    if triangulated.has_edges:
+        triangulated.clear_edges()
+    lagrange.triangulate_polygonal_facets(triangulated)
+    return triangulated
+
+
 def _apply_streamline_transform(view: View, transform: Streamline):
     df = view.data_frame
     assert df is not None
@@ -536,7 +573,7 @@ def _apply_streamline_transform(view: View, transform: Streamline):
         raise RuntimeError("Streamline.vec_field must be a string or Attribute.")
 
     sl_mesh = _compute_streamlines(
-        df.mesh,
+        _triangle_mesh_for_transform(df.mesh),
         vec_field_attr,
         n=transform.n,
         cross_field=transform.cross_field,
@@ -572,7 +609,7 @@ def _apply_fur_transform(view: View, transform: Fur):
         raise RuntimeError("Fur.vec_field must be a string or Attribute.")
 
     fur_mesh = _compute_fur(
-        df.mesh,
+        _triangle_mesh_for_transform(df.mesh),
         vec_field_attr,
         n=transform.n,
         length=transform.length,

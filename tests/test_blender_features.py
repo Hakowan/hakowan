@@ -87,7 +87,7 @@ class TestCamera:
         assert cd.sensor_fit == "HORIZONTAL"
 
 
-def test_annotation_geometry_raycast_respects_pixel_aspect():
+def test_annotation_geometry_raycast_respects_pixel_aspect(monkeypatch):
     from hakowan.backends.blender.render import _world_geometry_at
 
     camera, _ = _setup_camera(
@@ -97,8 +97,8 @@ def test_annotation_geometry_raycast_respects_pixel_aspect():
     )
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, 0))
     scene = bpy.context.scene
-    scene.render.pixel_aspect_x = 2.0
-    scene.render.pixel_aspect_y = 1.0
+    monkeypatch.setattr(scene.render, "pixel_aspect_x", 2.0)
+    monkeypatch.setattr(scene.render, "pixel_aspect_y", 1.0)
     projection = camera.calc_matrix_camera(
         bpy.context.evaluated_depsgraph_get(),
         x=100,
@@ -111,6 +111,70 @@ def test_annotation_geometry_raycast_respects_pixel_aspect():
 
     assert geometry_at(50, 50)
     assert not geometry_at(0, 0)
+
+
+@pytest.mark.parametrize(
+    ("near_clip", "far_clip", "plane_z"),
+    [(0.5, 100.0, 3.8), (0.01, 5.0, -2.0)],
+)
+def test_callout_raycast_respects_camera_clip_planes(
+    monkeypatch, near_clip, far_clip, plane_z
+):
+    from hakowan.backends.blender.render import BlenderBackend, _world_geometry_at
+
+    backend = BlenderBackend()
+    backend._clear_scene()
+    camera, _ = _setup_camera(
+        S.Perspective(
+            location=[0, 0, 4],
+            target=[0, 0, 0],
+            up=[0, 1, 0],
+            near_clip=near_clip,
+            far_clip=far_clip,
+        ),
+        width=100,
+        height=100,
+    )
+    scene = bpy.context.scene
+    monkeypatch.setattr(scene.render, "pixel_aspect_x", 1.0)
+    monkeypatch.setattr(scene.render, "pixel_aspect_y", 1.0)
+    bpy.ops.mesh.primitive_plane_add(size=20.0, location=(0.0, 0.0, plane_z))
+    projection = camera.calc_matrix_camera(
+        bpy.context.evaluated_depsgraph_get(), x=100, y=100, scale_x=1.0, scale_y=1.0
+    )
+
+    assert not _world_geometry_at(camera, projection, (100, 100))(50, 50)
+
+
+def test_callout_raycast_skips_fully_transparent_thin_glass(monkeypatch):
+    from hakowan.backends.blender.render import BlenderBackend, _world_geometry_at
+
+    backend = BlenderBackend()
+    backend._clear_scene()
+    camera, _ = _setup_camera(
+        S.Perspective(location=[0, 0, 4], target=[0, 0, 0], up=[0, 1, 0]),
+        width=100,
+        height=100,
+    )
+    scene = bpy.context.scene
+    monkeypatch.setattr(scene.render, "pixel_aspect_x", 1.0)
+    monkeypatch.setattr(scene.render, "pixel_aspect_y", 1.0)
+    bpy.ops.mesh.primitive_plane_add(size=20.0, location=(0.0, 0.0, 0.0))
+    plane = bpy.context.object
+    material = bpy.data.materials.new("transparent thin dielectric")
+    material.use_nodes = True
+    backend._create_thin_dielectric_material(
+        material,
+        hkw.material.ThinDielectric(specular_reflectance=0.0),
+        material.node_tree.nodes,
+        material.node_tree.links,
+    )
+    plane.data.materials.append(material)
+    projection = camera.calc_matrix_camera(
+        bpy.context.evaluated_depsgraph_get(), x=100, y=100, scale_x=1.0, scale_y=1.0
+    )
+
+    assert not _world_geometry_at(camera, projection, (100, 100))(50, 50)
 
 
 # --------------------------------------------------------------------------- #
@@ -170,6 +234,35 @@ class TestImageTexture:
         assert any(n.type == "TEX_IMAGE" for n in nodes)
         assert _source_type(bsdf.inputs["Base Color"]) == "TEX_IMAGE"
         assert "UVMap" in mesh.uv_layers.keys()
+
+
+class TestHybridSurface:
+    def test_surface_export_accepts_hybrid_facets(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [2.0, 0.0, 0.0],
+                    [3.0, 0.0, 0.0],
+                    [3.0, 1.0, 0.0],
+                    [2.0, 1.0, 0.0],
+                ]
+            )
+        )
+        mesh.add_triangle(0, 1, 2)
+        mesh.add_polygon(np.array([3, 4, 5, 6], dtype=np.uint32))
+        view = hkw.compiler.compile(hkw.layer(mesh))[0]
+
+        backend = BlenderBackend()
+        backend._clear_scene()
+        backend._create_view_object(view, 0)
+
+        blender_mesh = bpy.data.meshes["mesh_000"]
+        assert [len(poly.vertices) for poly in blender_mesh.polygons] == [3, 4]
+        assert [mesh.get_facet_size(i) for i in range(mesh.num_facets)] == [3, 4]
 
 
 class TestFur:
@@ -615,6 +708,10 @@ def test_blender_directional_light_and_environment_visibility():
     assert not bpy.context.scene.render.film_transparent
 
 
+@pytest.mark.skipif(
+    os.environ.get("CI") == "true",
+    reason="headless Blender render not supported in CI",
+)
 def test_blender_opaque_callout_jpeg_avoids_rendered_geometry(tmp_path, monkeypatch):
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(np.array([[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0, 0.5, 0.0]]))

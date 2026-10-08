@@ -274,6 +274,7 @@ def _apply_affine(data: npt.NDArray, scale: Affine):
 
 def _apply_offset(
     target_attr: lagrange.Attribute | lagrange.IndexedAttribute,
+    target_name: str,
     scale: Offset,
     df: DataFrame,
 ):
@@ -295,12 +296,35 @@ def _apply_offset(
     elif target_is_indexed and offset_is_indexed:
         assert isinstance(target_attr, lagrange.IndexedAttribute)
         indexed_offset_attr = mesh.indexed_attribute(scale.offset.name)
-        assert target_attr.element_type == indexed_offset_attr.element_type
         assert (
             target_attr.values.num_channels == indexed_offset_attr.values.num_channels
         )
-        target_attr.values.data[target_attr.indices.data] += (
-            indexed_offset_attr.values.data[indexed_offset_attr.indices.data]
+
+        target_indices = np.asarray(target_attr.indices.data)
+        offset_indices = np.asarray(indexed_offset_attr.indices.data)
+        if target_indices.shape != offset_indices.shape:
+            raise ValueError("Indexed target and offset must map the same corners.")
+        pairs = np.column_stack(
+            (target_indices.reshape(-1), offset_indices.reshape(-1))
+        )
+        unique_pairs, inverse = np.unique(pairs, axis=0, return_inverse=True)
+        target_values = np.asarray(target_attr.values.data)
+        offset_values = np.asarray(indexed_offset_attr.values.data)
+        result_values = np.asarray(
+            target_values[unique_pairs[:, 0]] + offset_values[unique_pairs[:, 1]],
+            dtype=target_values.dtype,
+        )
+        result_indices = inverse.reshape(target_indices.shape).astype(
+            target_indices.dtype, copy=False
+        )
+        usage = target_attr.usage
+        mesh.delete_attribute(target_name)
+        mesh.create_attribute(
+            target_name,
+            element=lagrange.AttributeElement.Indexed,
+            usage=usage,
+            initial_values=result_values,
+            initial_indices=result_indices,
         )
     elif target_is_indexed:
         # TODO
@@ -331,7 +355,7 @@ def _apply_scale_attribute(df: DataFrame, attr_name: str, attr_scale: Scale):
         case Affine():
             _apply_affine(mesh_attr.data, attr_scale)
         case Offset():
-            _apply_offset(mesh_attr, attr_scale, df)
+            _apply_offset(mesh_attr, attr_name, attr_scale, df)
         case Clip():
             _apply_clip(mesh_attr.data, attr_scale)
         case _:
@@ -354,7 +378,7 @@ def _apply_scale_indexed_attribute(df: DataFrame, attr_name: str, attr_scale: Sc
         case Affine():
             _apply_affine(indexed_attr.values.data, attr_scale)
         case Offset():
-            _apply_offset(indexed_attr, attr_scale, df)
+            _apply_offset(indexed_attr, attr_name, attr_scale, df)
         case Clip():
             _apply_clip(indexed_attr.values.data, attr_scale)
         case _:

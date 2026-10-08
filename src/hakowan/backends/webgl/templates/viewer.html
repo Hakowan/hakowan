@@ -1528,13 +1528,22 @@ function _rectOverlap(a, b) {
 }
 const calloutFootprintSamples = CALLOUT_POLICY.footprint;
 
-function _visibleHit(hits) {
+function _visibleHit(hits, ignorePointMarkLayers = null) {
   for (const hit of hits) {
     if (hit.object.userData && hit.object.userData.isWireframe) continue;
     if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(hit.point) < 0)) continue;
     let node = hit.object;
     while (node && node !== loadedRoot && node.visible) node = node.parent;
-    if (node === loadedRoot && loadedRoot.visible) return hit;
+    if (node !== loadedRoot || !loadedRoot.visible) continue;
+
+    let metadata = hit.object;
+    while (metadata && metadata !== loadedRoot) {
+      if (metadata.userData && metadata.userData.hakowan_point_mark) break;
+      metadata = metadata.parent;
+    }
+    if (metadata && metadata !== loadedRoot && ignorePointMarkLayers
+        && ignorePointMarkLayers.includes(_layerIndex(metadata))) continue;
+    return hit;
   }
   return null;
 }
@@ -1563,6 +1572,45 @@ function offsetLabelOrigin(ax, ay, width, height, dx, dy) {
   else if (dy < 0) y = ay + dy - height;
   else y = ay - height / 2;
   return { x, y };
+}
+
+function _visibleCalloutAnchor(item, width, height, sceneSize) {
+  const ownerLayers = Array.isArray(item.annotation.layers) && item.annotation.layers.length
+    ? item.annotation.layers : [item.annotation.layer];
+  const nodes = ownerLayers.flatMap(index => layerNodeMap.get(index) || []);
+  if (!nodes.some(node => node.visible)) return null;
+
+  calloutPoint.copy(item.point);
+  if (item.group) {
+    calloutPoint.applyMatrix4(worldToRoot).sub(item.group.center)
+      .applyQuaternion(qObjectRotation).add(item.group.center)
+      .applyMatrix4(loadedRoot.matrixWorld);
+  }
+  if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(calloutPoint) < 0)) {
+    return null;
+  }
+  calloutViewPoint.copy(calloutPoint).applyMatrix4(camera.matrixWorldInverse);
+  const depth = -calloutViewPoint.z;
+  calloutProjected.copy(calloutPoint).project(camera);
+  if (depth <= camera.near || calloutProjected.z < -1 || calloutProjected.z > 1
+      || Math.abs(calloutProjected.x) >= 1 || Math.abs(calloutProjected.y) >= 1) {
+    return null;
+  }
+  calloutNdc.set(calloutProjected.x, calloutProjected.y);
+  calloutRaycaster.setFromCamera(calloutNdc, camera);
+  const anchorDistance = calloutRaycaster.ray.origin.distanceTo(calloutPoint);
+  const occluder = _visibleHit(
+    calloutRaycaster.intersectObject(loadedRoot, true), ownerLayers,
+  );
+  // This is a world-space geometric epsilon; camera distance must not let a
+  // nearby foreground surface through at long viewing distances.
+  const tolerance = Math.max(sceneSize * 1e-5, 1e-7);
+  if (occluder && occluder.distance < anchorDistance - tolerance) return null;
+
+  return {
+    x: (calloutProjected.x + 1) * width / 2,
+    y: (1 - calloutProjected.y) * height / 2,
+  };
 }
 
 function updateWorldCallouts(staticLayout = captureLayout, force = false) {
@@ -1605,46 +1653,25 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
         w: box.width, h: box.height });
     }
   }
-  for (const item of callouts) {
-    const ownerLayers = Array.isArray(item.annotation.layers) && item.annotation.layers.length
-      ? item.annotation.layers : [item.annotation.layer];
-    const nodes = ownerLayers.flatMap(index => layerNodeMap.get(index) || []);
-    if (!nodes.some(node => node.visible)) {
+  // Determine all visible anchors before placing any label, so an earlier
+  // panel cannot hide a later annotation's anchor.
+  const anchorStates = callouts.map(item => _visibleCalloutAnchor(item, w, h, sceneSize));
+  const anchorRadius = CALLOUT_POLICY.anchor_radius;
+  const anchorObstacles = anchorStates.map((anchor, index) => anchor && ({
+    index,
+    x: anchor.x - anchorRadius,
+    y: anchor.y - anchorRadius,
+    w: anchorRadius * 2,
+    h: anchorRadius * 2,
+  }));
+  for (let calloutIndex = 0; calloutIndex < callouts.length; calloutIndex++) {
+    const item = callouts[calloutIndex];
+    const anchor = anchorStates[calloutIndex];
+    if (!anchor) {
       hideWorldCallout(item);
       continue;
     }
-    calloutPoint.copy(item.point);
-    if (item.group) {
-      // Geometry is rotated about this cell's root-local bounding-box centre.
-      // Apply precisely the same pivot to the compiled world-space anchor.
-      calloutPoint.applyMatrix4(worldToRoot).sub(item.group.center)
-        .applyQuaternion(qObjectRotation).add(item.group.center)
-        .applyMatrix4(loadedRoot.matrixWorld);
-    }
-    if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(calloutPoint) < 0)) {
-      hideWorldCallout(item);
-      continue;
-    }
-    calloutViewPoint.copy(calloutPoint).applyMatrix4(camera.matrixWorldInverse);
-    const depth = -calloutViewPoint.z;
-    calloutProjected.copy(calloutPoint).project(camera);
-    if (depth <= camera.near || calloutProjected.z < -1 || calloutProjected.z > 1
-        || Math.abs(calloutProjected.x) >= 1 || Math.abs(calloutProjected.y) >= 1) {
-      hideWorldCallout(item);
-      continue;
-    }
-    const ax = (calloutProjected.x + 1) * w / 2;
-    const ay = (1 - calloutProjected.y) * h / 2;
-    calloutNdc.set(calloutProjected.x, calloutProjected.y);
-    calloutRaycaster.setFromCamera(calloutNdc, camera);
-    const anchorDistance = calloutRaycaster.ray.origin.distanceTo(calloutPoint);
-    const occluder = _visibleHit(calloutRaycaster.intersectObject(loadedRoot, true));
-    // Tolerance lets an anchor sitting on its own surface remain visible.
-    const tolerance = Math.max(sceneSize * 1e-4, anchorDistance * 1e-4);
-    if (occluder && occluder.distance < anchorDistance - tolerance) {
-      hideWorldCallout(item);
-      continue;
-    }
+    const ax = anchor.x, ay = anchor.y;
     const label = item.label;
     const width = label.offsetWidth, height = label.offsetHeight;
     const hasExplicitOffset = Array.isArray(item.annotation.offset) && item.annotation.offset.length === 2;
@@ -1674,13 +1701,14 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
         const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
         if (w < width + 2 * edge || h < height + 2 * edge) break;
         const rect = { x, y, w: width, h: height };
-        const radius = CALLOUT_POLICY.anchor_radius;
-        if (_rectOverlap(rect, { x: ax - radius, y: ay - radius, w: radius * 2, h: radius * 2 })) continue;
+        if (_rectOverlap(rect, { x: ax - anchorRadius, y: ay - anchorRadius,
+          w: anchorRadius * 2, h: anchorRadius * 2 })) continue;
+        if (anchorObstacles.some(other => other && other.index !== calloutIndex
+            && _rectOverlap(rect, other) > 0)) continue;
         const score = i * 3 + (!staticLayout && item.candidate >= 0 && item.candidate !== i ? 35 : 0);
         // A crowded viewport is better served by hiding the callout than by
         // covering controls or another label.
         if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;
-        if (score >= (best ? best.score : Infinity)) continue;
         if (calloutPanelObstructed(x, y, width, height, w, h)) continue;
         if (!best || score < best.score) best = { x, y, score, candidate: i };
       }
@@ -1693,11 +1721,14 @@ function updateWorldCallouts(staticLayout = captureLayout, force = false) {
     if (!hasExplicitOffset && !staticLayout && item.previous) {
       x = item.previous.x + (x - item.previous.x) * 0.3;
       y = item.previous.y + (y - item.previous.y) * 0.3;
-      // A smooth transition may cross geometry even when its destination is clear.
-      if (_rectOverlap({ x, y, w: width, h: height },
-          { x: ax - CALLOUT_POLICY.anchor_radius, y: ay - CALLOUT_POLICY.anchor_radius,
-            w: CALLOUT_POLICY.anchor_radius * 2, h: CALLOUT_POLICY.anchor_radius * 2 })
-          || occupied.some(other => _rectOverlap({ x, y, w: width, h: height }, other) > 0)
+      // A smooth transition may cross geometry or a sibling anchor even when
+      // its destination is clear.
+      const rect = { x, y, w: width, h: height };
+      if (_rectOverlap(rect, { x: ax - anchorRadius, y: ay - anchorRadius,
+        w: anchorRadius * 2, h: anchorRadius * 2 })
+          || anchorObstacles.some(other => other && other.index !== calloutIndex
+            && _rectOverlap(rect, other) > 0)
+          || occupied.some(other => _rectOverlap(rect, other) > 0)
           || calloutPanelObstructed(x, y, width, height, w, h)) {
         x = best.x;
         y = best.y;

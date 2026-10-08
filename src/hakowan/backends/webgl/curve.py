@@ -674,7 +674,7 @@ def _add_instanced_arrows(
     translations, rotations, scales = _arrow_instances(base, tip, radius)
 
     instance_colors: np.ndarray | None = None
-    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    endpoint_colors = _segment_colors(view, data.vertex_idx, data.facet_idx)
     if endpoint_colors is not None:
         # All four endpoints share the base vertex's colour; take one per arrow.
         instance_colors = endpoint_colors[0::4, :3].astype(np.float32)

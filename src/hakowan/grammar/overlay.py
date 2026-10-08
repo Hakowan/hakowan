@@ -128,6 +128,9 @@ class WorldAnnotation:
                 raise ValueError(
                     "WorldAnnotation.offset must contain two finite coordinates."
                 )
+            object.__setattr__(
+                self, "offset", tuple(float(value) for value in self.offset)
+            )
 
 
 __all__ = ["Annotation", "Legend", "WorldAnnotation"]

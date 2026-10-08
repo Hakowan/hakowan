@@ -8,7 +8,7 @@ from ...compiler.fur import STRAND_RADIUS_ATTR
 from ...grammar.scale import Attribute
 from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
-from ...grammar.channel.material import Dielectric
+from ...grammar.channel.material import Dielectric, Hair
 from .utils import rotation
 from ...common.color import srgb_to_linear_array
 
@@ -489,7 +489,11 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
         return {}
 
     mesh = view.data_frame.mesh
-    bsdf_config = generate_bsdf_config(view, is_primitive=True)
+    # Hair is a uniform strand BSDF, not a primitive-expanded material. Other
+    # materials keep the primitive path so vertex/facet attributes are expanded.
+    bsdf_config = generate_bsdf_config(
+        view, is_primitive=not isinstance(view.material_channel, Hair)
+    )
     if "type" in bsdf_config:
         if _contains_mesh_attribute(bsdf_config):
             raise NotImplementedError(

@@ -253,7 +253,7 @@ class ConductorMaterialSpec(MaterialBaseSpec):
 class RoughConductorMaterialSpec(MaterialBaseSpec):
     kind: Literal["rough_conductor"] = "rough_conductor"
     material: str
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureValue = 0.1
 
 
@@ -267,7 +267,7 @@ class RoughPlasticMaterialSpec(MaterialBaseSpec):
     kind: Literal["rough_plastic"] = "rough_plastic"
     diffuse_reflectance: TextureValue = 0.5
     specular_reflectance: ScalarTextureValue = 1.0
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
@@ -311,7 +311,7 @@ class ThinDielectricMaterialSpec(DielectricMaterialBaseSpec):
 
 class RoughDielectricMaterialSpec(DielectricMaterialBaseSpec):
     kind: Literal["rough_dielectric"] = "rough_dielectric"
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureValue = 0.1
 
 
@@ -609,6 +609,19 @@ NodeSpec = Annotated[
 ]
 
 
+def _contains_world_annotation(value: Any) -> bool:
+    if isinstance(value, WorldAnnotationSpec):
+        return True
+    if isinstance(value, SpecModel):
+        return any(
+            _contains_world_annotation(getattr(value, name))
+            for name in type(value).model_fields
+        )
+    if isinstance(value, (tuple, list)):
+        return any(_contains_world_annotation(item) for item in value)
+    return False
+
+
 class PerspectiveCameraBaseSpec(SpecModel):
     eye: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 5.0])
     target: Vec3 = Field(default_factory=lambda: [0.0, 0.0, 0.0])
@@ -739,8 +752,15 @@ class FigureSpec(SpecModel):
     @model_validator(mode="after")
     def validate_version_features(self) -> "FigureSpec":
         """Reject fields introduced after the declared schema version."""
-        if self.version == "1.0" and self.scene is not None:
-            raise ValueError("FigureSpec version 1.0 does not support scene settings.")
+        if self.version == "1.0":
+            if self.scene is not None:
+                raise ValueError(
+                    "FigureSpec version 1.0 does not support scene settings."
+                )
+            if _contains_world_annotation(self.root):
+                raise ValueError(
+                    "FigureSpec version 1.0 does not support world annotations."
+                )
         return self
 
     def to_dict(self) -> dict[str, Any]:

@@ -1,5 +1,9 @@
 from types import SimpleNamespace
+import logging
+from pathlib import Path
 
+import lagrange
+import numpy as np
 import pytest
 
 import hakowan.__main__ as cli
@@ -153,3 +157,121 @@ def test_main_grid_columns(monkeypatch, tmp_path, mesh_count, expected_columns):
     cli.main()
 
     assert captured_grid_kwargs["columns"] == expected_columns
+
+
+def test_clip_with_seams_extracts_curve_from_clipped_surface():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ]
+        )
+    )
+    mesh.add_triangle(0, 1, 2)
+    mesh.add_triangle(0, 2, 3)
+    mesh.create_attribute(
+        "uv",
+        element=lagrange.AttributeElement.Indexed,
+        usage=lagrange.AttributeUsage.UV,
+        initial_values=np.array(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [1.0, 1.0],
+                [0.1, 0.1],
+                [1.1, 1.1],
+                [0.0, 1.0],
+            ]
+        ),
+        initial_indices=np.array([0, 1, 2, 3, 4, 5], dtype=np.uint32),
+    )
+    args = cli.parse_args(["view", "unused.mesh", "--clip", "x", "--seams"])
+
+    layer = cli.build_layer(args, "unused.mesh", mesh=mesh)
+    scene = cli.hkw.compiler.compile(layer)
+
+    surface_mesh = next(
+        view.data_frame.mesh for view in scene if view.mark == cli.hkw.mark.Surface
+    )
+    curve_mesh = next(
+        view.data_frame.mesh for view in scene if view.mark == cli.hkw.mark.Curve
+    )
+    assert np.all(surface_mesh.vertices[:, 0] >= 0.5 - 1e-9)
+    assert curve_mesh.num_facets > 0
+    assert np.all(curve_mesh.vertices[:, 0] >= 0.5 - 1e-9)
+    assert any(
+        {
+            tuple(np.round(curve_mesh.vertices[index, :2], 6))
+            for index in curve_mesh.get_facet_vertices(facet)
+        }
+        == {(0.5, 0.5), (1.0, 1.0)}
+        for facet in range(curve_mesh.num_facets)
+    )
+    assert mesh.is_attribute_indexed("uv")
+
+
+@pytest.mark.parametrize("field_style", ["streamline", "arrow", "fur"])
+def test_clip_with_vector_field_clips_before_overlay_generation(field_style):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [[0.0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_triangles(np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32))
+    mesh.create_attribute(
+        "flow",
+        element=lagrange.AttributeElement.Facet,
+        usage=lagrange.AttributeUsage.Vector,
+        initial_values=np.array([[0, 1, 0], [0, 1, 0]], dtype=np.float64),
+    )
+    args = cli.parse_args(
+        [
+            "render",
+            "--vector-field",
+            "flow",
+            "--field-style",
+            field_style,
+            "--num-streamlines",
+            "4",
+            "--clip",
+            "x",
+            "unused.mesh",
+        ]
+    )
+
+    scene = cli.hkw.compiler.compile(cli.build_layer(args, "unused.mesh", mesh=mesh))
+    curve = next(view for view in scene if view.mark == cli.hkw.mark.Curve)
+
+    assert curve.data_frame.mesh.num_facets > 0
+    assert np.all(curve.data_frame.mesh.vertices[:, 0] >= 0.5 - 1e-9)
+
+
+def test_view_reports_temporary_html_if_browser_open_fails(
+    monkeypatch, tmp_path, triangle, caplog
+):
+    mesh_path = tmp_path / "mesh.ply"
+    lagrange.io.save_mesh(mesh_path, triangle)
+    rendered = []
+
+    def fake_render(root, config, *, filename, backend, **kwargs):
+        output = Path(filename)
+        output.write_text("viewer")
+        rendered.append(output)
+
+    monkeypatch.setattr(cli.hkw, "render", fake_render)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda url: False)
+    monkeypatch.setattr(cli.sys, "argv", ["hkw", "view", str(mesh_path)])
+    caplog.set_level(logging.WARNING, logger="hakowan")
+
+    cli.main()
+
+    assert len(rendered) == 1
+    assert str(rendered[0]) in caplog.text
+    assert "Could not open WebGL viewer" in caplog.text
+    rendered[0].unlink()

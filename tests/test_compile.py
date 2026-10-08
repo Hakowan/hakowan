@@ -416,8 +416,10 @@ class TestCompile:
             )
         )
         mesh.add_polygons(np.array([[0, 1], [1, 2], [3, 4]], dtype=np.uint32))
-        layer = hkw.layer(mesh).mark(hkw.mark.Curve).transform(
-            hkw.transform.Compute(component="component")
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .transform(hkw.transform.Compute(component="component"))
         )
 
         view = hkw.compiler.compile(layer, preserve_attributes=True)[0]
@@ -528,6 +530,39 @@ class TestScale:
 
         actual = mesh.indexed_attribute("target").values.data
         np.testing.assert_allclose(actual, target_values + 1.0)
+
+    def test_offset_indexed_shared_value_splits_distinct_offsets(self, triangle):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        mesh.create_attribute(
+            "target",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array([[10.0, 0.0, 0.0]]),
+            initial_indices=np.zeros_like(mesh.facets, dtype=np.uint32),
+        )
+        mesh.create_attribute(
+            "offset",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array(
+                [[1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0]]
+            ),
+            initial_indices=mesh.facets.copy(),
+        )
+
+        hkw.compiler.attribute.apply_scale(
+            df, "target", hkw.scale.Offset(offset=hkw.attribute("offset"))
+        )
+
+        indexed = mesh.indexed_attribute("target")
+        corner_values = np.asarray(indexed.values.data)[
+            np.asarray(indexed.indices.data)
+        ]
+        np.testing.assert_allclose(
+            corner_values,
+            [[11.0, 0.0, 0.0], [12.0, 0.0, 0.0], [13.0, 0.0, 0.0]],
+        )
 
     def test_scaled_offset(self, triangle):
         mesh = triangle

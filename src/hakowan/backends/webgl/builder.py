@@ -52,6 +52,9 @@ class GLTFBuilder:
     # groups nodes by this tag to drive per-layer visibility checkboxes. ``None``
     # means the node carries no layer tag.
     _current_layer: int | None = None
+    # Point-mark meshes use their own glyph geometry to visualize each source
+    # vertex. The viewer needs to identify those nodes for anchor self-hits.
+    _current_point_mark: bool = False
 
     def __post_init__(self) -> None:
         # Ensure a buffer slot exists; its length is patched at finalize time.
@@ -365,6 +368,8 @@ class GLTFBuilder:
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
         extras: dict[str, Any] = {}
+        if self._current_point_mark:
+            extras["hakowan_point_mark"] = True
         if self._current_cell is not None:
             extras["hakowan_cell"] = self._current_cell
         if self._current_layer is not None:
@@ -499,6 +504,8 @@ class GLTFBuilder:
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
         extras: dict[str, Any] = {}
+        if self._current_point_mark:
+            extras["hakowan_point_mark"] = True
         if self._current_cell is not None:
             extras["hakowan_cell"] = self._current_cell
         if self._current_layer is not None:

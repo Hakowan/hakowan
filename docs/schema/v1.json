@@ -4096,8 +4096,7 @@
           "default": "beckmann",
           "enum": [
             "beckmann",
-            "ggx",
-            "phong"
+            "ggx"
           ],
           "title": "Distribution",
           "type": "string",
@@ -4286,8 +4285,7 @@
           "default": "beckmann",
           "enum": [
             "beckmann",
-            "ggx",
-            "phong"
+            "ggx"
           ],
           "title": "Distribution",
           "type": "string",
@@ -4523,8 +4521,7 @@
           "default": "beckmann",
           "enum": [
             "beckmann",
-            "ggx",
-            "phong"
+            "ggx"
           ],
           "title": "Distribution",
           "type": "string",

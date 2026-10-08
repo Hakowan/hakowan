@@ -99,7 +99,7 @@ channel.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `material` | `str` | Material type (see [supported material types](https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#conductor-ior-list)) |
-| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 
 Here is a simple example of using `RoughConductor`.
 
@@ -158,8 +158,8 @@ for more details.
 ![RoughPlastic material](../images/spot_rough_plastic_tex.png){: style="width:200px"}
 
 Similar to `RoughConductor`, the `distribution` parameter controls the microfacet normal distribution;
-valid values are `beckmann` (default), `ggx`, and `phong`. The `alpha` parameter controls the
-roughness of the material.
+Mitsuba 3 supports `beckmann` (the default) and `ggx`; its current microfacet plugins reject
+`phong`. The `alpha` parameter controls the roughness of the material.
 
 | Channel | Type | Description |
 |---------|------|-------------|
@@ -170,7 +170,7 @@ Addition to the above visual channels, this material also expose the following p
 
 | Parameter | Type | Description |
 |---------|------|-------------|
-| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 | `alpha` | `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Here is a snippet to create a `RoughPlastic` material:
@@ -219,7 +219,14 @@ Other `Principled` properties are uniform parameters:
 | `spec_tint` | `float` | Specular tint toward the base color from 0 to 1 (default: `0.0`) |
 | `sheen` | `float` | Sheen amount from 0 to 1 (default: `0.0`) |
 | `sheen_tint` | `float` | Sheen tint toward the base color from 0 to 1 (default: `0.0`) |
-| `flatness` | `float` | Blend between thin and volumetric subsurface scattering from 0 to 1 (default: `0.0`) |
+| `flatness` | `float` | Mix from diffuse reflection to Mitsuba's subsurface approximation; not volumetric scattering (0–1, default: `0.0`) |
+
+Mitsuba implements these seven parameters. Blender currently honors `anisotropic`,
+`spec_trans`, `eta`, and `sheen`, but ignores `spec_tint`, `sheen_tint`, and
+`flatness`. WebGL uses only `color`, `roughness`, and `metallic`; these additional
+parameters do not affect its output.
+
+
 
 As a rule of thumb, `roughness` and `metallic` are effective at encoding binary categorical data,
 but not very effective for quantitative data.
@@ -294,6 +301,9 @@ channels and have the following parameters.
 | `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
 | `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
+Backend support differs: WebGL ignores non-default `specular_reflectance`. `ThinDielectric.specular_transmittance` is used by WebGL, but is not passed through by Mitsuba or Blender.
+
+
 Note that by default, `Dielectric` material does not expose a color channel. Color is specified
 indirectly through the `medium` parameter. Medium describes the material/medium enclosed by the
 shape. It can provide fancy effects such as sub-surface scattering. However, `medium` setting
@@ -335,7 +345,7 @@ Here are the parameters of this material.
 | `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
 | `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
 | `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
-| `distribution` | `str` | Microfacet normal distribution: `beckmann`, `ggx`, or `phong` (default: `beckmann`) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 
 Here is a snippet for creating a `RoughDielectric` material.
 
@@ -388,14 +398,14 @@ m = hkw.material.ThinDielectric(int_ior="water")
 |-----------|------|-------------|
 | `eumelanin` | `float` | Dark/brown pigment concentration (default: `1.3`); ignored when a color or root/tip gradient is set |
 | `pheomelanin` | `float` | Reddish-yellow pigment concentration (default: `0.2`); ignored when a color or gradient is set |
-| `color` | `TextureLike` or `None` | Uniform RGB/named color; defaults to `None`, which uses melanin. Data-driven colors are unsupported |
+| `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] or `None` | Only direct `ColorLike` values render as uniform RGB/named colors. Texture values, including `Uniform`, fall back to melanin/brown and are unsupported |
 | `root_color` | `ColorLike` or `None` | Root color for a root-to-tip gradient; overrides `color` and melanin when set |
 | `tip_color` | `ColorLike` or `None` | Tip color for a root-to-tip gradient |
 | `color_variation` | `float` | Per-strand brightness jitter from 0 to 1 (default: `0.0`) |
 
 Backend behavior differs: Blender evaluates gradients and variation per strand. Mitsuba averages a
 root/tip gradient into one color and ignores variation. WebGL approximates hair with diffuse shading,
-averages gradients, and falls back to brown for melanin. Data-driven hair colors are unsupported.
+averages gradients, uses brown for melanin or texture-valued colors, and ignores `color_variation`.
 
 Here is a snippet for creating a `Hair` material.
 

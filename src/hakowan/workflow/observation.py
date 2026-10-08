@@ -22,7 +22,7 @@ import numpy.typing as npt
 from PIL import Image, ImageDraw
 
 from ..backends import BackendName
-from ..common.overlay import composite_overlays
+from ..common.overlay import _content_viewport, composite_overlays
 from ..compiler import Scene, compile, prepare_scene
 from ..grammar.figure import Figure, OrthographicCamera
 from ..grammar.layer import Layer
@@ -151,7 +151,7 @@ class SceneSummary:
 
 @dataclass(frozen=True, slots=True)
 class Snapshot:
-    """One deterministic camera/pass raster and its machine-readable state."""
+    """Camera/pass raster and state; beauty rasters expose their content viewport."""
 
     image: Image.Image = field(repr=False, compare=False)
     data: npt.NDArray | None = field(default=None, repr=False, compare=False)
@@ -177,6 +177,7 @@ class Snapshot:
     diagnostics: tuple[Diagnostic, ...] = ()
     path: Path | None = None
     data_path: Path | None = None
+    content_viewport: tuple[int, int, int, int] | None = None
 
     def to_manifest(self) -> dict[str, Any]:
         """Return paths, hashes, camera state, matrices, bounds, and diagnostics."""
@@ -192,6 +193,9 @@ class Snapshot:
             else None,
             "data_sha256": _file_sha256(self.data_path),
             "size": list(self.image.size),
+            "content_viewport": list(self.content_viewport)
+            if self.content_viewport is not None
+            else None,
             "camera": self.camera.to_dict(),
             "world_to_camera": self.world_to_camera.tolist(),
             "projection": self.projection.tolist(),
@@ -273,12 +277,14 @@ class Observation:
         )
 
     def pick(self, view: str, pixel: tuple[int, int]) -> PixelHit | None:
-        """Resolve IDs, depth, world position, normal, and attributes at a pixel.
+        """Resolve raw pass data at ``pixel`` in visible beauty-image coordinates.
 
-        The observation must contain depth, element-ID, and layer-ID passes for
-        the requested view. Background pixels return ``None``.
+        If a beauty snapshot is present, ``pixel`` is measured from its top-left;
+        its ``content_viewport`` identifies the camera raster within any expanded
+        legend gutters. Pixels outside that viewport raise ``IndexError``. Without
+        a beauty snapshot, coordinates are measured in the raw pass raster.
+        Background pixels return ``None``.
         """
-        x, y = pixel
         depth_snapshot = self.snapshots.get((view, "depth"))
         element_snapshot = self.snapshots.get((view, "element_id"))
         layer_snapshot = self.snapshots.get((view, "layer_id"))
@@ -286,15 +292,31 @@ class Observation:
             raise ObservationError(
                 "pick() requires depth, element_id, and layer_id passes for the view."
             )
-        width, height = depth_snapshot.image.size
-        if not (0 <= x < width and 0 <= y < height):
-            raise IndexError(f"Pixel {pixel} is outside {width}x{height}.")
         assert depth_snapshot.data is not None
         assert element_snapshot.data is not None
         assert layer_snapshot.data is not None
-        depth = float(depth_snapshot.data[y, x])
-        element_id = int(element_snapshot.data[y, x])
-        layer_id = int(layer_snapshot.data[y, x])
+        height, width = depth_snapshot.data.shape
+        beauty_snapshot = self.snapshots.get((view, "beauty"))
+        content_viewport = (
+            beauty_snapshot.content_viewport if beauty_snapshot is not None else None
+        )
+        viewport_x, viewport_y, viewport_width, viewport_height = (
+            content_viewport if content_viewport is not None else (0, 0, width, height)
+        )
+        x, y = pixel
+        if not (
+            viewport_x <= x < viewport_x + viewport_width
+            and viewport_y <= y < viewport_y + viewport_height
+        ):
+            raise IndexError(
+                f"Pixel {pixel} is outside the camera viewport "
+                f"{viewport_width}x{viewport_height} at "
+                f"({viewport_x}, {viewport_y})."
+            )
+        raw_x, raw_y = x - viewport_x, y - viewport_y
+        depth = float(depth_snapshot.data[raw_y, raw_x])
+        element_id = int(element_snapshot.data[raw_y, raw_x])
+        layer_id = int(layer_snapshot.data[raw_y, raw_x])
         if (
             not np.isfinite(depth)
             or element_id == int(BACKGROUND_ID)
@@ -302,14 +324,14 @@ class Observation:
         ):
             return None
         position = _unproject_pixel(
-            pixel,
+            (raw_x, raw_y),
             (width, height),
             depth,
             depth_snapshot.world_to_camera,
             depth_snapshot.projection,
             mode=depth_snapshot.camera.mode,
         )
-        normal = _normal_at(self.snapshots.get((view, "normal")), pixel)
+        normal = _normal_at(self.snapshots.get((view, "normal")), (raw_x, raw_y))
         attributes = _attributes_at(self._scene, layer_id, element_id)
         return PixelHit(
             view=view,
@@ -810,6 +832,11 @@ def _capture_sync(
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
                             data=data,
+                            content_viewport=(
+                                _content_viewport((width, height), scene.legends)
+                                if pass_name == "beauty"
+                                else None
+                            ),
                             view=view,
                             pass_name=pass_name,
                             camera=camera,

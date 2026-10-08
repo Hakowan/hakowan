@@ -21,14 +21,32 @@ from .materials import _MaterialMixin
 from .scene import _SceneMixin
 
 
+def _hit_blocks_callout(obj, face_index: int) -> bool:
+    """Whether a ray hit belongs to a material-visible Blender surface."""
+    if obj is None or face_index < 0:
+        return True
+    try:
+        polygon = obj.data.polygons[face_index]
+        material_index = polygon.material_index
+        material = obj.material_slots[material_index].material
+    except (AttributeError, IndexError, TypeError):
+        return True
+    if material is None:
+        return True
+    return bool(material.get("_hakowan_callout_occluder", True))
+
+
 def _world_geometry_at(camera, projection, size: tuple[int, int]):
-    """Return a screen-pixel ray test for the current Blender render scene."""
+    """Return a screen-pixel ray test for visible geometry in the clip range."""
     width, height = size
     inverse_projection = projection.inverted()
     camera_world = camera.matrix_world.copy()
+    camera_origin = camera_world.translation.copy()
     camera_forward = camera_world.to_3x3() @ mathutils.Vector((0.0, 0.0, -1.0))
     camera_forward.normalize()
     orthographic = camera.data.type == "ORTHO"
+    near_clip = float(camera.data.clip_start)
+    far_clip = float(camera.data.clip_end)
     render_scene = bpy.context.scene
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
@@ -42,15 +60,34 @@ def _world_geometry_at(camera, projection, size: tuple[int, int]):
             (camera_point.x, camera_point.y, camera_point.z)
         )
         if orthographic:
-            origin, direction = near_point, camera_forward
+            origin, direction = near_point, camera_forward.copy()
+            max_distance = far_clip - near_clip
         else:
-            origin = camera_world.translation
-            direction = near_point - origin
+            direction = near_point - camera_origin
             if direction.length_squared == 0:
                 return False
             direction.normalize()
-        hit, *_ = render_scene.ray_cast(depsgraph, origin, direction)
-        return bool(hit)
+            cosine = direction.dot(camera_forward)
+            if cosine <= 1e-12:
+                return False
+            origin = near_point
+            max_distance = (far_clip - near_clip) / cosine
+
+        for _ in range(64):
+            hit, location, _, face_index, obj, _ = render_scene.ray_cast(
+                depsgraph, origin, direction, distance=max_distance
+            )
+            if not hit:
+                return False
+            if _hit_blocks_callout(obj, face_index):
+                return True
+            travelled = (location - origin).length
+            advance = max(1e-5, travelled * 1e-6)
+            origin = location + direction * advance
+            max_distance -= travelled + advance
+            if max_distance <= 0:
+                return False
+        return False
 
     return has_geometry
 

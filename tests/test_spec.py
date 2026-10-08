@@ -282,6 +282,52 @@ def test_world_annotation_spec_requires_tag_and_has_runtime_defaults():
         FigureSpec.model_validate(payload)
 
 
+def test_world_annotations_require_spec_version_1_1():
+    mesh = _mesh_with_fields()
+    layer = hkw.layer(mesh).annotate(WorldAnnotation("point", (0.0, 0.0, 0.0)))
+
+    spec = hkw.to_spec(layer, data_ids={id(mesh): "mesh"})
+    assert spec.version == "1.1"
+
+    payload = spec.to_dict()
+    payload["version"] = "1.0"
+    with pytest.raises(ValidationError, match="does not support world annotations"):
+        FigureSpec.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("material_type", "kwargs"),
+    [
+        (hkw.material.RoughConductor, {"material": "Cu"}),
+        (hkw.material.RoughPlastic, {}),
+        (hkw.material.RoughDielectric, {}),
+    ],
+)
+def test_unsupported_phong_distribution_is_rejected(material_type, kwargs):
+    with pytest.raises(ValueError, match="Microfacet distribution"):
+        material_type(**kwargs, distribution="phong")
+
+
+def test_spec_rejects_phong_microfacet_distribution():
+    payload = {
+        "root": {
+            "kind": "layer",
+            "spec": {
+                "channels": {
+                    "material": {
+                        "kind": "rough_conductor",
+                        "material": "Cu",
+                        "distribution": "phong",
+                    }
+                }
+            },
+        }
+    }
+
+    with pytest.raises(ValidationError, match="distribution"):
+        FigureSpec.model_validate(payload)
+
+
 def test_transform_arrays_follow_application_order():
     mesh = _mesh_with_fields()
     translate = np.eye(4)

@@ -685,6 +685,58 @@ class TestRender:
         assert result.image is not None
         assert tuple(result.image.shape[:2]) == (16, 16)
 
+    def test_hair_material_renders_on_edge_derived_curve(self, triangle, tmp_path):
+        layer = (
+            hkw.layer(triangle)
+            .mark(hkw.mark.Curve)
+            .channel(material=hkw.material.Hair(), size=0.02)
+        )
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert scene_config
+        assert all(shape["bsdf"]["type"] == "hair" for shape in scene_config.values())
+
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        output = tmp_path / "hair-curve.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+        assert output.is_file()
+
+    def test_mitsuba_curve_centerline_anchor_is_not_self_occluded(self):
+        from hakowan.backends.mitsuba.render import (
+            _visible_world_annotations,
+            generate_base_config,
+        )
+        from hakowan.setup.sensor import Orthographic
+
+        mi.set_variant("scalar_rgb")
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))
+        mesh.add_polygons(np.array([[0, 1]], dtype=np.uint32))
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(material=hkw.material.Diffuse("red"), size=0.1)
+            .annotate(hkw.WorldAnnotation("curve", (0.0, 0.0, 0.0)))
+        )
+        compiled = hkw.compiler.compile(layer)
+        config = hkw.config()
+        config.film.width = config.film.height = 32
+        config.sensor = Orthographic(
+            scale=4.0, location=(0.0, 0.0, 3.0), target=(0.0, 0.0, 0.0)
+        )
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(compiled)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, compiled.world_annotations, compiled
+        )
+
+        assert visible == compiled.world_annotations
+
     def test_curve_scalar_field_color_rejects_values_varying_on_edge(self):
         layer = _curve_layer([0, 1, 2, 2], categories=False)
         with pytest.raises(NotImplementedError, match="constant across each mesh edge"):

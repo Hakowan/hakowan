@@ -281,6 +281,14 @@ hkw.render(
 This writes `viewer.html` and a sibling `viewer_assets/` directory. Keep both
 items together when sharing or hosting the viewer.
 
+Browsers block local ES-module imports from `file://`. Serve the folder over HTTP:
+
+```sh
+python -m http.server --directory /path/to/output 8000
+```
+
+Then open `http://127.0.0.1:8000/viewer.html`.
+
 ## Determinism and limitations
 
 Hakowan uses consistent camera framing and output settings for repeatable

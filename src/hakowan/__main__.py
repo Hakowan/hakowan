@@ -888,25 +888,30 @@ def build_layer(
     if args.uv:
         layer = layer.transform(hkw.transform.UVMesh())
 
+    clip_transform = None
+    if args.clip is not None:
+        clip_axis, clip_value = args.clip
+        axis_index = "xyz".index(clip_axis[-1])
+        point = bbox_min.copy()
+        point[axis_index] += clip_value * bbox_size[axis_index]
+        normal = np.zeros(3)
+        normal[axis_index] = -1.0 if clip_axis.startswith("-") else 1.0
+        clip_transform = hkw.transform.Clip(point=point, normal=normal)
+        layer = layer.transform(clip_transform)
+
     if args.wireframe:
         layer = layer.show_edges(
             width=args.wire_thickness, width_space="screen", name="Wireframe"
         )
 
+    seam_base = None
+    seam_uv_name = None
     if args.seams:
         uv_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.UV)
         if not uv_ids:
             raise SystemExit("No UV attributes found in mesh for seams rendering")
-        uv_id = uv_ids[0]
-        uv_name = mesh.get_attribute_name(uv_id)
-        base = hkw.layer(mesh)
-        seams = (
-            base.transform(hkw.transform.Boundary(attributes=[uv_name]))
-            .mark("Curve")
-            .material("Diffuse", "black")
-            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="screen"))
-        )
-        layer = layer + seams
+        seam_uv_name = mesh.get_attribute_name(uv_ids[0])
+        seam_base = hkw.layer(mesh)
 
     vec_field_attr = args.vector_field or args.cross_field
     if vec_field_attr is not None:
@@ -918,22 +923,25 @@ def build_layer(
                 raise SystemExit(
                     "--field-style fur supports --vector-field only, not --cross-field."
                 )
+            field_transform = hkw.transform.Fur(
+                vec_field=vec_field_attr,
+                n=args.num_streamlines,
+                follow_surface=True,
+            )
+            if clip_transform is not None:
+                field_transform = field_transform * clip_transform
             vf_layer = (
                 hkw.layer(vf_mesh)
-                .transform(
-                    hkw.transform.Fur(
-                        vec_field=vec_field_attr,
-                        n=args.num_streamlines,
-                        follow_surface=True,
-                    )
-                )
+                .transform(field_transform)
                 .mark("Curve")
                 .material("Hair", color=args.streamline_color)
             )
         elif args.field_style == "arrow":
+            vf_base = hkw.layer(vf_mesh)
+            if clip_transform is not None:
+                vf_base = vf_base.transform(clip_transform)
             vf_layer = (
-                hkw.layer(vf_mesh)
-                .mark("Curve")
+                vf_base.mark("Curve")
                 .material("Diffuse", args.streamline_color)
                 .channel(
                     vector_field=hkw.channel.VectorField(
@@ -945,18 +953,19 @@ def build_layer(
                 )
             )
         else:
+            field_transform = hkw.transform.Streamline(
+                vec_field=vec_field_attr,
+                cross_field=is_cross,
+                n=args.num_streamlines,
+                length=args.streamline_length * bbox_diag
+                if args.streamline_length is not None
+                else None,
+            )
+            if clip_transform is not None:
+                field_transform = field_transform * clip_transform
             vf_layer = (
                 hkw.layer(vf_mesh)
-                .transform(
-                    hkw.transform.Streamline(
-                        vec_field=vec_field_attr,
-                        cross_field=is_cross,
-                        n=args.num_streamlines,
-                        length=args.streamline_length * bbox_diag
-                        if args.streamline_length is not None
-                        else None,
-                    )
-                )
+                .transform(field_transform)
                 .mark("Curve")
                 .material("Diffuse", args.streamline_color)
                 .channel(
@@ -1017,7 +1026,8 @@ def build_layer(
             metallic=0.2,
         )
 
-        layer = layer + valence_view
+        if clip_transform is not None:
+            valence_view = valence_view.transform(clip_transform)
 
     if args.orient_pca:
         layer = layer.transform(
@@ -1031,14 +1041,28 @@ def build_layer(
             axis = [0, 1, 0]
         layer = layer.rotate(axis=axis, angle=args.rotate * math.pi / 180)
 
-    if args.clip is not None:
-        clip_axis, clip_value = args.clip
-        axis_index = "xyz".index(clip_axis[-1])
-        point = bbox_min.copy()
-        point[axis_index] += clip_value * bbox_size[axis_index]
-        normal = np.zeros(3)
-        normal[axis_index] = -1.0 if clip_axis.startswith("-") else 1.0
-        layer = layer.transform(hkw.transform.Clip(point=point, normal=normal))
+    if seam_base is not None:
+        assert seam_uv_name is not None
+        if args.orient_pca:
+            seam_base = seam_base.transform(
+                hkw.transform.PrincipalAxes(frame=_orient_pca_target_frame(args.z_up))
+            )
+        if args.rotate:
+            seam_axis = [0, 0, 1] if args.z_up else [0, 1, 0]
+            seam_base = seam_base.rotate(
+                axis=seam_axis, angle=args.rotate * math.pi / 180
+            )
+        if args.clip is not None:
+            seam_base = seam_base.transform(
+                hkw.transform.Clip(point=point, normal=normal)
+            )
+        seams = (
+            seam_base.transform(hkw.transform.Boundary(attributes=[seam_uv_name]))
+            .mark("Curve")
+            .material("Diffuse", "black")
+            .channel(size=hkw.channel.Size(data=args.wire_thickness, space="screen"))
+        )
+        layer = layer + seams
 
     if normalize:
         # Outermost transform (applied after clip/rotate) so the styled result —
@@ -1178,7 +1202,12 @@ def main():
                 if isinstance(result, (str, Path))
                 else output_file.with_suffix(".html")
             )
-            webbrowser.open(opened_path.resolve().as_uri())
+            opened = webbrowser.open(opened_path.resolve().as_uri())
+            if not opened:
+                hkw.logger.warning(
+                    "Could not open WebGL viewer; the HTML file is saved at %s",
+                    opened_path.resolve(),
+                )
     else:
         if args.z_up:
             axis = np.array([0, 0, 1], dtype=float)

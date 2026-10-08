@@ -113,18 +113,27 @@ Affected areas:
 - `src/hakowan/backends/webgl/templates/viewer.html`
 - `src/hakowan/backends/webgl/assets.py`
 - `src/hakowan/render/__init__.py`
+- `src/hakowan/workflow/observation.py` (temporary snapshot viewer and camera changes)
 
 Changes:
 
 - Upgrade Three.js from `0.170.0` to at least `0.180.0`, Spark's peer floor.
+- Upgrade the temporary viewer used by `workflow/observation.py` too; its capture path currently builds HTML with a separate Three.js version.
 - Pin and integrity-check Spark 2.2.0:
   - module size: 2,881,309 bytes
   - SHA-256: `d5c3b3722e4e121836b7d26f1260c2a2750973130adfce0aed97bc312b54ead7`
 - Dynamically import Spark only when the scene contains splats.
 - Create one `SparkRenderer` and one `SplatMesh` per splat layer.
 - Emit compiled splats as binary little-endian PLY; Spark rejects ASCII PLY.
-- Attach splat nodes to existing `hakowan_layer` and `hakowan_cell` groups.
-- Wait for every `SplatMesh.initialized` promise before setting `window.__hakowan_loaded`.
+  Re-encode canonical linear scales to GraphDECO log scales, linear opacity to
+  logit opacity, xyzw rotations to wxyz, and restore GraphDECO's channel-major
+  `f_rest_*` property order. Round-trip emitted PLY through Spark's decoder.
+- Extend viewer cell grouping and bounds to include `SplatMesh`. It renders as
+  an `Object3D`, not a Three.js `Mesh`, so node tags alone do not make current
+  geometry discovery see it. Compute its pivot from the splat-aware 3-sigma
+  bounds defined above.
+- Wait for the initial Spark sort before `__hakowan_loaded`, and await a fresh
+  sort after each camera/object transform before deterministic snapshot readback.
 - Support mixed opaque meshes and splats in one scene.
 
 Large captures require an explicit asset policy:
@@ -153,6 +162,8 @@ Initially unsupported:
 - Interactive clipping of splats.
 
 Unsupported requests must fail validation rather than return misleading images. Backend capabilities need mark-specific pass declarations.
+The interactive viewer must also hide or disable unsupported pass and clipping
+controls for splat scenes; backend validation cannot reject later UI clicks.
 
 ## Deferred work
 

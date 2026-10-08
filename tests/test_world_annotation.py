@@ -14,6 +14,13 @@ def _triangle():
     return mesh
 
 
+def _triangle_at(z):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([[-1.0, -1.0, z], [1.0, -1.0, z], [0.0, 1.0, z]]))
+    mesh.add_triangle(0, 1, 2)
+    return mesh
+
+
 def _box():
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(
@@ -169,6 +176,15 @@ def test_world_annotation_rejects_invalid_coordinates(position):
 def test_world_annotation_rejects_invalid_offset(offset):
     with pytest.raises(ValueError, match="two finite coordinates"):
         hkw.WorldAnnotation("test", position=(0, 0, 0), offset=offset)
+
+
+@pytest.mark.parametrize("offset", [[0, -10], np.array([0.0, -10.0], dtype=np.float64)])
+def test_world_annotation_normalizes_offset_sequences(offset):
+    annotation = hkw.WorldAnnotation("label", (0, 0, 0), offset=offset)
+
+    scene = hkw.compile(hkw.layer(_triangle()).annotate(annotation))
+
+    assert scene.world_annotations[0].offset == (0.0, -10.0)
 
 
 def test_world_annotation_offset_and_arrow_properties():
@@ -543,3 +559,154 @@ def test_box_snapshot_places_world_text_outside_mesh(playwright_browser):
     geometry = np.any(normal != 0, axis=2)
     assert panel.any()
     assert not np.any(panel & geometry)
+
+
+@pytest.mark.parametrize("base_shape", ["sphere", "cube", "disk"])
+def test_browser_point_glyph_anchor_ignores_self_but_not_foreground_layer(
+    tmp_path, playwright_browser, base_shape
+):
+    playwright = pytest.importorskip("playwright.sync_api")
+    point_mesh = lagrange.SurfaceMesh()
+    point_mesh.add_vertices(np.array([[0.0, 0.0, 0.0]]))
+    point_layer = (
+        hkw.layer(point_mesh)
+        .mark(hkw.mark.Point)
+        .channel(size=0.15, shape=hkw.channel.Shape(base_shape=base_shape))
+        .annotate(hkw.WorldAnnotation("glyph anchor", (0.0, 0.0, 0.0)))
+    )
+    foreground_layer = hkw.layer(_triangle_at(0.03))
+    figure = hkw.figure(point_layer + foreground_layer).camera(
+        "perspective", eye=(0.0, 0.0, 5.0), target=(0.0, 0.0, 0.0)
+    )
+    viewer = hkw.render(
+        figure,
+        filename=tmp_path / f"point_{base_shape}.html",
+        backend="webgl",
+        offline=True,
+    )
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            label = page.locator(".world-callout", has_text="glyph anchor")
+            assert not label.is_visible()
+            page.locator("#layers input").nth(1).uncheck()
+            page.wait_for_function(
+                "document.querySelector('.world-callout').style.visibility === 'visible'"
+            )
+            assert label.is_visible()
+        finally:
+            browser.close()
+
+
+def test_browser_far_camera_does_not_hide_slightly_occluded_anchor(
+    tmp_path, playwright_browser
+):
+    playwright = pytest.importorskip("playwright.sync_api")
+    anchored = hkw.layer(_triangle_at(0.0)).annotate(
+        hkw.WorldAnnotation("far hidden", (0.25, 0.25, 0.0))
+    )
+    foreground = hkw.layer(_triangle_at(0.005))
+    figure = hkw.figure(anchored + foreground).camera(
+        "perspective",
+        eye=(0.25, 0.25, 100.0),
+        target=(0.25, 0.25, 0.0),
+    )
+    viewer = hkw.render(
+        figure,
+        filename=tmp_path / "far_occlusion.html",
+        backend="webgl",
+        offline=True,
+    )
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            label = page.locator(".world-callout", has_text="far hidden")
+            assert not label.is_visible()
+        finally:
+            browser.close()
+
+
+def test_browser_automatic_callout_does_not_cover_sibling_anchor(
+    tmp_path, playwright_browser
+):
+    playwright = pytest.importorskip("playwright.sync_api")
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [[-0.2, -0.2, 0.0], [0.2, -0.2, 0.0], [0.2, 0.2, 0.0], [-0.2, 0.2, 0.0]],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_triangles(np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint32))
+    layer = (
+        hkw.layer(mesh)
+        .annotate(hkw.WorldAnnotation("First callout", (-0.15, -0.05, 0.0)))
+        .annotate(hkw.WorldAnnotation("Second callout", (0.15, 0.05, 0.0)))
+    )
+    figure = hkw.figure(layer).camera("orthographic", eye=(0.0, 0.0, 5.0), scale=8.0)
+    viewer = hkw.render(
+        figure,
+        filename=tmp_path / "sibling_anchor.html",
+        backend="webgl",
+        offline=True,
+    )
+    positions = {
+        "First callout": [-0.15, -0.05, 0.0],
+        "Second callout": [0.15, 0.05, 0.0],
+    }
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            page.wait_for_function(
+                "[...document.querySelectorAll('.world-callout')].length === 2 "
+                "&& [...document.querySelectorAll('.world-callout')].every(label => "
+                "label.style.visibility === 'visible')"
+            )
+            placements = page.evaluate(
+                """positions => {
+                  const h = window.__hakowan;
+                  const labels = [...document.querySelectorAll('.world-callout')];
+                  return labels.map(label => {
+                    const p = new h.THREE.Vector3(...positions[label.textContent])
+                      .project(h.getCamera());
+                    return {
+                      text: label.textContent,
+                      x: parseFloat(label.style.left),
+                      y: parseFloat(label.style.top),
+                      width: label.offsetWidth,
+                      height: label.offsetHeight,
+                      anchorX: (p.x + 1) * innerWidth / 2,
+                      anchorY: (1 - p.y) * innerHeight / 2,
+                    };
+                  });
+                }""",
+                positions,
+            )
+            first = next(item for item in placements if item["text"] == "First callout")
+            second = next(
+                item for item in placements if item["text"] == "Second callout"
+            )
+            assert not (
+                first["x"] <= second["anchorX"] <= first["x"] + first["width"]
+                and first["y"] <= second["anchorY"] <= first["y"] + first["height"]
+            )
+        finally:
+            browser.close()

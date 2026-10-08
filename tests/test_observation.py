@@ -7,6 +7,7 @@ import json
 import sys
 import urllib.error
 import urllib.parse
+import urllib.request
 import threading
 from pathlib import Path
 
@@ -120,6 +121,43 @@ def test_observe_captures_raw_passes_and_pick(playwright_browser, tmp_path):
     assert len(manifest["contact_sheet_metadata"]["sha256"]) == 64
     assert all(item["mime_type"] == "image/png" for item in manifest["snapshots"])
     assert all(len(item["sha256"]) == 64 for item in manifest["snapshots"])
+
+
+def test_pick_maps_visible_beauty_pixels_after_left_legend_expansion(
+    playwright_browser,
+):
+    layer = hkw.layer(_triangle()).material(
+        "Diffuse",
+        hkw.texture.ScalarField(
+            hkw.attribute("temperature"),
+            legend=hkw.Legend(position="left", width=180),
+        ),
+    )
+    observation = hkw.observe(
+        layer,
+        views=["front"],
+        passes=["beauty", "depth", "element_id", "layer_id"],
+        resolution=(48, 48),
+    )
+    beauty = observation.snapshot("front", "beauty")
+    ids = observation.snapshot("front", "element_id").data
+    layers = observation.snapshot("front", "layer_id").data
+    assert ids is not None and layers is not None
+    assert beauty.image.size == (228, 48)
+    assert beauty.content_viewport == (180, 0, 48, 48)
+    assert beauty.to_manifest()["content_viewport"] == [180, 0, 48, 48]
+
+    y, x = np.argwhere(ids != int(observation_module.BACKGROUND_ID))[0]
+    visible_pixel = (int(x) + 180, int(y))
+    hit = observation.pick("front", visible_pixel)
+
+    assert hit is not None
+    assert hit.pixel == visible_pixel
+    assert hit.element_id == int(ids[y, x])
+    assert hit.layer_id == int(layers[y, x])
+    assert hit.world_position[2] == pytest.approx(0.0, abs=1e-5)
+    with pytest.raises(IndexError, match="outside"):
+        observation.pick("front", (0, int(y)))
 
 
 def test_observe_uses_figure_camera_and_reports_low_occupancy(playwright_browser):
@@ -685,13 +723,20 @@ def test_cli_view_opens_temporary_webgl_html(monkeypatch, tmp_path):
     opened = []
     main_module = importlib.import_module("hakowan.__main__")
     monkeypatch.setattr(sys, "argv", ["hkw", "view", str(mesh_path)])
-    monkeypatch.setattr(main_module.webbrowser, "open", opened.append)
+
+    def open_viewer(url):
+        opened.append(url)
+        return True
+
+    monkeypatch.setattr(main_module.webbrowser, "open", open_viewer)
 
     main_module.main()
 
     assert not output.exists()
     assert len(opened) == 1
-    temporary_output = Path(urllib.parse.unquote(urllib.parse.urlparse(opened[0]).path))
+    temporary_output = Path(
+        urllib.request.url2pathname(urllib.parse.urlparse(opened[0]).path)
+    )
     assert temporary_output.is_file()
     assert temporary_output.parent != tmp_path
     temporary_output.unlink()

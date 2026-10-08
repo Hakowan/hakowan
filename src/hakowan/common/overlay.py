@@ -512,6 +512,30 @@ def _draw_world_annotations(
             )
 
 
+def _legend_expansion(
+    source_size: tuple[int, int], legends: Sequence[CompiledLegend]
+) -> tuple[int, int]:
+    source_width, source_height = source_size
+    margin = 8 if source_width > 16 and source_height > 16 else 0
+    available_width = source_width - 2 * margin
+    left = [legend for legend in legends if legend.position == "left"]
+    right = [legend for legend in legends if legend.position == "right"]
+    left_width = max((legend.width for legend in left), default=0)
+    right_width = max((legend.width for legend in right), default=0)
+    return (
+        left_width if left and left_width > available_width else 0,
+        right_width if right and right_width > available_width else 0,
+    )
+
+
+def _content_viewport(
+    source_size: tuple[int, int], legends: Sequence[CompiledLegend]
+) -> tuple[int, int, int, int]:
+    """Return the source raster's rectangle in an expanded overlay image."""
+    left_extra, _ = _legend_expansion(source_size, legends)
+    return left_extra, 0, source_size[0], source_size[1]
+
+
 def composite_overlays(
     image: Image.Image,
     legends: Sequence[CompiledLegend],
@@ -538,12 +562,10 @@ def composite_overlays(
     left = [legend for legend in legends if legend.position == "left"]
     right = [legend for legend in legends if legend.position == "right"]
     margin = 8 if source.width > 16 and source.height > 16 else 0
-    available_width = source.width - 2 * margin
     available_height = source.height - 2 * margin
     left_width = max((legend.width for legend in left), default=0)
     right_width = max((legend.width for legend in right), default=0)
-    left_extra = left_width if left and left_width > available_width else 0
-    right_extra = right_width if right and right_width > available_width else 0
+    left_extra, right_extra = _legend_expansion(source.size, legends)
 
     if background is None:
         canvas_color = (0, 0, 0, 0)
@@ -583,14 +605,14 @@ def composite_overlays(
             if geometry_mask is not None:
 
                 def geometry_at(x: float, y: float) -> bool:
-                    return bool(
-                        geometry_mask[
-                            min(max(int(y), 0), geometry_mask.shape[0] - 1),
-                            min(max(int(x), 0), geometry_mask.shape[1] - 1),
-                        ]
-                    )
+                    if not (
+                        0 <= x < geometry_mask.shape[1]
+                        and 0 <= y < geometry_mask.shape[0]
+                    ):
+                        return False
+                    return bool(geometry_mask[int(y), int(x)])
 
-        if left_extra and geometry_at is not None:
+        if geometry_at is not None:
             source_geometry_at = geometry_at
 
             def shifted_geometry_at(x: float, y: float) -> bool:

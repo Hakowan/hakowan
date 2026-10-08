@@ -117,7 +117,8 @@ label = hkw.Annotation("Simulation A", position=(0.02, 0.02))
 layer = hkw.layer(mesh, annotations=[label])
 ```
 
-A label inherited from a shared layer appears once in each view.
+Identical inherited screen annotations are deduplicated across the scene and drawn
+once on the shared canvas; they are not repeated in each juxtaposed view.
 
 ## World-space callouts
 

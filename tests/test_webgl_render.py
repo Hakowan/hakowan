@@ -362,9 +362,7 @@ class TestEndToEnd:
 
     def test_facet_scalarfield_colors_curve_segments(self, tmp_path):
         mesh = lagrange.SurfaceMesh()
-        mesh.add_vertices(
-            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0]], dtype=np.float64)
-        )
+        mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0]], dtype=np.float64))
         mesh.add_polygons(np.array([[0, 1], [1, 2]], dtype=np.uint32))
         mesh.create_attribute(
             "path_id",

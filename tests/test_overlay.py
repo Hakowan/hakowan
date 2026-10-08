@@ -564,6 +564,36 @@ def test_world_callout_geometry_callback_precedes_mask_and_file_forwards(tmp_pat
         assert result.getpixel((120, 80))[:3] == (255, 0, 0)
 
 
+def test_world_callout_uses_empty_right_legend_gutter():
+    source = Image.new("RGBA", (64, 400), (255, 255, 255, 255))
+    legend = CompiledLegend(
+        title="Value",
+        units=None,
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 0.5, 1.0),
+        labels=("0", "0.5", "1"),
+        colors=((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        position="right",
+        width=120,
+        scale=(),
+    )
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    result = composite_overlays(
+        source,
+        [legend],
+        [],
+        world_annotations=[_world_callout()],
+        sensor=camera,
+        geometry_mask=np.ones((400, 64), dtype=bool),
+    )
+
+    assert result.size == (184, 400)
+    pixels = np.asarray(result)
+    red_text = (pixels[..., 0] > 150) & (pixels[..., 1] < 80) & (pixels[..., 2] < 80)
+    assert np.any(red_text[258:, 64:])
+
+
 def test_world_callout_avoids_fixed_annotation_and_legend():
     source = Image.new("RGB", (400, 320), "white")
     camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)

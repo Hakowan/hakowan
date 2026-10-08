@@ -210,6 +210,7 @@ class WebGLBackend(RenderBackend):
             # ``None`` leaves nodes untagged) and its layer index (so the viewer
             # can toggle per-layer visibility).
             builder._current_cell = _cell_tag(view)
+            builder._current_point_mark = view.mark is mark_module.Point
             builder._current_layer = index
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)

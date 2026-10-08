@@ -1407,9 +1407,9 @@ def to_spec(
         )
     if not isinstance(value, Layer):
         raise TypeError(f"Expected Layer or Figure, got {type(value)!r}")
-    return sm.FigureSpec(
-        version="1.0", root=_node_to_spec(value, data_ids, function_ids, "root")
-    )
+    root = _node_to_spec(value, data_ids, function_ids, "root")
+    version = "1.1" if sm._contains_world_annotation(root) else "1.0"
+    return sm.FigureSpec(version=version, root=root)
 
 
 def _resolve_data(
