@@ -491,6 +491,18 @@ class TestScale:
             df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + translation
         )
 
+    @pytest.mark.parametrize("shape", [(2, 2), (4, 3)])
+    def test_affine_rejects_incompatible_matrix_shape(self, triangle, shape):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+
+        with pytest.raises(ValueError, match="Affine matrix shape"):
+            hkw.compiler.attribute.apply_scale(
+                df,
+                mesh.attr_name_vertex_to_position,
+                hkw.scale.Affine(matrix=np.ones(shape)),
+            )
+
     def test_offset(self, triangle):
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
@@ -577,6 +589,64 @@ class TestScale:
         offset_attr = hkw.attribute(name="offset", scale=uniform_scale)
         sc = hkw.scale.Offset(offset=offset_attr)
         self.__apply_scale(df, mesh.attr_name_vertex_to_position, sc, mesh.vertices + 2)
+        np.testing.assert_allclose(mesh.attribute("offset").data, np.ones((3, 3)))
+
+    def test_scaled_offset_reuse_does_not_mutate_source(self, triangle):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        offset_values = np.ones((triangle.num_vertices, 3))
+        for name in ("offset", "target_a", "target_b"):
+            mesh.create_attribute(
+                name,
+                element=lagrange.AttributeElement.Vertex,
+                usage=lagrange.AttributeUsage.Vector,
+                initial_values=(
+                    offset_values.copy()
+                    if name == "offset"
+                    else np.zeros_like(offset_values)
+                ),
+            )
+        scale = hkw.scale.Offset(
+            offset=hkw.attribute("offset", scale=hkw.scale.Uniform(factor=2.0))
+        )
+
+        for name in ("target_a", "target_b"):
+            hkw.compiler.attribute.apply_scale(df, name, scale)
+
+        np.testing.assert_allclose(mesh.attribute("target_a").data, 2.0)
+        np.testing.assert_allclose(mesh.attribute("target_b").data, 2.0)
+        np.testing.assert_allclose(mesh.attribute("offset").data, offset_values)
+
+    @pytest.mark.parametrize(
+        ("target_indexed", "offset_indexed"), [(True, False), (False, True)]
+    )
+    def test_offset_rejects_mixed_indexed_storage(
+        self, triangle, target_indexed, offset_indexed
+    ):
+        mesh = triangle
+        df = hkw.dataframe.DataFrame(mesh=mesh)
+        values = np.zeros((3, 3))
+        indices = mesh.facets.copy()
+        for name, indexed in (
+            ("target", target_indexed),
+            ("offset", offset_indexed),
+        ):
+            mesh.create_attribute(
+                name,
+                element=(
+                    lagrange.AttributeElement.Indexed
+                    if indexed
+                    else lagrange.AttributeElement.Vertex
+                ),
+                usage=lagrange.AttributeUsage.Vector,
+                initial_values=values if name == "target" else np.ones_like(values),
+                **({"initial_indices": indices.copy()} if indexed else {}),
+            )
+
+        with pytest.raises(ValueError, match="same indexed or non-indexed storage"):
+            hkw.compiler.attribute.apply_scale(
+                df, "target", hkw.scale.Offset(offset=hkw.attribute("offset"))
+            )
 
 
 class TestTexture:

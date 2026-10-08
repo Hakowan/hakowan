@@ -1,7 +1,9 @@
 import json
+import sys
 
 import hakowan as hkw
 import hakowan.__main__ as main_module
+import hakowan.cli.arguments as cli_arguments
 import lagrange
 import numpy as np
 import pytest
@@ -91,11 +93,11 @@ def test_cli_inspect_lists_mesh_attributes_without_render_backend(
     )
     path = tmp_path / "triangle.ply"
     lagrange.io.save_mesh(path, triangle)
-    monkeypatch.setattr(main_module.sys, "argv", ["hkw", "inspect", str(path)])
+    monkeypatch.setattr(sys, "argv", ["hkw", "inspect", str(path)])
     monkeypatch.setattr(
-        main_module,
+        cli_arguments,
         "_render_backend",
-        lambda: pytest.fail("inspect must not select a renderer"),
+        lambda **kwargs: pytest.fail("inspect must not select a renderer"),
     )
 
     main_module.main()

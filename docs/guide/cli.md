@@ -89,6 +89,7 @@ defaults.
 | `--albedo`, `--depth`, `--shading-normal` | Request diagnostic render passes. |
 | `--seams`, `--uv` | Show UV seams or the UV layout. |
 | `--vector-field ATTR`, `--cross-field ATTR` | Visualize a vector or cross field. |
+| `--singularity` | Mark vertices whose valence differs from the regular triangle/quad valence. |
 
 With Mitsuba or Blender, diagnostic passes are saved alongside the beauty
 image. WebGL image capture uses the requested pass as its output and supports

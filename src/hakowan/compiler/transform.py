@@ -318,10 +318,10 @@ def _apply_uv_mesh_transform(view: View, transform: UVMesh):
                 continue
 
             if mesh.is_attribute_indexed(attr_id):  # type: ignore
-                attr = mesh.indexed_attribute(attr_id)  # type: ignore
-            else:
-                attr = mesh.attribute(attr_id)  # type: ignore
+                uv_mesh.create_attribute_from(attr_name, mesh)
+                continue
 
+            attr = mesh.attribute(attr_id)  # type: ignore
             if attr.element_type != lagrange.AttributeElement.Vertex:
                 uv_mesh.create_attribute_from(attr_name, mesh)
             else:

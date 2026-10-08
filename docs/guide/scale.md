@@ -60,6 +60,9 @@ to [1, 1, 1].
 s = hkw.scale.Affine(matrix = np.eye(3) * 2)
 ```
 
+For a `d`-channel attribute, the matrix must have shape `d×d`, `d×(d+1)`, or `(d+1)×(d+1)`.
+Other shapes raise `ValueError`.
+
 ## Norm scale
 
 `Norm` scale reduces a vector-valued attribute to its per-element magnitude (a scalar field). Unlike
@@ -92,8 +95,9 @@ attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max
 
 ## Offset scale
 
-`Offset` scale offsets the current attribute by another attribute. It is useful for showing deformed
-data where the rest position and displacement field are stored in separate attributes.
+`Offset` scale adds another attribute to the current attribute. It is useful for showing deformed
+data where the rest position and displacement field are stored separately. Target and offset
+attributes must both use indexed or both use non-indexed storage; mixed storage raises `ValueError`.
 
 ```py
 s = hkw.scale.Offset(offset=hkw.attribute("displacement"))

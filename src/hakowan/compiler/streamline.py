@@ -161,7 +161,8 @@ def _compute_streamlines(
     centroids_3d = vertices[facets].mean(axis=1)  # (F, 3)
 
     try:
-        _, seed_facet_ids, _ = lagrange.sampling.blue_noise_sample(mesh, n)
+        sampling = getattr(lagrange, "sampling")
+        _, seed_facet_ids, _ = sampling.blue_noise_sample(mesh, n)
         seed_faces = np.unique(seed_facet_ids).astype(np.int64, copy=False)
     except AttributeError:
         rng = np.random.default_rng(seed)

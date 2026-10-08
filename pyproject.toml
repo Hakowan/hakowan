@@ -142,3 +142,7 @@ follow_imports = "skip"
 # because mitsuba ships a stub whose syntax error would otherwise abort mypy.
 follow_imports_for_stubs = true
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["hakowan.__main__", "hakowan.cli.*"]
+check_untyped_defs = true

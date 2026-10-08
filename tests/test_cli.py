@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import logging
+import sys
 from pathlib import Path
 
 import lagrange
@@ -30,7 +31,7 @@ def test_render_selects_first_available_native_backend(
 
 def test_render_requires_mitsuba_or_blender(monkeypatch):
     monkeypatch.setattr(cli.hkw, "list_backends", lambda: ["webgl"])
-    monkeypatch.setattr(cli.sys, "argv", ["hkw", "render", "mesh.obj"])
+    monkeypatch.setattr(sys, "argv", ["hkw", "render", "mesh.obj"])
 
     with pytest.raises(SystemExit, match="requires Mitsuba or Blender"):
         cli.main()
@@ -92,7 +93,7 @@ def test_main_enables_point_mode_only_for_facet_free_inputs(
     monkeypatch.setattr(cli.hkw, "grid", lambda layers, **kwargs: object())
     monkeypatch.setattr(cli.hkw, "render", lambda *args, **kwargs: None)
     monkeypatch.setattr(
-        cli.sys,
+        sys,
         "argv",
         ["hkw", "view", *(str(path) for path in paths), "--no-open"],
     )
@@ -149,7 +150,7 @@ def test_main_grid_columns(monkeypatch, tmp_path, mesh_count, expected_columns):
     monkeypatch.setattr(cli.hkw, "grid", fake_grid)
     monkeypatch.setattr(cli.hkw, "render", lambda *args, **kwargs: None)
     monkeypatch.setattr(
-        cli.sys,
+        sys,
         "argv",
         ["hkw", "view", *(str(path) for path in paths), "--no-open"],
     )
@@ -252,6 +253,26 @@ def test_clip_with_vector_field_clips_before_overlay_generation(field_style):
     assert np.all(curve.data_frame.mesh.vertices[:, 0] >= 0.5 - 1e-9)
 
 
+def test_singularity_adds_valence_point_view():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [[1.0, 1.0, 1.0], [-1.0, -1.0, 1.0], [-1.0, 1.0, -1.0], [1.0, -1.0, -1.0]]
+        )
+    )
+    mesh.add_triangles(
+        np.array([[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]], dtype=np.uint32)
+    )
+    args = cli.parse_args(["view", "unused.mesh", "--singularity", "--no-open"])
+
+    scene = cli.hkw.compiler.compile(cli.build_layer(args, "unused.mesh", mesh=mesh))
+
+    point_views = [view for view in scene if view.mark == cli.hkw.mark.Point]
+    assert len(point_views) == 1
+    assert point_views[0].data_frame is not None
+    assert point_views[0].data_frame.mesh.num_vertices == 4
+
+
 def test_view_reports_temporary_html_if_browser_open_fails(
     monkeypatch, tmp_path, triangle, caplog
 ):
@@ -266,7 +287,7 @@ def test_view_reports_temporary_html_if_browser_open_fails(
 
     monkeypatch.setattr(cli.hkw, "render", fake_render)
     monkeypatch.setattr(cli.webbrowser, "open", lambda url: False)
-    monkeypatch.setattr(cli.sys, "argv", ["hkw", "view", str(mesh_path)])
+    monkeypatch.setattr(sys, "argv", ["hkw", "view", str(mesh_path)])
     caplog.set_level(logging.WARNING, logger="hakowan")
 
     cli.main()
