@@ -360,6 +360,53 @@ class TestEndToEnd:
         assert gltf.accessors[attrs["TRANSLATION"]].count == 12
         assert "_COLOR_0" in attrs
 
+    def test_facet_scalarfield_colors_curve_segments(self, tmp_path):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0]], dtype=np.float64)
+        )
+        mesh.add_polygons(np.array([[0, 1], [1, 2]], dtype=np.uint32))
+        mesh.create_attribute(
+            "path_id",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0, 1], dtype=np.float64),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.ScalarField(
+                        "path_id", categories=True, legend=False
+                    )
+                ),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "facet-colored-curve.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        inst_nodes = [
+            node
+            for node in gltf.nodes
+            if node.extensions and "EXT_mesh_gpu_instancing" in node.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 2
+        color_accessor = gltf.accessors[attrs["_COLOR_0"]]
+        buffer_view = gltf.bufferViews[color_accessor.bufferView]
+        colors = np.frombuffer(
+            gltf.binary_blob(),
+            dtype=np.float32,
+            count=color_accessor.count * 3,
+            offset=buffer_view.byteOffset or 0,
+        ).reshape(-1, 3)
+        assert colors.shape == (2, 3)
+        assert not np.allclose(colors[0], colors[1])
+
     def test_arrow_curve_is_instanced(self, tmp_path):
         # The arrow glyph (shaft + tapered cone) is a fixed prototype scaled
         # (r, length, r) per vector, so the whole field GPU-instances one mesh.

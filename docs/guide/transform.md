@@ -81,6 +81,9 @@ Currently, the following attributes can be computed:
 tr = hkw.transform.Compute(component="comp")
 ```
 
+For line meshes (two-vertex facets), components join segments that share a
+vertex, so each connected polyline receives one ID.
+
 See the [Penny example](../examples/penny.md) for an actual usage of the compute
 transform.
 

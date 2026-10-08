@@ -416,7 +416,15 @@ def _apply_compute_transform(view: View, transform: Compute):
             mesh, output_attribute_name=transform.facet_normal
         )
     if transform.component is not None:
-        lagrange.compute_components(mesh, output_attribute_name=transform.component)
+        facets = mesh.facets
+        connectivity_type = None
+        if facets.ndim == 2 and facets.shape[1] == 2:
+            connectivity_type = lagrange.ConnectivityType.Vertex
+        lagrange.compute_components(
+            mesh,
+            output_attribute_name=transform.component,
+            connectivity_type=connectivity_type,
+        )
 
 
 def _apply_explode_transform(view: View, transform: Explode):

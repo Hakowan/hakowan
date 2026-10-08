@@ -96,6 +96,11 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.html", backend="webgl")
 ```
 
+Mesh-edge `Curve` marks support vertex- and facet-valued `ScalarField` colors on
+`Diffuse`, `Principled`, and `Plastic` materials. Vertex values color endpoints;
+facet values color each edge from its first incident facet, which is the owning
+line facet for a line mesh.
+
 The interactive viewer shows a layer list when the scene contains multiple
 rendered layers. Each layer has a visibility checkbox; unnamed layers receive
 generated labels. Use the **−** button to minimize the list and **layers +** to

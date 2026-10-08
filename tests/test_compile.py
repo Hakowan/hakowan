@@ -407,6 +407,28 @@ class TestCompile:
         )
         assert len(color_attr_ids) == 1
 
+    def test_compute_transform_groups_edges_by_shared_vertex(self):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array(
+                [[0, 0, 0], [1, 0, 0], [2, 0, 0], [4, 0, 0], [5, 0, 0]],
+                dtype=np.float64,
+            )
+        )
+        mesh.add_polygons(np.array([[0, 1], [1, 2], [3, 4]], dtype=np.uint32))
+        layer = hkw.layer(mesh).mark(hkw.mark.Curve).transform(
+            hkw.transform.Compute(component="component")
+        )
+
+        view = hkw.compiler.compile(layer, preserve_attributes=True)[0]
+        component = view.data_frame.mesh.attribute("component")
+        labels = np.asarray(component.data)
+
+        assert component.element_type == lagrange.AttributeElement.Facet
+        assert labels.shape == (3,)
+        assert labels[0] == labels[1]
+        assert labels[0] != labels[2]
+
 
 class TestScale:
     def __apply_scale(
