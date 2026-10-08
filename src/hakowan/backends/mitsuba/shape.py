@@ -12,7 +12,9 @@ from ...grammar.channel.material import Dielectric
 from .utils import rotation
 from ...common.color import srgb_to_linear_array
 
-from typing import Any
+from dataclasses import fields, is_dataclass
+from typing import Any, Iterator
+
 import copy
 import lagrange
 import mitsuba as mi
@@ -407,6 +409,59 @@ def _contains_mesh_attribute(value: Any) -> bool:
     return False
 
 
+def _iter_attributes(value: Any) -> Iterator[Attribute]:
+    if isinstance(value, Attribute):
+        yield value
+    elif isinstance(value, dict):
+        for child in value.values():
+            yield from _iter_attributes(child)
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            yield from _iter_attributes(child)
+    elif is_dataclass(value):
+        for field in fields(value):
+            yield from _iter_attributes(getattr(value, field.name))
+
+
+def _material_attribute_domains(
+    view: View, mesh: lagrange.SurfaceMesh
+) -> tuple[set[lagrange.AttributeElement], tuple[str, ...]]:
+    assert view.material_channel is not None
+    domains: set[lagrange.AttributeElement] = set()
+    facet_names: set[str] = set()
+    for attribute in _iter_attributes(view.material_channel):
+        for name in (attribute._internal_name, attribute._internal_color_field):
+            if name is None or not mesh.has_attribute(name):
+                continue
+            element = mesh.attribute(name).element_type
+            domains.add(element)
+            if element == lagrange.AttributeElement.Facet:
+                facet_names.add(attribute.name)
+    return domains, tuple(sorted(facet_names))
+
+
+def _expand_facet_bsdfs_to_curve_vertices(
+    mesh: lagrange.SurfaceMesh,
+    bsdf_config: dict[str, Any],
+    num_edges: int,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Replicate each facet BSDF to the two per-edge curve endpoints.
+
+    Endpoints are conceptually duplicated per curve edge, preserving facet
+    discontinuities at source vertices shared by differently-colored edges.
+    """
+    mesh.initialize_edges()
+    edge_vertex_bsdfs = []
+    for edge_index in range(num_edges):
+        incident_facets = mesh.facets_around_edge(edge_index)
+        if len(incident_facets) == 0:
+            raise RuntimeError(f"Curve edge {edge_index} has no incident facet.")
+        facet_index = int(incident_facets[0])
+        facet_bsdf = bsdf_config[f"bsdf_{facet_index:06}"]
+        edge_vertex_bsdfs.append((facet_bsdf, facet_bsdf))
+    return edge_vertex_bsdfs
+
+
 def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
 
@@ -450,18 +505,46 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
                 "Mitsuba curve material textures currently require edge-derived "
                 "curves, not vector-field curves."
             )
-        if len(bsdf_config) != mesh.num_vertices:
-            raise NotImplementedError(
-                "Mitsuba curve material textures currently require vertex-domain "
-                "attributes."
-            )
 
-        mesh.initialize_edges()
+        attribute_domains, facet_attribute_names = _material_attribute_domains(
+            view, mesh
+        )
+        facet_edge_bsdfs = None
+        if lagrange.AttributeElement.Facet in attribute_domains:
+            if lagrange.AttributeElement.Vertex in attribute_domains:
+                raise NotImplementedError(
+                    "Mitsuba curve material textures cannot mix vertex- and "
+                    "facet-domain attributes."
+                )
+            if len(bsdf_config) != mesh.num_facets:
+                raise NotImplementedError(
+                    "Facet-domain curve materials must produce one BSDF per facet."
+                )
+            logger.warning(
+                "Mitsuba curve view %d: expanding facet-domain material attribute(s) "
+                "%s to per-edge vertex values.",
+                index,
+                ", ".join(facet_attribute_names),
+            )
+            facet_edge_bsdfs = _expand_facet_bsdfs_to_curve_vertices(
+                mesh, bsdf_config, len(base)
+            )
+        else:
+            if len(bsdf_config) != mesh.num_vertices:
+                raise NotImplementedError(
+                    "Mitsuba curve material textures currently require vertex-domain "
+                    "attributes."
+                )
+            mesh.initialize_edges()
+
         groups: dict[Any, tuple[dict[str, Any], list[int]]] = {}
         for edge_index in range(len(base)):
-            vertex0, vertex1 = mesh.get_edge_vertices(edge_index)
-            bsdf0 = bsdf_config[f"bsdf_{vertex0:06}"]
-            bsdf1 = bsdf_config[f"bsdf_{vertex1:06}"]
+            if facet_edge_bsdfs is None:
+                vertex0, vertex1 = mesh.get_edge_vertices(edge_index)
+                bsdf0 = bsdf_config[f"bsdf_{vertex0:06}"]
+                bsdf1 = bsdf_config[f"bsdf_{vertex1:06}"]
+            else:
+                bsdf0, bsdf1 = facet_edge_bsdfs[edge_index]
             key0 = _freeze_config(bsdf0)
             if key0 != _freeze_config(bsdf1):
                 raise NotImplementedError(

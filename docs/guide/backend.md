@@ -30,11 +30,12 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.exr", backend="mitsuba")
 ```
 
-For edge-derived `Curve` marks, Mitsuba supports vertex `ScalarField` colors on `Diffuse` and
-`Principled` materials when each edge has the same resolved BSDF at both endpoints. Hakowan groups
-edges with identical BSDFs into curve shapes. If material values vary across an edge, rendering
-raises `NotImplementedError`; use a tube mesh for smoothly varying color. Attribute-driven materials
-on vector-field curves are not supported.
+For edge-derived `Curve` marks, Mitsuba supports vertex- and facet-valued `ScalarField`
+material inputs on `Diffuse` and `Principled` materials. Hakowan expands each facet value to the
+two curve endpoints for that segment; on a mesh edge shared by several facets, the first incident
+facet supplies the value. Vertex-valued inputs must resolve to the same BSDF at both endpoints of
+each edge; varying values require a tube mesh. Attribute-driven materials on vector-field curves
+remain unsupported.
 
 ### Blender Backend
 

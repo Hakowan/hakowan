@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 import pytest
 import pathlib
@@ -73,6 +74,35 @@ def _curve_layer(values, *, categories):
     mesh.create_attribute(
         "path_id",
         element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.asarray(values, dtype=np.float64),
+    )
+    return (
+        hkw.layer(mesh)
+        .mark(hkw.mark.Curve)
+        .channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(
+                    "path_id", categories=categories, legend=False
+                )
+            ),
+            size=0.02,
+        )
+    )
+
+
+def _facet_curve_layer(values, *, categories):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [[-0.5, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_polygons(np.array([[0, 1], [1, 2]], dtype=np.uint32))
+    mesh.create_attribute(
+        "path_id",
+        element=lagrange.AttributeElement.Facet,
         usage=lagrange.AttributeUsage.Scalar,
         initial_values=np.asarray(values, dtype=np.float64),
     )
@@ -632,6 +662,25 @@ class TestRender:
         config = hkw.config()
         config.film.width = config.film.height = 16
         output = tmp_path / "curve-colors.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+
+    def test_facet_scalar_field_expands_to_curve_vertices(self, tmp_path, caplog):
+        layer = _facet_curve_layer([0, 1], categories=True)
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+
+        caplog.set_level(logging.WARNING, logger="hakowan")
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert "facet-domain material attribute(s) path_id" in caplog.text
+        assert len(scene_config) == 2
+        shapes = list(scene_config.values())
+        colors = {tuple(shape["bsdf"]["base_color"]["value"]) for shape in shapes}
+        assert len(colors) == 2
+
+        output = tmp_path / "facet-curve-colors.png"
         result = hkw.render(layer, config, filename=output, backend="mitsuba")
         assert result.image is not None
         assert tuple(result.image.shape[:2]) == (16, 16)
