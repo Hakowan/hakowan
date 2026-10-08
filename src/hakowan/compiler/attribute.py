@@ -296,7 +296,9 @@ def _apply_offset(
         assert isinstance(target_attr, lagrange.IndexedAttribute)
         indexed_offset_attr = mesh.indexed_attribute(scale.offset.name)
         assert target_attr.element_type == indexed_offset_attr.element_type
-        assert target_attr.values.num_channels == indexed_offset_attr.values.num_channels
+        assert (
+            target_attr.values.num_channels == indexed_offset_attr.values.num_channels
+        )
         target_attr.values.data[target_attr.indices.data] += (
             indexed_offset_attr.values.data[indexed_offset_attr.indices.data]
         )

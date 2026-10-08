@@ -474,9 +474,7 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
         edge_groups = list(groups.values())
 
     curve_type = (
-        "linearcurve"
-        if ctrl_pts_1 is None or ctrl_pts_2 is None
-        else "bsplinecurve"
+        "linearcurve" if ctrl_pts_1 is None or ctrl_pts_2 is None else "bsplinecurve"
     )
     mi_config: dict[str, Any] = {}
     for group_index, (bsdf, edge_indices) in enumerate(edge_groups):

@@ -563,9 +563,7 @@ def composite_overlays(
         panel_x = 0 if left_extra else left_extra + margin
         panel = _draw_legend_panel(left, left_width, available_height)
         output.alpha_composite(panel, (panel_x, margin))
-        occupied.append(
-            (panel_x, margin, panel_x + panel.width, margin + panel.height)
-        )
+        occupied.append((panel_x, margin, panel_x + panel.width, margin + panel.height))
     if right:
         panel_x = (
             left_extra + source.width
@@ -574,9 +572,7 @@ def composite_overlays(
         )
         panel = _draw_legend_panel(right, right_width, available_height)
         output.alpha_composite(panel, (panel_x, margin))
-        occupied.append(
-            (panel_x, margin, panel_x + panel.width, margin + panel.height)
-        )
+        occupied.append((panel_x, margin, panel_x + panel.width, margin + panel.height))
     _draw_annotations(output, annotations, left_extra, source.width, occupied)
     if world_annotations:
         if geometry_at is None:

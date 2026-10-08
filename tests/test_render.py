@@ -76,13 +76,17 @@ def _curve_layer(values, *, categories):
         usage=lagrange.AttributeUsage.Scalar,
         initial_values=np.asarray(values, dtype=np.float64),
     )
-    return hkw.layer(mesh).mark(hkw.mark.Curve).channel(
-        material=hkw.material.Principled(
-            color=hkw.texture.ScalarField(
-                "path_id", categories=categories, legend=False
-            )
-        ),
-        size=0.02,
+    return (
+        hkw.layer(mesh)
+        .mark(hkw.mark.Curve)
+        .channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(
+                    "path_id", categories=categories, legend=False
+                )
+            ),
+            size=0.02,
+        )
     )
 
 

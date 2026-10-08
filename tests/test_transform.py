@@ -166,9 +166,7 @@ class TestClipCompiler:
         from hakowan.compiler.transform import _clip_mesh
 
         mesh = lagrange.SurfaceMesh()
-        mesh.add_vertices(
-            np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
-        )
+        mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]]))
         mesh.add_triangle(0, 1, 2)
 
         out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))

@@ -484,9 +484,7 @@ class TestScale:
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)
         indices = mesh.facets.copy()
-        target_values = np.array(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-        )
+        target_values = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
         mesh.create_attribute(
             "target",
             element=lagrange.AttributeElement.Indexed,

@@ -637,7 +637,9 @@ def _back_side_material(material_type: str, back_color: str) -> "hkw.material.Ma
             return hkw.material.Plastic(back_color)
 
 
-def build_layer(args, mesh_path: str, normalize: bool = False, mesh=None) -> "hkw.layer":
+def build_layer(
+    args, mesh_path: str, normalize: bool = False, mesh=None
+) -> "hkw.layer":
     """Build the styled layer for a single input mesh.
 
     Holds all per-mesh logic (geometry load, material, overlays, transforms) so

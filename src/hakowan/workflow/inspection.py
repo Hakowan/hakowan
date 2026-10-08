@@ -94,7 +94,9 @@ def _load_data(
 
 def _attribute_values(
     mesh: lagrange.SurfaceMesh, name: str
-) -> tuple[lagrange.Attribute | lagrange.IndexedAttribute, np.ndarray, np.ndarray, bool]:
+) -> tuple[
+    lagrange.Attribute | lagrange.IndexedAttribute, np.ndarray, np.ndarray, bool
+]:
     if mesh.is_attribute_indexed(name):
         indexed_attribute = mesh.indexed_attribute(name)
         values = np.asarray(indexed_attribute.values.data)

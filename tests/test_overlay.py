@@ -267,6 +267,7 @@ def test_raster_overlay_compositor_adds_panel_and_annotation(tmp_path):
         assert encoded.size == (200, 80)
     assert not composite_overlay_file(tmp_path / "image.exr", [legend], [])
 
+
 @pytest.mark.parametrize(("position", "source_x"), [("left", 120), ("right", 0)])
 def test_raster_legend_expands_narrow_image(position, source_x):
     legend = CompiledLegend(

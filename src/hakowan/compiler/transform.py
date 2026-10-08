@@ -477,9 +477,7 @@ def _apply_norm_transform(view: View, transform: Norm):
     else:
         regular_input_attr = mesh.attribute(input_attr_name)
         assert regular_input_attr.num_channels > 1
-        norm_data = np.linalg.norm(
-            regular_input_attr.data, axis=1, ord=transform.order
-        )
+        norm_data = np.linalg.norm(regular_input_attr.data, axis=1, ord=transform.order)
         mesh.create_attribute(
             transform.norm_attr_name,
             element=regular_input_attr.element_type,

@@ -64,8 +64,6 @@ def test_view_always_selects_webgl(monkeypatch):
     assert args.input_mesh == ["mesh.obj"]
 
 
-
-
 @pytest.mark.parametrize(
     ("facet_counts", "expected_point_cloud"),
     [([0], True), ([0, 0], True), ([0, 1], False)],
@@ -116,6 +114,7 @@ def test_point_size_uses_screen_pixels(triangle):
     assert size.data == 3.5
     assert size.space == "screen"
 
+
 @pytest.mark.parametrize("argv", [[], ["mesh.obj"], ["compile", "mesh.obj"]])
 def test_action_is_required_and_limited(argv):
     with pytest.raises(SystemExit):
@@ -135,7 +134,10 @@ def test_main_grid_columns(monkeypatch, tmp_path, mesh_count, expected_columns):
         "load_mesh",
         lambda path, *, quiet, stitch_vertices: SimpleNamespace(num_facets=1),
     )
-    monkeypatch.setattr(cli, "build_layer", lambda args, path, *, normalize, mesh: cli.hkw.layer())
+    monkeypatch.setattr(
+        cli, "build_layer", lambda args, path, *, normalize, mesh: cli.hkw.layer()
+    )
+
     def fake_grid(layers, **kwargs):
         captured_grid_kwargs.update(kwargs)
         return cli.hkw.layer()
