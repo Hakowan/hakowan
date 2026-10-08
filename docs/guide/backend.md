@@ -30,6 +30,12 @@ layer = hkw.layer("mesh.obj")
 hkw.render(layer, filename="output.exr", backend="mitsuba")
 ```
 
+For edge-derived `Curve` marks, Mitsuba supports vertex `ScalarField` colors on `Diffuse` and
+`Principled` materials when each edge has the same resolved BSDF at both endpoints. Hakowan groups
+edges with identical BSDFs into curve shapes. If material values vary across an edge, rendering
+raises `NotImplementedError`; use a tube mesh for smoothly varying color. Attribute-driven materials
+on vector-field curves are not supported.
+
 ### Blender Backend
 
 Use Blender to render with Cycles or EEVEE, save editable `.blend` scenes, or

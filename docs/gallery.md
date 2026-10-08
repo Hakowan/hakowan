@@ -44,4 +44,8 @@
 
 - [![Face Texture and UV Layout](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Face/results/face.webp?raw=true)](examples/face.md)
 
+- [![Box](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Box/results/box.webp?raw=true)](examples/box.md)
+
+- [![Flowers](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flowers/results/flowers.webp?raw=true)](examples/flowers.md)
+
 </div>
