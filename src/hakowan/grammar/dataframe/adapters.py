@@ -201,18 +201,7 @@ def _trimesh_mesh(data: Any) -> lagrange.SurfaceMesh:
 
 
 def _mesh_file(path: Path) -> lagrange.SurfaceMesh:
-    if sys.platform == "win32":
-        # Lagrange leaves the process with a failing exit code after catching
-        # its point-cloud stitching assertion, so avoid invoking that path.
-        mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
-        if mesh.num_facets == 0:
-            return mesh
-    mesh = lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
-    if mesh.num_facets == 0:
-        # Vertex stitching converts point-cloud vertex attributes to empty
-        # indexed attributes because there are no corners to reindex.
-        return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=False)
-    return mesh
+    return lagrange.io.load_mesh(path, quiet=True, stitch_vertices=True)
 
 
 def to_dataframe(
