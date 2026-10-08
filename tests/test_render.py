@@ -56,6 +56,36 @@ def _box_mesh():
     return mesh
 
 
+def _curve_layer(values, *, categories):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [-0.5, 0.0, 0.0],
+                [0.5, 0.0, 0.0],
+                [-0.5, 0.0, 0.4],
+                [0.5, 0.0, 0.4],
+            ],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_polygons(np.array([[0, 1], [2, 3]], dtype=np.uint32))
+    mesh.create_attribute(
+        "path_id",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.asarray(values, dtype=np.float64),
+    )
+    return hkw.layer(mesh).mark(hkw.mark.Curve).channel(
+        material=hkw.material.Principled(
+            color=hkw.texture.ScalarField(
+                "path_id", categories=categories, legend=False
+            )
+        ),
+        size=0.02,
+    )
+
+
 class TestRender:
     def test_render(self, triangle):
         mesh = triangle
@@ -582,6 +612,30 @@ class TestRender:
             for key, value in shape.items():
                 if key.startswith("bsdf"):
                     assert value["type"] == "plastic"
+
+    def test_curve_scalar_field_color_groups_constant_paths_and_renders(self, tmp_path):
+        layer = _curve_layer([0, 0, 1, 1], categories=True)
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert len(scene_config) == 2
+        shapes = list(scene_config.values())
+        bsdfs = [shape["bsdf"] for shape in shapes]
+        assert all(shape["type"] == "linearcurve" for shape in shapes)
+        assert all(bsdf["type"] == "principled" for bsdf in bsdfs)
+        colors = {tuple(bsdf["base_color"]["value"]) for bsdf in bsdfs}
+        assert len(colors) == 2
+
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        output = tmp_path / "curve-colors.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+
+    def test_curve_scalar_field_color_rejects_values_varying_on_edge(self):
+        layer = _curve_layer([0, 1, 2, 2], categories=False)
+        with pytest.raises(NotImplementedError, match="constant across each mesh edge"):
+            generate_scene_config(hkw.compiler.compile(layer))
 
     def test_point_cloud_with_size(self, triangle):
         mesh = triangle

@@ -385,6 +385,28 @@ def extract_edges(view: View):
     return [base, tip, base_size, tip_size]
 
 
+def _freeze_config(value: Any) -> Any:
+    if isinstance(value, dict):
+        return tuple((key, _freeze_config(item)) for key, item in sorted(value.items()))
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_config(item) for item in value)
+    if isinstance(value, np.ndarray):
+        return tuple(_freeze_config(item) for item in value.tolist())
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _contains_mesh_attribute(value: Any) -> bool:
+    if isinstance(value, dict):
+        return value.get("type") == "mesh_attribute" or any(
+            _contains_mesh_attribute(item) for item in value.values()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_mesh_attribute(item) for item in value)
+    return False
+
+
 def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
 
@@ -396,19 +418,13 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
         np.cbrt(np.linalg.det(view.global_transform[:3, :3]))
     )
 
-    # Generate curve file
     if view.vector_field_channel is not None:
         base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = extract_vector_field(
             view
         )
     else:
-        # Use edges of the mesh.
         base, tip, base_size, tip_size = extract_edges(view)
         ctrl_pts_1 = ctrl_pts_2 = None
-
-    tmp_dir = pathlib.Path(tempfile.gettempdir())
-    filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
-    logger.debug(f"Saving curves to '{str(filename)}'.")
 
     assert len(base) == len(tip)
     assert len(base) == len(base_size)
@@ -416,42 +432,104 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     if len(base) == 0:
         logger.warning(f"View {index} has no curve segments — skipping.")
         return {}
-    with open(filename, "w") as fout:
-        if ctrl_pts_1 is None or ctrl_pts_2 is None:
-            curve_type = "linearcurve"
-            for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(
-                    f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n"
-                )
-        else:
-            curve_type = "bsplinecurve"
-            for p0, p1, p2, p3, s0, s3 in zip(
-                base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size
-            ):
-                s1 = 0.75 * s0 + 0.25 * s3
-                s2 = 0.25 * s0 + 0.75 * s3
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n")
-                fout.write(f"{p2[0]} {p2[1]} {p2[2]} {s2 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(
-                    f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n\n"
-                )
 
-    mi_config = {
-        f"view_{index:03}_shape_000000": {
+    mesh = view.data_frame.mesh
+    bsdf_config = generate_bsdf_config(view, is_primitive=True)
+    if "type" in bsdf_config:
+        if _contains_mesh_attribute(bsdf_config):
+            raise NotImplementedError(
+                "Mitsuba curve marks cannot bind mesh_attribute BSDF textures. "
+                "Use an edge-derived curve with per-vertex BSDF expansion."
+            )
+        edge_groups = [
+            (generate_bsdf_config(view, is_primitive=False), list(range(len(base))))
+        ]
+    else:
+        if view.vector_field_channel is not None:
+            raise NotImplementedError(
+                "Mitsuba curve material textures currently require edge-derived "
+                "curves, not vector-field curves."
+            )
+        if len(bsdf_config) != mesh.num_vertices:
+            raise NotImplementedError(
+                "Mitsuba curve material textures currently require vertex-domain "
+                "attributes."
+            )
+
+        mesh.initialize_edges()
+        groups: dict[Any, tuple[dict[str, Any], list[int]]] = {}
+        for edge_index in range(len(base)):
+            vertex0, vertex1 = mesh.get_edge_vertices(edge_index)
+            bsdf0 = bsdf_config[f"bsdf_{vertex0:06}"]
+            bsdf1 = bsdf_config[f"bsdf_{vertex1:06}"]
+            key0 = _freeze_config(bsdf0)
+            if key0 != _freeze_config(bsdf1):
+                raise NotImplementedError(
+                    "Mitsuba curve material textures must be constant across each "
+                    "mesh edge; use a tube mesh for smoothly varying values."
+                )
+            if key0 not in groups:
+                groups[key0] = (bsdf0, [])
+            groups[key0][1].append(edge_index)
+        edge_groups = list(groups.values())
+
+    curve_type = (
+        "linearcurve"
+        if ctrl_pts_1 is None or ctrl_pts_2 is None
+        else "bsplinecurve"
+    )
+    mi_config: dict[str, Any] = {}
+    for group_index, (bsdf, edge_indices) in enumerate(edge_groups):
+        filename = (
+            pathlib.Path(tempfile.gettempdir())
+            / f"{stamp}-view-{index:03}-curve-{group_index:03}.txt"
+        )
+        logger.debug(f"Saving curves to '{str(filename)}'.")
+        with open(filename, "w") as fout:
+            if ctrl_pts_1 is None or ctrl_pts_2 is None:
+                for curve_index in edge_indices:
+                    p0, p1 = base[curve_index], tip[curve_index]
+                    s0, s1 = base_size[curve_index], tip_size[curve_index]
+                    fout.write(
+                        f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n"
+                    )
+                    fout.write(
+                        f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n"
+                    )
+            else:
+                for curve_index in edge_indices:
+                    p0 = base[curve_index]
+                    p1 = ctrl_pts_1[curve_index]
+                    p2 = ctrl_pts_2[curve_index]
+                    p3 = tip[curve_index]
+                    s0 = base_size[curve_index]
+                    s3 = tip_size[curve_index]
+                    s1 = 0.75 * s0 + 0.25 * s3
+                    s2 = 0.25 * s0 + 0.75 * s3
+                    for point, size in (
+                        (p0, s0),
+                        (p0, s0),
+                        (p0, s0),
+                        (p0, s0),
+                        (p1, s1),
+                        (p2, s2),
+                        (p3, s3),
+                        (p3, s3),
+                        (p3, s3),
+                        (p3, s3),
+                    ):
+                        fout.write(
+                            f"{point[0]} {point[1]} {point[2]} "
+                            f"{size * scale_correction_factor}\n"
+                        )
+                    fout.write("\n")
+
+        mi_config[f"view_{index:03}_shape_{group_index:06}"] = {
             "type": curve_type,
             "filename": str(filename.resolve()),
-            "bsdf": generate_bsdf_config(view, is_primitive=False),
+            "bsdf": bsdf,
             "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
         }
-    }
     return mi_config
 
 
