@@ -62,7 +62,9 @@ hkw.snapshot(figure, filename="temperature.png")
 ```
 
 Use [`hkw.observe()`](guide/observation.md) when the task needs several views,
-render passes, visual diagnostics, or machine-readable visibility evidence.
+render passes, visual diagnostics, or machine-readable visibility evidence. See
+the [rendering and capture guide](guide/rendering.md) to choose between `render`,
+`snapshot`, and `observe`.
 
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:

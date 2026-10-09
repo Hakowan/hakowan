@@ -784,7 +784,7 @@ requires-dist = [
     { name = "adobe-lagrange", specifier = ">=6.49.0" },
     { name = "bpy", marker = "python_full_version == '3.13.*' and extra == 'blender'", specifier = ">=5.1,<6" },
     { name = "colorcet", specifier = ">=3.2.1,<4" },
-    { name = "mitsuba", marker = "extra == 'mitsuba'", specifier = "~=3.8" },
+    { name = "mitsuba", marker = "extra == 'mitsuba'", specifier = "~=3.9" },
     { name = "mkdocs-materialx", marker = "extra == 'docs'", specifier = ">=10.2,<11" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24" },
     { name = "numpy", specifier = ">=2.0" },
