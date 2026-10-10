@@ -91,7 +91,7 @@ defaults.
 | `-w`, `--wireframe` | Show mesh edges. |
 | `--wire-thickness PIXELS` | Set wireframe, seam, or field-line thickness. |
 | `--point-cloud` | Display the mesh as a point cloud. |
-| `--clip AXIS[:VALUE]` | Slice the mesh with a plane, keeping the selected side of `x`, `y`, `z`, `-x`, `-y`, or `-z`. `VALUE` is a fraction of the bounding-box size (default `0.5`); the cross-section is left open, not capped. |
+| `--clip AXIS[:VALUE]` | Slice the mesh with a plane, keeping the selected side of `x`, `y`, `z`, `-x`, `-y`, or `-z`. `VALUE` is a fraction of the bounding-box size (default `0.5`); the cross-section is left open, not capped. For a negative axis, use the equals form, such as `--clip=-y:0.3`. |
 | `--albedo`, `--depth`, `--shading-normal` | Request diagnostic render passes. |
 | `--seams`, `--uv` | Show UV seams or the UV layout. |
 | `--vector-field ATTR`, `--cross-field ATTR` | Visualize a vector or cross field. |

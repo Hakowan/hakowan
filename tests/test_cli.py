@@ -87,6 +87,12 @@ def test_turn_table_accepts_nonnegative_counts(count):
     assert args.turn_table == count
 
 
+def test_clip_accepts_negative_axis_with_equals_form():
+    args = cli.parse_args(["view", "mesh.obj", "--clip=-y:0.3"])
+
+    assert args.clip == ("-y", 0.3)
+
+
 @pytest.mark.parametrize(
     ("facet_counts", "expected_point_cloud"),
     [([0], True), ([0, 0], True), ([0, 1], False)],
@@ -358,3 +364,23 @@ def test_khr_texture_conversion_preserves_external_source(tmp_path, suffix):
     finally:
         if converted != source:
             converted.unlink(missing_ok=True)
+
+
+def test_khr_texture_conversion_rejects_empty_image():
+    from hakowan.cli.materials import extract_material
+
+    scene = lagrange.scene.Scene()
+    material = lagrange.scene.Material()
+    material.extensions.data = {
+        "KHR_materials_pbrSpecularGlossiness": {"diffuseTexture": {"index": 0}}
+    }
+    image = lagrange.scene.Image()
+    image.image.data = np.empty((0, 2, 3), dtype=np.uint8)
+    texture = lagrange.scene.Texture()
+    texture.image = 0
+    scene.materials.append(material)
+    scene.images.append(image)
+    scene.textures.append(texture)
+
+    with pytest.raises(ValueError, match="KHR texture image data is empty"):
+        extract_material(scene)

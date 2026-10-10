@@ -21,13 +21,13 @@ and supports three rendering backends:
 pip install hakowan
 
 # Mitsuba backend
-pip install hakowan[mitsuba]
+pip install "hakowan[mitsuba]"
 
 # Blender backend (Python 3.13 required)
-pip install hakowan[blender]
+pip install "hakowan[blender]"
 
 # All backends
-pip install hakowan[mitsuba,blender]
+pip install "hakowan[mitsuba,blender]"
 
 # Add deterministic headless snapshots and multi-view observations
 pip install "hakowan[observe]"
@@ -84,6 +84,12 @@ layer = (
 result = hkw.render(layer, filename="viewer.html", backend="webgl")
 # Open viewer.html in any modern browser
 ```
+
+`render()` produces the requested output (an interactive viewer or a
+Mitsuba/Blender image). For AI or programmatic inspection, use `snapshot()` for
+one WebGL view or `observe()` for multiple views and visibility queries. Both
+capture independently; they do not require a preceding render. See the
+[rendering and viewers guide](https://hakowan.github.io/hakowan/guide/rendering/).
 
 ## Agent integration
 

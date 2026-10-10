@@ -11,26 +11,30 @@ l0 = hkw.layer()
 
 Here we have created an empty layer, where all of data, mark, channels and transform are None.
 
-An empty layer cannot be rendered because the data component is required for rendering.
-Fortunately, it is very easy to build on top of an existing layer with a set of
-overwrite functions. For example,
+Fortunately, it is very easy to build on top of an existing layer with fluent
+methods. For example,
 
 ``` py
 l1 = l0.data("shape.obj")
 ```
 
-where `l1` is a new layer created from `l0` layer with the data component set to `shape.obj`. The
-method `.data` is an example of such overwrite functions. The other overwrite functions are `.mark`,
-`.channel` and `.transform`. These overwrite functions can be chained together based on the [fluent
-interface design pattern](https://en.wikipedia.org/wiki/Fluent_interface).
+where `l1` is a new immutable wrapper around `l0` with the data component set to
+`shape.obj`. Calls do not mutate the caller object, so a base layer can be
+reused. For ordinary layer components such as data, mark, and transform, a
+later fluent call supplies the component value used during compilation.
+
+`.channel()` handles channels by slot. A later call that supplies a channel for
+an already specified slot overrides that slot; channels supplied for unrelated
+slots compose with the existing channels. Calls return a new wrapper by default.
+With `in_place=True`, channels append to the current node; if a slot is repeated,
+the earlier channel of that kind on that node remains effective.
 
 ``` py
 l2 = l0.data("shape.obj").mark(hkw.mark.Point)
 ```
 
-Note that the overwrite functions do not change the caller object (i.e. `l0` in the above
-example). This design allows the base layer `l0` to be reused over and over again. Here is a more
-complex example.
+The base layer `l0` can be reused in multiple fluent chains. Here is a more
+complex example:
 
 ``` py
 mesh = lagrange.io.load_mesh("shape.obj")
@@ -122,8 +126,9 @@ with_velocity = colored.glyph_vectors(
 )
 ```
 
-Vector `scale` controls glyph length and `size` controls thickness. By default,
-the glyph layer is overlaid on the input; pass `overlay=False` to return only
+Vector `scale` controls glyph length and `size` controls thickness. Defaults are
+`scale=1.0`, `size=0.01`, `color="black"`, `normalize=False`,
+`end_type="arrow"`, and `overlay=True`. Pass `overlay=False` to return only
 the vector visualization.
 
 ### Slice with a plane
@@ -133,7 +138,8 @@ upper = base.slice(normal=(0, 0, 1), offset=0.25)
 ```
 
 `offset` is signed distance along the normalized plane normal. Use `point=`
-instead when the plane must pass through a specific point.
+instead when the plane must pass through a specific point; a nonzero `offset`
+and `point` are mutually exclusive.
 
 ### Isolate a connected component
 
@@ -141,9 +147,9 @@ instead when the plane must pass through a specific point.
 component = base.isolate_component(3)
 ```
 
-By default, Hakowan computes connected-component IDs in a temporary
-`component` attribute and keeps the requested facet group. To use existing
-labels instead:
+By default, compilation computes connected-component IDs on the processed mesh
+in a `component` attribute, then filters on it to keep the requested facet group.
+To filter using existing labels instead:
 
 ```py
 region = base.isolate_component(8, attribute="region", compute=False)
@@ -164,7 +170,8 @@ comparison = before.compare(
 )
 ```
 
-`compare()` is a convenience over `juxtapose()`. Labels name layers in the
+`compare()` is a convenience over `juxtapose()`. Defaults are `axis="x"`,
+`gap=0.05`, `normalize=False`, and no labels. Labels name layers in the
 interactive WebGL controls; static Blender and Mitsuba images do not draw them.
 
 ### Arrange layers in a grid
@@ -184,13 +191,13 @@ matrix = hkw.grid(
 )
 ```
 
-Specify exactly one of `columns` or `rows`. The first input row appears at the
-top, and a ragged final row is centered. `gap` sets both directions by default;
-`row_gap` and `column_gap` override either direction independently. Gap values
-may be negative to move adjacent views closer together or make them overlap.
-`normalize=True` gives every input layer a common scale before packing. The
-result is an ordinary composed `Layer`, so it serializes and renders through
-the same paths as nested `juxtapose()` calls.
+Specify exactly one of `columns` or `rows`. The default axes are `column_axis="x"`
+and `row_axis="y"`; `gap=0.05` sets both directions unless overridden by
+`row_gap` or `column_gap`. Gap values may be negative to move adjacent views
+closer together or make them overlap. The first input row appears at the top,
+and a ragged final row is centered. `normalize=True` gives every input layer a
+common scale before packing. The result is an ordinary composed `Layer`, so it
+serializes and renders through the same paths as nested `juxtapose()` calls.
 
 ## Layer composition
 

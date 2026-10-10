@@ -33,7 +33,7 @@ tr = hkw.transform.Clip(point=[0, 0, 0], normal=[1, 0, 0])
 The plane is defined in the data/object coordinate space, consistent with the
 [Filter transform](#filter-transform).
 
-The [WebGL backend](backend.md) additionally offers an *interactive* clipping plane in the viewer
+The [WebGL backend](rendering.md#webgl) additionally offers an *interactive* clipping plane in the viewer
 (the `clip` button), independent of this transform, so you can slide a plane through the scene live
 without re-rendering.
 

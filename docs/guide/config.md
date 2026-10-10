@@ -70,9 +70,14 @@ which every pixel holds its face index packed into RGB
 dithering disabled so the index decodes exactly. Background pixels have
 `A = 0`, and it supports up to 2²⁴ − 1 ≈ 16.7 M faces.
 
+## Output background
+
+`Config.background` accepts `"light"`, `"dark"`, `"black"`, or `None` (no
+background override).
+
 ## Sensor settings
 
-Sensor defines the camera setting. All sensors supports the following settings:
+Sensors define camera settings. All sensors support the following settings:
 
 | Setting | Type | Description |
 |---------|------|-------------|
@@ -88,12 +93,12 @@ Typically, only `location` needs to be changed based on need.
 
 ### Perspective sensor
 
-Perspective sensor models the traditional pin-hole camera. It support the following attributes.
+The perspective sensor models a traditional pinhole camera. It supports the following attributes.
 
 | Setting | Type | Description |
 |---------|------|-------------|
 | `fov` | `float` | The field of view in degrees. (default: 28.8415) |
-| `fov_axis` | `str` | The fox axis (default: `smaller`) |
+| `fov_axis` | `str` | The field-of-view axis (default: `smaller`) |
 
 ```py
 config.sensor = hkw.setup.sensor.Perspective(fov=30)
@@ -101,14 +106,14 @@ config.sensor = hkw.setup.sensor.Perspective(fov=30)
 
 ### Orthographic sensor
 
-Orthographic sensor uses the orthographic projection. This sensor type does not produce
+The orthographic sensor uses orthographic projection and does not produce a
 foreshortening effect.
 
 ```py
-config.sensor = hkw.setup.sensor.Orthograpic()
+config.sensor = hkw.setup.sensor.Orthographic()
 ```
 
-See the [Incremental Potential Contact](../examples/ipc.md) example for an usage of orthographic
+See the [Incremental Potential Contact](../examples/ipc.md) example for usage of the orthographic
 sensor.
 
 ### Thin lens sensor
@@ -130,13 +135,13 @@ Film settings provide output image specification.
 | `height` | `int` | The output image height (default: 800) |
 | `file_format` | `str` | The output image file format (default: `openexr`) |
 | `pixel_format` | `str` | The output image pixel format (default: `rgba`) |
-| `component_format` | `str` | The output image pixel format (default: `float16`) |
+| `component_format` | `str` | The output image component format (default: `float16`) |
 | `crop_offset` | `NDArray` | The top left corner of the crop region (default: `None`) |
 | `crop_size` | `NDArray` | The size of the crop region (default: `None`) |
 
-Note that `crop_offset` and `crop_size` together define the crop region. Setting either to `None`
-indicate no cropping.
-`file_format`, `pixel_format` and `component_format` are for expert-usage only.
+`crop_offset` and `crop_size` together define the crop region. Setting either to
+`None` indicates no cropping. `file_format`, `pixel_format`, and
+`component_format` are for expert use only.
 
 ```py
 # Generate 4K rendering.
@@ -161,8 +166,8 @@ config.sampler.sample_count = 128 # Reduce sample count
 
 ## Emitter settings
 
-Emitters represent the light source in the scene. The emitting setting directly influence the shading
-and shadow of the scene. Multiple emitters can be used at the same time.
+Emitters represent the light sources in the scene. Their settings directly influence the shading
+and shadows in the scene. Multiple emitters can be used at the same time.
 
 ### Point emitter
 
@@ -181,7 +186,7 @@ config.emitters.append(l)
 
 A directional emitter produces parallel rays traveling along `direction`.
 `direction` must be a finite non-zero vector and `intensity` must be finite and
-non-negative. `Config.background` accepts only `"light"`, `"dark"`, or `None`.
+non-negative.
 
 ```py
 l = hkw.setup.emitter.Directional(

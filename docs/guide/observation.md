@@ -1,42 +1,18 @@
-# Snapshot and observation
+# Capture and visual inspection
 
-Hakowan can produce deterministic raster evidence for automated inspection,
-vision models, regression checks, and publication workflows. The default path
-uses the existing WebGL scene through headless Chromium.
+Use `snapshot()` and `observe()` to capture WebGL images with structured evidence
+for AI agents, programmatic checks, or visual inspection. For interactive viewers
+and Mitsuba/Blender presentation images, use the [rendering guide](rendering.md).
 
 ## Mental model
 
 Hakowan separates visualization intent from captured evidence:
 
-```text
-Figure ──capture one view/pass──▶ Snapshot
-   │
-   └──capture several views/passes──▶ Observation
-```
-
-- A [`Figure`](figure.md) is the visualization definition: its layer tree plus
-  camera, lighting, environment, and output intent. It is neither an image nor
-  evidence that the result is visible.
-- A `Snapshot` is one raster for one resolved camera and one render pass. It
-  carries the image together with camera matrices, bounds, optional raw pass
-  data, diagnostics, paths, and hashes.
-- An `Observation` is a collection of snapshots plus scene-level evidence. It
-  adds a contact sheet, scene and layer summaries, a manifest, and queries for
-  picking, visibility, visible attribute ranges, and occlusion.
-
-| Goal | API | Result |
-|---|---|---|
-| Save one user-facing PNG | `snapshot(..., pass_name="beauty")` | One `Snapshot` and PNG |
-| Capture one analytical pass | `snapshot(..., pass_name="depth")` | One `Snapshot`, PNG, and raw NumPy array |
-| Inspect several views or passes | `observe(...)` | One `Observation` containing many snapshots |
-| Build visual evidence for an agent or regression check | `observe(...)` | Contact sheet, manifest, diagnostics, and queryable pass data |
-| Create an interactive browser viewer | `render(..., backend="webgl")` | HTML, not an observation |
-
-Use `snapshot()` when the required camera and pass are already known. Use
-`observe()` when choosing a view, checking visibility, or comparing multiple
-passes is part of the task. Both compile the same `Layer` or `Figure`; neither
-changes the visualization definition.
-
+A [`Figure`](figure.md) defines the visualization, including its layer tree,
+camera, lighting, and output intent. A `Snapshot` captures one view and pass,
+with an image, camera matrices, bounds, optional raw data, diagnostics, paths,
+and hashes. An `Observation` collects snapshots and adds a contact sheet,
+manifest, scene summaries, and picking and visibility queries.
 
 ## Installation
 
@@ -55,6 +31,12 @@ playwright install chromium
 ## One snapshot
 
 ```py
+import hakowan as hkw
+import numpy as np
+
+layer = hkw.layer(
+    np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+).mark("point")
 snapshot = hkw.snapshot(
     layer,
     view="isometric",
@@ -264,30 +246,6 @@ snapshot = hkw.snapshot(layer, camera=camera)
 
 The camera key is used as the view label and in output filenames. Use
 `cameras={"front": camera}` with `observe()` to override a named preset.
-
-## Offline WebGL viewers
-
-Create a portable viewer folder with `offline=True`:
-
-```py
-hkw.render(
-    layer,
-    filename="viewer.html",
-    backend="webgl",
-    offline=True,
-)
-```
-
-This writes `viewer.html` and a sibling `viewer_assets/` directory. Keep both
-items together when sharing or hosting the viewer.
-
-Browsers block local ES-module imports from `file://`. Serve the folder over HTTP:
-
-```sh
-python -m http.server --directory /path/to/output 8000
-```
-
-Then open `http://127.0.0.1:8000/viewer.html`.
 
 ## Determinism and limitations
 

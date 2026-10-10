@@ -107,8 +107,9 @@ layer = (
 )
 ```
 
-`position` is normalized image space with `(0, 0)` at the top-left and `(1, 1)`
-at the bottom-right. Supported anchors are `left`, `center`, and `right`.
+`position` uses normalized image coordinates with `(0, 0)` at the top-left and
+`(1, 1)` at the bottom-right. Both values must be in `[0, 1]`; out-of-range
+positions raise `ValueError`. Supported anchors are `left`, `center`, and `right`.
 
 You can also construct the reusable object directly:
 

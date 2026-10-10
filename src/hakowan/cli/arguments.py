@@ -291,7 +291,12 @@ def parse_args(argv: Sequence[str] | None = None) -> InspectArgs | RenderArgs:
     parser.add_argument("--isoline", help="Render isoline", action="store_true")
     parser.add_argument(
         "--clip",
-        help="Slice the mesh at AXIS or AXIS:VALUE, keeping the selected side. AXIS is x/y/z/-x/-y/-z; VALUE is a fraction of the bbox size in [0,1] (default 0.5). The cut is left open. E.g. '--clip x' or '--clip -y:0.3'.",
+        help=(
+            "Slice the mesh at AXIS or AXIS:VALUE, keeping the selected side. "
+            "AXIS is x/y/z/-x/-y/-z; VALUE is a fraction of the bbox size in "
+            "[0,1] (default 0.5). The cut is left open. For a negative axis, "
+            "use the equals form, e.g. '--clip=-y:0.3'."
+        ),
         type=_clip_arg,
         default=None,
         metavar="AXIS[:VALUE]",

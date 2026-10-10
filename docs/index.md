@@ -19,9 +19,9 @@ base install; the heavier Mitsuba and Blender backends are optional extras:
 
 ``` sh
 pip install hakowan                  # WebGL only (default)
-pip install hakowan[mitsuba]         # add the Mitsuba backend
-pip install hakowan[blender]         # add the Blender backend (Python 3.13)
-pip install hakowan[mitsuba,blender] # all backends
+pip install "hakowan[mitsuba]"         # add the Mitsuba backend
+pip install "hakowan[blender]"         # add the Blender backend (Python 3.13)
+pip install "hakowan[mitsuba,blender]" # all backends
 ```
 
 Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender backend).
@@ -53,8 +53,9 @@ hkw.render(temperature, filename="temperature.html")
 Use `hkw.inspect("mesh.ply")` first when the available attribute names are not
 already known.
 
-For a deterministic static image, install `hakowan[observe]` and capture a
-beauty snapshot:
+For one deterministic WebGL capture, install `hakowan[observe]` and Chromium;
+see the [capture setup](guide/observation.md#installation). `snapshot()` captures
+one view; use `observe()` for multiple views, passes, or programmatic inspection.
 
 ```py
 figure = hkw.figure(temperature).camera("fit", direction="isometric")
@@ -63,7 +64,7 @@ hkw.snapshot(figure, filename="temperature.png")
 
 Use [`hkw.observe()`](guide/observation.md) when the task needs several views,
 render passes, visual diagnostics, or machine-readable visibility evidence. See
-the [rendering and capture guide](guide/rendering.md) to choose between `render`,
+the [rendering and viewers guide](guide/rendering.md) to choose between `render`,
 `snapshot`, and `observe`.
 
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
@@ -83,7 +84,7 @@ provides a specification of one or more of the following items:
 ``` bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.6.0},
+    version = {0.6.1},
     year = 2026,
 }
 ```

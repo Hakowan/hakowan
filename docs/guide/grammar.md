@@ -1,4 +1,4 @@
-## Grammar Overview
+# Grammar overview
 
 The grammar of a language provides a set of structural rules to combine words
 together to form semantically meaningful statements. Similarly, from the data
@@ -29,6 +29,12 @@ adding/removing geometry and/or attributes) applied to the data before visualiza
 A complete specification of data, mark, channel and transform components forms a [_layer_](layer.md) in the visualization.
 Each component of a layer can be overwritten, and multiple layers can be combined together to generate
 composite visualization.
+
+For task-oriented layer authoring, see the [layer guide](layer.md). Use
+[`hkw.inspect()`](data.md#inspecting-data) to discover geometry and attributes,
+[`hkw.validate()`](compile.md#validation) to check a specification,
+and the [canonical specification guide](schema.md) for portable documents and
+patches.
 
 
 ## API Overview

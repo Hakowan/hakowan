@@ -105,9 +105,8 @@ nav:
   - Legends and annotations: guide/overlay.md
   - Configuration: guide/config.md
   - Compile: guide/compile.md
-  - Rendering and capture: guide/rendering.md
-  - Backend: guide/backend.md
-  - Snapshot and observation: guide/observation.md
+  - Rendering and viewers: guide/rendering.md
+  - Capture and visual inspection: guide/observation.md
   - Command line: guide/cli.md
 - Specification:
   - Overview: guide/schema.md

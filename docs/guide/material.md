@@ -13,7 +13,10 @@ All materials support the following parameters:
 | `two_sided` | `bool` | Whether the material is two-sided. (default: false) |
 | `back_side` | `Material \| None` | An independent material for the back face of each facet. (default: none) |
 
-A material can be specified via the `Layer.channel()` method.
+Channels typed `ScalarTextureLike` accept a numeric value or a scalar-valued
+texture such as `ScalarField`; they reject color-like strings and RGB tuples.
+Use `TextureLike` channels for color values.
+
 ```py
 # Assume `m` is a `Material` object
 l = hkw.layer().channel(material=m)
@@ -46,8 +49,8 @@ Here is a simple example of creating a `Diffuse` material.
 m = hkw.material.Diffuse("ivory")
 ```
 
-Here, we assign a uniform color, "blue", to the `reflectance` channel. To encode actual data, we
-need to assign a [texture](texture.md) to the `reflectance` channel.
+Here, we assign the uniform color `ivory` to `reflectance`. To encode data, assign a
+[scalar-field texture](texture.md#scalar-field-texture) to the `reflectance` channel.
 
 ```py
 m = hkw.material.Diffuse(hkw.texture.ScalarField(data = "attr_name"))
@@ -94,7 +97,7 @@ channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -134,7 +137,7 @@ Hakowan exposes two visual channels in this material:
 | Channel | Type | Description |
 |---------|------|-------------|
 | `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `specular_reflectance` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Scalar specular reflectance (default: 1.0) |
 
 Here is a snippet to create a `Plastic` material:
 
@@ -164,9 +167,9 @@ Mitsuba 3 supports `beckmann` (the default) and `ggx`; its current microfacet pl
 | Channel | Type | Description |
 |---------|------|-------------|
 | `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `specular_reflectance` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Scalar specular reflectance (default: 1.0) |
 
-Addition to the above visual channels, this material also expose the following parameters.
+In addition to these visual channels, `RoughPlastic` exposes uniform parameters:
 
 | Parameter | Type | Description |
 |---------|------|-------------|
@@ -206,8 +209,8 @@ extension. It can be used to approximate almost all other materials.
 | Channel | Type | Description |
 |---------|------|-------------|
 | `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `roughness` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
 
 Other `Principled` properties are uniform parameters:
 
@@ -263,8 +266,8 @@ material, it also supports diffuse transmission.
 | Channel | Type | Description |
 |---------|------|-------------|
 | `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `roughness` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
 | `diff_trans` | `float` | Diffuse transmission amount from 0 to 1 (default: 0.0) |
 
 Here is a snippet to create a `ThinPrincipled` material:
@@ -301,7 +304,11 @@ channels and have the following parameters.
 | `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
 | `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
-Backend support differs: WebGL ignores non-default `specular_reflectance`. `ThinDielectric.specular_transmittance` is used by WebGL, but is not passed through by Mitsuba or Blender.
+IOR preset names are backend-dependent: Mitsuba supports its documented preset table, while
+Blender and WebGL recognize smaller tables with different spellings. Blender silently falls
+back to `1.5` for unknown names; WebGL warns and falls back. Use a numeric IOR for predictable
+cross-backend scenes. WebGL ignores non-default `specular_reflectance`. `ThinDielectric`'s
+`specular_transmittance` is used by WebGL, but not passed through by Mitsuba or Blender.
 
 
 Note that by default, `Dielectric` material does not expose a color channel. Color is specified
@@ -332,7 +339,7 @@ material, This material exposes an `alpha` visual channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Although `alpha` channel is available to encode data, based on our experiments, its effect is
 somewhat limited.
@@ -370,23 +377,15 @@ expose any visual channels.
 | `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
 | `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
-Here is a snippet for creating a `ThinDielectric` material for a glass-like surface:
+Here is a cross-backend example for a glass-like thin surface. Use a numeric IOR
+to avoid backend-specific preset names:
 
 ```py
-m = hkw.material.ThinDielectric(int_ior="glass")
+m = hkw.material.ThinDielectric(int_ior=1.5)
 ```
 
-Check out the [Mitsuba
-doc](
-https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#thin-dielectric-material-thindielectric
-)
-for more details.
-
-Here is a snippet for creating a `ThinDielectric` material.
-
-```py
-m = hkw.material.ThinDielectric(int_ior="water")
-```
+See the [Mitsuba ThinDielectric reference](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#thin-dielectric-material-thindielectric)
+for Mitsuba-specific options.
 
 ## Hair material
 
@@ -443,17 +442,6 @@ m = hkw.material.Diffuse(
 )
 ```
 
-## Bump mapped material
+## Bump mapping
 
-A bump map can be applied to any material by setting the `bump_map` texture and `bump_scale`
-parameter. The former parameters defines the raw bump map texture where the latter defines the
-multiplicative factor to scale the bump magnitude.
-
-```py
-m = hkw.material.Diffuse(
-    "salmon",
-    bump_map=hkw.texture.Image("bump_map.png"),
-    bump_scale=0.5,
-)
-```
-See the [Moon example](../examples/moon.md) for an application of bump map.
+For bump-map syntax and backend requirements, see the [Bump map channel](channel.md#bump-map-channel).

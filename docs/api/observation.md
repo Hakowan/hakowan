@@ -1,7 +1,7 @@
 # Snapshot and observation
 
-See the [observation guide](../guide/observation.md) for view conventions,
-render-pass semantics, installation, offline assets, and pixel picking.
+See the [capture and visual inspection guide](../guide/observation.md) for view
+conventions, render-pass semantics, installation, and pixel picking.
 
 ::: hakowan.workflow.observation.snapshot
 
@@ -16,6 +16,9 @@ render-pass semantics, installation, offline assets, and pixel picking.
 ::: hakowan.workflow.observation.PixelHit
 
 ::: hakowan.workflow.observation.SceneSummary
+
+`LayerSummary` is a module-level result type, not exported as `hakowan.LayerSummary`.
+It is the type of each entry in `SceneSummary.layers`.
 
 ::: hakowan.workflow.observation.LayerSummary
 
