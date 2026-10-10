@@ -98,6 +98,8 @@ attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max
 `Offset` scale adds another attribute to the current attribute. It is useful for showing deformed
 data where the rest position and displacement field are stored separately. Target and offset
 attributes must both use indexed or both use non-indexed storage; mixed storage raises `ValueError`.
+Indexed offset addition promotes the result dtype when needed, preserving fractional
+values from scaled offsets instead of truncating them to an integer target dtype.
 
 ```py
 s = hkw.scale.Offset(offset=hkw.attribute("displacement"))

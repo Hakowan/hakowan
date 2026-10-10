@@ -261,6 +261,7 @@ class GLTFBuilder:
         material_idx: int,
         mode: int = MODE_TRIANGLES,
         transform_4x4: np.ndarray | None = None,
+        point_triangles: int | None = None,
     ) -> int:
         """Add a single-primitive mesh node referencing the given attributes.
 
@@ -269,6 +270,8 @@ class GLTFBuilder:
         ``custom_attributes`` is a name → ndarray map for additional generic
         vertex attributes (e.g. ``"_scalar_0"`` for shader-injection paths);
         names must follow the glTF underscore-prefix convention.
+        ``point_triangles`` identifies each baked point glyph by its contiguous
+        group of triangles, preserving source-point order for callout occlusion.
         """
         positions = np.ascontiguousarray(positions, dtype=np.float32)
         if positions.ndim != 2 or positions.shape[1] != 3:
@@ -370,6 +373,8 @@ class GLTFBuilder:
         extras: dict[str, Any] = {}
         if self._current_point_mark:
             extras["hakowan_point_mark"] = True
+            if point_triangles is not None:
+                extras["hakowan_point_triangles"] = point_triangles
         if self._current_cell is not None:
             extras["hakowan_cell"] = self._current_cell
         if self._current_layer is not None:

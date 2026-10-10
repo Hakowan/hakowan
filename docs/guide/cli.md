@@ -41,6 +41,8 @@ writes the viewer to a temporary `.html` file and opens it. Pass `-o` to keep a
 viewer at a chosen path, or `--no-open` to save it as the input filename with a
 `.html` extension. `--turn-table` instead saves an animated GIF; WebGL
 turn-table capture requires `hakowan[observe]` and Playwright Chromium.
+The frame count must be a non-negative integer: `--turn-table 0` disables animation,
+and positive counts render that many frames. Negative counts produce a usage error.
 
 ```sh
 hkw view mesh.obj -o viewer.html

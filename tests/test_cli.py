@@ -69,6 +69,24 @@ def test_view_always_selects_webgl(monkeypatch):
     assert args.input_mesh == ["mesh.obj"]
 
 
+@pytest.mark.parametrize("action", ["view", "render"])
+def test_turn_table_rejects_negative_counts(monkeypatch, capsys, action):
+    monkeypatch.setattr(cli.hkw, "list_backends", lambda: ["mitsuba", "webgl"])
+
+    with pytest.raises(SystemExit) as error:
+        cli.parse_args([action, "mesh.obj", "--turn-table", "-1"])
+
+    assert error.value.code == 2
+    assert "--turn-table" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("count", [0, 1, 12])
+def test_turn_table_accepts_nonnegative_counts(count):
+    args = cli.parse_args(["view", "mesh.obj", "--turn-table", str(count)])
+
+    assert args.turn_table == count
+
+
 @pytest.mark.parametrize(
     ("facet_counts", "expected_point_cloud"),
     [([0], True), ([0, 0], True), ([0, 1], False)],

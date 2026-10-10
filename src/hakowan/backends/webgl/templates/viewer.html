@@ -1528,7 +1528,7 @@ function _rectOverlap(a, b) {
 }
 const calloutFootprintSamples = CALLOUT_POLICY.footprint;
 
-function _visibleHit(hits, ignorePointMarkLayers = null) {
+function _visibleHit(hits, ignorePoints = null) {
   for (const hit of hits) {
     if (hit.object.userData && hit.object.userData.isWireframe) continue;
     if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(hit.point) < 0)) continue;
@@ -1541,8 +1541,16 @@ function _visibleHit(hits, ignorePointMarkLayers = null) {
       if (metadata.userData && metadata.userData.hakowan_point_mark) break;
       metadata = metadata.parent;
     }
-    if (metadata && metadata !== loadedRoot && ignorePointMarkLayers
-        && ignorePointMarkLayers.includes(_layerIndex(metadata))) continue;
+    if (metadata && metadata !== loadedRoot && ignorePoints) {
+      // Instanced hits expose the source ordinal directly; baked glyphs keep
+      // source order as contiguous triangle groups in their combined mesh.
+      const triangles = metadata.userData.hakowan_point_triangles;
+      const point = hit.instanceId ?? (triangles && Number.isInteger(hit.faceIndex)
+        ? Math.floor(hit.faceIndex / triangles) : null);
+      const layer = _layerIndex(metadata);
+      if (point !== null && ignorePoints.some(owner => owner.layer === layer
+          && owner.point === point)) continue;
+    }
     return hit;
   }
   return null;
@@ -1600,7 +1608,7 @@ function _visibleCalloutAnchor(item, width, height, sceneSize) {
   calloutRaycaster.setFromCamera(calloutNdc, camera);
   const anchorDistance = calloutRaycaster.ray.origin.distanceTo(calloutPoint);
   const occluder = _visibleHit(
-    calloutRaycaster.intersectObject(loadedRoot, true), ownerLayers,
+    calloutRaycaster.intersectObject(loadedRoot, true), item.annotation.points,
   );
   // This is a world-space geometric epsilon; camera distance must not let a
   // nearby foreground surface through at long viewing distances.

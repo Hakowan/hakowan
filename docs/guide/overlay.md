@@ -154,9 +154,12 @@ Automatic placement looks for available space around the point. If there is no
 room for a readable label, Hakowan may hide it. In WebGL, placement adjusts as
 you move the camera.
 
-Callouts outside the view are not displayed. Mitsuba hides callouts whose
-points are obscured by geometry; WebGL and Blender may show callouts even when
-their points are hidden.
+Callouts outside the view are not displayed. Mitsuba and WebGL hide callouts whose
+points are obscured by geometry; Blender may show callouts even when their points
+are hidden. In WebGL, a callout centered on a point glyph ignores that glyph's own
+surface, but other glyphs—including those in the same layer—can still occlude it.
+This applies to both instanced and baked point geometry. A free-position callout
+that is not centered on a source point does not exclude any glyph.
 
 ## Backend behavior
 

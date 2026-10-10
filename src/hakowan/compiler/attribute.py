@@ -323,9 +323,8 @@ def _apply_offset(target_name: str, scale: Offset, df: DataFrame):
             unique_pairs, inverse = np.unique(pairs, axis=0, return_inverse=True)
             target_values = np.asarray(indexed_target_attr.values.data)
             offset_values = np.asarray(indexed_offset_attr.values.data)
-            result_values = np.asarray(
-                target_values[unique_pairs[:, 0]] + offset_values[unique_pairs[:, 1]],
-                dtype=target_values.dtype,
+            result_values = (
+                target_values[unique_pairs[:, 0]] + offset_values[unique_pairs[:, 1]]
             )
             result_indices = inverse.reshape(target_indices.shape).astype(
                 target_indices.dtype, copy=False

@@ -604,6 +604,60 @@ def test_browser_point_glyph_anchor_ignores_self_but_not_foreground_layer(
             browser.close()
 
 
+@pytest.mark.parametrize("baked", [False, True], ids=["instanced", "baked"])
+def test_browser_point_callout_is_occluded_by_another_glyph_in_its_layer(
+    tmp_path, playwright_browser, baked
+):
+    playwright = pytest.importorskip("playwright.sync_api")
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.4]]))
+    layer = hkw.layer(mesh).mark(hkw.mark.Point).channel(size=0.15)
+    if baked:
+        mesh.create_attribute(
+            "cov",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.tile(np.eye(3).reshape(1, 9), (2, 1)),
+        )
+        layer = layer.channel(covariance=hkw.channel.Covariance(data="cov", full=False))
+    layer = layer.annotate(hkw.WorldAnnotation("owned", (0.0, 0.0, 0.0))).annotate(
+        hkw.WorldAnnotation("unowned", (0.0, 0.0, -0.3))
+    )
+    figure = hkw.figure(layer).camera(
+        "perspective", eye=(0.0, 0.0, 5.0), target=(0.0, 0.0, 0.0)
+    )
+    viewer = hkw.render(
+        figure, filename=tmp_path / "same_layer.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(
+            headless=True, args=["--allow-file-access-from-files"]
+        )
+        try:
+            page = browser.new_page(viewport={"width": 800, "height": 600})
+            page.goto(viewer.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            labels = page.locator(".world-callout")
+            assert labels.count() == 2
+            assert not labels.nth(0).is_visible()
+            assert not labels.nth(1).is_visible()
+
+            page.evaluate(
+                """() => {
+                  const h = window.__hakowan;
+                  h.getCamera().position.set(0, 0, -5);
+                  h.controls.update();
+                }"""
+            )
+            page.wait_for_function(
+                "[...document.querySelectorAll('.world-callout')]"
+                ".every(label => label.style.visibility === 'visible')"
+            )
+        finally:
+            browser.close()
+
+
 def test_browser_far_camera_does_not_hide_slightly_occluded_anchor(
     tmp_path, playwright_browser
 ):

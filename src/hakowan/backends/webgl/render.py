@@ -118,9 +118,7 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
-            world_annotations=[
-                annotation.to_dict() for annotation in scene.world_annotations
-            ],
+            world_annotations=_world_annotations(scene),
         )
         out_path.write_bytes(html.encode("utf-8"))
         logger.info(f"WebGL viewer saved to {out_path}")
@@ -175,9 +173,7 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
-            world_annotations=[
-                annotation.to_dict() for annotation in scene.world_annotations
-            ],
+            world_annotations=_world_annotations(scene),
         )
 
     # ------------------------------------------------------------------ #
@@ -249,6 +245,36 @@ def _cell_tag(view) -> str | None:
     if not cell:
         return None
     return "/".join(f"{node_id}.{branch}" for node_id, branch in cell)
+
+
+def _world_annotations(scene: Scene) -> list[dict[str, Any]]:
+    """Attach source-point identities to callouts centered on point glyphs."""
+    result: list[dict[str, Any]] = []
+    world_vertices: dict[int, np.ndarray] = {}
+    for annotation in scene.world_annotations:
+        payload = annotation.to_dict()
+        points: list[dict[str, int]] = []
+        for layer in annotation.layers or (annotation.layer,):
+            view = scene[layer]
+            if view.mark is not mark_module.Point:
+                continue
+            assert view.data_frame is not None
+            if layer not in world_vertices:
+                transform = view.global_transform
+                world_vertices[layer] = (
+                    view.data_frame.mesh.vertices @ transform[:3, :3].T
+                    + transform[:3, 3]
+                )
+            vertices = world_vertices[layer]
+            if vertices.shape[0] == 0:
+                continue
+            distances = np.sum((vertices - annotation.position) ** 2, axis=1)
+            point = int(np.argmin(distances))
+            if distances[point] <= 1e-14:
+                points.append({"layer": layer, "point": point})
+        payload["points"] = points
+        result.append(payload)
+    return result
 
 
 def _resolve_output_path(filename: Path | str | None) -> Path:

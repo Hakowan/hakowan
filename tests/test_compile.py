@@ -576,6 +576,37 @@ class TestScale:
             [[11.0, 0.0, 0.0], [12.0, 0.0, 0.0], [13.0, 0.0, 0.0]],
         )
 
+    def test_indexed_integer_offset_preserves_scaled_fractions(self, triangle):
+        mesh = triangle
+        mesh.create_attribute(
+            "target",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([10], dtype=np.int32),
+            initial_indices=np.zeros_like(mesh.facets, dtype=np.uint32),
+        )
+        mesh.create_attribute(
+            "offset",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([1, 3, 5], dtype=np.int32),
+            initial_indices=mesh.facets.copy(),
+        )
+
+        hkw.compiler.attribute.apply_scale(
+            hkw.dataframe.DataFrame(mesh=mesh),
+            "target",
+            hkw.scale.Offset(hkw.attribute("offset", scale=hkw.scale.Uniform(0.5))),
+        )
+
+        indexed = mesh.indexed_attribute("target")
+        np.testing.assert_allclose(
+            indexed.values.data[indexed.indices.data], [10.5, 11.5, 12.5]
+        )
+        np.testing.assert_array_equal(
+            mesh.indexed_attribute("offset").values.data, [1, 3, 5]
+        )
+
     def test_scaled_offset(self, triangle):
         mesh = triangle
         df = hkw.dataframe.DataFrame(mesh=mesh)

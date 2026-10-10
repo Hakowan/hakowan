@@ -142,6 +142,20 @@ def _whiteness_arg(value: str) -> float:
     return v
 
 
+def _turn_table_arg(value: str) -> int:
+    try:
+        count = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"turn-table count must be a non-negative integer, got {value!r}"
+        )
+    if count < 0:
+        raise argparse.ArgumentTypeError(
+            f"turn-table count must be non-negative, got {count}"
+        )
+    return count
+
+
 def parse_args(argv: Sequence[str] | None = None) -> InspectArgs | RenderArgs:
     """Parse the action and mesh-rendering options."""
     argv = sys.argv[1:] if argv is None else list(argv)
@@ -251,10 +265,10 @@ def parse_args(argv: Sequence[str] | None = None) -> InspectArgs | RenderArgs:
     parser.add_argument(
         "--turn-table",
         help=(
-            "Turn table animation (num samples). WebGL capture requires "
-            "hakowan[observe] and Playwright Chromium."
+            "Turn table animation (non-negative frame count; 0 disables). WebGL "
+            "capture requires hakowan[observe] and Playwright Chromium."
         ),
-        type=int,
+        type=_turn_table_arg,
         default=0,
     )
     parser.add_argument(
