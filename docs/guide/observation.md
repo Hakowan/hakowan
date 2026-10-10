@@ -1,6 +1,6 @@
 # Capture and visual inspection
 
-Use `snapshot()` and `observe()` to capture WebGL images with structured evidence
+Use `observe()` to capture one or more WebGL views with structured evidence
 for AI agents, programmatic checks, or visual inspection. For interactive viewers
 and Mitsuba/Blender presentation images, use the [rendering guide](rendering.md).
 
@@ -28,7 +28,7 @@ pixi shell -e observe
 playwright install chromium
 ```
 
-## One snapshot
+## One capture
 
 ```py
 import hakowan as hkw
@@ -37,21 +37,22 @@ import numpy as np
 layer = hkw.layer(
     np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
 ).mark("point")
-snapshot = hkw.snapshot(
+observation = hkw.observe(
     layer,
-    view="isometric",
-    pass_name="beauty",
+    views=["isometric"],
+    passes=["beauty"],
     resolution=(768, 768),
-    filename="figure.png",
 )
+capture = observation.snapshot("isometric", "beauty")
+capture.image.save("figure.png")
 
-snapshot.image             # PIL image
-snapshot.data              # raw pass array, when applicable
-snapshot.camera            # resolved CameraState
-snapshot.world_to_camera   # 4x4 matrix
-snapshot.projection        # 4x4 projection matrix
-snapshot.bounds            # rendered scene bounds
-snapshot.diagnostics       # structured validation diagnostics
+capture.image             # PIL image
+capture.data              # raw pass array, when applicable
+capture.camera            # resolved CameraState
+capture.world_to_camera   # 4x4 matrix
+capture.projection        # 4x4 projection matrix
+capture.bounds            # rendered scene bounds
+capture.diagnostics       # structured validation diagnostics
 ```
 
 Supported deterministic view presets:
@@ -62,8 +63,8 @@ Supported deterministic view presets:
 - `isometric`
 
 Set `up_axis="z"` for Z-up datasets. Presets frame the compiled scene's bounding
-sphere with a fixed margin. Supply `camera=CameraState(...)` to override a
-preset explicitly.
+sphere with a fixed margin. Supply `cameras={"front": camera}` with a
+`CameraState` to override a preset explicitly.
 
 ## Render passes
 
@@ -241,11 +242,19 @@ camera = hkw.CameraState(
     far=100.0,
 )
 
-snapshot = hkw.snapshot(layer, camera=camera)
+observation = hkw.observe(
+    layer,
+    views=["custom"],
+    passes=["beauty"],
+    cameras={"custom": camera},
+)
+snapshot = observation.snapshot("custom", "beauty")
 ```
 
 The camera key is used as the view label and in output filenames. Use
-`cameras={"front": camera}` with `observe()` to override a named preset.
+`views=["front"], cameras={"front": camera}` to override a named preset.
+`observe()` does not inherit a camera from `Config`; pass that camera explicitly
+in the `cameras` mapping when you need to preserve it.
 
 ## Determinism and limitations
 

@@ -1833,7 +1833,7 @@ const onLoaded = (gltf) => {
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
   if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
-  // Stable automation handle used by snapshot()/observe() and end-to-end tests.
+  // Stable automation handle used by observe() and end-to-end tests.
   window.__hakowan = {
     THREE, scene, renderer, canvas, camera, controls, loadedRoot,
     perspCamera, orthoCamera,

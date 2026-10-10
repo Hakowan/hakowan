@@ -47,16 +47,17 @@ def playwright_browser():
         pytest.skip(f"Playwright Chromium is unavailable: {exc}")
 
 
-def test_snapshot_captures_deterministic_beauty_png(playwright_browser, tmp_path):
+def test_observe_captures_deterministic_beauty_pixels(playwright_browser):
     layer = hkw.layer(_triangle()).material("Diffuse", "red")
-    output = tmp_path / "snapshot.png"
 
-    first = hkw.snapshot(layer, resolution=(64, 64), filename=output)
-    second = hkw.snapshot(layer, resolution=(64, 64))
+    first = hkw.observe(
+        layer, views=["front"], passes=["beauty"], resolution=(64, 64)
+    ).snapshot("front", "beauty")
+    second = hkw.observe(
+        layer, views=["front"], passes=["beauty"], resolution=(64, 64)
+    ).snapshot("front", "beauty")
 
     assert first.image.size == (64, 64)
-    assert first.path == output
-    assert output.is_file()
     assert np.array_equal(np.asarray(first.image), np.asarray(second.image))
     assert first.world_to_camera.shape == (4, 4)
     assert first.projection.shape == (4, 4)
@@ -232,12 +233,8 @@ def test_pick_requires_geometry_passes(playwright_browser):
         observation.pick("front", (10, 10))
 
 
-def test_snapshot_rejects_unknown_view_and_pass():
+def test_observe_rejects_invalid_view_label():
     layer = hkw.layer(_triangle())
-    with pytest.raises(ValueError, match="Unknown view"):
-        hkw.snapshot(layer, view="diagonal")  # type: ignore[arg-type]
-    with pytest.raises(ValueError, match="Unknown pass"):
-        hkw.snapshot(layer, pass_name="wireframe")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="Invalid view label"):
         hkw.observe(
             layer,
@@ -427,12 +424,13 @@ def test_orthographic_camera_preserves_screen_space_mark_size(playwright_browser
             mode="orthographic",
             scale=scale,
         )
-        snapshot = hkw.snapshot(
+        snapshot = hkw.observe(
             layer,
-            camera=camera,
-            pass_name="layer_id",
+            views=["ortho"],
+            passes=["layer_id"],
+            cameras={"ortho": camera},
             resolution=(80, 80),
-        )
+        ).snapshot("ortho", "layer_id")
         assert snapshot.data is not None
         occupied = np.argwhere(snapshot.data != observation_module.BACKGROUND_ID)
         return int(occupied[:, 1].max() - occupied[:, 1].min() + 1)
@@ -440,22 +438,6 @@ def test_orthographic_camera_preserves_screen_space_mark_size(playwright_browser
     # Screen-space sizes are camera-scale independent. A perspective sizing
     # sensor would make the second capture roughly half as wide.
     assert captured_width(2.0) == pytest.approx(captured_width(4.0), abs=1)
-
-
-def test_snapshot_writes_raw_sidecar(playwright_browser, tmp_path):
-    output = tmp_path / "depth.png"
-    result = hkw.snapshot(
-        hkw.layer(_triangle()),
-        view="front",
-        pass_name="depth",
-        resolution=(32, 32),
-        filename=output,
-    )
-
-    assert result.data_path == tmp_path / "depth.npy"
-    np.testing.assert_array_equal(
-        np.load(result.data_path, allow_pickle=False), result.data
-    )
 
 
 def test_observe_camera_overrides_and_light_background(playwright_browser):
@@ -576,11 +558,6 @@ def test_layer_id_pass_distinguishes_composed_views(playwright_browser):
 def test_observe_rejects_invalid_capture_requests(kwargs, message):
     with pytest.raises(ValueError, match=message):
         hkw.observe(hkw.layer(_triangle()), **kwargs)
-
-
-def test_snapshot_rejects_unsupported_backend():
-    with pytest.raises(NotImplementedError, match="webgl"):
-        hkw.snapshot(hkw.layer(_triangle()), backend="mitsuba")
 
 
 def test_backend_capabilities_advertise_observation():
@@ -755,53 +732,18 @@ def test_cli_view_no_open_keeps_webgl_html_output(monkeypatch, tmp_path):
     assert not mesh_path.with_suffix(".png").exists()
 
 
-def test_cli_webgl_turntable_uses_snapshot(monkeypatch, tmp_path):
-    mesh_path = tmp_path / "mesh.ply"
-    lagrange.io.save_mesh(mesh_path, _triangle())
-    output = tmp_path / "turntable.png"
-    calls = []
-
-    def fake_snapshot(_layer, *, filename, resolution, pass_name, **_kwargs):
-        calls.append((Path(filename), resolution, pass_name))
-        Image.new("RGB", resolution, "white").save(filename)
-
-    main_module = importlib.import_module("hakowan.__main__")
-    monkeypatch.setattr(hkw, "snapshot", fake_snapshot)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "hakowan",
-            "view",
-            str(mesh_path),
-            "--turn-table",
-            "2",
-            "--resolution",
-            "24",
-            "16",
-            "--depth",
-            "--output",
-            str(output),
-            "--no-open",
-        ],
-    )
-
-    main_module.main()
-
-    assert len(calls) == 2
-    assert all(
-        resolution == (24, 16) and pass_name == "depth"
-        for _, resolution, pass_name in calls
-    )
-    assert output.with_suffix(".gif").is_file()
-
-
-def test_snapshot_propagates_diagnostics_without_mutating_config(playwright_browser):
+def test_observe_propagates_diagnostics_without_mutating_config(playwright_browser):
     config = hkw.config()
     original_size = (config.film.width, config.film.height)
     layer = hkw.layer(_triangle()).mark("Surface").channel(size=0.1)
 
-    result = hkw.snapshot(layer, resolution=(32, 24), config=config)
+    result = hkw.observe(
+        layer,
+        views=["front"],
+        passes=["beauty"],
+        resolution=(32, 24),
+        config=config,
+    ).snapshot("front", "beauty")
 
     assert any(item.code == "channel.mark_incompatible" for item in result.diagnostics)
     assert (config.film.width, config.film.height) == original_size

@@ -1,7 +1,7 @@
 # Render
 
-For task-oriented examples and help choosing between `render()`, `snapshot()`,
-and `observe()`, see the [rendering and viewers guide](../guide/rendering.md).
+For task-oriented examples and help choosing between `render()` and `observe()`,
+see the [rendering and viewers guide](../guide/rendering.md).
 
 ::: hakowan.render.render
 

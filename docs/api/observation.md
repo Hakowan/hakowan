@@ -1,9 +1,7 @@
-# Snapshot and observation
+# Observation and snapshot results
 
 See the [capture and visual inspection guide](../guide/observation.md) for view
 conventions, render-pass semantics, installation, and pixel picking.
-
-::: hakowan.workflow.observation.snapshot
 
 ::: hakowan.workflow.observation.observe
 

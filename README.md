@@ -86,9 +86,9 @@ result = hkw.render(layer, filename="viewer.html", backend="webgl")
 ```
 
 `render()` produces the requested output (an interactive viewer or a
-Mitsuba/Blender image). For AI or programmatic inspection, use `snapshot()` for
-one WebGL view or `observe()` for multiple views and visibility queries. Both
-capture independently; they do not require a preceding render. See the
+Mitsuba/Blender image). For AI or programmatic inspection, use `observe()` for
+one or more WebGL views, render passes, and visibility queries. Observation
+captures independently; it does not require a preceding render. See the
 [rendering and viewers guide](https://hakowan.github.io/hakowan/guide/rendering/).
 
 ## Agent integration

@@ -65,7 +65,6 @@ from .workflow import (
     RegionSummary,
     Snapshot,
     observe,
-    snapshot,
 )
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
@@ -198,5 +197,4 @@ __all__ = [
     "RegionSummary",
     "Snapshot",
     "observe",
-    "snapshot",
 ]

@@ -72,7 +72,7 @@ def test_figure_fluent_scene_settings_are_immutable(tmp_path):
     assert len(config.emitters) == 3  # environment + point + directional
 
 
-def test_black_background_matches_webgl_snapshot_and_raster_compositor(
+def test_black_background_matches_webgl_observation_and_raster_compositor(
     playwright_browser,
 ):
     from hakowan.common.overlay import composite_overlays
@@ -83,14 +83,14 @@ def test_black_background_matches_webgl_snapshot_and_raster_compositor(
     )
     assert figure.to_config().background == "black"
 
-    snapshot = hkw.snapshot(figure)
+    snapshot = hkw.observe(
+        figure, views=["front"], passes=["beauty"]
+    ).snapshot("front", "beauty")
     assert snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
 
     layer = hkw.layer(_triangle())
     config = hkw.config()
     config.background = "black"
-    configured_snapshot = hkw.snapshot(layer, config=config, resolution=(96, 64))
-    assert configured_snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
     observation = hkw.observe(
         layer, views=["front"], passes=["beauty"], resolution=(96, 64), config=config
     )
@@ -320,22 +320,6 @@ def test_scene_validation_reports_backend_degradation(tmp_path):
     assert any(item.code == "environment.path.missing" for item in report.errors)
 
 
-def test_figure_snapshot_uses_camera_and_output_defaults(playwright_browser):
-    figure = (
-        hkw.figure(hkw.layer(_triangle()))
-        .camera("perspective", eye=(0.0, 0.0, 4.0), fov=25.0)
-        .output(width=48, height=32, background="light", passes=("beauty", "depth"))
-    )
-
-    snapshot = hkw.snapshot(figure)
-    observation = hkw.observe(figure, views=["front"])
-
-    assert snapshot.view == "figure"
-    assert snapshot.camera.eye == (0.0, 0.0, 4.0)
-    assert snapshot.image.size == (48, 32)
-    assert set(observation.snapshots) == {("front", "beauty"), ("front", "depth")}
-
-
 def test_explicit_observation_options_override_figure(playwright_browser):
     figure = (
         hkw.figure(hkw.layer(_triangle()))
@@ -348,13 +332,14 @@ def test_explicit_observation_options_override_figure(playwright_browser):
         up=(0.0, 1.0, 0.0),
     )
 
-    snapshot = hkw.snapshot(
+    snapshot = hkw.observe(
         figure,
-        view="right",
-        camera=explicit,
+        views=["right"],
+        passes=["beauty"],
+        cameras={"right": explicit},
         resolution=(32, 24),
         background="dark",
-    )
+    ).snapshot("right", "beauty")
 
     assert snapshot.view == "right"
     assert snapshot.camera == explicit

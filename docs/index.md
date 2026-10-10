@@ -53,19 +53,21 @@ hkw.render(temperature, filename="temperature.html")
 Use `hkw.inspect("mesh.ply")` first when the available attribute names are not
 already known.
 
-For one deterministic WebGL capture, install `hakowan[observe]` and Chromium;
-see the [capture setup](guide/observation.md#installation). `snapshot()` captures
-one view; use `observe()` for multiple views, passes, or programmatic inspection.
+For deterministic WebGL captures, install `hakowan[observe]` and Chromium;
+see the [capture setup](guide/observation.md#installation). Use `observe()` for
+one or more views, passes, or programmatic inspection.
 
 ```py
 figure = hkw.figure(temperature).camera("fit", direction="isometric")
-hkw.snapshot(figure, filename="temperature.png")
+observation = hkw.observe(figure, passes=["beauty"])
+capture = observation.snapshot("figure", "beauty")
+capture.image.save("temperature.png")
 ```
 
 Use [`hkw.observe()`](guide/observation.md) when the task needs several views,
 render passes, visual diagnostics, or machine-readable visibility evidence. See
-the [rendering and viewers guide](guide/rendering.md) to choose between `render`,
-`snapshot`, and `observe`.
+the [rendering and viewers guide](guide/rendering.md) to choose between `render`
+and `observe`.
 
 Hakowan's grammar decomposes a 3D visualization into layers, where each layer
 provides a specification of one or more of the following items:

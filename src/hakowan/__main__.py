@@ -212,20 +212,25 @@ def main() -> None:
                         float(up_vector[1]),
                         float(up_vector[2]),
                     )
-                    hkw.snapshot(
+                    observation = hkw.observe(
                         layer,
-                        pass_name=turntable_pass,
-                        camera=hkw.CameraState(
-                            eye=camera_eye,
-                            target=(0.0, 0.0, 0.0),
-                            up=camera_up,
-                            fov=float(getattr(frame_config.sensor, "fov", 28.8415)),
-                            near=float(frame_config.sensor.near_clip),
-                            far=float(frame_config.sensor.far_clip),
-                        ),
+                        views=["turntable"],
+                        passes=[turntable_pass],
+                        cameras={
+                            "turntable": hkw.CameraState(
+                                eye=camera_eye,
+                                target=(0.0, 0.0, 0.0),
+                                up=camera_up,
+                                fov=float(getattr(frame_config.sensor, "fov", 28.8415)),
+                                near=float(frame_config.sensor.near_clip),
+                                far=float(frame_config.sensor.far_clip),
+                            ),
+                        },
                         resolution=(frame_config.film.width, frame_config.film.height),
                         config=frame_config,
-                        filename=frame_file,
+                    )
+                    observation.snapshot("turntable", turntable_pass).image.save(
+                        frame_file
                     )
                 else:
                     hkw.render(

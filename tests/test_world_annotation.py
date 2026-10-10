@@ -543,7 +543,7 @@ def test_static_box_label_uses_same_browser_and_raster_placement(
             browser.close()
 
 
-def test_box_snapshot_places_world_text_outside_mesh(playwright_browser):
+def test_box_observation_places_world_text_outside_mesh(playwright_browser):
     pytest.importorskip("playwright.sync_api")
     layer = hkw.layer(_box()).annotate(
         hkw.WorldAnnotation("Front", (0, 0, 0.5), background="magenta", color="white")
@@ -553,8 +553,9 @@ def test_box_snapshot_places_world_text_outside_mesh(playwright_browser):
         .camera("orthographic", eye=(1, 1, 5))
         .output(width=320, height=240, background="black")
     )
-    beauty = np.asarray(hkw.snapshot(figure).image.convert("RGB"))
-    normal = np.asarray(hkw.snapshot(figure, pass_name="normal").image.convert("RGB"))
+    observation = hkw.observe(figure, passes=["beauty", "normal"])
+    beauty = np.asarray(observation.snapshot("figure", "beauty").image.convert("RGB"))
+    normal = np.asarray(observation.snapshot("figure", "normal").image.convert("RGB"))
     panel = (beauty[..., 0] > 150) & (beauty[..., 1] < 25) & (beauty[..., 2] > 150)
     geometry = np.any(normal != 0, axis=2)
     assert panel.any()

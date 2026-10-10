@@ -14,7 +14,6 @@ from .observation import (
     SceneSummary,
     Snapshot,
     observe,
-    snapshot,
 )
 from .validation import Diagnostic, ValidationError, ValidationReport, validate
 
@@ -37,7 +36,6 @@ __all__ = [
     "inspect",
     "observe",
     "resolve_camera",
-    "snapshot",
     "turntable_cameras",
     "validate",
 ]

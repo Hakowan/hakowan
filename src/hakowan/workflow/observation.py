@@ -534,20 +534,6 @@ def _camera_state_from_figure(camera) -> CameraState:
     )
 
 
-def _camera_state_from_config(config: Config) -> CameraState:
-    sensor = config.sensor
-    return CameraState(
-        eye=_vec3(sensor.location),
-        target=_vec3(sensor.target),
-        up=_vec3(sensor.up),
-        fov=float(getattr(sensor, "fov", 35.0)),
-        near=float(sensor.near_clip),
-        far=float(sensor.far_clip),
-        mode="orthographic" if isinstance(sensor, Orthographic) else "perspective",
-        scale=sensor.scale if isinstance(sensor, Orthographic) else None,
-    )
-
-
 def _sensor_from_camera_state(camera: CameraState):
     """Build the sizing sensor matching the browser capture projection."""
     if camera.mode == "orthographic":
@@ -578,7 +564,7 @@ def _require_playwright():
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise ObservationError(
-            "snapshot()/observe() require Playwright. Install 'hakowan[observe]' "
+            "observe() requires Playwright. Install 'hakowan[observe]' "
             "and run 'playwright install chromium'."
         ) from exc
     return sync_playwright, PlaywrightError
@@ -908,85 +894,6 @@ def _capture_context(
     return runtime_layer, config, resolution, background, explicit_config
 
 
-def snapshot(
-    root: Layer | Figure,
-    *,
-    view: ViewPreset | None = None,
-    pass_name: PassName = "beauty",
-    resolution: tuple[int, int] | None = None,
-    camera: CameraState | None = None,
-    config: Config | None = None,
-    backend: BackendName = "webgl",
-    background: Literal["light", "dark", "black"] | None = None,
-    up_axis: Literal["y", "z"] = "y",
-    filename: str | Path | None = None,
-    timeout: float = 60.0,
-) -> Snapshot:
-    """Capture one deterministic WebGL raster and optional raw pass array.
-
-    A Figure camera is used when neither ``view`` nor ``camera`` is supplied;
-    otherwise named presets frame the compiled scene. Explicit ``config``,
-    ``resolution``, and ``background`` override Figure intent.
-
-    Args:
-        root: Layer or Figure to capture.
-        view: Named camera preset and result label.
-        pass_name: Beauty, albedo, depth, normal, element-ID, or layer-ID pass.
-        resolution: Output width and height in pixels.
-        camera: Explicit camera overriding the named preset.
-        config: Explicit invocation configuration.
-        backend: Capture backend; currently only ``webgl`` is supported.
-        background: Light or dark studio background.
-        up_axis: Coordinate convention used by named camera presets.
-        filename: Optional PNG path; raw pass data is saved beside it as NPY.
-        timeout: Chromium capture timeout in seconds.
-
-    Returns:
-        Snapshot containing the image, raw data, camera, matrices, and metadata.
-
-    """
-    if backend != "webgl":
-        raise NotImplementedError("snapshot() currently supports backend='webgl'.")
-    figure = root if isinstance(root, Figure) else None
-    runtime_layer, resolved_config, resolution, background, explicit_config = (
-        _capture_context(root, config, resolution, background)
-    )
-    label: str = view or "isometric"
-    if camera is None and view is None:
-        if (
-            figure is not None
-            and not explicit_config
-            and figure.scene.camera is not None
-        ):
-            camera = _camera_state_from_figure(figure.scene.camera)
-            label = "figure"
-        elif explicit_config and resolved_config is not None:
-            camera = _camera_state_from_config(resolved_config)
-            label = "config"
-    result = _capture(
-        runtime_layer,
-        [label],
-        [pass_name],
-        resolution,
-        cameras={label: camera} if camera is not None else None,
-        config=resolved_config,
-        up_axis=up_axis,
-        background=background,
-        timeout=timeout,
-    )
-    item = result.snapshots[(label, pass_name)]
-    if filename is not None:
-        path = Path(filename)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        item.image.save(path)
-        if item.data is not None:
-            data_path = path.with_suffix(".npy")
-            np.save(data_path, item.data, allow_pickle=False)
-            object.__setattr__(item, "data_path", data_path)
-        object.__setattr__(item, "path", path)
-    return item
-
-
 def observe(
     root: Layer | Figure,
     *,
@@ -1239,5 +1146,4 @@ __all__ = [
     "Snapshot",
     "VIEW_PRESETS",
     "observe",
-    "snapshot",
 ]

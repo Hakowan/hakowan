@@ -1,35 +1,13 @@
 # Rendering and viewers
 
-## Choose an output or inspect a scene
+Hakowan provides several ways to create visualization based on the grammar:
 
-Choose by the result you need, not by an assumed speed difference:
+* `render(...)` generates the final polished rendering of a visualization. It is great for producing
+paper figures, presentations, and interactive demostration.
+* `observe(...)` provides fast and structured views of the visualization. It is designed for
+automatic inspection of the visualization by AI agents.
 
-| Task | API | Result |
-|---|---|---|
-| Let a person explore or share a scene | `render(..., backend="webgl")` | Interactive HTML viewer |
-| Produce a final image with advanced lighting and materials | `render(..., backend="mitsuba")` or `backend="blender"` | Raster image and backend artifacts |
-| Capture one WebGL view for a preview or image check | `snapshot(...)` | One image with camera metadata and optional raw pass data |
-| Inspect several views or query visible geometry and attributes | `observe(...)` | Images, contact sheet, manifest, diagnostics, and inspection queries |
-
-**`render()` produces a deliverable; `observe()` captures evidence for inspection.**
-Both can produce images. `snapshot()` is the single-view, single-pass capture API.
-See [Capture and visual inspection](observation.md) for the capture workflow.
-
-All three accept a `Layer` or `Figure` independently. You do not need to call
-`render()` before `snapshot()` or `observe()`. An observation already contains its
-snapshots; do not capture the same views separately to retrieve them.
-
-For AI agents and programmatic checks, use `observe()` when you need pixel
-picking, visibility, visible attribute statistics, or several views/passes. Use
-`snapshot()` when one known view and pass are sufficient. Use `render()` when
-the requested deliverable is a viewer, a Mitsuba/Blender image, or a scene file.
-
-Speed and quality depend on the backend and settings, not the function name.
-WebGL capture is suited to quick inspection, but starting Chromium and capturing
-many views/passes have costs. Mitsuba and Blender support advanced rendering;
-high-quality settings can take longer. `render(backend="webgl")` creates a viewer,
-not a slow photorealistic raster. Capture currently uses WebGL through headless
-Chromium; `observe()` is not a multi-view wrapper around Mitsuba or Blender.
+This section focuses on `render` feature, and [next section](observation.md) goes over `observe` feature.
 
 ## Render a scene
 
