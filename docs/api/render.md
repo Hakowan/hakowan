@@ -7,7 +7,7 @@ see the [rendering and viewers guide](../guide/rendering.md).
 
 ## RenderResult
 
-`hkw.render()` returns a `RenderResult` bundling the in-memory image (Mitsuba),
+`hkw.render()` returns a `RenderResult` bundling the in-memory image (Mitsuba, Blender),
 the main output path, and the manifest of all files produced (including per-pass
 sidecars).
 

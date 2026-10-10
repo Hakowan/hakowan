@@ -147,7 +147,8 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
             **kwargs: Rejected compatibility catch-all for unknown options.
 
         Returns:
-            ``None`` — Blender writes directly to *filename*.
+            The rendered :class:`PIL.Image.Image` (beauty output, including any
+            composited overlays).
         """
         if kwargs:
             raise TypeError(
@@ -188,41 +189,46 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         render_filename: Path | None = None
         out_suffix: str | None = None
         _tmp_render_dir: tempfile.TemporaryDirectory | None = None
+        actual_target_path: Path
         if filename is not None:
-            if isinstance(filename, str):
-                filename = Path(filename)
-            # Reject unwritable formats up front, before spending a render.
-            out_suffix = check_supported_suffix(filename)
-            filename.parent.mkdir(parents=True, exist_ok=True)
+            actual_target_path = Path(filename)
+        else:
+            _tmp_render_dir = tempfile.TemporaryDirectory(prefix="hakowan_blender_")
+            actual_target_path = Path(_tmp_render_dir.name) / "render.png"
 
-            # Blender encodes LDR output as PNG and HDR as OpenEXR. Any other
-            # requested format (e.g. .webp/.jpg/.tif) is produced afterwards by
-            # re-encoding the PNG with Pillow (see _finalize_outputs).
-            render_suffix = out_suffix if is_hdr_suffix(out_suffix) else ".png"
-            if render_suffix == out_suffix:
-                # No conversion needed: write straight to the destination.
-                render_dir = filename.parent
-            else:
-                # Render the PNG intermediate(s) into a private temp dir so they
-                # never overwrite the user's own files (e.g. a pre-existing
-                # ``foo.png`` while rendering ``foo.webp``); convert into place
-                # afterwards.
+        # Reject unwritable formats up front, before spending a render.
+        out_suffix = check_supported_suffix(actual_target_path)
+        actual_target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Blender encodes LDR output as PNG and HDR as OpenEXR. Any other
+        # requested format (e.g. .webp/.jpg/.tif) is produced afterwards by
+        # re-encoding the PNG with Pillow (see _finalize_outputs).
+        render_suffix = out_suffix if is_hdr_suffix(out_suffix) else ".png"
+        if render_suffix == out_suffix and filename is not None:
+            # No conversion needed: write straight to the destination.
+            render_dir = actual_target_path.parent
+        else:
+            # Render the PNG intermediate(s) into a private temp dir so they
+            # never overwrite the user's own files (e.g. a pre-existing
+            # ``foo.png`` while rendering ``foo.webp``); convert into place
+            # afterwards.
+            if _tmp_render_dir is None:
                 _tmp_render_dir = tempfile.TemporaryDirectory(prefix="hakowan_blender_")
-                render_dir = Path(_tmp_render_dir.name)
-            render_filename = render_dir / (filename.stem + render_suffix)
+            render_dir = Path(_tmp_render_dir.name)
+        render_filename = render_dir / (actual_target_path.stem + render_suffix)
 
-            bpy.context.scene.render.filepath = str(render_filename.resolve())
-            bpy.context.scene.render.image_settings.file_format = (
-                "OPEN_EXR" if render_suffix == ".exr" else "PNG"
-            )
-            # In headless bpy, bpy.data.filepath is empty so Blender has no
-            # "home directory" and the compositor File Output node writes bare
-            # filenames with no directory.  Save a temporary .blend file into
-            # the render directory so that '//' resolves to render_dir.
-            _temp_blend = render_dir / ".hakowan_compositor.blend"
-            with manage_native_output(logger, prefix="blender"):
-                bpy.ops.wm.save_as_mainfile(filepath=str(_temp_blend), compress=False)
-            renames = self._setup_compositor_passes(config, render_filename)
+        bpy.context.scene.render.filepath = str(render_filename.resolve())
+        bpy.context.scene.render.image_settings.file_format = (
+            "OPEN_EXR" if render_suffix == ".exr" else "PNG"
+        )
+        # In headless bpy, bpy.data.filepath is empty so Blender has no
+        # "home directory" and the compositor File Output node writes bare
+        # filenames with no directory.  Save a temporary .blend file into
+        # the render directory so that '//' resolves to render_dir.
+        _temp_blend = render_dir / ".hakowan_compositor.blend"
+        with manage_native_output(logger, prefix="blender"):
+            bpy.ops.wm.save_as_mainfile(filepath=str(_temp_blend), compress=False)
+        renames = self._setup_compositor_passes(config, render_filename)
 
         logger.info("Rendering with Blender...")
         with manage_native_output(logger, prefix="blender"):
@@ -274,54 +280,57 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
         # Convert Blender's native PNG output into the user's requested format
         # when it differs (e.g. .webp/.jpg). EXR and PNG need no conversion.
         if (
-            filename is not None
-            and render_filename is not None
+            render_filename is not None
             and render_filename.suffix.lower() != out_suffix
         ):
-            self._finalize_outputs(config, render_filename, filename)
+            self._finalize_outputs(config, render_filename, actual_target_path)
 
-        if filename is not None:
-            camera_matrices = {}
-            geometry_at = None
-            if scene.world_annotations and not is_hdr_suffix(filename.suffix.lower()):
-                camera = bpy.context.scene.camera
-                scene_render = bpy.context.scene.render
-                projection = camera.calc_matrix_camera(
-                    bpy.context.evaluated_depsgraph_get(),
-                    x=config.film.width,
-                    y=config.film.height,
-                    scale_x=scene_render.pixel_aspect_x,
-                    scale_y=scene_render.pixel_aspect_y,
+        camera_matrices = {}
+        geometry_at = None
+        if scene.world_annotations and not is_hdr_suffix(actual_target_path.suffix.lower()):
+            camera = bpy.context.scene.camera
+            scene_render = bpy.context.scene.render
+            projection = camera.calc_matrix_camera(
+                bpy.context.evaluated_depsgraph_get(),
+                x=config.film.width,
+                y=config.film.height,
+                scale_x=scene_render.pixel_aspect_x,
+                scale_y=scene_render.pixel_aspect_y,
+            )
+            camera_matrices = {
+                "world_to_camera": camera.matrix_world.inverted(),
+                "projection": projection,
+            }
+            if geometry_mask is None:
+                geometry_at = _world_geometry_at(
+                    camera, projection, (config.film.width, config.film.height)
                 )
-                camera_matrices = {
-                    "world_to_camera": camera.matrix_world.inverted(),
-                    "projection": projection,
-                }
-                if geometry_mask is None:
-                    geometry_at = _world_geometry_at(
-                        camera, projection, (config.film.width, config.film.height)
-                    )
-            if not composite_overlay_file(
-                filename,
-                scene.legends,
-                scene.annotations,
-                config.background,
-                world_annotations=scene.world_annotations,
-                geometry_mask=geometry_mask,
-                geometry_at=geometry_at,
-                **camera_matrices,
-            ):
-                logger.warning(
-                    "Legends and annotations (including world annotations) are not "
-                    "composited into HDR output; use PNG or another "
-                    "Pillow-supported format."
-                )
+        if not composite_overlay_file(
+            actual_target_path,
+            scene.legends,
+            scene.annotations,
+            config.background,
+            world_annotations=scene.world_annotations,
+            geometry_mask=geometry_mask,
+            geometry_at=geometry_at,
+            **camera_matrices,
+        ):
+            logger.warning(
+                "Legends and annotations (including world annotations) are not "
+                "composited into HDR output; use PNG or another "
+                "Pillow-supported format."
+            )
+
+        from PIL import Image as PILImage
+
+        with PILImage.open(actual_target_path) as im:
+            image = im.copy()
 
         # Drop the private intermediate render directory, if one was used.
         if _tmp_render_dir is not None:
             _tmp_render_dir.cleanup()
 
-        return None
+        return image
 
     def _finalize_outputs(
         self, config: Config, render_filename: Path, filename: Path

@@ -452,7 +452,7 @@ class TestSmoke:
         config.sampler.sample_count = 1
         layer = hkw.layer().data(triangle).mark(hkw.mark.Surface)
         out = tmp_path / "smoke.png"
-        hkw.render(
+        result = hkw.render(
             layer,
             config,
             filename=out,
@@ -460,6 +460,20 @@ class TestSmoke:
             blender_engine="BLENDER_EEVEE",
         )
         assert out.exists() and out.stat().st_size > 0
+        assert result.image is not None
+        assert result.image.size == (16, 16)
+        assert result.path == out
+
+        # Rendering without filename returns in-memory image and None path
+        result_no_file = hkw.render(
+            layer,
+            config,
+            backend="blender",
+            blender_engine="BLENDER_EEVEE",
+        )
+        assert result_no_file.path is None
+        assert result_no_file.image is not None
+        assert result_no_file.image.size == (16, 16)
 
     @pytest.mark.skipif(
         os.environ.get("CI") == "true",

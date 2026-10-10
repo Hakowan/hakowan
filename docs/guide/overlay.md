@@ -172,6 +172,7 @@ the same layer can occlude it, including segments split into material groups.
 | WebGL viewer | Legends and annotations appear with the interactive scene. |
 | Beauty images and snapshots | Include legends and annotations; expand the canvas when a legend cannot fit beside the view. |
 | Mitsuba `result.image` | Does not include raster overlays. |
+| Blender `result.image` | Includes raster overlays. |
 | EXR/HDR and diagnostic passes | Do not include legends or annotations. |
 
 Raster legends and annotations are drawn over the beauty image when the panels fit.

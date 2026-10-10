@@ -154,7 +154,31 @@ class TestRenderResult:
         with pytest.raises(TypeError, match="no output path"):
             _ = result.__fspath__()
 
+    def test_image_backend_populates_result_image(self, single_triangle_rr, monkeypatch):
+        from PIL import Image
 
+        fake_image = Image.new("RGBA", (16, 16), (255, 0, 0, 255))
+
+        class _StubImageBackend(RenderBackend):
+            SUPPORTED_PASSES = frozenset()
+            PASS_DELIVERY = "file"
+
+            def render(self, scene, config, filename=None, **kwargs):
+                return fake_image
+
+        import sys
+
+        render_mod = sys.modules["hakowan.render"]
+        monkeypatch.setattr(
+            render_mod, "get_backend", lambda name: _StubImageBackend()
+        )
+        monkeypatch.setattr(
+            render_mod, "resolve_backend_name", lambda name: "blender"
+        )
+        layer = hkw.layer().data(single_triangle_rr).mark(hkw.mark.Surface)
+        result = hkw.render(layer, backend="blender")
+        assert result.image is fake_image
+        assert result.path is None
 @pytest.fixture
 def single_triangle():
     mesh = lagrange.SurfaceMesh()

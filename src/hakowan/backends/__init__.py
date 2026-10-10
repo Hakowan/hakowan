@@ -144,7 +144,7 @@ class RenderBackend(ABC):
         """Render the scene and return the backend's primary artifact.
 
         Returns whatever the backend produces natively: an in-memory image
-        (Mitsuba), an output path (WebGL), or ``None`` (Blender). The public
+        (Mitsuba, Blender) or an output path (WebGL). The public
         :func:`hakowan.render` wraps this into a
         :class:`~hakowan.render.RenderResult` together with the output
         manifest, so end users see a uniform return type.

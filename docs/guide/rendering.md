@@ -1,6 +1,6 @@
 # Rendering and viewers
 
-Hakowan provides several ways to create visualization based on the grammar:
+Hakowan provides two ways to create visualization based on the grammar:
 
 * `render(...)` generates the final polished rendering of a visualization. It is great for producing
 paper figures, presentations, and interactive demostration.
@@ -27,14 +27,14 @@ Every backend returns a `RenderResult`:
 
 ```py
 result.path       # main output path, or None if no filename was given
-result.image      # in-memory image (Mitsuba only); None for Blender/WebGL
+result.image      # in-memory image (Mitsuba, Blender); None for WebGL
 result.outputs    # manifest: {"main": ..., "<pass>": <path or "interactive">}
 result.backend    # backend that produced the result
 ```
 
 `result.outputs` includes per-pass sidecars; see [render passes](config.md#render-passes).
 When a main file was written, the result is path-like and can be passed to
-`open()` or `pathlib.Path`. Use `result.image` for Mitsuba notebook display.
+`open()` or `pathlib.Path`. Use `result.image` for notebook display.
 Full signatures are in the [render API reference](../api/render.md).
 
 ## Choose and configure a backend

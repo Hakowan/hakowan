@@ -37,7 +37,7 @@ class RenderResult:
             string ``"interactive"`` for viewer backends (WebGL). Empty when
             nothing was written to disk (``filename`` was ``None``).
         image: The in-memory rendered image when the backend produces one
-            (Mitsuba); ``None`` otherwise. Use this for notebook display.
+            (Mitsuba, Blender); ``None`` otherwise. Use this for notebook display.
         path: The main output path when written to disk; ``None`` otherwise.
 
     The object is also a :pep:`519` path-like (``__fspath__``), so it can be
@@ -175,11 +175,11 @@ def render(
 
     raw = backend_impl.render(scene, config, filename, **kwargs)
 
-    # Normalize the backend's primary return into a RenderResult. Mitsuba
-    # returns an in-memory image; file backends (Blender/WebGL) return the path
-    # they actually wrote, or None. Prefer the backend-reported path — the
-    # WebGL backend rewrites the suffix to ``.html``, so its returned path is
-    # the truthful main output, not the user's *filename*.
+    # Normalize the backend's primary return into a RenderResult. Image-
+    # producing backends (Mitsuba/Blender) return an in-memory image; file
+    # backends (WebGL) return the path they actually wrote. Prefer the
+    # backend-reported path when provided — the WebGL backend rewrites the
+    # suffix to ``.html``, so its returned path is the truthful main output.
     image = raw if not isinstance(raw, (str, Path)) else None
     if isinstance(raw, (str, Path)):
         path: Path | None = Path(raw)
