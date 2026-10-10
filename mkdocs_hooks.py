@@ -14,7 +14,7 @@ _GALLERY_README = re.compile(
     r'gallery/(?P<recipe>[^/]+)/README\.md)"\s*$',
     re.MULTILINE,
 )
-_GALLERY_REVISION = "e478c04dd98fc83c444408f8464950f9c644365e"
+_GALLERY_REVISION = "65df49f6cbcc1def74dbe3b0093882f81c261ded"
 _MAX_GALLERY_FILE_BYTES = 128 * 1024 * 1024
 _MAX_README_BYTES = 2 * 1024 * 1024
 _RAW_MAIN_URL = re.compile(
