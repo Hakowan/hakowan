@@ -737,8 +737,12 @@ class TestRender:
 
         assert visible == compiled.world_annotations
 
-    @pytest.mark.parametrize("grouped", [False, True], ids=["uniform", "material_groups"])
-    def test_mitsuba_curve_anchor_is_occluded_by_other_segment_in_same_layer(self, grouped):
+    @pytest.mark.parametrize(
+        "grouped", [False, True], ids=["uniform", "material_groups"]
+    )
+    def test_mitsuba_curve_anchor_is_occluded_by_other_segment_in_same_layer(
+        self, grouped
+    ):
         from hakowan.backends.mitsuba.render import _visible_world_annotations
         from hakowan.setup.sensor import Orthographic
 
@@ -755,7 +759,9 @@ class TestRender:
         config.sensor = Orthographic(
             scale=4.0, location=(0.0, 0.0, 3.0), target=(0.0, 0.0, 0.0)
         )
-        scene = mi.load_dict(generate_base_config(config) | generate_scene_config(compiled))
+        scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(compiled)
+        )
 
         visible = _visible_world_annotations(
             scene, config.sensor, compiled.world_annotations, compiled
