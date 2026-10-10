@@ -4,7 +4,6 @@ from .integrator import generate_integrator_config
 from .sampler import generate_sampler_config
 from .sensor import generate_sensor_config
 from .shape import (
-    extract_edges,
     generate_point_config,
     generate_curve_config,
     generate_surface_config,
@@ -189,7 +188,7 @@ def _point_glyph_owns_anchor(
 def _curve_glyph_owns_anchor(
     hit: Any, compiled_scene: Scene | None, annotation: CompiledWorldAnnotation
 ) -> bool:
-    """Whether a curve-tube hit belongs to the curve containing this anchor."""
+    """Whether the intersected linear-curve segment contains this anchor."""
     if compiled_scene is None or not hit.is_valid():
         return False
     shape_id = hit.shape.id()
@@ -204,25 +203,26 @@ def _curve_glyph_owns_anchor(
             or view.data_frame is None
         ):
             continue
-        base, tip, base_size, tip_size = extract_edges(view)
-        transform = np.asarray(view.global_transform, dtype=np.float64)
-        radius_scale = abs(np.cbrt(np.linalg.det(transform[:3, :3])))
-        for p0, p1, r0, r1 in zip(base, tip, base_size, tip_size, strict=True):
-            start = (transform @ np.array((*p0, 1.0)))[:3]
-            end = (transform @ np.array((*p1, 1.0)))[:3]
-            segment = end - start
-            length_squared = float(np.dot(segment, segment))
-            fraction = (
-                float(np.clip(np.dot(anchor - start, segment) / length_squared, 0, 1))
-                if length_squared > 1e-20
-                else 0.0
-            )
-            closest = start + fraction * segment
-            radius = (
-                (1.0 - fraction) * float(r0) + fraction * float(r1)
-            ) * radius_scale
-            if np.linalg.norm(anchor - closest) <= radius + 5e-5:
-                return True
+        # Mitsuba bakes to_world into linearcurve control points. Read the
+        # intersected primitive from that shape, not all edges in its view:
+        # material grouping can reorder or split source edges across shapes.
+        parameters = mi.traverse(hit.shape)
+        segments = np.asarray(parameters["segment_indices"])
+        control_points = np.asarray(parameters["control_points"]).reshape(-1, 4)
+        first = int(segments[int(hit.prim_index)])
+        start, end = control_points[first : first + 2, :3]
+        r0, r1 = control_points[first : first + 2, 3]
+        segment = end - start
+        length_squared = float(np.dot(segment, segment))
+        fraction = (
+            float(np.clip(np.dot(anchor - start, segment) / length_squared, 0, 1))
+            if length_squared > 1e-20
+            else 0.0
+        )
+        closest = start + fraction * segment
+        radius = (1.0 - fraction) * float(r0) + fraction * float(r1)
+        if np.linalg.norm(anchor - closest) <= radius + 5e-5:
+            return True
     return False
 
 

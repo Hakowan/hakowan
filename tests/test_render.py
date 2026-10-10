@@ -737,6 +737,32 @@ class TestRender:
 
         assert visible == compiled.world_annotations
 
+    @pytest.mark.parametrize("grouped", [False, True], ids=["uniform", "material_groups"])
+    def test_mitsuba_curve_anchor_is_occluded_by_other_segment_in_same_layer(self, grouped):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        mi.set_variant("scalar_rgb")
+        layer = _curve_layer([0, 0, 1, 1], categories=True)
+        if not grouped:
+            layer = layer.channel(material=hkw.material.Diffuse("red"))
+        layer = layer.annotate(hkw.WorldAnnotation("rear", (0.0, 0.0, 0.0))).annotate(
+            hkw.WorldAnnotation("front", (0.0, 0.0, 0.4))
+        )
+        compiled = hkw.compiler.compile(layer)
+        config = hkw.config()
+        config.film.width = config.film.height = 32
+        config.sensor = Orthographic(
+            scale=4.0, location=(0.0, 0.0, 3.0), target=(0.0, 0.0, 0.0)
+        )
+        scene = mi.load_dict(generate_base_config(config) | generate_scene_config(compiled))
+
+        visible = _visible_world_annotations(
+            scene, config.sensor, compiled.world_annotations, compiled
+        )
+
+        assert [annotation.text for annotation in visible] == ["front"]
+
     def test_curve_scalar_field_color_rejects_values_varying_on_edge(self):
         layer = _curve_layer([0, 1, 2, 2], categories=False)
         with pytest.raises(NotImplementedError, match="constant across each mesh edge"):

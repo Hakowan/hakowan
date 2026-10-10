@@ -314,3 +314,39 @@ def test_view_reports_temporary_html_if_browser_open_fails(
     assert str(rendered[0]) in caplog.text
     assert "Could not open WebGL viewer" in caplog.text
     rendered[0].unlink()
+
+
+@pytest.mark.parametrize("suffix", [".png", ".jpg"])
+def test_khr_texture_conversion_preserves_external_source(tmp_path, suffix):
+    from PIL import Image
+    from hakowan.cli.materials import extract_material
+
+    source = tmp_path / f"source{suffix}"
+    Image.new("RGB", (2, 2), "red").save(source)
+    original = source.read_bytes()
+    decoded = np.full((2, 2, 3), 128, dtype=np.uint8)
+    scene = lagrange.scene.Scene()
+    material = lagrange.scene.Material()
+    material.extensions.data = {
+        "KHR_materials_pbrSpecularGlossiness": {"diffuseTexture": {"index": 0}}
+    }
+    image = lagrange.scene.Image()
+    image.uri = str(source)
+    image.image.data = decoded
+    texture = lagrange.scene.Texture()
+    texture.image = 0
+    scene.materials.append(material)
+    scene.images.append(image)
+    scene.textures.append(texture)
+
+    converted = extract_material(scene)[0].color.filename
+    try:
+        assert source.read_bytes() == original
+        assert converted != source
+        with Image.open(converted) as result:
+            assert result.format == "PNG"
+            np.testing.assert_array_equal(np.asarray(result)[..., :3], decoded)
+            np.testing.assert_array_equal(np.asarray(result)[..., 3], 255)
+    finally:
+        if converted != source:
+            converted.unlink(missing_ok=True)

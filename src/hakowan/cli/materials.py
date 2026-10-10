@@ -158,11 +158,7 @@ def extract_material(
                 if diffuse_tex.image is None:
                     raise ValueError("KHR texture has no associated image data.")
                 diffuse_img = scene.images[diffuse_tex.image]
-                diffuse_file = (
-                    Path(diffuse_img.uri)
-                    if diffuse_img.uri is not None
-                    else get_tmp_image_name()
-                )
+                diffuse_file = get_tmp_image_name()
                 im = Image.fromarray(diffuse_img.image.data).convert("RGBA")
                 im.save(str(diffuse_file))
                 mat = hkw.material.Principled(

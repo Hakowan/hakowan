@@ -34,6 +34,10 @@ hkw render mesh.ply --wireframe --wire-thickness 1
 `--facet-id` requests a per-facet color image and selects Blender. It reports an
 error if Blender is unavailable.
 
+`--material texture` imports the scene's image materials, including
+`KHR_materials_pbrSpecularGlossiness` diffuse textures. Decoded images are written
+to temporary PNGs; external source textures are not modified, including JPEGs.
+
 ## Create an interactive viewer
 
 `hkw view` uses WebGL to create an interactive HTML viewer. By default, it

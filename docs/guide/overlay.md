@@ -160,6 +160,9 @@ are hidden. In WebGL, a callout centered on a point glyph ignores that glyph's o
 surface, but other glyphs—including those in the same layer—can still occlude it.
 This applies to both instanced and baked point geometry. A free-position callout
 that is not centered on a source point does not exclude any glyph.
+Mitsuba also ignores self-occlusion for anchors inside an edge-derived curve tube,
+but only when the ray hits the segment containing the anchor. Other segments in
+the same layer can occlude it, including segments split into material groups.
 
 ## Backend behavior
 
