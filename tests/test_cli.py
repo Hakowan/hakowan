@@ -291,29 +291,37 @@ def test_singularity_adds_valence_point_view():
     assert point_views[0].data_frame.mesh.num_vertices == 4
 
 
-def test_view_reports_temporary_html_if_browser_open_fails(
+def test_view_preserves_accessible_temporary_html_if_browser_open_fails(
     monkeypatch, tmp_path, triangle, caplog
 ):
+    from urllib.parse import urlsplit
+    from urllib.request import url2pathname
+
     mesh_path = tmp_path / "mesh.ply"
     lagrange.io.save_mesh(mesh_path, triangle)
-    rendered = []
+    attempted_urls = []
 
-    def fake_render(root, config, *, filename, backend, **kwargs):
-        output = Path(filename)
-        output.write_text("viewer")
-        rendered.append(output)
+    def failed_open(url):
+        attempted_urls.append(url)
+        return False
 
-    monkeypatch.setattr(cli.hkw, "render", fake_render)
-    monkeypatch.setattr(cli.webbrowser, "open", lambda url: False)
+    monkeypatch.setattr(cli.webbrowser, "open", failed_open)
     monkeypatch.setattr(sys, "argv", ["hkw", "view", str(mesh_path)])
     caplog.set_level(logging.WARNING, logger="hakowan")
 
     cli.main()
 
-    assert len(rendered) == 1
-    assert str(rendered[0]) in caplog.text
-    assert "Could not open WebGL viewer" in caplog.text
-    rendered[0].unlink()
+    saved_path = Path(url2pathname(urlsplit(attempted_urls[0]).path))
+    try:
+        warnings = [
+            record for record in caplog.records if record.levelno == logging.WARNING
+        ]
+        reported_path = Path(warnings[-1].args[0])
+        assert saved_path.is_file()
+        assert reported_path.samefile(saved_path)
+        assert not mesh_path.with_suffix(".html").exists()
+    finally:
+        saved_path.unlink(missing_ok=True)
 
 
 @pytest.mark.parametrize("suffix", [".png", ".jpg"])
