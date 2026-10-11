@@ -33,7 +33,7 @@ from .assets import copy_three_assets
 _DEFAULT_THREE_VERSION = "0.170.0"
 _DEFAULT_TITLE = "Hakowan Interactive 3D Visualization"
 
-# Beauty-pass presets: light/dark have soft studio gradients; black is flat.
+# Beauty-pass presets: light/dark have soft studio gradients; black/white are flat.
 # Each specifies (center, edge) RGB in [0, 1].
 _BACKGROUND_PRESETS: dict[
     str, tuple[tuple[float, float, float], tuple[float, float, float]]
@@ -41,15 +41,16 @@ _BACKGROUND_PRESETS: dict[
     "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
     "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
     "black": ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    "white": ((1.0, 1.0, 1.0), (1.0, 1.0, 1.0)),
 }
 _DEFAULT_BACKGROUND: Literal["light", "dark"] = "dark"
 
 
-def _validate_background(name: Literal["light", "dark", "black"]) -> None:
-    """Raise ``ValueError`` if ``name`` is not a known background preset."""
-    if name not in _BACKGROUND_PRESETS:
+def _validate_background(name: Literal["light", "dark", "black", "white", "transparent"]) -> None:
+    """Raise ``ValueError`` if ``name`` is not a known background mode."""
+    if name != "transparent" and name not in _BACKGROUND_PRESETS:
         raise ValueError(
-            f"Unknown background {name!r}; choose from {sorted(_BACKGROUND_PRESETS)}."
+            f"Unknown background {name!r}; choose from {sorted([*_BACKGROUND_PRESETS, 'transparent'])}."
         )
 
 
@@ -76,7 +77,7 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark", "black"] | None = None,
+        background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         offline: bool = False,
@@ -130,7 +131,7 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark", "black"] | None = None,
+        background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         three_module_url: str | None = None,
@@ -142,8 +143,9 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            background: Background preset — ``"dark"`` (default), ``"light"``,
-                or solid ``"black"`` to match a black raster background.
+            background: Background mode — ``"dark"`` (default), ``"light"``,
+                solid ``"black"`` or ``"white"``, or ``"transparent"`` (including saved PNGs).
+                Transparent mode hides the environment background, not its lighting.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
             three_module_url: Explicit Three.js ES-module URL; defaults to unpkg.

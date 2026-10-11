@@ -64,6 +64,41 @@ def test_observe_captures_deterministic_beauty_pixels(playwright_browser):
     assert first.bounds.shape == (2, 3)
 
 
+@pytest.mark.parametrize("background", ["transparent", "white"])
+def test_observation_background_preserves_geometry_and_overlay_pixels(playwright_browser, background):
+    layer = hkw.layer(_triangle()).material(
+        "Diffuse",
+        hkw.texture.ScalarField(
+            hkw.attribute("temperature"),
+            legend=hkw.Legend(position="left", width=180),
+        ),
+    )
+    observation = hkw.observe(
+        layer,
+        views=["front"],
+        passes=["beauty", "depth", "normal", "element_id", "layer_id"],
+        resolution=(48, 48),
+        background=background,
+    )
+    beauty = np.asarray(observation.snapshot("front", "beauty").image)
+    ids = observation.snapshot("front", "element_id").data
+    foreground = ids != int(observation_module.BACKGROUND_ID)
+    # Expanded legend margins and untouched scene pixels follow the selected background.
+    if background == "transparent":
+        assert beauty[0, 0, 3] == 0
+        assert beauty[0, 180, 3] == 0
+        assert np.all(beauty[:, 180:, 3][foreground] > 0)
+        assert beauty[:, 180:, 3][foreground].max() == 255
+        assert np.any((beauty[:, 180:, 3] > 0) & (beauty[:, 180:, 3] < 255))
+    else:
+        assert tuple(beauty[0, 0]) == (255, 255, 255, 255)
+        assert tuple(beauty[0, 180]) == (255, 255, 255, 255)
+        assert np.all(beauty[:, 180:, 3] == 255)
+        assert np.any(beauty[:, 180:, :3][foreground] != 255)
+    assert observation.pick("front", (204, 24)) is not None
+    assert observation.snapshot("front", "depth").image.getpixel((0, 0))[3] == 255
+
+
 def test_observe_captures_raw_passes_and_pick(playwright_browser, tmp_path):
     layer = hkw.layer(_triangle()).material("Diffuse", "red")
     output = tmp_path / "observation"

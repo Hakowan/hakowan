@@ -567,12 +567,13 @@ def composite_overlays(
     right_width = max((legend.width for legend in right), default=0)
     left_extra, right_extra = _legend_expansion(source.size, legends)
 
-    if background is None:
+    if background is None or background == "transparent":
         canvas_color = (0, 0, 0, 0)
     else:
         canvas_color = {
             "dark": (18, 18, 18, 255),
             "light": (255, 255, 255, 255),
+            "white": (255, 255, 255, 255),
             "black": (0, 0, 0, 255),
         }[background]
     output = Image.new(

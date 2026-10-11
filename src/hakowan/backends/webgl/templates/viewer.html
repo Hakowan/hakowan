@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>{{TITLE}}</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: rgb({{BG_R_255}}, {{BG_G_255}}, {{BG_B_255}}); overflow: hidden; }
+  html, body { margin: 0; padding: 0; height: 100%; background: {{PAGE_BACKGROUND}}; overflow: hidden; }
   #viewer { width: 100vw; height: 100vh; display: block; }
   #status {
     position: absolute; top: 8px; left: 8px;
@@ -29,6 +29,14 @@
   #passes button:hover { background: rgba(255,255,255,0.18); }
   #passes button.active { background: rgba(255,255,255,0.28); }
   #passes .sep { width: 1px; background: rgba(255,255,255,0.18); margin: 0 2px; }
+  #background-control { position: relative; }
+  #background-options {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 10;
+    padding: 4px; border-radius: 4px; background: rgba(25,25,25,0.95);
+    min-width: 130px;
+  }
+  #background-options:not([hidden]) { display: flex; flex-direction: column; gap: 4px; }
+  #background-options button { text-align: left; white-space: nowrap; }
   #clip-controls {
     position: absolute; top: 44px; right: 8px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -149,7 +157,8 @@ let layerNodeMap = new Map();
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setClearColor(0x000000, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 // Match the Mitsuba backend, which writes radiance with a plain linear->sRGB
@@ -159,15 +168,18 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1.0;
 
-// The light/dark studio backgrounds are radial gradients; black is flat.
+// Light/dark are radial gradients; black/white are flat and transparent is null.
 // Assign the result to scene.background so transmission materials can sample
 // the active background. Regenerate when the viewport or preset changes.
 function _rgb(c) {
   return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
 }
 const blackBackground = new THREE.Color(0, 0, 0);
+const whiteBackground = new THREE.Color(1, 1, 1);
 function makeStudioBackground(w, h) {
+  if (bgMode === 'transparent') return null;
   if (bgMode === 'black') return blackBackground;
+  if (bgMode === 'white') return whiteBackground;
   const palette = BG_PRESETS[bgMode];
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, w);
@@ -189,23 +201,33 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+function beautyBackground() {
+  return bgMode === 'transparent' ? null : (envBackground ?? studioBackground);
+}
 // Apply the backend-neutral environment orientation encoded by envmap_descriptor.
 let envRotationSupported = false; // three.js >= r163 exposes scene.environmentRotation
 const _envMat = new THREE.Matrix4();
 const _envEuler = new THREE.Euler();
 
+const backgroundIcons = { light: '☀', dark: '☾', black: '⚫', white: '⚪', transparent: '👻' };
+function updateBackgroundButton(btn) {
+  btn.textContent = backgroundIcons[bgMode];
+  btn.title = `Background: ${bgMode}. Choose background`;
+  btn.setAttribute('aria-label', btn.title);
+}
+
 function setBackgroundMode(mode) {
-  if (!BG_PRESETS[mode]) return;
+  if (mode !== 'transparent' && !BG_PRESETS[mode]) return;
   bgMode = mode;
   const previous = studioBackground;
   studioBackground = makeStudioBackground(canvas.width, canvas.height);
-  if (currentPass === 'beauty' && envBackground === null) {
-    scene.background = studioBackground;
-  }
-  if (previous.isTexture) previous.dispose();
-  document.body.style.background = _rgb(BG_PRESETS[mode].edge);
+  if (currentPass === 'beauty') scene.background = beautyBackground();
+  if (previous?.isTexture) previous.dispose();
+  const pageBackground = mode === 'transparent' ? 'transparent' : _rgb(BG_PRESETS[mode].edge);
+  document.documentElement.style.background = pageBackground;
+  document.body.style.background = pageBackground;
   const btn = document.getElementById('btn-bg');
-  if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
+  if (btn) updateBackgroundButton(btn);
 }
 
 // Perspective and orthographic cameras share the same eye / orientation; the
@@ -320,10 +342,8 @@ function resize() {
     // The studio gradients depend on the viewport's aspect ratio.
     const old = studioBackground;
     studioBackground = makeStudioBackground(w, h);
-    if (currentPass === 'beauty' && envBackground === null) {
-      scene.background = studioBackground;
-    }
-    if (old.isTexture) old.dispose();
+    if (currentPass === 'beauty') scene.background = beautyBackground();
+    if (old?.isTexture) old.dispose();
   }
 }
 window.addEventListener('resize', resize);
@@ -378,13 +398,13 @@ async function loadEnvmap() {
     if ('environmentRotation' in scene) {
       envRotationSupported = true;
       if (ENVMAP.background) {
-        scene.background = envTexture;
         envBackground = envTexture;
+        scene.background = beautyBackground();
       }
       updateEnvRotation();
     } else if (ENVMAP.background) {
-      scene.background = envTexture;
       envBackground = envTexture;
+      scene.background = beautyBackground();
     }
     // The envmap now lights the scene via image-based lighting, exactly like
     // the Mitsuba backend (which uses the envmap as its only emitter). The
@@ -1048,7 +1068,7 @@ function setPass(pass) {
   // Background only shown in beauty pass; passes get a flat background to
   // keep the saved PNG free of envmap clutter.
   if (pass === 'beauty') {
-    scene.background = envBackground !== null ? envBackground : studioBackground;
+    scene.background = beautyBackground();
   } else if (pass === 'depth') {
     scene.background = new THREE.Color(1, 1, 1);
   } else {
@@ -1318,10 +1338,49 @@ function buildPassUI() {
   container.appendChild(projBtn);
   const bgBtn = document.createElement('button');
   bgBtn.id = 'btn-bg';
-  bgBtn.textContent = bgMode === 'light' ? '☀' : '☾';
-  bgBtn.title = 'Toggle light / dark background';
-  bgBtn.addEventListener('click', () => setBackgroundMode(bgMode === 'light' ? 'dark' : 'light'));
-  container.appendChild(bgBtn);
+  updateBackgroundButton(bgBtn);
+  const bgControl = document.createElement('div');
+  bgControl.id = 'background-control';
+  const bgOptions = document.createElement('div');
+  bgOptions.id = 'background-options';
+  bgOptions.hidden = true;
+  bgOptions.setAttribute('role', 'group');
+  bgOptions.setAttribute('aria-label', 'Background options');
+  bgBtn.setAttribute('aria-controls', bgOptions.id);
+  bgBtn.setAttribute('aria-expanded', 'false');
+  function closeBackgroundOptions(returnFocus = false) {
+    bgOptions.hidden = true;
+    bgBtn.setAttribute('aria-expanded', 'false');
+    if (returnFocus) bgBtn.focus();
+  }
+  for (const mode of ['light', 'dark', 'black', 'white', 'transparent']) {
+    const option = document.createElement('button');
+    option.dataset.background = mode;
+    option.textContent = `${backgroundIcons[mode]} ${mode[0].toUpperCase()}${mode.slice(1)}`;
+    option.addEventListener('click', () => {
+      setBackgroundMode(mode);
+      closeBackgroundOptions(true);
+    });
+    bgOptions.appendChild(option);
+  }
+  bgBtn.addEventListener('click', () => {
+    if (!bgOptions.hidden) { closeBackgroundOptions(); return; }
+    for (const option of bgOptions.children) {
+      option.setAttribute('aria-pressed', String(option.dataset.background === bgMode));
+      option.classList.toggle('active', option.dataset.background === bgMode);
+    }
+    bgOptions.hidden = false;
+    bgBtn.setAttribute('aria-expanded', 'true');
+    bgOptions.querySelector(`[data-background="${bgMode}"]`).focus();
+  });
+  bgControl.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { closeBackgroundOptions(true); event.stopPropagation(); }
+  });
+  document.addEventListener('click', event => {
+    if (!bgControl.contains(event.target)) closeBackgroundOptions();
+  });
+  bgControl.append(bgBtn, bgOptions);
+  container.appendChild(bgControl);
   const save = document.createElement('button');
   save.id = 'btn-save';
   save.textContent = '📷';

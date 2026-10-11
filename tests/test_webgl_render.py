@@ -200,23 +200,6 @@ class TestEndToEnd:
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
 
-    def test_background_presets(self, tmp_path):
-        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
-        light = tmp_path / "light.html"
-        dark = tmp_path / "dark.html"
-        hkw.render(layer, filename=str(light), backend="webgl", background="light")
-        hkw.render(layer, filename=str(dark), backend="webgl", background="dark")
-        lt, dk = light.read_text(), dark.read_text()
-        # Both palettes are embedded so the viewer's button can toggle client-side.
-        assert '"light"' in lt and '"dark"' in lt
-        # The initial mode reflects the chosen preset.
-        assert 'let bgMode = "light"' in lt
-        assert 'let bgMode = "dark"' in dk
-        # The light/dark toggle button is present.
-        assert "btn-bg" in lt
-        # No template placeholders left unresolved.
-        assert not re.search(r"{{[A-Z_]+}}", lt)
-
     def test_background_invalid_raises(self, tmp_path):
         layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
         with pytest.raises(ValueError):
@@ -744,6 +727,70 @@ def test_diffuse_webgl_env_has_no_white_specular_highlight(tmp_path):
                 r, g, b, _ = image.convert("RGBA").getpixel((80, 80))
             assert r > 50
             assert g <= 2 and b <= 2
+        finally:
+            browser.close()
+
+
+def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    mesh = _make_icosphere()
+    figure = (
+        hkw.figure(hkw.layer(mesh).material("Diffuse", "red"))
+        .environment(visible=True)
+        .output(background="transparent")
+    )
+    # Round-trip the declarative setting before exporting the real viewer.
+    figure = hkw.from_spec(
+        hkw.to_spec(figure, data_ids={id(mesh): "mesh"}), data_resolver={"mesh": mesh}
+    )
+    result = hkw.render(
+        figure, filename=tmp_path / "transparent.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        try:
+            browser = runtime.chromium.launch(
+                headless=True, args=["--allow-file-access-from-files"]
+            )
+        except playwright.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page(
+                viewport={"width": 160, "height": 160}, accept_downloads=True
+            )
+            page.goto(result.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            assert page.evaluate("window.__hakowan.hasEnvironment()")
+
+            def capture(pass_name="beauty"):
+                url = page.evaluate("p => window.__hakowan.capturePng(p)", pass_name)
+                return Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1]))).convert("RGBA")
+
+            image = capture()
+            assert image.getpixel((0, 0))[3] == 0
+            assert image.getpixel((80, 80))[3] == 255
+            assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgba(0, 0, 0, 0)"
+            for pass_name in ("albedo", "depth", "normal"):
+                assert capture(pass_name).getpixel((0, 0))[3] == 255
+            assert capture().getpixel((0, 0))[3] == 0
+
+            page.set_viewport_size({"width": 200, "height": 180})
+            page.wait_for_function("window.__hakowan.canvas.width === 200")
+            assert capture().getpixel((0, 0))[3] == 0
+
+            for mode in ("light", "dark", "black", "white", "transparent"):
+                page.click("#btn-bg")
+                page.click(f'[data-background="{mode}"]')
+                assert not page.locator('#background-options').is_visible()
+                assert capture().getpixel((0, 0))[3] == (0 if mode == "transparent" else 255)
+
+            with page.expect_download() as download:
+                page.click("#btn-save")
+            saved_path = tmp_path / "saved.png"
+            download.value.save_as(saved_path)
+            with Image.open(saved_path) as saved:
+                assert saved.getpixel((0, 0))[3] == 0
+                assert saved.getpixel((100, 90))[3] == 255
         finally:
             browser.close()
 

@@ -635,7 +635,7 @@ def _capture_sync(
     *,
     cameras: dict[str, CameraState] | None,
     config: Config | None,
-    background: Literal["light", "dark", "black"],
+    background: Literal["light", "dark", "black", "white", "transparent"],
     up_axis: Literal["y", "z"],
     timeout: float,
 ) -> _CaptureResult:
@@ -864,9 +864,9 @@ def _capture_context(
     root: Layer | Figure,
     config: Config | None,
     resolution: tuple[int, int] | None,
-    background: Literal["light", "dark", "black"] | None,
+    background: Literal["light", "dark", "black", "white", "transparent"] | None,
 ) -> tuple[
-    Layer, Config | None, tuple[int, int], Literal["light", "dark", "black"], bool
+    Layer, Config | None, tuple[int, int], Literal["light", "dark", "black", "white", "transparent"], bool
 ]:
     explicit_config = config is not None
     figure = root if isinstance(root, Figure) else None
@@ -903,7 +903,7 @@ def observe(
     cameras: dict[str, CameraState] | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark", "black"] | None = None,
+    background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     output_dir: str | Path | None = None,
     timeout: float = 60.0,
@@ -922,7 +922,7 @@ def observe(
         cameras: Explicit CameraState overrides keyed by view label.
         config: Explicit invocation configuration.
         backend: Capture backend; currently only ``webgl`` is supported.
-        background: Light or dark studio background.
+        background: Light/dark studio gradient, solid black/white, or transparent beauty background.
         up_axis: Coordinate convention used by named camera presets.
         output_dir: Optional directory for PNG, NPY, contact-sheet, and manifest files.
         timeout: Chromium capture timeout in seconds.

@@ -53,12 +53,29 @@ is useful if you want to expert the scene and fine-tune the visualization in Ble
 
 Use WebGL for an interactive, shareable browser viewer. It requires only the base install and a
 modern browser. By default, it supports live albedo, depth, and normal passes. In addition, it
-supports interactive layer toggle, perspective/orthographic camera switch, light/dark background
-switch, and interactive clipping plane.
+supports interactive layer toggle, perspective/orthographic camera switch, background
+switching, and interactive clipping plane.
 
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl")
 ```
+
+Use `background="transparent"` to reveal the embedding page behind the viewer and
+preserve alpha in saved beauty-pass PNGs:
+
+```py
+hkw.render(layer, filename="viewer.html", backend="webgl", background="transparent")
+```
+
+The same setting is available through `Config.background`,
+`figure.output(background="transparent")`, and `hkw.observe(..., background="transparent")`.
+Transparent mode hides a camera-visible environment map but retains its lighting
+and reflections. Albedo, depth, and normal passes keep their opaque diagnostic
+backgrounds. `None` still selects the default dark viewer background.
+
+Use `background="white"` for solid opaque white instead of the `"light"` studio
+gradient. It is also supported by `Config.background`, Figure output settings,
+observation snapshots, and raster output backgrounds.
 
 #### Viewer controls
 
@@ -85,7 +102,9 @@ clipping plane orientation and offset interactively.
 option is only relevant for juxtaposed views.
 * "**<**"/"**>**" toggles between perspective and orthographic camera projection. The default is
 perspective.
-* "☀" / "☾" toggles between light and dark background gradients. The default is dark.
+* Click the background button to choose light (☀), dark (☾), black (⚫), white (⚪),
+  or transparent (👻) from its submenu. Click outside or press Escape to dismiss it.
+  The default is dark.
 * "**:camera:**" button saves a snapshot of the current view as a PNG image.
 
 

@@ -178,7 +178,7 @@ the same layer can occlude it, including segments split into material groups.
 Raster legends and annotations are drawn over the beauty image when the panels fit.
 If a legend panel exceeds the available width, the output canvas expands to make
 room. Use the `background` option to flatten transparent renders onto a light,
-dark, or black background.
+dark, black, or white background; `"transparent"` preserves alpha, including expanded margins.
 
 ## Observation manifests
 
