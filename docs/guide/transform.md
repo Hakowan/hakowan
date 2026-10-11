@@ -72,12 +72,17 @@ l = hkw.layer().rotate(v, theta)
 Compute transform is designed to compute a set of commonly used attributes from the data frame.
 Currently, the following attributes can be computed:
 
-* X|Y|Z coordinates
-* Normal
-* Component
+* `x`, `y`, and `z`: extract coordinate attributes.
+* `normal`: compute the normal vector field.
+* `vertex_normal`: compute one normal per vertex.
+* `facet_normal`: compute one normal per facet.
+* `component`: compute connected-component IDs.
 
 ```py
-# Add per-facet component id attribute named "comp"
+# Compute per-vertex normals in an attribute named "normal".
+tr = hkw.transform.Compute(vertex_normal="normal")
+
+# Add per-facet component IDs in an attribute named "comp".
 tr = hkw.transform.Compute(component="comp")
 ```
 

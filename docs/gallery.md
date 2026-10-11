@@ -32,6 +32,8 @@
 
 - [![Flowers](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flowers/results/flowers.webp?raw=true)](examples/flowers.md)
 
+- [![Points](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Points/results/points.webp?raw=true)](examples/points.md)
+
 - [![TetWild Cutaway](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/TetWild/results/bust.webp?raw=true)](examples/tetwild.md)
 
 - [![Elevation Map](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Elevation/results/usgs_1_n35112.webp?raw=true)](examples/elevation.md)

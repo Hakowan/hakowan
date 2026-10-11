@@ -39,6 +39,7 @@ data = [
 docs = [
     "mkdocs-materialx>=10.2,<11",
     "mkdocstrings[python]>=0.24",
+    "dulwich>=0.25,<1",
 ]
 
 [project.scripts]
