@@ -69,7 +69,7 @@ class RenderResult:
         self,
         *,
         src: str | None = None,
-        title: str = "Interactive 3D visualization",
+        title: str = "Hakowan Interactive 3D Visualization",
         width: str = "100%",
         height: int = 500,
     ) -> str:

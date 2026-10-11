@@ -31,7 +31,7 @@ from .assets import copy_three_assets
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-_DEFAULT_TITLE = "hakowan"
+_DEFAULT_TITLE = "Hakowan Interactive 3D Visualization"
 
 # Beauty-pass presets: light/dark have soft studio gradients; black is flat.
 # Each specifies (center, edge) RGB in [0, 1].
