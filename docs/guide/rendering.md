@@ -100,12 +100,11 @@ clipping plane orientation and offset interactively.
 * "**2-sided**" toggles backface culling on/off.
 * "**rotate objects**" toggles the rotation center between object centroid and scene center. This
 option is only relevant for juxtaposed views.
-* "**<**"/"**>**" toggles between perspective and orthographic camera projection. The default is
+* "**<**"/"**=**" toggles between perspective and orthographic camera projection. The default is
 perspective.
 * Click the background button to choose auto (A), light (☀), dark (☾), black (⚫),
-  white (⚪), or transparent (👻). Click outside or press Escape to dismiss the submenu.
-  Auto is the default and follows the browser's system theme, not a manually selected docs theme.
-  Observation snapshots retain a deterministic dark default; Figure/Config `"auto"` resolves to dark for captures.
+  white (⚪), or transparent (👻).
+  Auto is the default and follows the browser's system theme.
 * "**:camera:**" button saves a snapshot of the current view as a PNG image.
 
 
@@ -142,7 +141,7 @@ Open `http://127.0.0.1:8000/viewer.html`. Offline viewer packaging is a `render(
 workflow, not an observation output.
 
 
-## Mitsuba
+### Mitsuba
 
 Use Mitsuba for photorealistic images with advanced materials and lighting,
 including GPU-accelerated rendering where supported. Install the optional extra:
@@ -157,16 +156,8 @@ hkw.render(layer, filename="output.exr", backend="mitsuba")
 hkw.render(layer, filename="output.exr", backend="mitsuba", yaml_file="scene.yaml")
 ```
 
-### Curve material limitations
 
-For edge-derived `Curve` marks, Mitsuba supports vertex- and facet-valued
-`ScalarField` inputs on `Diffuse` and `Principled` materials. Each facet value
-is expanded to the segment's two endpoints; on a shared mesh edge, the first
-incident facet supplies the value. Vertex-valued inputs must resolve to the
-same BSDF at both endpoints of each edge; varying values require a tube mesh.
-Attribute-driven materials on vector-field curves remain unsupported.
-
-## Blender
+### Blender
 
 Use Blender for Cycles or EEVEE images, editable `.blend` scenes, or albedo,
 depth, normal, and facet-ID passes. The extra requires Python 3.13:
@@ -180,22 +171,6 @@ hkw.render(layer, filename="output.png", backend="blender", blend_file="scene.bl
 # Select EEVEE instead of Cycles.
 hkw.render(layer, filename="output.png", backend="blender", engine="BLENDER_EEVEE")
 ```
-
-### Inspect capabilities
-
-Capability declarations can be queried without importing heavyweight backend
-modules, including declarations for unavailable optional backends:
-
-```py
-caps = hkw.backend_capabilities("webgl")
-print(caps.marks, caps.render_passes, caps.features, caps.limitations)
-payload = caps.to_dict()  # JSON-safe
-all_capabilities = hkw.list_backend_capabilities()
-hkw.validate(layer, backend="webgl", strict=True)
-```
-
-Strict validation rejects requested behavior that the selected backend would
-approximate or ignore. Use it before selecting a backend for an automated task.
 
 ### Work with the result
 
@@ -221,3 +196,20 @@ is missing, install its extra in the Python environment running Hakowan and
 check the requirements above. WebGL is part of the base install and is always
 available. For Chromium installation or capture limitations, use the
 [capture guide](observation.md).
+
+### Inspect capabilities
+
+Capability declarations can be queried without importing heavyweight backend
+modules, including declarations for unavailable optional backends:
+
+```py
+caps = hkw.backend_capabilities("webgl")
+print(caps.marks, caps.render_passes, caps.features, caps.limitations)
+payload = caps.to_dict()  # JSON-safe
+all_capabilities = hkw.list_backend_capabilities()
+hkw.validate(layer, backend="webgl", strict=True)
+```
+
+Strict validation rejects requested behavior that the selected backend would
+approximate or ignore. Use it before selecting a backend for an automated task.
+
