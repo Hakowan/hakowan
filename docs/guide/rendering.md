@@ -1,13 +1,13 @@
 # Rendering and viewers
 
-Hakowan provides two ways to create visualization from a layer specification:
+Hakowan provides two ways to create visualizations from a layer specification:
 
-* `render(...)` generates the final polished rendering of a visualization. It is great for producing
-paper figures, presentations, and interactive demostration.
+* `render(...)` generates a polished final rendering of a visualization. It is useful for producing
+  paper figures, presentations, and interactive demonstrations.
 * `observe(...)` provides fast and structured views of the visualization. It is designed for
-automatic inspection of the visualization by AI agents.
+  automatic inspection of visualizations by AI agents.
 
-This section focuses on `render` feature, and [next section](observation.md) goes over `observe` feature.
+This section focuses on the `render` feature, and the [next section](observation.md) covers the `observe` feature.
 
 ## Simple use case
 
@@ -24,7 +24,7 @@ print(result.path)              # The output visualization file
 ## Backends
 
 Hakowan supports three rendering backends: WebGL, Mitsuba, and Blender. WebGL is the default
-backend. It ships with the base install. Mitsuba and Blender are optional. They can be installed
+backend that ships with the base install. Mitsuba and Blender are optional. They can be installed
 with `pip install "hakowan[mitsuba]"` or `pip install "hakowan[blender]"`. To see which backends are
 available:
 
@@ -32,7 +32,7 @@ available:
 print(hkw.list_backends())  # installed, available backends
 ```
 
-To use a different default backend:
+To change the default backend:
 
 ```py
 hkw.set_default_backend("mitsuba")
@@ -45,16 +45,15 @@ hkw.render(layer, filename="output.exr", backend="mitsuba")
 ```
 
 It is recommended to use WebGL for interactive visualization or demos because it is fast and easy to
-share. Mitsuba is great to generate polished visualization for publication and presentation. Blender
-is useful if you want to expert the scene and fine-tune the visualization in Blender.
+share. Mitsuba is useful for generating polished visualizations for publication and presentations. Blender
+is useful if you want to export the scene and fine-tune it in Blender.
 
 
 ### WebGL
 
 Use WebGL for an interactive, shareable browser viewer. It requires only the base install and a
-modern browser. By default, it supports live albedo, depth, and normal passes. In addition, it
-supports interactive layer toggle, perspective/orthographic camera switch, background
-switching, and interactive clipping plane.
+modern browser. By default, it supports a number of useful features for interactive visualization,
+including different render passes, wireframe, clipping planes, and camera projection switching.
 
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl")
@@ -79,19 +78,18 @@ observation snapshots, and raster output backgrounds.
 
 #### Viewer controls
 
-In the interactive viewer, use left mouse button to rotate, right mouse button to pan, and mouse
+In the interactive viewer, use the left mouse button to rotate, the right mouse button to pan, and the mouse
 wheel to zoom.
 
 ![Layer list](../images/layer_checkboxes.webp){: align="right" style="width:90px"}
 
 A unique feature of the interactive viewer is that it allows users to toggle the visibility of each
-layer. On the bottom left corner of the viewer is a list of checkboxes with the names of each layer.
-Unnamed layers receive generated labels. Click a checkbox to toggle the visibility of the
-corresponding layer interactively.
+layer. In the bottom-left corner of the viewer is a list of checkboxes labeled with the layer names.
+Unnamed layers receive generated labels. Click a checkbox to toggle the corresponding layer's visibility.
 
 ![Viewer control](../images/viewer_control.webp){: style="width:500px"}
 
-On the top right corner of the viewer is a set of viewer control buttons.
+The top-right corner of the viewer contains a set of control buttons.
 
 * "**beauty**", "**albedo**", "**depth**", "**normal**" buttons switch between different render passes.
 * "**wireframe**" toggles wireframe overlay on/off.
@@ -119,26 +117,23 @@ iframe = result.embed_html(src="visualizations/viewer.html", height=420)
 
 Set `src` to the published viewer path, or omit it when the embedding page and
 viewer share a directory. Adjust `title`, `width`, and `height` as needed.
+The resulting `iframe` HTML snippet can be inserted into an HTML page.
+Here is an example:
 
 <iframe src="../../gallery-demos/Spot/results/spot_wireframe.html" title="Interactive 3D visualization Demo" width="800" height="300" loading="lazy" style="border:0;"></iframe>
 
 
-#### Share an offline viewer
+#### Sharing
+
+The interactive visualization is stored in a self-contained HTML file that is ready to share.
+Just send the HTML file. Depending on the complexity of the scene, it may be large. To
+reduce the size of the HTML file, the assets can be stored in a separate folder. Use
+`offline=True` to generate a `viewer_assets/` folder containing GlTF assets alongside the HTML
+file:
 
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl", offline=True)
 ```
-
-Publish `viewer.html` and its sibling `viewer_assets/` directory together,
-preserving relative paths. Browsers block local ES-module imports from `file://`;
-serve the folder over HTTP:
-
-```sh
-python -m http.server --directory /path/to/output 8000
-```
-
-Open `http://127.0.0.1:8000/viewer.html`. Offline viewer packaging is a `render()`
-workflow, not an observation output.
 
 
 ### Mitsuba
@@ -156,10 +151,13 @@ hkw.render(layer, filename="output.exr", backend="mitsuba")
 hkw.render(layer, filename="output.exr", backend="mitsuba", yaml_file="scene.yaml")
 ```
 
+The optional `yaml_file` argument saves the Mitsuba scene configuration in a YAML file. This is
+useful for debugging Mitsuba or for re-rendering the scene with Mitsuba directly.
+
 
 ### Blender
 
-Use Blender for Cycles or EEVEE images, editable `.blend` scenes, or albedo,
+Use Blender for Cycles or EEVEE images, editable `.blend` scenes, and albedo,
 depth, normal, and facet-ID passes. The extra requires Python 3.13:
 
 ```sh
@@ -171,6 +169,11 @@ hkw.render(layer, filename="output.png", backend="blender", blend_file="scene.bl
 # Select EEVEE instead of Cycles.
 hkw.render(layer, filename="output.png", backend="blender", engine="BLENDER_EEVEE")
 ```
+
+The optional `blend_file` argument saves the Blender scene in a `.blend` file. This is useful for
+debugging Blender or for re-rendering the scene with Blender directly. The optional `engine`
+argument selects the Blender rendering engine. The default is Cycles, but EEVEE can be selected
+for faster rendering of simple scenes.
 
 ### Work with the result
 
