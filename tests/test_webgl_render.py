@@ -791,6 +791,22 @@ def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
             with Image.open(saved_path) as saved:
                 assert saved.getpixel((0, 0))[3] == 0
                 assert saved.getpixel((100, 90))[3] == 255
+            # Auto follows theme changes; explicit selection must opt out.
+            default_viewer = hkw.render(
+                hkw.layer(mesh), filename=tmp_path / 'default.html', backend='webgl', offline=True
+            )
+            page.goto(default_viewer.path.resolve().as_uri(), wait_until='domcontentloaded')
+            page.wait_for_function('window.__hakowan_loaded === true')
+            page.emulate_media(color_scheme="light")
+            page.wait_for_function("getComputedStyle(document.body).backgroundColor === 'rgb(158, 161, 168)'")
+            light_pixels = np.asarray(capture())
+            page.emulate_media(color_scheme="dark")
+            page.wait_for_function("getComputedStyle(document.body).backgroundColor === 'rgb(13, 13, 15)'")
+            assert not np.array_equal(light_pixels, np.asarray(capture()))
+            page.click('#btn-bg')
+            page.click('[data-background="white"]')
+            page.emulate_media(color_scheme="light")
+            assert capture().getpixel((0, 0)) == (255, 255, 255, 255)
         finally:
             browser.close()
 

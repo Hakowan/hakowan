@@ -567,7 +567,7 @@ def composite_overlays(
     right_width = max((legend.width for legend in right), default=0)
     left_extra, right_extra = _legend_expansion(source.size, legends)
 
-    if background is None or background == "transparent":
+    if background is None or background == "auto" or background == "transparent":
         canvas_color = (0, 0, 0, 0)
     else:
         canvas_color = {

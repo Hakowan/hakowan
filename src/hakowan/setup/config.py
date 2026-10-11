@@ -57,14 +57,14 @@ class Config:
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
     environment_visible: bool = False
-    background: Literal["light", "dark", "black", "white", "transparent"] | None = None
+    background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None
 
     def __setattr__(self, name, value):
         if name == "background" and value not in {
-            None, "light", "dark", "black", "white", "transparent"
+            None, "auto", "light", "dark", "black", "white", "transparent"
         }:
             raise ValueError(
-                "Config.background must be 'light', 'dark', 'black', 'white', 'transparent', or None."
+                "Config.background must be 'auto', 'light', 'dark', 'black', 'white', 'transparent', or None."
             )
         object.__setattr__(self, name, value)
 

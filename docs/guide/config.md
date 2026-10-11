@@ -72,10 +72,11 @@ dithering disabled so the index decodes exactly. Background pixels have
 
 ## Output background
 
-`Config.background` accepts `"light"`, `"dark"`, `"black"`, `"white"`, `"transparent"`, or `None`
+`Config.background` accepts `"auto"`, `"light"`, `"dark"`, `"black"`, `"white"`, `"transparent"`, or `None`
 (no background override). WebGL's `"transparent"` mode preserves alpha in the
-viewer and saved beauty-pass PNGs; `None` retains its dark studio default.
-Raster backends treat `"transparent"` like `None`, preserving their rendered alpha.
+viewer and saved beauty-pass PNGs; `None` selects WebGL's `"auto"` default, which
+follows the system light/dark theme and updates live. Explicit modes stay fixed.
+Raster backends treat `"auto"` and `"transparent"` like `None`, preserving rendered alpha.
 `"white"` is solid opaque white; unlike WebGL's `"light"` setting, it has no gradient.
 
 ## Sensor settings

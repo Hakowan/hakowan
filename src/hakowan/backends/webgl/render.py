@@ -43,14 +43,14 @@ _BACKGROUND_PRESETS: dict[
     "black": ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
     "white": ((1.0, 1.0, 1.0), (1.0, 1.0, 1.0)),
 }
-_DEFAULT_BACKGROUND: Literal["light", "dark"] = "dark"
+_DEFAULT_BACKGROUND: Literal["auto"] = "auto"
 
 
-def _validate_background(name: Literal["light", "dark", "black", "white", "transparent"]) -> None:
+def _validate_background(name: Literal["auto", "light", "dark", "black", "white", "transparent"]) -> None:
     """Raise ``ValueError`` if ``name`` is not a known background mode."""
-    if name != "transparent" and name not in _BACKGROUND_PRESETS:
+    if name not in {"auto", "transparent"} and name not in _BACKGROUND_PRESETS:
         raise ValueError(
-            f"Unknown background {name!r}; choose from {sorted([*_BACKGROUND_PRESETS, 'transparent'])}."
+            f"Unknown background {name!r}; choose from {sorted([*_BACKGROUND_PRESETS, 'auto', 'transparent'])}."
         )
 
 
@@ -77,7 +77,7 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         offline: bool = False,
@@ -131,7 +131,7 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         three_module_url: str | None = None,
@@ -143,7 +143,7 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            background: Background mode — ``"dark"`` (default), ``"light"``,
+            background: Background mode — system-aware ``"auto"`` (default), ``"dark"``, ``"light"``,
                 solid ``"black"`` or ``"white"``, or ``"transparent"`` (including saved PNGs).
                 Transparent mode hides the environment background, not its lighting.
             title: HTML page title.

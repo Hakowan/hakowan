@@ -192,8 +192,8 @@ render device, and performance-specific sample counts remain invocation options.
 
 `background` defaults to `None`: Mitsuba and Blender retain backend alpha in
 formats that support it. Set `"light"`, `"dark"`, `"black"`, or `"white"` to flatten
-transparent pixels onto an opaque raster background. WebGL uses its dark studio
-gradient by default; `"black"` makes its initial viewer background solid black
+transparent pixels onto an opaque raster background. WebGL follows the system
+light/dark theme by default (`"auto"`); `"black"` makes its initial viewer background solid black
 to match a black raster output. Use `"transparent"` for a transparent WebGL
 viewer and beauty-pass PNGs, including observation snapshots. Environment
 lighting remains active, but WebGL hides the environment background in this mode.

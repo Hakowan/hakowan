@@ -71,7 +71,7 @@ The same setting is available through `Config.background`,
 `figure.output(background="transparent")`, and `hkw.observe(..., background="transparent")`.
 Transparent mode hides a camera-visible environment map but retains its lighting
 and reflections. Albedo, depth, and normal passes keep their opaque diagnostic
-backgrounds. `None` still selects the default dark viewer background.
+backgrounds. `None` selects `"auto"`, following the system light/dark theme live.
 
 Use `background="white"` for solid opaque white instead of the `"light"` studio
 gradient. It is also supported by `Config.background`, Figure output settings,
@@ -102,9 +102,10 @@ clipping plane orientation and offset interactively.
 option is only relevant for juxtaposed views.
 * "**<**"/"**>**" toggles between perspective and orthographic camera projection. The default is
 perspective.
-* Click the background button to choose light (☀), dark (☾), black (⚫), white (⚪),
-  or transparent (👻) from its submenu. Click outside or press Escape to dismiss it.
-  The default is dark.
+* Click the background button to choose auto (A), light (☀), dark (☾), black (⚫),
+  white (⚪), or transparent (👻). Click outside or press Escape to dismiss the submenu.
+  Auto is the default and follows the browser's system theme, not a manually selected docs theme.
+  Observation snapshots retain a deterministic dark default; Figure/Config `"auto"` resolves to dark for captures.
 * "**:camera:**" button saves a snapshot of the current view as a PNG image.
 
 

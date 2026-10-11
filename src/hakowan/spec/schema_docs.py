@@ -298,7 +298,7 @@ FIELD_OVERRIDES = {
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
     ("OutputSettingsSpec", "background"): (
         "Light, dark, black, or white opaque background, or transparent to preserve alpha. "
-        "Null preserves raster alpha but selects WebGL's dark studio default. "
+        "Auto follows the system theme in WebGL; null selects auto in WebGL and preserves raster alpha. "
         "WebGL transparent beauty backgrounds retain environment lighting."
     ),
     (

@@ -882,13 +882,14 @@ def _capture_context(
             resolution = (512, 512)
     if background is None:
         if explicit_config and config is not None and config.background is not None:
-            background = config.background
+            background = "dark" if config.background == "auto" else config.background
         elif (
             figure is not None
             and not explicit_config
             and figure.scene.output is not None
         ):
-            background = figure.scene.output.background or "dark"
+            output_background = figure.scene.output.background
+            background = "dark" if output_background is None or output_background == "auto" else output_background
         else:
             background = "dark"
     return runtime_layer, config, resolution, background, explicit_config

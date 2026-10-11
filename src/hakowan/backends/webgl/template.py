@@ -66,7 +66,7 @@ def render_html(
     if background == "transparent":
         page_background = "transparent"
     else:
-        r, g, b = backgrounds[background][1]  # selected preset's edge colour
+        r, g, b = backgrounds["light" if background == "auto" else background][1]
         page_background = f"rgb({round(r * 255)}, {round(g * 255)}, {round(b * 255)})"
     if three_module_url is None:
         three_module_url = (

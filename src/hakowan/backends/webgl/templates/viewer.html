@@ -140,6 +140,10 @@ const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
 let bgMode = {{BG_MODE}};
+const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+function resolvedBackgroundMode() {
+  return bgMode === 'auto' ? (systemTheme.matches ? 'dark' : 'light') : bgMode;
+}
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
 const INITIAL_CAMERA_MODE = {{INITIAL_CAMERA_MODE}};
@@ -180,7 +184,7 @@ function makeStudioBackground(w, h) {
   if (bgMode === 'transparent') return null;
   if (bgMode === 'black') return blackBackground;
   if (bgMode === 'white') return whiteBackground;
-  const palette = BG_PRESETS[bgMode];
+  const palette = BG_PRESETS[resolvedBackgroundMode()];
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, w);
   cv.height = Math.max(2, h);
@@ -209,7 +213,7 @@ let envRotationSupported = false; // three.js >= r163 exposes scene.environmentR
 const _envMat = new THREE.Matrix4();
 const _envEuler = new THREE.Euler();
 
-const backgroundIcons = { light: '☀', dark: '☾', black: '⚫', white: '⚪', transparent: '👻' };
+const backgroundIcons = { auto: 'A', light: '☀', dark: '☾', black: '⚫', white: '⚪', transparent: '👻' };
 function updateBackgroundButton(btn) {
   btn.textContent = backgroundIcons[bgMode];
   btn.title = `Background: ${bgMode}. Choose background`;
@@ -217,18 +221,21 @@ function updateBackgroundButton(btn) {
 }
 
 function setBackgroundMode(mode) {
-  if (mode !== 'transparent' && !BG_PRESETS[mode]) return;
+  if (mode !== 'auto' && mode !== 'transparent' && !BG_PRESETS[mode]) return;
   bgMode = mode;
   const previous = studioBackground;
   studioBackground = makeStudioBackground(canvas.width, canvas.height);
   if (currentPass === 'beauty') scene.background = beautyBackground();
   if (previous?.isTexture) previous.dispose();
-  const pageBackground = mode === 'transparent' ? 'transparent' : _rgb(BG_PRESETS[mode].edge);
+  const pageBackground = mode === 'transparent' ? 'transparent' : _rgb(BG_PRESETS[resolvedBackgroundMode()].edge);
   document.documentElement.style.background = pageBackground;
   document.body.style.background = pageBackground;
   const btn = document.getElementById('btn-bg');
   if (btn) updateBackgroundButton(btn);
 }
+systemTheme.addEventListener('change', () => {
+  if (bgMode === 'auto') setBackgroundMode('auto');
+});
 
 // Perspective and orthographic cameras share the same eye / orientation; the
 // viewer toggles which one is active (perspective by default). OrbitControls
@@ -1353,7 +1360,7 @@ function buildPassUI() {
     bgBtn.setAttribute('aria-expanded', 'false');
     if (returnFocus) bgBtn.focus();
   }
-  for (const mode of ['light', 'dark', 'black', 'white', 'transparent']) {
+  for (const mode of ['auto', 'light', 'dark', 'black', 'white', 'transparent']) {
     const option = document.createElement('button');
     option.dataset.background = mode;
     option.textContent = `${backgroundIcons[mode]} ${mode[0].toUpperCase()}${mode.slice(1)}`;
@@ -1954,6 +1961,7 @@ function animate() {
   requestAnimationFrame(animate);
 }
 resize();
+setBackgroundMode(bgMode);
 animate();
 </script>
 </body>

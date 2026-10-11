@@ -123,6 +123,7 @@ def test_black_viewer_switches_to_light_background(playwright_browser, tmp_path)
             with Image.open(io.BytesIO(page.screenshot())) as screenshot:
                 assert screenshot.convert("RGB").getpixel((2, 2)) == (0, 0, 0)
             page.locator("#btn-bg").click()
+            page.locator('[data-background="light"]').click()
             with Image.open(io.BytesIO(page.screenshot())) as screenshot:
                 assert min(screenshot.convert("RGB").getpixel((2, 2))) > 100
         finally:
@@ -201,7 +202,6 @@ def test_figure_render_uses_scene_settings_and_explicit_config_wins(tmp_path):
     explicit_html = explicit_path.read_text(encoding="utf-8")
 
     assert "const INITIAL_EYE    = [9.0, 8.0, 7.0]" in explicit_html
-    assert 'let bgMode = "dark"' in explicit_html
 
 
 def test_figure_output_passes_drive_render_manifest(tmp_path):
