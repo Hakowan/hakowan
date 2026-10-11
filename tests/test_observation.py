@@ -47,6 +47,16 @@ def playwright_browser():
         pytest.skip(f"Playwright Chromium is unavailable: {exc}")
 
 
+def test_observation_defaults_to_transparent_beauty_background(playwright_browser):
+    layer = hkw.layer(_triangle()).material("Diffuse", "red")
+    for root in (layer, hkw.figure(layer)):
+        image = hkw.observe(
+            root, views=["front"], passes=["beauty"], resolution=(48, 48)
+        ).snapshot("front", "beauty").image
+        assert image.mode == "RGBA"
+        assert image.getpixel((0, 0))[3] == 0
+
+
 def test_observe_captures_deterministic_beauty_pixels(playwright_browser):
     layer = hkw.layer(_triangle()).material("Diffuse", "red")
 

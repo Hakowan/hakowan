@@ -882,16 +882,16 @@ def _capture_context(
             resolution = (512, 512)
     if background is None:
         if explicit_config and config is not None and config.background is not None:
-            background = "dark" if config.background == "auto" else config.background
+            background = "transparent" if config.background == "auto" else config.background
         elif (
             figure is not None
             and not explicit_config
             and figure.scene.output is not None
         ):
             output_background = figure.scene.output.background
-            background = "dark" if output_background is None or output_background == "auto" else output_background
+            background = "transparent" if output_background is None or output_background == "auto" else output_background
         else:
-            background = "dark"
+            background = "transparent"
     return runtime_layer, config, resolution, background, explicit_config
 
 
@@ -923,7 +923,7 @@ def observe(
         cameras: Explicit CameraState overrides keyed by view label.
         config: Explicit invocation configuration.
         backend: Capture backend; currently only ``webgl`` is supported.
-        background: Light/dark studio gradient, solid black/white, or transparent beauty background.
+        background: Transparent by default; light/dark gradients, solid black/white, or other modes can be selected explicitly.
         up_axis: Coordinate convention used by named camera presets.
         output_dir: Optional directory for PNG, NPY, contact-sheet, and manifest files.
         timeout: Chromium capture timeout in seconds.

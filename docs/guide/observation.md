@@ -55,6 +55,10 @@ capture.bounds            # rendered scene bounds
 capture.diagnostics       # structured validation diagnostics
 ```
 
+Beauty snapshots default to a transparent background, preserving alpha around the
+rendered scene. Pass `background="light"`, `"dark"`, `"black"`, or `"white"` to
+choose an opaque background; `"auto"` and `"transparent"` capture with transparency.
+
 Supported deterministic view presets:
 
 - `front`, `back`
