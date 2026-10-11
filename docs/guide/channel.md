@@ -211,7 +211,12 @@ ch = hkw.channel.Covariance(data="covariance_attr", full=True)
 
 ## Shape channel
 
-`Shape` selects the base shape used to visualize points.
+![Shape channel](../images/point_shape.webp){: style="width:800px"}
+
+`Shape` selects the base shape used to visualize points. Options include `sphere`, `cube`, and
+`disk`. The `orientation` parameter can be used to specify an attribute that defines the
+orientation of the glyphs. If no orientation is provided, the glyphs will be aligned with the
+default axes.
 
 | Channel | Type | Description |
 |---------|------|-------------|
