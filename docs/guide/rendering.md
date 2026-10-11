@@ -1,6 +1,6 @@
 # Rendering and viewers
 
-Hakowan provides two ways to create visualization based on the grammar:
+Hakowan provides two ways to create visualization from a layer specification:
 
 * `render(...)` generates the final polished rendering of a visualization. It is great for producing
 paper figures, presentations, and interactive demostration.
@@ -9,96 +9,89 @@ automatic inspection of the visualization by AI agents.
 
 This section focuses on `render` feature, and [next section](observation.md) goes over `observe` feature.
 
-## Render a scene
+## Simple use case
 
-WebGL is the default backend:
+Here is a simple example of generating an interactive WebGL visualization from a layer:
 
 ```py
 import hakowan as hkw
 
-layer = hkw.layer("mesh.obj")
-result = hkw.render(layer, filename="viewer.html")
-print(result.path)
+layer = hkw.layer("mesh.obj")   # Change to your mesh file path
+result = hkw.render(layer)      # Backend-specific rendering
+print(result.path)              # The output visualization file
 ```
 
-### Work with the result
+## Backends
 
-Every backend returns a `RenderResult`:
-
-```py
-result.path       # main output path, or None if no filename was given
-result.image      # in-memory image (Mitsuba, Blender); None for WebGL
-result.outputs    # manifest: {"main": ..., "<pass>": <path or "interactive">}
-result.backend    # backend that produced the result
-```
-
-`result.outputs` includes per-pass sidecars; see [render passes](config.md#render-passes).
-When a main file was written, the result is path-like and can be passed to
-`open()` or `pathlib.Path`. Use `result.image` for notebook display.
-Full signatures are in the [render API reference](../api/render.md).
-
-## Choose and configure a backend
-
-WebGL ships with the base install. Mitsuba and Blender are optional; their
-installation requirements and options are grouped below by backend.
+Hakowan supports three rendering backends: WebGL, Mitsuba, and Blender. WebGL is the default
+backend. It ships with the base install. Mitsuba and Blender are optional. They can be installed
+with `pip install "hakowan[mitsuba]"` or `pip install "hakowan[blender]"`. To see which backends are
+available:
 
 ```py
 print(hkw.list_backends())  # installed, available backends
+```
+
+To use a different default backend:
+
+```py
 hkw.set_default_backend("mitsuba")
-hkw.render(layer, filename="output.exr")
-# An explicit backend overrides the process-wide default.
-hkw.render(layer, filename="viewer.html", backend="webgl")
 ```
 
-Without a changed default or explicit `backend=`, Hakowan uses WebGL. It does
-not automatically select Mitsuba or Blender just because they are installed.
-
-### Inspect capabilities
-
-Capability declarations can be queried without importing heavyweight backend
-modules, including declarations for unavailable optional backends:
+In addition, the `hkw.render()` function also accepts an optional `backend` argument to override the default backend for a single call:
 
 ```py
-caps = hkw.backend_capabilities("webgl")
-print(caps.marks, caps.render_passes, caps.features, caps.limitations)
-payload = caps.to_dict()  # JSON-safe
-all_capabilities = hkw.list_backend_capabilities()
-hkw.validate(layer, backend="webgl", strict=True)
+hkw.render(layer, filename="output.exr", backend="mitsuba")
 ```
 
-Strict validation rejects requested behavior that the selected backend would
-approximate or ignore. Use it before selecting a backend for an automated task.
+It is recommended to use WebGL for interactive visualization or demos because it is fast and easy to
+share. Mitsuba is great to generate polished visualization for publication and presentation. Blender
+is useful if you want to expert the scene and fine-tune the visualization in Blender.
 
-## WebGL
 
-Use WebGL for an interactive, shareable browser viewer. It requires only the
-base install and a modern browser, and supports live albedo, depth, and normal
-passes. Headless raster capture has separate requirements documented in the
-[capture guide](observation.md#installation).
+### WebGL
+
+Use WebGL for an interactive, shareable browser viewer. It requires only the base install and a
+modern browser. By default, it supports live albedo, depth, and normal passes. In addition, it
+supports interactive layer toggle, perspective/orthographic camera switch, light/dark background
+switch, and interactive clipping plane.
 
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl")
 ```
 
-### Viewer controls and backgrounds
+#### Viewer controls
 
-For multiple rendered layers, the viewer shows visibility checkboxes. Unnamed
-layers receive generated labels. The **−** button minimizes the list;
-**layers +** restores it without changing visibility.
+In the interactive viewer, use left mouse button to rotate, right mouse button to pan, and mouse
+wheel to zoom.
 
-The beauty view defaults to a soft dark studio gradient. `"light"` selects a
-light gradient; `"black"` selects an opaque black background:
+![Layer list](../images/layer_checkboxes.webp){: align="right" style="width:90px"}
 
-```py
-hkw.render(layer, filename="viewer.html", background="light")
-```
+A unique feature of the interactive viewer is that it allows users to toggle the visibility of each
+layer. On the bottom left corner of the viewer is a list of checkboxes with the names of each layer.
+Unnamed layers receive generated labels. Click a checkbox to toggle the visibility of the
+corresponding layer interactively.
 
-The **☀ / ☾** button switches light/dark gradients, even when the viewer starts
-black. Transparent materials such as `ThinDielectric` show the active background.
-Use `figure.output(background="black")` for black backgrounds in WebGL and
-opaque raster renders.
+![Viewer control](../images/viewer_control.webp){: style="width:500px"}
 
-### Embed a viewer
+On the top right corner of the viewer is a set of viewer control buttons.
+
+* "**beauty**", "**albedo**", "**depth**", "**normal**" buttons switch between different render passes.
+* "**wireframe**" toggles wireframe overlay on/off.
+* "**clip**" toggles the interactive clipping plane on/off. Once on, users can control the
+clipping plane orientation and offset interactively.
+* "**2-sided**" toggles backface culling on/off.
+* "**rotate objects**" toggles the rotation center between object centroid and scene center. This
+option is only relevant for juxtaposed views.
+* "**<**"/"**>**" toggles between perspective and orthographic camera projection. The default is
+perspective.
+* "☀" / "☾" toggles between light and dark background gradients. The default is dark.
+* "**:camera:**" button saves a snapshot of the current view as a PNG image.
+
+
+#### Embed a viewer
+
+The interactive visualization can be embedded in another webpage:
 
 ```py
 result = hkw.render(layer, filename="viewer.html", backend="webgl")
@@ -108,7 +101,10 @@ iframe = result.embed_html(src="visualizations/viewer.html", height=420)
 Set `src` to the published viewer path, or omit it when the embedding page and
 viewer share a directory. Adjust `title`, `width`, and `height` as needed.
 
-### Share an offline viewer
+<iframe src="../../gallery-demos/Spot/results/spot_wireframe.html" title="Interactive 3D visualization Demo" width="800" height="300" loading="lazy" style="border:0;"></iframe>
+
+
+#### Share an offline viewer
 
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl", offline=True)
@@ -125,12 +121,6 @@ python -m http.server --directory /path/to/output 8000
 Open `http://127.0.0.1:8000/viewer.html`. Offline viewer packaging is a `render()`
 workflow, not an observation output.
 
-### Curve material support
-
-Mesh-edge `Curve` marks support vertex- and facet-valued `ScalarField` colors on
-`Diffuse`, `Principled`, and `Plastic` materials. Vertex values color endpoints;
-facet values color each edge from its first incident facet, which is the owning
-line facet for a line mesh.
 
 ## Mitsuba
 
@@ -170,6 +160,39 @@ hkw.render(layer, filename="output.png", backend="blender", blend_file="scene.bl
 # Select EEVEE instead of Cycles.
 hkw.render(layer, filename="output.png", backend="blender", engine="BLENDER_EEVEE")
 ```
+
+### Inspect capabilities
+
+Capability declarations can be queried without importing heavyweight backend
+modules, including declarations for unavailable optional backends:
+
+```py
+caps = hkw.backend_capabilities("webgl")
+print(caps.marks, caps.render_passes, caps.features, caps.limitations)
+payload = caps.to_dict()  # JSON-safe
+all_capabilities = hkw.list_backend_capabilities()
+hkw.validate(layer, backend="webgl", strict=True)
+```
+
+Strict validation rejects requested behavior that the selected backend would
+approximate or ignore. Use it before selecting a backend for an automated task.
+
+### Work with the result
+
+Every backend returns a `RenderResult`:
+
+```py
+result.path       # main output path, or None if no filename was given
+result.image      # in-memory image (Mitsuba, Blender); None for WebGL
+result.outputs    # manifest: {"main": ..., "<pass>": <path or "interactive">}
+result.backend    # backend that produced the result
+```
+
+`result.outputs` includes per-pass sidecars; see [render passes](config.md#render-passes).
+When a main file was written, the result is path-like and can be passed to
+`open()` or `pathlib.Path`. Use `result.image` for notebook display.
+Full signatures are in the [render API reference](../api/render.md).
+
 
 ## Troubleshooting
 
