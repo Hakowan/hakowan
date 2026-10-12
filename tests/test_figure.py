@@ -83,9 +83,9 @@ def test_black_background_matches_webgl_observation_and_raster_compositor(
     )
     assert figure.to_config().background == "black"
 
-    snapshot = hkw.observe(
-        figure, views=["front"], passes=["beauty"]
-    ).snapshot("front", "beauty")
+    snapshot = hkw.observe(figure, views=["front"], passes=["beauty"]).snapshot(
+        "front", "beauty"
+    )
     assert snapshot.image.convert("RGB").getpixel((0, 0)) == (0, 0, 0)
 
     layer = hkw.layer(_triangle())

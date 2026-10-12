@@ -764,12 +764,17 @@ def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
 
             def capture(pass_name="beauty"):
                 url = page.evaluate("p => window.__hakowan.capturePng(p)", pass_name)
-                return Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1]))).convert("RGBA")
+                return Image.open(
+                    io.BytesIO(base64.b64decode(url.split(",", 1)[1]))
+                ).convert("RGBA")
 
             image = capture()
             assert image.getpixel((0, 0))[3] == 0
             assert image.getpixel((80, 80))[3] == 255
-            assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgba(0, 0, 0, 0)"
+            assert (
+                page.evaluate("getComputedStyle(document.body).backgroundColor")
+                == "rgba(0, 0, 0, 0)"
+            )
             for pass_name in ("albedo", "depth", "normal"):
                 assert capture(pass_name).getpixel((0, 0))[3] == 255
             assert capture().getpixel((0, 0))[3] == 0
@@ -781,8 +786,10 @@ def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
             for mode in ("light", "dark", "black", "white", "transparent"):
                 page.click("#btn-bg")
                 page.click(f'[data-background="{mode}"]')
-                assert not page.locator('#background-options').is_visible()
-                assert capture().getpixel((0, 0))[3] == (0 if mode == "transparent" else 255)
+                assert not page.locator("#background-options").is_visible()
+                assert capture().getpixel((0, 0))[3] == (
+                    0 if mode == "transparent" else 255
+                )
 
             with page.expect_download() as download:
                 page.click("#btn-save")
@@ -793,17 +800,26 @@ def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
                 assert saved.getpixel((100, 90))[3] == 255
             # Auto follows theme changes; explicit selection must opt out.
             default_viewer = hkw.render(
-                hkw.layer(mesh), filename=tmp_path / 'default.html', backend='webgl', offline=True
+                hkw.layer(mesh),
+                filename=tmp_path / "default.html",
+                backend="webgl",
+                offline=True,
             )
-            page.goto(default_viewer.path.resolve().as_uri(), wait_until='domcontentloaded')
-            page.wait_for_function('window.__hakowan_loaded === true')
+            page.goto(
+                default_viewer.path.resolve().as_uri(), wait_until="domcontentloaded"
+            )
+            page.wait_for_function("window.__hakowan_loaded === true")
             page.emulate_media(color_scheme="light")
-            page.wait_for_function("getComputedStyle(document.body).backgroundColor === 'rgb(158, 161, 168)'")
+            page.wait_for_function(
+                "getComputedStyle(document.body).backgroundColor === 'rgb(158, 161, 168)'"
+            )
             light_pixels = np.asarray(capture())
             page.emulate_media(color_scheme="dark")
-            page.wait_for_function("getComputedStyle(document.body).backgroundColor === 'rgb(13, 13, 15)'")
+            page.wait_for_function(
+                "getComputedStyle(document.body).backgroundColor === 'rgb(13, 13, 15)'"
+            )
             assert not np.array_equal(light_pixels, np.asarray(capture()))
-            page.click('#btn-bg')
+            page.click("#btn-bg")
             page.click('[data-background="white"]')
             page.emulate_media(color_scheme="light")
             assert capture().getpixel((0, 0)) == (255, 255, 255, 255)

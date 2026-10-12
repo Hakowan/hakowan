@@ -866,7 +866,11 @@ def _capture_context(
     resolution: tuple[int, int] | None,
     background: Literal["light", "dark", "black", "white", "transparent"] | None,
 ) -> tuple[
-    Layer, Config | None, tuple[int, int], Literal["light", "dark", "black", "white", "transparent"], bool
+    Layer,
+    Config | None,
+    tuple[int, int],
+    Literal["light", "dark", "black", "white", "transparent"],
+    bool,
 ]:
     explicit_config = config is not None
     figure = root if isinstance(root, Figure) else None
@@ -882,14 +886,20 @@ def _capture_context(
             resolution = (512, 512)
     if background is None:
         if explicit_config and config is not None and config.background is not None:
-            background = "transparent" if config.background == "auto" else config.background
+            background = (
+                "transparent" if config.background == "auto" else config.background
+            )
         elif (
             figure is not None
             and not explicit_config
             and figure.scene.output is not None
         ):
             output_background = figure.scene.output.background
-            background = "transparent" if output_background is None or output_background == "auto" else output_background
+            background = (
+                "transparent"
+                if output_background is None or output_background == "auto"
+                else output_background
+            )
         else:
             background = "transparent"
     return runtime_layer, config, resolution, background, explicit_config

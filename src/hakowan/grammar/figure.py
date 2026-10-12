@@ -132,7 +132,9 @@ class OutputSettings:
 
     width: int = 1024
     height: int = 800
-    background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None
+    background: (
+        Literal["auto", "light", "dark", "black", "white", "transparent"] | None
+    ) = None
     passes: tuple[RenderPassName, ...] = ("beauty",)
     sampler_seed: int = 0
 

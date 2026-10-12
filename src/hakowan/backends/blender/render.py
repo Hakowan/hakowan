@@ -279,15 +279,14 @@ class BlenderBackend(_GeometryMixin, _MaterialMixin, _SceneMixin, RenderBackend)
 
         # Convert Blender's native PNG output into the user's requested format
         # when it differs (e.g. .webp/.jpg). EXR and PNG need no conversion.
-        if (
-            render_filename is not None
-            and render_filename.suffix.lower() != out_suffix
-        ):
+        if render_filename is not None and render_filename.suffix.lower() != out_suffix:
             self._finalize_outputs(config, render_filename, actual_target_path)
 
         camera_matrices = {}
         geometry_at = None
-        if scene.world_annotations and not is_hdr_suffix(actual_target_path.suffix.lower()):
+        if scene.world_annotations and not is_hdr_suffix(
+            actual_target_path.suffix.lower()
+        ):
             camera = bpy.context.scene.camera
             scene_render = bpy.context.scene.render
             projection = camera.calc_matrix_camera(

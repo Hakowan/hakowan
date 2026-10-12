@@ -50,9 +50,11 @@ def playwright_browser():
 def test_observation_defaults_to_transparent_beauty_background(playwright_browser):
     layer = hkw.layer(_triangle()).material("Diffuse", "red")
     for root in (layer, hkw.figure(layer)):
-        image = hkw.observe(
-            root, views=["front"], passes=["beauty"], resolution=(48, 48)
-        ).snapshot("front", "beauty").image
+        image = (
+            hkw.observe(root, views=["front"], passes=["beauty"], resolution=(48, 48))
+            .snapshot("front", "beauty")
+            .image
+        )
         assert image.mode == "RGBA"
         assert image.getpixel((0, 0))[3] == 0
 
@@ -75,7 +77,9 @@ def test_observe_captures_deterministic_beauty_pixels(playwright_browser):
 
 
 @pytest.mark.parametrize("background", ["transparent", "white"])
-def test_observation_background_preserves_geometry_and_overlay_pixels(playwright_browser, background):
+def test_observation_background_preserves_geometry_and_overlay_pixels(
+    playwright_browser, background
+):
     layer = hkw.layer(_triangle()).material(
         "Diffuse",
         hkw.texture.ScalarField(

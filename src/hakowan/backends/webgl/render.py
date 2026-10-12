@@ -46,7 +46,9 @@ _BACKGROUND_PRESETS: dict[
 _DEFAULT_BACKGROUND: Literal["auto"] = "auto"
 
 
-def _validate_background(name: Literal["auto", "light", "dark", "black", "white", "transparent"]) -> None:
+def _validate_background(
+    name: Literal["auto", "light", "dark", "black", "white", "transparent"],
+) -> None:
     """Raise ``ValueError`` if ``name`` is not a known background mode."""
     if name not in {"auto", "transparent"} and name not in _BACKGROUND_PRESETS:
         raise ValueError(
@@ -77,7 +79,8 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"]
+        | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         offline: bool = False,
@@ -131,7 +134,8 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["auto", "light", "dark", "black", "white", "transparent"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"]
+        | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         three_module_url: str | None = None,
