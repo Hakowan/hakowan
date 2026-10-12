@@ -1,6 +1,6 @@
 """Hakowan: A 3D data visualization grammar"""
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 from .common import logger
 from .setup import Config as config
@@ -9,7 +9,7 @@ from .grammar.layer import Layer as layer, grid
 from .grammar.scale import Attribute as attribute
 from .grammar.scale import norm
 from .grammar.channel import material
-from .grammar.overlay import Annotation, Legend
+from .grammar.overlay import Annotation, Legend, WorldAnnotation
 from .grammar.figure import (
     DirectionalLight,
     Environment,
@@ -65,7 +65,6 @@ from .workflow import (
     RegionSummary,
     Snapshot,
     observe,
-    snapshot,
 )
 
 # Register backends lazily: the loader (and thus the heavy import — Mitsuba/LLVM,
@@ -151,6 +150,7 @@ __all__ = [
     "RenderResult",
     "set_default_backend",
     "Annotation",
+    "WorldAnnotation",
     "Legend",
     "figure",
     "Figure",
@@ -197,5 +197,4 @@ __all__ = [
     "RegionSummary",
     "Snapshot",
     "observe",
-    "snapshot",
 ]

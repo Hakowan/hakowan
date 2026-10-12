@@ -9,3 +9,4 @@ dist/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+docs/gaussian-splats-plan.md

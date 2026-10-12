@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import base64
+import io
+import json
 import math
 import re
+from html.parser import HTMLParser
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 pygltflib = pytest.importorskip("pygltflib")
 import lagrange
+from PIL import Image
 
 import hakowan as hkw
 from hakowan.setup.emitter import Envmap, Point as PointEmitter
@@ -76,6 +81,16 @@ def _make_icosphere() -> lagrange.SurfaceMesh:
     return mesh
 
 
+class _IframeParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.attributes = {}
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "iframe":
+            self.attributes = dict(attrs)
+
+
 class TestEndToEnd:
     def test_register_webgl_backend(self):
         assert "webgl" in hkw.list_backends()
@@ -93,6 +108,69 @@ class TestEndToEnd:
         assert isinstance(result, hkw.RenderResult)
         assert result.path == out_path
         assert result.backend == "webgl"
+
+    def test_embed_html_targets_published_viewer(self, tmp_path):
+        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
+        result = hkw.render(layer, filename=tmp_path / "viewer.html", backend="webgl")
+
+        parser = _IframeParser()
+        parser.feed(result.embed_html())
+        assert parser.attributes["src"] == "viewer.html"
+        assert parser.attributes["width"] == "100%"
+        assert parser.attributes["height"] == "500"
+        assert parser.attributes["loading"] == "lazy"
+
+        reserved_path = hkw.RenderResult(
+            backend="webgl", path=Path("viewer #1.html")
+        ).embed_html()
+        parser = _IframeParser()
+        parser.feed(reserved_path)
+        assert parser.attributes["src"] == "viewer%20%231.html"
+        src = 'https://example.org/scene.html?a=" onload="alert(1)&b=2'
+        parser = _IframeParser()
+        parser.feed(result.embed_html(src=src, title='3D "model" & view', height=320))
+        assert parser.attributes["src"] == src
+        assert parser.attributes["title"] == '3D "model" & view'
+        assert parser.attributes["height"] == "320"
+        assert "onload" not in parser.attributes
+
+    @pytest.mark.parametrize(
+        "src", ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]
+    )
+    def test_embed_html_rejects_executable_source_schemes(self, src):
+        result = hkw.RenderResult(backend="webgl", path=Path("viewer.html"))
+        with pytest.raises(ValueError, match="HTTP"):
+            result.embed_html(src=src)
+
+    def test_world_annotation_text_cannot_replace_template_placeholders(self):
+        from hakowan.backends.webgl.template import render_html
+
+        marker = "{{CALLOUT_POLICY_JSON}}"
+        html = render_html(
+            glb_uri="data:model/gltf-binary;base64,",
+            three_version="0.170.0",
+            backgrounds={"dark": ((0.1, 0.1, 0.1), (0.0, 0.0, 0.0))},
+            background="dark",
+            initial_view={"eye": [0, 0, 5], "target": [0, 0, 0], "up": [0, 1, 0]},
+            title="test",
+            world_annotations=[{"text": marker}],
+        )
+        start = html.index("const WORLD_ANNOTATIONS = ") + len(
+            "const WORLD_ANNOTATIONS = "
+        )
+        end = html.index(";", start)
+
+        assert json.loads(html[start:end])[0]["text"] == marker
+
+    def test_embed_html_requires_saved_webgl_viewer(self):
+        with pytest.raises(ValueError, match="saved WebGL viewer"):
+            hkw.RenderResult(backend="mitsuba", path=Path("image.png")).embed_html()
+        with pytest.raises(ValueError, match="saved WebGL viewer"):
+            hkw.RenderResult(backend="webgl", path=None).embed_html()
+        with pytest.raises(ValueError, match="positive"):
+            hkw.RenderResult(backend="webgl", path=Path("viewer.html")).embed_html(
+                height=0
+            )
 
     def test_filename_suffix_normalised(self, tmp_path):
         layer = (
@@ -121,23 +199,6 @@ class TestEndToEnd:
         assert text.lstrip().startswith("<!DOCTYPE html>")
         assert "three" in text  # CDN URL present
         assert "GLB_DATA_URI" in text
-
-    def test_background_presets(self, tmp_path):
-        layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
-        light = tmp_path / "light.html"
-        dark = tmp_path / "dark.html"
-        hkw.render(layer, filename=str(light), backend="webgl", background="light")
-        hkw.render(layer, filename=str(dark), backend="webgl", background="dark")
-        lt, dk = light.read_text(), dark.read_text()
-        # Both palettes are embedded so the viewer's button can toggle client-side.
-        assert '"light"' in lt and '"dark"' in lt
-        # The initial mode reflects the chosen preset.
-        assert 'let bgMode = "light"' in lt
-        assert 'let bgMode = "dark"' in dk
-        # The light/dark toggle button is present.
-        assert "btn-bg" in lt
-        # No template placeholders left unresolved.
-        assert not re.search(r"{{[A-Z_]+}}", lt)
 
     def test_background_invalid_raises(self, tmp_path):
         layer = hkw.layer(_make_icosphere()).mark(hkw.mark.Surface)
@@ -281,6 +342,51 @@ class TestEndToEnd:
         # 12 vertices → 12 instances, and a per-instance colour from the field.
         assert gltf.accessors[attrs["TRANSLATION"]].count == 12
         assert "_COLOR_0" in attrs
+
+    def test_facet_scalarfield_colors_curve_segments(self, tmp_path):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0]], dtype=np.float64))
+        mesh.add_polygons(np.array([[0, 1], [1, 2]], dtype=np.uint32))
+        mesh.create_attribute(
+            "path_id",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([0, 1], dtype=np.float64),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.ScalarField(
+                        "path_id", categories=True, legend=False
+                    )
+                ),
+                size=0.01,
+            )
+        )
+        out_path = tmp_path / "facet-colored-curve.html"
+        hkw.render(layer, filename=str(out_path), backend="webgl")
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        inst_nodes = [
+            node
+            for node in gltf.nodes
+            if node.extensions and "EXT_mesh_gpu_instancing" in node.extensions
+        ]
+        assert len(inst_nodes) == 1
+        attrs = inst_nodes[0].extensions["EXT_mesh_gpu_instancing"]["attributes"]
+        assert gltf.accessors[attrs["TRANSLATION"]].count == 2
+        color_accessor = gltf.accessors[attrs["_COLOR_0"]]
+        buffer_view = gltf.bufferViews[color_accessor.bufferView]
+        colors = np.frombuffer(
+            gltf.binary_blob(),
+            dtype=np.float32,
+            count=color_accessor.count * 3,
+            offset=buffer_view.byteOffset or 0,
+        ).reshape(-1, 3)
+        assert colors.shape == (2, 3)
+        assert not np.allclose(colors[0], colors[1])
 
     def test_arrow_curve_is_instanced(self, tmp_path):
         # The arrow glyph (shaft + tapered cone) is a fixed prototype scaled
@@ -568,6 +674,157 @@ class TestEndToEnd:
         # The glTF camera is orthographic, so the viewer honours it on load.
         assert "isOrthographicCamera" in html
         assert "startOrtho" in html
+
+
+def test_world_callouts_serialize_layer_cell_and_safe_text(tmp_path):
+    payload = '</script><img src=x onerror="alert(1)">'
+    sphere = _make_icosphere()
+    layer = (
+        hkw.layer(sphere)
+        .mark(hkw.mark.Surface)
+        .annotate(
+            hkw.WorldAnnotation(payload, position=(0, 0, 1), color="red", padding=7)
+        )
+        .annotate("Screen", position=(0.2, 0.3))
+    )
+    result = hkw.render(
+        layer | layer, filename=tmp_path / "callouts.html", backend="webgl"
+    )
+    html = result.path.read_text(encoding="utf-8")
+
+    world = json.loads(re.search(r"const WORLD_ANNOTATIONS = (.*?);", html).group(1))
+    screen = json.loads(re.search(r"const ANNOTATIONS = (.*?);", html).group(1))
+    assert [item["text"] for item in world] == [payload, payload]
+    assert [item["cell"] for item in world] == ["0.0", "0.1"]
+    assert [item["layer"] for item in world] == [0, 1]
+    assert world[0]["position"][0] < world[1]["position"][0]
+    assert all(item["padding"] == 7 and item["color"] == [1, 0, 0] for item in world)
+    assert [item["text"] for item in screen] == ["Screen"]
+    assert payload not in html  # The inline JSON must not close the script tag.
+
+
+def test_diffuse_webgl_env_has_no_white_specular_highlight(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    layer = hkw.layer(_make_icosphere()).material("Diffuse", "red")
+    result = hkw.render(
+        layer, filename=tmp_path / "diffuse.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        try:
+            browser = runtime.chromium.launch(
+                headless=True, args=["--allow-file-access-from-files"]
+            )
+        except playwright.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page(viewport={"width": 160, "height": 160})
+            page.goto(result.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            image_url = page.evaluate("() => window.__hakowan.capturePng('beauty')")
+            image_bytes = base64.b64decode(image_url.split(",", 1)[1])
+            with Image.open(io.BytesIO(image_bytes)) as image:
+                r, g, b, _ = image.convert("RGBA").getpixel((80, 80))
+            assert r > 50
+            assert g <= 2 and b <= 2
+        finally:
+            browser.close()
+
+
+def test_transparent_background_survives_passes_resize_and_png_save(tmp_path):
+    playwright = pytest.importorskip("playwright.sync_api")
+    mesh = _make_icosphere()
+    figure = (
+        hkw.figure(hkw.layer(mesh).material("Diffuse", "red"))
+        .environment(visible=True)
+        .output(background="transparent")
+    )
+    # Round-trip the declarative setting before exporting the real viewer.
+    figure = hkw.from_spec(
+        hkw.to_spec(figure, data_ids={id(mesh): "mesh"}), data_resolver={"mesh": mesh}
+    )
+    result = hkw.render(
+        figure, filename=tmp_path / "transparent.html", backend="webgl", offline=True
+    )
+
+    with playwright.sync_playwright() as runtime:
+        try:
+            browser = runtime.chromium.launch(
+                headless=True, args=["--allow-file-access-from-files"]
+            )
+        except playwright.Error as exc:
+            pytest.skip(f"Playwright Chromium is unavailable: {exc}")
+        try:
+            page = browser.new_page(
+                viewport={"width": 160, "height": 160}, accept_downloads=True
+            )
+            page.goto(result.path.resolve().as_uri(), wait_until="domcontentloaded")
+            page.wait_for_function("window.__hakowan_loaded === true")
+            assert page.evaluate("window.__hakowan.hasEnvironment()")
+
+            def capture(pass_name="beauty"):
+                url = page.evaluate("p => window.__hakowan.capturePng(p)", pass_name)
+                return Image.open(
+                    io.BytesIO(base64.b64decode(url.split(",", 1)[1]))
+                ).convert("RGBA")
+
+            image = capture()
+            assert image.getpixel((0, 0))[3] == 0
+            assert image.getpixel((80, 80))[3] == 255
+            assert (
+                page.evaluate("getComputedStyle(document.body).backgroundColor")
+                == "rgba(0, 0, 0, 0)"
+            )
+            for pass_name in ("albedo", "depth", "normal"):
+                assert capture(pass_name).getpixel((0, 0))[3] == 255
+            assert capture().getpixel((0, 0))[3] == 0
+
+            page.set_viewport_size({"width": 200, "height": 180})
+            page.wait_for_function("window.__hakowan.canvas.width === 200")
+            assert capture().getpixel((0, 0))[3] == 0
+
+            for mode in ("light", "dark", "black", "white", "transparent"):
+                page.click("#btn-bg")
+                page.click(f'[data-background="{mode}"]')
+                assert not page.locator("#background-options").is_visible()
+                assert capture().getpixel((0, 0))[3] == (
+                    0 if mode == "transparent" else 255
+                )
+
+            with page.expect_download() as download:
+                page.click("#btn-save")
+            saved_path = tmp_path / "saved.png"
+            download.value.save_as(saved_path)
+            with Image.open(saved_path) as saved:
+                assert saved.getpixel((0, 0))[3] == 0
+                assert saved.getpixel((100, 90))[3] == 255
+            # Auto follows theme changes; explicit selection must opt out.
+            default_viewer = hkw.render(
+                hkw.layer(mesh),
+                filename=tmp_path / "default.html",
+                backend="webgl",
+                offline=True,
+            )
+            page.goto(
+                default_viewer.path.resolve().as_uri(), wait_until="domcontentloaded"
+            )
+            page.wait_for_function("window.__hakowan_loaded === true")
+            page.emulate_media(color_scheme="light")
+            page.wait_for_function(
+                "getComputedStyle(document.body).backgroundColor === 'rgb(158, 161, 168)'"
+            )
+            light_pixels = np.asarray(capture())
+            page.emulate_media(color_scheme="dark")
+            page.wait_for_function(
+                "getComputedStyle(document.body).backgroundColor === 'rgb(13, 13, 15)'"
+            )
+            assert not np.array_equal(light_pixels, np.asarray(capture()))
+            page.click("#btn-bg")
+            page.click('[data-background="white"]')
+            page.emulate_media(color_scheme="light")
+            assert capture().getpixel((0, 0)) == (255, 255, 255, 255)
+        finally:
+            browser.close()
 
 
 def test_render_unknown_kwarg_raises(tmp_path):

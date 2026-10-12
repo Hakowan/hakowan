@@ -52,6 +52,9 @@ class GLTFBuilder:
     # groups nodes by this tag to drive per-layer visibility checkboxes. ``None``
     # means the node carries no layer tag.
     _current_layer: int | None = None
+    # Point-mark meshes use their own glyph geometry to visualize each source
+    # vertex. The viewer needs to identify those nodes for anchor self-hits.
+    _current_point_mark: bool = False
 
     def __post_init__(self) -> None:
         # Ensure a buffer slot exists; its length is patched at finalize time.
@@ -258,6 +261,7 @@ class GLTFBuilder:
         material_idx: int,
         mode: int = MODE_TRIANGLES,
         transform_4x4: np.ndarray | None = None,
+        point_triangles: int | None = None,
     ) -> int:
         """Add a single-primitive mesh node referencing the given attributes.
 
@@ -266,6 +270,8 @@ class GLTFBuilder:
         ``custom_attributes`` is a name → ndarray map for additional generic
         vertex attributes (e.g. ``"_scalar_0"`` for shader-injection paths);
         names must follow the glTF underscore-prefix convention.
+        ``point_triangles`` identifies each baked point glyph by its contiguous
+        group of triangles, preserving source-point order for callout occlusion.
         """
         positions = np.ascontiguousarray(positions, dtype=np.float32)
         if positions.ndim != 2 or positions.shape[1] != 3:
@@ -365,6 +371,10 @@ class GLTFBuilder:
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
         extras: dict[str, Any] = {}
+        if self._current_point_mark:
+            extras["hakowan_point_mark"] = True
+            if point_triangles is not None:
+                extras["hakowan_point_triangles"] = point_triangles
         if self._current_cell is not None:
             extras["hakowan_cell"] = self._current_cell
         if self._current_layer is not None:
@@ -499,6 +509,8 @@ class GLTFBuilder:
         if transform_4x4 is not None and not np.allclose(transform_4x4, np.eye(4)):
             node_kwargs["matrix"] = gltf_matrix(transform_4x4)
         extras: dict[str, Any] = {}
+        if self._current_point_mark:
+            extras["hakowan_point_mark"] = True
         if self._current_cell is not None:
             extras["hakowan_cell"] = self._current_cell
         if self._current_layer is not None:

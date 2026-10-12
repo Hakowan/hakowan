@@ -72,7 +72,8 @@ ch = hkw.channel.Normal(data = "attr_name")
 
 ![Origamix rabbit](../images/star.svg){: align="right" style="width:200px"}
 
-`Size` controls point and curve thickness. The numeric value has different
+`Size` controls point and curve thickness. Without an explicit size channel,
+point/curve marks use a default radius of `0.01` in geometry units. The numeric value has different
 units according to `space`:
 
 | `space` | Numeric value | Result |
@@ -112,12 +113,10 @@ screen = hkw.channel.Size(data=0.5, space="screen")
 Attribute-driven size is supported in world space. Scene- and screen-relative
 sizes require a numeric constant.
 
-To scale marks by the magnitude of a vector field, pass a [`hkw.norm()`](attribute.md#the-norm-shorthand)
-attribute as the size data:
+Map the magnitude of a vector field into mark size with [`hkw.norm()`](attribute.md#the-norm-shorthand):
 
 ```py
-# Point/curve radius proportional to a vector field's magnitude.
-ch = hkw.channel.Size(data = hkw.norm("velocity"))
+ch = hkw.channel.Size(data=hkw.norm("velocity"))
 ```
 
 ## Vector field channel
@@ -156,7 +155,7 @@ Vector field channel also takes the following parameters.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `refinement_level` | `int` | The refinement level (default: 0) |
-| `end_type` | `str` | The end type of each vector (options: `point` (default), `arrow`) |
+| `end_type` | `str` | `point` tapers to a spike (default); `arrow` adds a flared head; `flat` keeps a constant-radius cylinder. |
 | `style` | [CurveStyle][hakowan.grammar.channel.curvestyle.CurveStyle] | The curve style to use (default: None) |
 | `normalize` | `bool` | If True, rescale every vector to unit length so arrows encode direction only (default: False) |
 
@@ -195,61 +194,65 @@ l = (
 
 ## Covariance channel
 
-`Covariance` channel defines the covariance matrix for point marks, allowing you to visualize
-uncertainty or anisotropic data at each point. This channel is only relevant for `Point` mark.
-The covariance matrix defines the stretch and rotation applied to each point shape.
+`Covariance` defines the stretch and rotation of point glyphs from a covariance
+attribute. It applies only to `Point` marks.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | The attribute containing covariance data |
-| `full` | `bool` | If True, the full 3x3 covariance matrix is stored. If False (default), the "square root" matrix M is stored where Σ = M @ M^T |
+| `data` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] | Attribute containing covariance data |
+| `full` | `bool` | Store the full 3×3 covariance when true; otherwise (default) store its square-root matrix `M`, where `Σ = M @ Mᵀ`. |
+
+With covariance glyphs, `size` is an extra uniform multiplier and defaults to
+`1.0`. Ordinary point and curve marks default to a radius of `0.01`.
 
 ```py
-# To specify an attribute as the covariance channel data:
 ch = hkw.channel.Covariance(data="covariance_attr", full=True)
-
-# Shorthand, same as above
-ch = hkw.channel.Covariance(data="covariance_attr")
 ```
 
 ## Shape channel
 
-`Shape` channel defines the base shape used to visualize points. This channel is only relevant for
-`Point` mark and allows you to use different shapes (sphere, cube, disk) for point visualization.
+![Shape channel](../images/point_shape.webp){: style="width:800px"}
+
+`Shape` selects the base shape used to visualize points. Options include `sphere`, `cube`, and
+`disk`. The `orientation` parameter can be used to specify an attribute that defines the
+orientation of the glyphs. If no orientation is provided, the glyphs will be aligned with the
+default axes.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `base_shape` | `str` | The base shape: "sphere" (default), "cube", or "disk" |
-| `orientation` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] or `None` | The attribute defining the orientation of each shape (default: None) |
+| `base_shape` | `str` | Point glyph: `sphere` (default), `cube`, or `disk` |
+| `orientation` | [AttributeLike][hakowan.grammar.scale.attribute.AttributeLike] or `None` | Attribute defining the glyph orientation (default: None) |
 
 ```py
-# Use cubes for point visualization
-ch = hkw.channel.Shape(base_shape="cube")
-
-# Use oriented disks with normal attribute
-ch = hkw.channel.Shape(base_shape="disk", orientation="normal_attr")
+shape = hkw.channel.Shape(base_shape="cube")
+oriented_disk = hkw.channel.Shape(base_shape="disk", orientation="normal_attr")
 ```
+
+Mitsuba does not support `disk` glyphs when a covariance channel is present;
+use `sphere` or `cube` for that combination.
 
 ## Bump map channel
 
-`BumpMap` channel adds surface detail by perturbing normals based on a texture without modifying
-the actual geometry. This is useful for adding visual complexity to surfaces.
+`BumpMap` perturbs surface shading normals from a texture without modifying the
+geometry. Add it to a layer alongside its material:
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `texture` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | The texture defining the bump map |
-| `scale` | `float` | The scale factor for the bump effect (default: 1.0) |
+| `texture` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Texture defining the bump map |
+| `scale` | `float` | Bump strength (default: 1.0) |
 
 ```py
-# Add bump map from image
-ch = hkw.channel.BumpMap(
-    texture=hkw.texture.Image("bump_map.png"),
-    scale=0.5
+layer = hkw.layer("mesh.obj").channel(
+    material=hkw.material.Diffuse(reflectance="salmon"),
+    bump_map=hkw.channel.BumpMap(
+        texture=hkw.texture.Image("bump_map.png"), scale=0.5
+    ),
 )
 ```
 
-You can also specify bump maps directly in material definitions. See the [Material guide](material.md#bump-mapped-material)
-for examples.
+On WebGL, bump and normal maps require image textures and mesh UVs. WebGL can
+store only one normal texture; if both are set, the normal map is used and the
+bump map is ignored. Blender also requires image textures.
 
 ## Normal map channel
 

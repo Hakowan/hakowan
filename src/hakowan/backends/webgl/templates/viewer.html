@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>{{TITLE}}</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: rgb({{BG_R_255}}, {{BG_G_255}}, {{BG_B_255}}); overflow: hidden; }
+  html, body { margin: 0; padding: 0; height: 100%; background: {{PAGE_BACKGROUND}}; overflow: hidden; }
   #viewer { width: 100vw; height: 100vh; display: block; }
   #status {
     position: absolute; top: 8px; left: 8px;
@@ -29,6 +29,14 @@
   #passes button:hover { background: rgba(255,255,255,0.18); }
   #passes button.active { background: rgba(255,255,255,0.28); }
   #passes .sep { width: 1px; background: rgba(255,255,255,0.18); margin: 0 2px; }
+  #background-control { position: relative; }
+  #background-options {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 10;
+    padding: 4px; border-radius: 4px; background: rgba(25,25,25,0.95);
+    min-width: 130px;
+  }
+  #background-options:not([hidden]) { display: flex; flex-direction: column; gap: 4px; }
+  #background-options button { text-align: left; white-space: nowrap; }
   #clip-controls {
     position: absolute; top: 44px; right: 8px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -54,6 +62,15 @@
     max-height: 40vh; overflow-y: auto;
   }
   #layers.visible { display: flex; }
+  #layers .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #layers button {
+    background: rgba(255,255,255,0.08); color: #eee; border: 0;
+    padding: 2px 6px; border-radius: 3px; font: inherit; cursor: pointer;
+  }
+  #layers button:hover { background: rgba(255,255,255,0.18); }
+  #layers .restore { display: none; }
+  #layers.minimized .header, #layers.minimized label { display: none; }
+  #layers.minimized .restore { display: block; }
   #layers .title {
     font-size: 11px; color: #aaa; margin-bottom: 2px; user-select: none;
   }
@@ -83,6 +100,15 @@
   .semantic-legend .swatch { width: 14px; height: 14px; border: 1px solid rgba(255,255,255,.6); }
   #semantic-annotations { position: absolute; inset: 0; pointer-events: none; }
   .semantic-annotation { position: absolute; white-space: pre-wrap; }
+  #world-callouts { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #world-callouts svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+  .world-callout {
+    position: absolute; visibility: hidden; white-space: pre-wrap;
+    max-width: min(260px, 35vw); overflow-wrap: anywhere;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.25; border-radius: 4px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+  }
 </style>
 </head>
 <body>
@@ -94,6 +120,7 @@
 <div id="semantic-legends-left" class="semantic-legends"></div>
 <div id="semantic-legends-right" class="semantic-legends"></div>
 <div id="semantic-annotations"></div>
+<div id="world-callouts"><svg aria-hidden="true"></svg></div>
 <script type="importmap">
 {
   "imports": {
@@ -113,6 +140,10 @@ const INITIAL_TARGET = {{INITIAL_TARGET}};
 const INITIAL_UP     = {{INITIAL_UP}};
 const BG_PRESETS = {{BG_PRESETS_JSON}};  // { light: {center,edge}, dark: {center,edge} }
 let bgMode = {{BG_MODE}};
+const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+function resolvedBackgroundMode() {
+  return bgMode === 'auto' ? (systemTheme.matches ? 'dark' : 'light') : bgMode;
+}
 const ENVMAP = {{ENVMAP_JSON}};
 const RENDER_PASSES = ["albedo", "depth", "normal"];
 const INITIAL_CAMERA_MODE = {{INITIAL_CAMERA_MODE}};
@@ -122,13 +153,16 @@ const INITIAL_ORTHO_SCALE = {{INITIAL_ORTHO_SCALE}};
 const LAYERS = {{LAYERS_JSON}};
 const LEGENDS = {{LEGENDS_JSON}};
 const ANNOTATIONS = {{ANNOTATIONS_JSON}};
+const WORLD_ANNOTATIONS = {{WORLD_ANNOTATIONS_JSON}};
+const CALLOUT_POLICY = {{CALLOUT_POLICY_JSON}};
 // index -> array of top-level scene nodes tagged with that layer (populated on load).
 let layerNodeMap = new Map();
 
 const canvas = document.getElementById('viewer');
 const status = document.getElementById('status');
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setClearColor(0x000000, 0);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 // Match the Mitsuba backend, which writes radiance with a plain linear->sRGB
@@ -138,16 +172,19 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1.0;
 
-// Soft "studio" background: a radial gradient texture, bright at the centre
-// falling off to the edge colour, for the selected light/dark preset. Assigned
-// to scene.background so three's pipeline — including the transmission render
-// pass used by glass (ThinDielectric) — samples it, keeping transparent
-// materials glass-like instead of dark. Regenerated on resize and on toggle.
+// Light/dark are radial gradients; black/white are flat and transparent is null.
+// Assign the result to scene.background so transmission materials can sample
+// the active background. Regenerate when the viewport or preset changes.
 function _rgb(c) {
   return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`;
 }
+const blackBackground = new THREE.Color(0, 0, 0);
+const whiteBackground = new THREE.Color(1, 1, 1);
 function makeStudioBackground(w, h) {
-  const palette = BG_PRESETS[bgMode];
+  if (bgMode === 'transparent') return null;
+  if (bgMode === 'black') return blackBackground;
+  if (bgMode === 'white') return whiteBackground;
+  const palette = BG_PRESETS[resolvedBackgroundMode()];
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, w);
   cv.height = Math.max(2, h);
@@ -168,24 +205,37 @@ const scene = new THREE.Scene();
 let studioBackground = makeStudioBackground(2, 2);
 scene.background = studioBackground;
 let envBackground = null;  // set to the PMREM texture when ENVMAP.background is true
+function beautyBackground() {
+  return bgMode === 'transparent' ? null : (envBackground ?? studioBackground);
+}
 // Apply the backend-neutral environment orientation encoded by envmap_descriptor.
 let envRotationSupported = false; // three.js >= r163 exposes scene.environmentRotation
 const _envMat = new THREE.Matrix4();
 const _envEuler = new THREE.Euler();
 
+const backgroundIcons = { auto: 'A', light: '☀', dark: '☾', black: '⚫', white: '⚪', transparent: '👻' };
+function updateBackgroundButton(btn) {
+  btn.textContent = backgroundIcons[bgMode];
+  btn.title = `Background: ${bgMode}. Choose background`;
+  btn.setAttribute('aria-label', btn.title);
+}
+
 function setBackgroundMode(mode) {
-  if (!BG_PRESETS[mode]) return;
+  if (mode !== 'auto' && mode !== 'transparent' && !BG_PRESETS[mode]) return;
   bgMode = mode;
   const previous = studioBackground;
   studioBackground = makeStudioBackground(canvas.width, canvas.height);
-  if (currentPass === 'beauty' && envBackground === null) {
-    scene.background = studioBackground;
-  }
-  if (previous) previous.dispose();
-  document.body.style.background = _rgb(BG_PRESETS[mode].edge);
+  if (currentPass === 'beauty') scene.background = beautyBackground();
+  if (previous?.isTexture) previous.dispose();
+  const pageBackground = mode === 'transparent' ? 'transparent' : _rgb(BG_PRESETS[resolvedBackgroundMode()].edge);
+  document.documentElement.style.background = pageBackground;
+  document.body.style.background = pageBackground;
   const btn = document.getElementById('btn-bg');
-  if (btn) btn.textContent = mode === 'light' ? '☀' : '☾';
+  if (btn) updateBackgroundButton(btn);
 }
+systemTheme.addEventListener('change', () => {
+  if (bgMode === 'auto') setBackgroundMode('auto');
+});
 
 // Perspective and orthographic cameras share the same eye / orientation; the
 // viewer toggles which one is active (perspective by default). OrbitControls
@@ -296,13 +346,11 @@ function resize() {
   if (canvas.width !== w || canvas.height !== h) {
     renderer.setSize(w, h, false);
     updateCameraProjection();
-    // Regenerate the studio gradient at the new aspect so it stays circular.
+    // The studio gradients depend on the viewport's aspect ratio.
     const old = studioBackground;
     studioBackground = makeStudioBackground(w, h);
-    if (currentPass === 'beauty' && envBackground === null) {
-      scene.background = studioBackground;
-    }
-    if (old) old.dispose();
+    if (currentPass === 'beauty') scene.background = beautyBackground();
+    if (old?.isTexture) old.dispose();
   }
 }
 window.addEventListener('resize', resize);
@@ -357,13 +405,13 @@ async function loadEnvmap() {
     if ('environmentRotation' in scene) {
       envRotationSupported = true;
       if (ENVMAP.background) {
-        scene.background = envTexture;
         envBackground = envTexture;
+        scene.background = beautyBackground();
       }
       updateEnvRotation();
     } else if (ENVMAP.background) {
-      scene.background = envTexture;
       envBackground = envTexture;
+      scene.background = beautyBackground();
     }
     // The envmap now lights the scene via image-based lighting, exactly like
     // the Mitsuba backend (which uses the envmap as its only emitter). The
@@ -527,7 +575,7 @@ let sceneBbox = null;
 // --------------------------------------------------------------------- //
 let objectRotateEnabled = false;
 const qObjectRotation = new THREE.Quaternion();
-let cellGroups = [];  // [{ center: Vector3, entries: [{ node, M0: Matrix4 }] }]
+let cellGroups = [];  // [{ tag, center: Vector3, entries: [{ node, M0: Matrix4 }] }]
 
 function _hasGeometry(obj) {
   let found = false;
@@ -552,7 +600,7 @@ function buildCellGroups(root) {
   root.updateWorldMatrix(true, false);
   const parentInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
   cellGroups = [];
-  for (const nodes of byCell.values()) {
+  for (const [tag, nodes] of byCell) {
     const box = new THREE.Box3();
     for (const n of nodes) box.expandByObject(n);
     // Pivot = cell centre expressed in the nodes' parent (scene-root) space.
@@ -561,7 +609,7 @@ function buildCellGroups(root) {
       n.matrixAutoUpdate = false;
       return { node: n, M0: n.matrix.clone() };
     });
-    cellGroups.push({ center, entries });
+    cellGroups.push({ tag, center, entries });
   }
 }
 
@@ -721,6 +769,7 @@ function updateClipPlane() {
   const pt = center.clone().addScaledVector(n, clipOffset * half);
   clipPlane.setFromNormalAndCoplanarPoint(n, pt);
   renderer.clippingPlanes = clipEnabled ? [clipPlane] : [];
+  updateWorldCallouts(true, true);
 }
 
 function toggleClip() {
@@ -822,6 +871,7 @@ function toggleTwoSided() {
   const btn = document.getElementById('btn-twosided');
   if (btn) btn.classList.toggle('active', twoSided);
   applyTwoSided();
+  updateWorldCallouts(false, true);
 }
 
 // The renderer is sRGB-output; built-in materials like MeshBasic include the
@@ -1025,7 +1075,7 @@ function setPass(pass) {
   // Background only shown in beauty pass; passes get a flat background to
   // keep the saved PNG free of envmap clutter.
   if (pass === 'beauty') {
-    scene.background = envBackground !== null ? envBackground : studioBackground;
+    scene.background = beautyBackground();
   } else if (pass === 'depth') {
     scene.background = new THREE.Color(1, 1, 1);
   } else {
@@ -1034,6 +1084,7 @@ function setPass(pass) {
   for (const btn of document.querySelectorAll('#passes button[data-pass]')) {
     btn.classList.toggle('active', btn.dataset.pass === pass);
   }
+  updateWorldCallouts(true, true);
 }
 
 function savePassPng() {
@@ -1074,9 +1125,11 @@ function setCameraState(state) {
   controls.enableDamping = false;
   controls.update();
   _geometrySampleCache = null;
+  if (captureLayout) updateWorldCallouts(true, true);
 }
 
 function prepareCapture(width, height) {
+  captureLayout = true;
   for (const id of ['status', 'passes', 'clip-controls', 'layers']) {
     const node = document.getElementById(id);
     if (node) node.style.display = 'none';
@@ -1091,6 +1144,9 @@ function prepareCapture(width, height) {
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
   updateCameraProjection();
+  calloutRoot.style.width = `${width}px`;
+  calloutRoot.style.height = `${height}px`;
+  updateWorldCallouts(true, true);
 }
 
 function capturePng(pass = 'beauty') {
@@ -1289,10 +1345,49 @@ function buildPassUI() {
   container.appendChild(projBtn);
   const bgBtn = document.createElement('button');
   bgBtn.id = 'btn-bg';
-  bgBtn.textContent = bgMode === 'light' ? '☀' : '☾';
-  bgBtn.title = 'Toggle light / dark background';
-  bgBtn.addEventListener('click', () => setBackgroundMode(bgMode === 'light' ? 'dark' : 'light'));
-  container.appendChild(bgBtn);
+  updateBackgroundButton(bgBtn);
+  const bgControl = document.createElement('div');
+  bgControl.id = 'background-control';
+  const bgOptions = document.createElement('div');
+  bgOptions.id = 'background-options';
+  bgOptions.hidden = true;
+  bgOptions.setAttribute('role', 'group');
+  bgOptions.setAttribute('aria-label', 'Background options');
+  bgBtn.setAttribute('aria-controls', bgOptions.id);
+  bgBtn.setAttribute('aria-expanded', 'false');
+  function closeBackgroundOptions(returnFocus = false) {
+    bgOptions.hidden = true;
+    bgBtn.setAttribute('aria-expanded', 'false');
+    if (returnFocus) bgBtn.focus();
+  }
+  for (const mode of ['auto', 'light', 'dark', 'black', 'white', 'transparent']) {
+    const option = document.createElement('button');
+    option.dataset.background = mode;
+    option.textContent = `${backgroundIcons[mode]} ${mode[0].toUpperCase()}${mode.slice(1)}`;
+    option.addEventListener('click', () => {
+      setBackgroundMode(mode);
+      closeBackgroundOptions(true);
+    });
+    bgOptions.appendChild(option);
+  }
+  bgBtn.addEventListener('click', () => {
+    if (!bgOptions.hidden) { closeBackgroundOptions(); return; }
+    for (const option of bgOptions.children) {
+      option.setAttribute('aria-pressed', String(option.dataset.background === bgMode));
+      option.classList.toggle('active', option.dataset.background === bgMode);
+    }
+    bgOptions.hidden = false;
+    bgBtn.setAttribute('aria-expanded', 'true');
+    bgOptions.querySelector(`[data-background="${bgMode}"]`).focus();
+  });
+  bgControl.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { closeBackgroundOptions(true); event.stopPropagation(); }
+  });
+  document.addEventListener('click', event => {
+    if (!bgControl.contains(event.target)) closeBackgroundOptions();
+  });
+  bgControl.append(bgBtn, bgOptions);
+  container.appendChild(bgControl);
   const save = document.createElement('button');
   save.id = 'btn-save';
   save.textContent = '📷';
@@ -1323,16 +1418,40 @@ function setLayerVisible(index, visible) {
   const nodes = layerNodeMap.get(index);
   if (!nodes) return;
   for (const n of nodes) n.visible = visible;
+  updateWorldCallouts(true, true);
 }
 
 function buildLayerUI() {
   // A lone layer needs no toggle; only surface the panel for multi-layer scenes.
   if (!Array.isArray(LAYERS) || LAYERS.length < 2) return;
   const container = document.getElementById('layers');
+  const header = document.createElement('div');
+  header.className = 'header';
   const title = document.createElement('div');
   title.className = 'title';
   title.textContent = 'layers';
-  container.appendChild(title);
+  const minimize = document.createElement('button');
+  minimize.type = 'button';
+  minimize.textContent = '−';
+  minimize.setAttribute('aria-label', 'Minimize layer list');
+  minimize.title = 'Minimize layer list';
+  header.append(title, minimize);
+  container.appendChild(header);
+  const restore = document.createElement('button');
+  restore.type = 'button';
+  restore.className = 'restore';
+  restore.textContent = 'layers +';
+  restore.setAttribute('aria-label', 'Restore layer list');
+  restore.title = 'Restore layer list';
+  minimize.addEventListener('click', () => {
+    container.classList.add('minimized');
+    requestAnimationFrame(() => updateWorldCallouts(false, true));
+  });
+  restore.addEventListener('click', () => {
+    container.classList.remove('minimized');
+    requestAnimationFrame(() => updateWorldCallouts(false, true));
+  });
+  container.appendChild(restore);
   for (const entry of LAYERS) {
     const label = document.createElement('label');
     const cb = document.createElement('input');
@@ -1416,6 +1535,304 @@ function buildSemanticOverlays() {
   }
 }
 
+// World callouts are a separate, non-interactive DOM overlay. Labels remain
+// upright while their SVG leaders and 3D anchors follow the active camera.
+const calloutRoot = document.getElementById('world-callouts');
+const calloutSvg = calloutRoot.querySelector('svg');
+const calloutRaycaster = new THREE.Raycaster();
+const calloutNdc = new THREE.Vector2();
+const calloutPoint = new THREE.Vector3();
+const calloutProjected = new THREE.Vector3();
+const calloutViewPoint = new THREE.Vector3();
+const worldToRoot = new THREE.Matrix4();
+const previousCalloutCamera = new THREE.Matrix4();
+const previousCalloutProjection = new THREE.Matrix4();
+const previousCalloutRoot = new THREE.Matrix4();
+const previousCalloutRotation = new THREE.Quaternion();
+let previousCalloutWidth = 0, previousCalloutHeight = 0;
+let calloutSettling = false, calloutsHidden = false;
+let callouts = [];
+let captureLayout = false;
+
+function buildWorldCallouts() {
+  const groups = new Map(cellGroups.map(group => [group.tag, group]));
+  callouts = WORLD_ANNOTATIONS.map(annotation => {
+    const label = document.createElement('div');
+    label.className = 'world-callout';
+    label.textContent = annotation.text;
+    label.style.color = _cssColor(annotation.color);
+    label.style.fontSize = `${annotation.font_size}px`;
+    label.style.padding = `${annotation.padding}px`;
+    if (annotation.background) label.style.background = _cssColor(annotation.background, 0.86);
+    calloutRoot.appendChild(label);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const tip = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('stroke', _cssColor(annotation.color));
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('fill', 'none');
+    tip.setAttribute('fill', _cssColor(annotation.color));
+    calloutSvg.append(line, tip);
+    return {
+      annotation, label, line, tip, point: new THREE.Vector3(...annotation.position),
+      group: groups.get(annotation.cell ?? '__default__'), previous: null, candidate: -1,
+    };
+  });
+}
+
+function hideWorldCallout(item) {
+  item.label.style.visibility = 'hidden';
+  item.line.style.visibility = 'hidden';
+  item.tip.style.visibility = 'hidden';
+  item.previous = null;
+  item.candidate = -1;
+}
+
+function _rectOverlap(a, b) {
+  return Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+       * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+}
+const calloutFootprintSamples = CALLOUT_POLICY.footprint;
+
+function _visibleHit(hits, ignorePoints = null) {
+  for (const hit of hits) {
+    if (hit.object.userData && hit.object.userData.isWireframe) continue;
+    if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(hit.point) < 0)) continue;
+    let node = hit.object;
+    while (node && node !== loadedRoot && node.visible) node = node.parent;
+    if (node !== loadedRoot || !loadedRoot.visible) continue;
+
+    let metadata = hit.object;
+    while (metadata && metadata !== loadedRoot) {
+      if (metadata.userData && metadata.userData.hakowan_point_mark) break;
+      metadata = metadata.parent;
+    }
+    if (metadata && metadata !== loadedRoot && ignorePoints) {
+      // Instanced hits expose the source ordinal directly; baked glyphs keep
+      // source order as contiguous triangle groups in their combined mesh.
+      const triangles = metadata.userData.hakowan_point_triangles;
+      const point = hit.instanceId ?? (triangles && Number.isInteger(hit.faceIndex)
+        ? Math.floor(hit.faceIndex / triangles) : null);
+      const layer = _layerIndex(metadata);
+      if (point !== null && ignorePoints.some(owner => owner.layer === layer
+          && owner.point === point)) continue;
+    }
+    return hit;
+  }
+  return null;
+}
+
+function calloutPanelObstructed(x, y, width, height, viewportWidth, viewportHeight) {
+  // The panel can overlap geometry at an edge even when its centre is clear.
+  for (const [u, v] of calloutFootprintSamples) {
+    calloutNdc.set(
+      2 * (x + width * u) / viewportWidth - 1,
+      1 - 2 * (y + height * v) / viewportHeight,
+    );
+    calloutRaycaster.setFromCamera(calloutNdc, camera);
+    if (_visibleHit(calloutRaycaster.intersectObject(loadedRoot, true))) return true;
+  }
+  return false;
+}
+
+function offsetLabelOrigin(ax, ay, width, height, dx, dy) {
+  // Match Python _offset_label_origin. +x right, +y down. A zero component
+  // centers on that axis, so (0, -10) puts the bottom edge 10 px above.
+  let x, y;
+  if (dx > 0) x = ax + dx;
+  else if (dx < 0) x = ax + dx - width;
+  else x = ax - width / 2;
+  if (dy > 0) y = ay + dy;
+  else if (dy < 0) y = ay + dy - height;
+  else y = ay - height / 2;
+  return { x, y };
+}
+
+function _visibleCalloutAnchor(item, width, height, sceneSize) {
+  const ownerLayers = Array.isArray(item.annotation.layers) && item.annotation.layers.length
+    ? item.annotation.layers : [item.annotation.layer];
+  const nodes = ownerLayers.flatMap(index => layerNodeMap.get(index) || []);
+  if (!nodes.some(node => node.visible)) return null;
+
+  calloutPoint.copy(item.point);
+  if (item.group) {
+    calloutPoint.applyMatrix4(worldToRoot).sub(item.group.center)
+      .applyQuaternion(qObjectRotation).add(item.group.center)
+      .applyMatrix4(loadedRoot.matrixWorld);
+  }
+  if (renderer.clippingPlanes.some(plane => plane.distanceToPoint(calloutPoint) < 0)) {
+    return null;
+  }
+  calloutViewPoint.copy(calloutPoint).applyMatrix4(camera.matrixWorldInverse);
+  const depth = -calloutViewPoint.z;
+  calloutProjected.copy(calloutPoint).project(camera);
+  if (depth <= camera.near || calloutProjected.z < -1 || calloutProjected.z > 1
+      || Math.abs(calloutProjected.x) >= 1 || Math.abs(calloutProjected.y) >= 1) {
+    return null;
+  }
+  calloutNdc.set(calloutProjected.x, calloutProjected.y);
+  calloutRaycaster.setFromCamera(calloutNdc, camera);
+  const anchorDistance = calloutRaycaster.ray.origin.distanceTo(calloutPoint);
+  const occluder = _visibleHit(
+    calloutRaycaster.intersectObject(loadedRoot, true), item.annotation.points,
+  );
+  // This is a world-space geometric epsilon; camera distance must not let a
+  // nearby foreground surface through at long viewing distances.
+  const tolerance = Math.max(sceneSize * 1e-5, 1e-7);
+  if (occluder && occluder.distance < anchorDistance - tolerance) return null;
+
+  return {
+    x: (calloutProjected.x + 1) * width / 2,
+    y: (1 - calloutProjected.y) * height / 2,
+  };
+}
+
+function updateWorldCallouts(staticLayout = captureLayout, force = false) {
+  if (!loadedRoot || callouts.length === 0) return;
+  if (currentPass !== 'beauty') {
+    if (!calloutsHidden) for (const item of callouts) hideWorldCallout(item);
+    calloutsHidden = true;
+    return;
+  }
+  camera.updateMatrixWorld(true);
+  if (!force && !calloutsHidden && !calloutSettling
+      && camera.matrixWorld.equals(previousCalloutCamera)
+      && camera.projectionMatrix.equals(previousCalloutProjection)
+      && loadedRoot.matrixWorld.equals(previousCalloutRoot)
+      && qObjectRotation.equals(previousCalloutRotation)
+      && calloutRoot.clientWidth === previousCalloutWidth
+      && calloutRoot.clientHeight === previousCalloutHeight) return;
+  calloutsHidden = false;
+  previousCalloutCamera.copy(camera.matrixWorld);
+  previousCalloutProjection.copy(camera.projectionMatrix);
+  previousCalloutRoot.copy(loadedRoot.matrixWorld);
+  previousCalloutRotation.copy(qObjectRotation);
+  calloutSettling = false;
+  const viewport = calloutRoot.getBoundingClientRect();
+  const w = viewport.width, h = viewport.height;
+  if (w <= 0 || h <= 0) return;
+  previousCalloutWidth = calloutRoot.clientWidth;
+  previousCalloutHeight = calloutRoot.clientHeight;
+  worldToRoot.copy(loadedRoot.matrixWorld).invert();
+  const sceneSize = sceneBbox ? sceneBbox.getSize(calloutViewPoint).length() : 2;
+  calloutRaycaster.params.Line.threshold = Math.max(sceneSize / Math.max(w, h), 1e-5);
+  calloutRaycaster.params.Points.threshold = calloutRaycaster.params.Line.threshold;
+  // Screen-space obstacles include fixed overlays, visible UI and earlier labels.
+  const occupied = [];
+  for (const selector of ['#passes', '#clip-controls', '#layers', '.semantic-legend', '.semantic-annotation']) {
+    for (const node of document.querySelectorAll(selector)) {
+      if (getComputedStyle(node).display === 'none' || !node.getClientRects().length) continue;
+      const box = node.getBoundingClientRect();
+      occupied.push({ x: box.left - viewport.left, y: box.top - viewport.top,
+        w: box.width, h: box.height });
+    }
+  }
+  // Determine all visible anchors before placing any label, so an earlier
+  // panel cannot hide a later annotation's anchor.
+  const anchorStates = callouts.map(item => _visibleCalloutAnchor(item, w, h, sceneSize));
+  const anchorRadius = CALLOUT_POLICY.anchor_radius;
+  const anchorObstacles = anchorStates.map((anchor, index) => anchor && ({
+    index,
+    x: anchor.x - anchorRadius,
+    y: anchor.y - anchorRadius,
+    w: anchorRadius * 2,
+    h: anchorRadius * 2,
+  }));
+  for (let calloutIndex = 0; calloutIndex < callouts.length; calloutIndex++) {
+    const item = callouts[calloutIndex];
+    const anchor = anchorStates[calloutIndex];
+    if (!anchor) {
+      hideWorldCallout(item);
+      continue;
+    }
+    const ax = anchor.x, ay = anchor.y;
+    const label = item.label;
+    const width = label.offsetWidth, height = label.offsetHeight;
+    const hasExplicitOffset = Array.isArray(item.annotation.offset) && item.annotation.offset.length === 2;
+    let best = null;
+    if (hasExplicitOffset) {
+      const [ox, oy] = item.annotation.offset;
+      // Match Python _offset_label_origin: offset is the gap to the facing edge.
+      best = offsetLabelOrigin(ax, ay, width, height, ox, oy);
+      best.score = 0;
+      best.candidate = 0;
+    } else {
+      const edge = CALLOUT_POLICY.edge;
+      const placements = [];
+      // A large front-facing surface can cover every nearby candidate. Expand
+      // the search toward the viewport edge before deciding to hide its label.
+      for (let gap = CALLOUT_POLICY.gap; gap <= Math.hypot(w, h);
+           gap = Math.round(gap * CALLOUT_POLICY.gap_growth + CALLOUT_POLICY.gap_step)) {
+        placements.push(
+          [ax + gap, ay - gap - height], [ax - gap - width, ay - gap - height],
+          [ax + gap, ay + gap], [ax - gap - width, ay + gap],
+          [ax - width / 2, ay - gap - height], [ax - width / 2, ay + gap],
+          [ax - gap - width, ay - height / 2], [ax + gap, ay - height / 2],
+        );
+      }
+      for (let i = 0; i < placements.length; i++) {
+        const x = Math.max(edge, Math.min(w - width - edge, placements[i][0]));
+        const y = Math.max(edge, Math.min(h - height - edge, placements[i][1]));
+        if (w < width + 2 * edge || h < height + 2 * edge) break;
+        const rect = { x, y, w: width, h: height };
+        if (_rectOverlap(rect, { x: ax - anchorRadius, y: ay - anchorRadius,
+          w: anchorRadius * 2, h: anchorRadius * 2 })) continue;
+        if (anchorObstacles.some(other => other && other.index !== calloutIndex
+            && _rectOverlap(rect, other) > 0)) continue;
+        const score = i * 3 + (!staticLayout && item.candidate >= 0 && item.candidate !== i ? 35 : 0);
+        // A crowded viewport is better served by hiding the callout than by
+        // covering controls or another label.
+        if (occupied.some(other => _rectOverlap(rect, other) > 0)) continue;
+        if (calloutPanelObstructed(x, y, width, height, w, h)) continue;
+        if (!best || score < best.score) best = { x, y, score, candidate: i };
+      }
+      if (!best) {
+        hideWorldCallout(item);
+        continue;
+      }
+    }
+    let { x, y } = best;
+    if (!hasExplicitOffset && !staticLayout && item.previous) {
+      x = item.previous.x + (x - item.previous.x) * 0.3;
+      y = item.previous.y + (y - item.previous.y) * 0.3;
+      // A smooth transition may cross geometry or a sibling anchor even when
+      // its destination is clear.
+      const rect = { x, y, w: width, h: height };
+      if (_rectOverlap(rect, { x: ax - anchorRadius, y: ay - anchorRadius,
+        w: anchorRadius * 2, h: anchorRadius * 2 })
+          || anchorObstacles.some(other => other && other.index !== calloutIndex
+            && _rectOverlap(rect, other) > 0)
+          || occupied.some(other => _rectOverlap(rect, other) > 0)
+          || calloutPanelObstructed(x, y, width, height, w, h)) {
+        x = best.x;
+        y = best.y;
+      }
+    }
+    if (Math.abs(best.x - x) + Math.abs(best.y - y) > 0.5) calloutSettling = true;
+    item.previous = { x, y };
+    item.candidate = best.candidate;
+    label.style.left = `${x}px`;
+    label.style.top = `${y}px`;
+    label.style.visibility = 'visible';
+    const showArrow = item.annotation.arrow !== false;
+    const sx = Math.max(x, Math.min(x + width, ax));
+    const sy = Math.max(y, Math.min(y + height, ay));
+    const dx = ax - sx, dy = ay - sy;
+    const len = Math.hypot(dx, dy);
+    if (showArrow && len > 0) {
+      const ux = dx / len, uy = dy / len;
+      item.line.setAttribute('d', `M ${sx} ${sy} L ${ax} ${ay}`);
+      item.tip.setAttribute('d', `M ${ax} ${ay} L ${ax - ux * 9 - uy * 4} ${ay - uy * 9 + ux * 4} L ${ax - ux * 9 + uy * 4} ${ay - uy * 9 - ux * 4} Z`);
+      item.line.style.visibility = 'visible';
+      item.tip.style.visibility = 'visible';
+    } else {
+      item.line.style.visibility = 'hidden';
+      item.tip.style.visibility = 'hidden';
+    }
+    occupied.push({ x, y, w: width, h: height });
+  }
+}
+
 function applyCrispCheckerTextures(root) {
   // three.js may still build mipmaps for small PNGs; force point sampling so
   // baked checker cells stay sharp (see material extras from the WebGL backend).
@@ -1443,6 +1860,7 @@ const onLoaded = (gltf) => {
   buildCellGroups(loadedRoot);
   // Map top-level nodes to their layer index for the visibility checkboxes.
   buildLayerGroups(loadedRoot);
+  buildWorldCallouts();
   // World-space bbox of the loaded scene drives the depth-pass normalisation.
   sceneBbox = new THREE.Box3().setFromObject(loadedRoot);
   if (gltf.cameras && gltf.cameras.length > 0) {
@@ -1475,12 +1893,13 @@ const onLoaded = (gltf) => {
   buildPassUI();
   buildLayerUI();
   buildSemanticOverlays();
+  updateWorldCallouts(true);
   // Juxtaposition scenes (built with the `|` operator) contain 2+ cells; default
   // to per-object rotation so dragging compares orientations rather than orbiting
   // the whole arrangement. Single-object/overlay scenes keep camera orbit.
   if (cellGroups.length >= 2) setObjectRotateEnabled(true);
   status.classList.add('hidden');
-  // Stable automation handle used by snapshot()/observe() and end-to-end tests.
+  // Stable automation handle used by observe() and end-to-end tests.
   window.__hakowan = {
     THREE, scene, renderer, canvas, camera, controls, loadedRoot,
     perspCamera, orthoCamera,
@@ -1536,11 +1955,13 @@ const onError = (err) => {
 function animate() {
   resize();
   controls.update();
+  updateWorldCallouts();
   if (currentPass === 'depth') updateDepthRange();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 resize();
+setBackgroundMode(bgMode);
 animate();
 </script>
 </body>

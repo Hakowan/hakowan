@@ -9,6 +9,11 @@ from ...texture import ScalarTextureLike, TextureLike
 from ....common.color import ColorLike
 
 
+def _validate_microfacet_distribution(value: str) -> None:
+    if value not in {"beckmann", "ggx"}:
+        raise ValueError("Microfacet distribution must be 'beckmann' or 'ggx'.")
+
+
 @dataclass(kw_only=True, slots=True)
 class Material(Channel):
     """Material base class.
@@ -57,14 +62,17 @@ class RoughConductor(Conductor):
     """Rough conductor material.
 
     Attributes:
-        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+        distribution (Literal["beckmann", "ggx"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
 
     """
 
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureLike = 0.1
+
+    def __post_init__(self) -> None:
+        _validate_microfacet_distribution(self.distribution)
 
 
 @dataclass(slots=True)
@@ -86,14 +94,17 @@ class RoughPlastic(Plastic):
     """Rough plastic material.
 
     Attributes:
-        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+        distribution (Literal["beckmann", "ggx"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
 
     """
 
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: float = 0.1
+
+    def __post_init__(self) -> None:
+        _validate_microfacet_distribution(self.distribution)
 
 
 @dataclass(slots=True)
@@ -170,14 +181,17 @@ class RoughDielectric(Dielectric):
     """Rough dielectric material.
 
     Attributes:
-        distribution (Literal["beckmann", "ggx", "phong"]): Microfacet distribution
+        distribution (Literal["beckmann", "ggx"]): Microfacet distribution
             (default: ``"beckmann"``).
         alpha: Roughness value (default: 0.1).
 
     """
 
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureLike = 0.1
+
+    def __post_init__(self) -> None:
+        _validate_microfacet_distribution(self.distribution)
 
 
 @dataclass(slots=True)
@@ -195,11 +209,10 @@ class Hair(Material):
     jitter.  These are evaluated in the hair shader (Blender), so they compose
     with the guide/child hairs for free.
 
-    Note: a *data-driven* color (e.g. ``ScalarField``) is not supported by the
-    hair renderers and falls back to melanin with a warning — the hair BSDF
-    darkens/tints colors, which is poor for reading data anyway.  To color fur
-    by an attribute, use a non-Hair material (e.g. ``Diffuse``) on the fur
-    strands.
+    Note: Texture-valued colors, including ``Uniform`` and ``ScalarField``, are not
+    supported by the hair renderers and fall back to melanin (or a brown diffuse
+    approximation) with a warning. To color fur by an attribute, use a non-Hair
+    material (e.g. ``Diffuse``) on the fur strands.
 
     Attributes:
         eumelanin: Eumelanin (dark/brown pigment) concentration (default: 1.3).

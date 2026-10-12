@@ -3,12 +3,17 @@ from .film import generate_film_config
 from .integrator import generate_integrator_config
 from .sampler import generate_sampler_config
 from .sensor import generate_sensor_config
-from .shape import generate_point_config, generate_curve_config, generate_surface_config
+from .shape import (
+    generate_point_config,
+    generate_curve_config,
+    generate_surface_config,
+)
 
 from ...common import logger
 from ...common.image_io import check_supported_suffix, is_hdr_suffix, save_array
-from ...common.overlay import composite_overlay_file
+from ...common.overlay import _project_world_annotations, composite_overlay_file
 from ...compiler import Scene, View
+from ...compiler.overlay import CompiledWorldAnnotation
 from ...setup import Config
 from ...setup.integrator import AOV, Integrator
 from ...setup.render_pass import ALBEDO, DEPTH, NORMAL, RENDER_PASSES, aov_path
@@ -18,50 +23,69 @@ from .. import RenderBackend
 import datetime
 import mitsuba as mi
 import drjit
-from typing import Any
+from typing import Any, Callable
 from pathlib import Path
 import numpy as np
 import yaml
 
 
-def _camera_axis_cosine(shape: tuple[int, ...], sensor: Any) -> np.ndarray:
+def _camera_axis_cosine(
+    shape: tuple[int, ...],
+    sensor: Any,
+    *,
+    film_size: tuple[int, int] | None = None,
+    crop_offset: tuple[int, int] = (0, 0),
+) -> np.ndarray:
     """Per-pixel cos(theta) between each camera ray and the optical axis.
 
-    Multiplying Mitsuba's ray-distance ``depth`` AOV by this converts it to
-    planar Z-depth (distance measured along the optical axis), which matches
-    Blender's Z pass: a plane facing the camera then reads a constant depth
-    instead of bowing outward.
-
-    Args:
-        shape: ``(height, width, ...)`` of the depth array.
-        sensor: The configured sensor (uses ``fov``/``fov_axis`` for perspective
-            cameras; orthographic cameras have no field of view).
-
-    Returns:
-        ``(height, width)`` float32 array of cos(theta), all ones for cameras
-        without a field of view.
+    Cropped arrays retain their coordinates in the full sensor film so depth
+    normalization stays identical to the corresponding uncropped pixels.
     """
-    h, w = int(shape[0]), int(shape[1])
+    height, width = int(shape[0]), int(shape[1])
+    film_width, film_height = film_size or (width, height)
+    crop_x, crop_y = crop_offset
     fov = getattr(sensor, "fov", None)
     if fov is None:
-        return np.ones((h, w), dtype=np.float32)
+        return np.ones((height, width), dtype=np.float32)
 
     half_tan = float(np.tan(np.radians(float(fov)) * 0.5))
     fov_axis = getattr(sensor, "fov_axis", "smaller")
-    ref = {
-        "x": w,
-        "y": h,
-        "larger": max(w, h),
-        "diagonal": float(np.hypot(w, h)),
-    }.get(fov_axis, min(w, h))  # default: "smaller" (Mitsuba's default)
-
-    # Pixel-center tangent offset from the optical axis; the fov axis spans
-    # [-half_tan, half_tan], other axes scale with the same per-pixel step.
-    step = 2.0 * half_tan / ref
-    xs = ((np.arange(w, dtype=np.float64) + 0.5) - w * 0.5) * step
-    ys = ((np.arange(h, dtype=np.float64) + 0.5) - h * 0.5) * step
+    reference = {
+        "x": film_width,
+        "y": film_height,
+        "larger": max(film_width, film_height),
+        "diagonal": float(np.hypot(film_width, film_height)),
+    }.get(fov_axis, min(film_width, film_height))
+    step = 2.0 * half_tan / reference
+    xs = ((np.arange(width, dtype=np.float64) + crop_x + 0.5) - film_width * 0.5) * step
+    ys = (
+        (np.arange(height, dtype=np.float64) + crop_y + 0.5) - film_height * 0.5
+    ) * step
     cos = 1.0 / np.sqrt(xs[None, :] ** 2 + ys[:, None] ** 2 + 1.0)
     return cos.astype(np.float32)
+
+
+def _film_render_window(sensor: Any):
+    """Return full film size, active crop size, and crop offset in pixels."""
+    film = sensor.film()
+    return (
+        tuple(int(value) for value in film.size()),
+        tuple(int(value) for value in film.crop_size()),
+        tuple(int(value) for value in film.crop_offset()),
+    )
+
+
+def _apply_film_crop(
+    sensor: Any, crop_offset: tuple[int, int], crop_size: tuple[int, int]
+) -> None:
+    """Apply a late film crop and refresh the sensor's cached projection."""
+    film_parameters = mi.traverse(sensor.film())
+    film_parameters["crop_offset"] = mi.Point2u(*(int(value) for value in crop_offset))
+    film_parameters["crop_size"] = mi.Vector2u(*(int(value) for value in crop_size))
+    film_parameters.update()
+    # Mitsuba 3.9 does not refresh the camera projection when only the film
+    # parameters are updated after sensor construction.
+    sensor.parameters_changed([])
 
 
 def _show_emitters(integrator: dict[str, Any]) -> None:
@@ -134,9 +158,137 @@ def _beauty_rgba_indexes(
     return (red, green, blue, alpha)
 
 
+def _point_glyph_owns_anchor(
+    hit: Any, compiled_scene: Scene | None, annotation: CompiledWorldAnnotation
+) -> bool:
+    """Whether a Mitsuba point-mark hit belongs to this annotation anchor."""
+    if compiled_scene is None or not hit.is_valid():
+        return False
+    shape_id = hit.shape.id()
+    for owner in annotation.layers or (annotation.layer,):
+        prefix = f"view_{owner:03}_shape_"
+        if not shape_id.startswith(prefix):
+            continue
+        view = compiled_scene[owner]
+        if view.mark is not mark.Point or view.data_frame is None:
+            continue
+        try:
+            vertex_index = int(shape_id[len(prefix) :])
+        except ValueError:
+            continue
+        vertices = view.data_frame.mesh.vertices
+        if vertex_index >= len(vertices):
+            continue
+        point = view.global_transform @ np.array((*vertices[vertex_index], 1.0))
+        if np.allclose(point[:3], annotation.position, rtol=0.0, atol=1e-7):
+            return True
+    return False
+
+
+def _curve_glyph_owns_anchor(
+    hit: Any, compiled_scene: Scene | None, annotation: CompiledWorldAnnotation
+) -> bool:
+    """Whether the intersected linear-curve segment contains this anchor."""
+    if compiled_scene is None or not hit.is_valid():
+        return False
+    shape_id = hit.shape.id()
+    anchor = np.asarray(annotation.position, dtype=np.float64)
+    for owner in annotation.layers or (annotation.layer,):
+        if not shape_id.startswith(f"view_{owner:03}_shape_"):
+            continue
+        view = compiled_scene[owner]
+        if (
+            view.mark is not mark.Curve
+            or view.vector_field_channel is not None
+            or view.data_frame is None
+        ):
+            continue
+        # Mitsuba bakes to_world into linearcurve control points. Read the
+        # intersected primitive from that shape, not all edges in its view:
+        # material grouping can reorder or split source edges across shapes.
+        parameters = mi.traverse(hit.shape)
+        segments = np.asarray(parameters["segment_indices"])
+        control_points = np.asarray(parameters["control_points"]).reshape(-1, 4)
+        first = int(segments[int(hit.prim_index)])
+        start, end = control_points[first : first + 2, :3]
+        r0, r1 = control_points[first : first + 2, 3]
+        segment = end - start
+        length_squared = float(np.dot(segment, segment))
+        fraction = (
+            float(np.clip(np.dot(anchor - start, segment) / length_squared, 0, 1))
+            if length_squared > 1e-20
+            else 0.0
+        )
+        closest = start + fraction * segment
+        radius = (1.0 - fraction) * float(r0) + fraction * float(r1)
+        if np.linalg.norm(anchor - closest) <= radius + 5e-5:
+            return True
+    return False
+
+
+def _visible_world_annotations(
+    scene: "mi.Scene",
+    camera: Any,
+    annotations: list[CompiledWorldAnnotation],
+    compiled_scene: Scene | None = None,
+) -> list[CompiledWorldAnnotation]:
+    """Keep anchors whose camera ray first hits their surface or empty space.
+
+    Cast one ray through each projected anchor using the loaded Mitsuba sensor,
+    so orthographic rays originate on the corresponding part of the film rather
+    than converging on the eye. The same scene BVH handles all shapes/layers.
+    """
+    if not annotations:
+        return annotations
+
+    sensor = scene.sensors()[0]
+    film_size, (width, height), crop_offset = _film_render_window(sensor)
+    projected = _project_world_annotations(
+        annotations,
+        (width, height),
+        sensor=camera,
+        world_to_camera=None,
+        projection=None,
+        film_size=film_size,
+        crop_offset=crop_offset,
+    )
+
+    scene_scale = 1.0
+    if compiled_scene is not None:
+        for view in compiled_scene:
+            if view.bbox is not None:
+                scene_scale = max(
+                    scene_scale,
+                    float(np.linalg.norm(view.bbox[1] - view.bbox[0])),
+                )
+    visible = []
+    for annotation, x, y in projected:
+        ray, _ = sensor.sample_ray(
+            0.0, 0.0, mi.Point2f(x / width, y / height), mi.Point2f(0.5, 0.5)
+        )
+        anchor_distance = float(
+            np.dot(
+                np.asarray(annotation.position, dtype=np.float64) - np.array(ray.o),
+                np.array(ray.d),
+            )
+        )
+        hit = scene.ray_intersect(ray)
+        tolerance = max(5e-5, scene_scale * 1e-6)
+        if (
+            not hit.is_valid()
+            or _point_glyph_owns_anchor(hit, compiled_scene, annotation)
+            or _curve_glyph_owns_anchor(hit, compiled_scene, annotation)
+            or float(hit.t) >= anchor_distance - tolerance
+        ):
+            visible.append(annotation)
+    return visible
+
+
 def generate_base_config(config: Config) -> dict:
     """Generate a Mitsuba base config dict from a Config."""
-    sensor_config = generate_sensor_config(config.sensor)
+    sensor_config = generate_sensor_config(
+        config.sensor, film_width=config.film.width, film_height=config.film.height
+    )
     sensor_config["film"] = generate_film_config(config.film)
     sensor_config["sampler"] = generate_sampler_config(config.sampler)
     integrator_config = generate_integrator_config(_effective_integrator(config))
@@ -294,7 +446,21 @@ class MitsubaBackend(RenderBackend):
                 yaml.dump(serializable, f, default_flow_style=False, sort_keys=False)
             logger.info(f"Scene saved to {yaml_file}")
 
+        film_settings = mi_config["camera"]["film"]
+        crop_offset_value = film_settings.pop("crop_offset", None)
+        crop_size_value = film_settings.pop("crop_size", None)
+        if crop_offset_value is None or crop_size_value is None:
+            crop_offset_value = crop_size_value = None
+
         mi_scene = mi.load_dict(mi_config)
+        if crop_offset_value is not None:
+            _apply_film_crop(
+                mi_scene.sensors()[0],
+                tuple(crop_offset_value),
+                tuple(crop_size_value),
+            )
+        film_size, crop_size, crop_offset = _film_render_window(mi_scene.sensors()[0])
+
         image = mi.render(scene=mi_scene)  # type: ignore
         logger.info("Rendering done")
         image_layers = image
@@ -369,7 +535,12 @@ class MitsubaBackend(RenderBackend):
                 # the optical axis) by multiplying by cos(theta) per pixel, so a
                 # plane reads constant and only relief remains — matching the
                 # Blender Z pass.
-                depth = depth * _camera_axis_cosine(depth.shape, config.sensor)
+                depth = depth * _camera_axis_cosine(
+                    depth.shape,
+                    config.sensor,
+                    film_size=film_size,
+                    crop_offset=crop_offset,
+                )
                 # Normalize over the foreground only. The background depth AOV is
                 # 0 (no hit); including it (and anti-aliased silhouette pixels,
                 # whose depth blends the object with the 0 background) collapses
@@ -422,12 +593,40 @@ class MitsubaBackend(RenderBackend):
             # not, and a missing parent fails silently (deferred I/O error).
             filename.parent.mkdir(parents=True, exist_ok=True)
             save_image(image, filename)
+            world_annotations = scene.world_annotations
+            geometry_at: Callable[[float, float], bool] | None = None
+            if world_annotations and not is_hdr_suffix(filename.suffix):
+                world_annotations = _visible_world_annotations(
+                    mi_scene, config.sensor, world_annotations, scene
+                )
+                sensor = mi_scene.sensors()[0]
+                width, height = crop_size
+
+                def world_geometry_at(x: float, y: float) -> bool:
+                    ray, _ = sensor.sample_ray(
+                        0.0,
+                        0.0,
+                        mi.Point2f(x / width, y / height),
+                        mi.Point2f(0.5, 0.5),
+                    )
+                    return bool(mi_scene.ray_test(ray))
+
+                geometry_at = world_geometry_at
             if not composite_overlay_file(
-                filename, scene.legends, scene.annotations, config.background
+                filename,
+                scene.legends,
+                scene.annotations,
+                config.background,
+                world_annotations=world_annotations,
+                sensor=config.sensor,
+                geometry_at=geometry_at,
+                film_size=film_size,
+                crop_offset=crop_offset,
             ):
                 logger.warning(
-                    "Legends and annotations are not composited into HDR output; "
-                    "use PNG or another Pillow-supported format."
+                    "Legends and annotations (including world annotations) are not "
+                    "composited into HDR output; use PNG or another "
+                    "Pillow-supported format."
                 )
 
             if config.albedo and albedo_offset is not None:

@@ -253,7 +253,7 @@ class ConductorMaterialSpec(MaterialBaseSpec):
 class RoughConductorMaterialSpec(MaterialBaseSpec):
     kind: Literal["rough_conductor"] = "rough_conductor"
     material: str
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureValue = 0.1
 
 
@@ -267,7 +267,7 @@ class RoughPlasticMaterialSpec(MaterialBaseSpec):
     kind: Literal["rough_plastic"] = "rough_plastic"
     diffuse_reflectance: TextureValue = 0.5
     specular_reflectance: ScalarTextureValue = 1.0
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
@@ -311,7 +311,7 @@ class ThinDielectricMaterialSpec(DielectricMaterialBaseSpec):
 
 class RoughDielectricMaterialSpec(DielectricMaterialBaseSpec):
     kind: Literal["rough_dielectric"] = "rough_dielectric"
-    distribution: Literal["beckmann", "ggx", "phong"] = "beckmann"
+    distribution: Literal["beckmann", "ggx"] = "beckmann"
     alpha: ScalarTextureValue = 0.1
 
 
@@ -551,6 +551,20 @@ class AnnotationSpec(SpecModel):
         return value
 
 
+class WorldAnnotationSpec(SpecModel):
+    """Readable text for a local 3D geometry point, with an optional leader."""
+
+    kind: Literal["world"]
+    text: str = Field(min_length=1)
+    position: tuple[float, float, float]
+    color: ColorValue = "white"
+    font_size: int = Field(default=16, gt=0)
+    background: ColorValue | None = "black"
+    padding: int = Field(default=4, ge=0)
+    offset: tuple[float, float] | None = None
+    arrow: bool = True
+
+
 class LayerPropertiesSpec(SpecModel):
     """Properties contributed by one node in a composed layer tree."""
 
@@ -559,7 +573,7 @@ class LayerPropertiesSpec(SpecModel):
     channels: ChannelsSpec = Field(default_factory=ChannelsSpec)
     transforms: tuple[TransformSpec, ...] = ()
     name: str | None = None
-    annotations: tuple[AnnotationSpec, ...] = ()
+    annotations: tuple[AnnotationSpec | WorldAnnotationSpec, ...] = ()
 
 
 class LayerNodeSpec(SpecModel):
@@ -593,6 +607,19 @@ NodeSpec = Annotated[
     LayerNodeSpec | InheritNodeSpec | OverlayNodeSpec | LayoutNodeSpec,
     Field(discriminator="kind"),
 ]
+
+
+def _contains_world_annotation(value: Any) -> bool:
+    if isinstance(value, WorldAnnotationSpec):
+        return True
+    if isinstance(value, SpecModel):
+        return any(
+            _contains_world_annotation(getattr(value, name))
+            for name in type(value).model_fields
+        )
+    if isinstance(value, (tuple, list)):
+        return any(_contains_world_annotation(item) for item in value)
+    return False
 
 
 class PerspectiveCameraBaseSpec(SpecModel):
@@ -684,7 +711,9 @@ class EnvironmentSpec(SpecModel):
 class OutputSettingsSpec(SpecModel):
     width: int = Field(default=1024, gt=0)
     height: int = Field(default=800, gt=0)
-    background: Literal["light", "dark"] | None = None
+    background: (
+        Literal["auto", "light", "dark", "black", "white", "transparent"] | None
+    ) = None
     passes: tuple[Literal["beauty", "albedo", "depth", "normal", "facet_id"], ...] = (
         "beauty",
     )
@@ -725,8 +754,15 @@ class FigureSpec(SpecModel):
     @model_validator(mode="after")
     def validate_version_features(self) -> "FigureSpec":
         """Reject fields introduced after the declared schema version."""
-        if self.version == "1.0" and self.scene is not None:
-            raise ValueError("FigureSpec version 1.0 does not support scene settings.")
+        if self.version == "1.0":
+            if self.scene is not None:
+                raise ValueError(
+                    "FigureSpec version 1.0 does not support scene settings."
+                )
+            if _contains_world_annotation(self.root):
+                raise ValueError(
+                    "FigureSpec version 1.0 does not support world annotations."
+                )
         return self
 
     def to_dict(self) -> dict[str, Any]:
@@ -774,6 +810,8 @@ FigureSpec.model_rebuild()
 __all__ = [
     "SCHEMA_URL",
     "SCHEMA_VERSION",
+    "AnnotationSpec",
+    "WorldAnnotationSpec",
     "AttributeSpec",
     "FigureSpec",
     "FunctionRefSpec",

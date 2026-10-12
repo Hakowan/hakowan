@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Literal
 
 from ..common.color import ColorLike
@@ -75,4 +76,61 @@ class Annotation:
             raise ValueError("Annotation.padding must be non-negative.")
 
 
-__all__ = ["Annotation", "Legend"]
+@dataclass(frozen=True, slots=True)
+class WorldAnnotation:
+    """Text callout anchored to a point in a view's local 3D coordinates.
+
+    ``position`` uses the geometry's local frame after transforms that bake
+    coordinates into mesh vertices. The label remains screen-facing; renderers
+    then apply the view's global transform, layout, and active camera.
+
+    Parameters:
+        text: Text string to display.
+        position: 3D point in the view's post-baked local geometry coordinates.
+        color: Text and arrow color.
+        font_size: Font size in pixels.
+        background: Background color of the text callout panel.
+        padding: Internal padding in pixels around the text.
+        offset: Optional screen-space pixel offset ``(dx, dy)`` from the projected
+            anchor to the panel edge that faces it. ``+x`` is right and ``+y`` is
+            down. A zero component centers the panel on that axis, so
+            ``(0, -10)`` places the label 10 pixels above the anchor. ``None``
+            keeps automatic placement. An explicit offset is not collision-checked.
+        arrow: Whether to draw a leader from the panel to the anchor (default True).
+    """
+
+    text: str
+    position: tuple[float, float, float]
+    color: ColorLike = "white"
+    font_size: int = 16
+    background: ColorLike | None = "black"
+    padding: int = 4
+    offset: tuple[float, float] | None = None
+    arrow: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.text:
+            raise ValueError("WorldAnnotation.text must not be empty.")
+        if len(self.position) != 3 or not all(
+            math.isfinite(value) for value in self.position
+        ):
+            raise ValueError(
+                "WorldAnnotation.position must contain three finite coordinates."
+            )
+        if self.font_size <= 0:
+            raise ValueError("WorldAnnotation.font_size must be positive.")
+        if self.padding < 0:
+            raise ValueError("WorldAnnotation.padding must be non-negative.")
+        if self.offset is not None:
+            if len(self.offset) != 2 or not all(
+                math.isfinite(value) for value in self.offset
+            ):
+                raise ValueError(
+                    "WorldAnnotation.offset must contain two finite coordinates."
+                )
+            object.__setattr__(
+                self, "offset", tuple(float(value) for value in self.offset)
+            )
+
+
+__all__ = ["Annotation", "Legend", "WorldAnnotation"]

@@ -20,8 +20,10 @@ transform.
 Clip transform cuts the mesh with a plane, keeping only the half that the plane normal points into.
 Unlike the [Filter transform](#filter-transform), which keeps or drops whole facets, the clip
 transform slices through triangles: facets straddling the plane are cut so that only the part on the
-positive side is kept (partial triangles are produced). The exposed cross-section is left open (it is
-not capped).
+positive side is kept. The exposed cross-section is left open (it is not capped). Polygonal input
+is triangulated before clipping when necessary; the compiler does not triangulate the trimmed result
+again. Vertex and facet attributes are propagated through the trim. Render backends may triangulate
+polygons as required by their renderer.
 
 ```py
 # Keep the half-space where dot(normal, x - point) >= 0.
@@ -31,7 +33,7 @@ tr = hkw.transform.Clip(point=[0, 0, 0], normal=[1, 0, 0])
 The plane is defined in the data/object coordinate space, consistent with the
 [Filter transform](#filter-transform).
 
-The [WebGL backend](backend.md) additionally offers an *interactive* clipping plane in the viewer
+The [WebGL backend](rendering.md#webgl) additionally offers an *interactive* clipping plane in the viewer
 (the `clip` button), independent of this transform, so you can slide a plane through the scene live
 without re-rendering.
 
@@ -70,14 +72,22 @@ l = hkw.layer().rotate(v, theta)
 Compute transform is designed to compute a set of commonly used attributes from the data frame.
 Currently, the following attributes can be computed:
 
-* X|Y|Z coordinates
-* Normal
-* Component
+* `x`, `y`, and `z`: extract coordinate attributes.
+* `normal`: compute the normal vector field.
+* `vertex_normal`: compute one normal per vertex.
+* `facet_normal`: compute one normal per facet.
+* `component`: compute connected-component IDs.
 
 ```py
-# Add per-facet component id attribute named "comp"
+# Compute per-vertex normals in an attribute named "normal".
+tr = hkw.transform.Compute(vertex_normal="normal")
+
+# Add per-facet component IDs in an attribute named "comp".
 tr = hkw.transform.Compute(component="comp")
 ```
+
+For line meshes (two-vertex facets), components join segments that share a
+vertex, so each connected polyline receives one ID.
 
 See the [Penny example](../examples/penny.md) for an actual usage of the compute
 transform.

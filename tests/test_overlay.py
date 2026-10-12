@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import lagrange
 import numpy as np
@@ -8,9 +9,20 @@ import pytest
 from PIL import Image
 
 import hakowan as hkw
-from hakowan.common.overlay import composite_overlay_file, composite_overlays
+from hakowan.common.overlay import (
+    _offset_label_origin,
+    _place_world_label,
+    composite_overlay_file,
+    composite_overlays,
+    _project_world_annotations,
+)
 from hakowan.common.colormap.named_colormaps import get_colormap
-from hakowan.compiler.overlay import CompiledAnnotation, CompiledLegend
+from hakowan.compiler.overlay import (
+    CompiledAnnotation,
+    CompiledLegend,
+    CompiledWorldAnnotation,
+)
+from hakowan.setup.sensor import Orthographic, Perspective
 
 
 def _scalar_mesh():
@@ -256,6 +268,451 @@ def test_raster_overlay_compositor_adds_panel_and_annotation(tmp_path):
     assert not composite_overlay_file(tmp_path / "image.exr", [legend], [])
 
 
+@pytest.mark.parametrize(("position", "source_x"), [("left", 120), ("right", 0)])
+def test_raster_legend_expands_narrow_image(position, source_x):
+    legend = CompiledLegend(
+        title="Value",
+        units=None,
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 0.5, 1.0),
+        labels=("0", "0.5", "1"),
+        colors=((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        position=position,
+        width=120,
+        scale=(),
+    )
+    source = Image.new("RGBA", (64, 160), (0, 0, 0, 0))
+
+    result = composite_overlays(source, [legend], [])
+
+    assert result.size == (184, 160)
+    embedded = result.crop((source_x, 0, source_x + source.width, source.height))
+    assert np.array_equal(np.asarray(embedded), np.asarray(source))
+    panel_x = 0 if position == "left" else source.width
+    panel = np.asarray(result.crop((panel_x, 0, panel_x + legend.width, source.height)))
+    assert np.any(panel[..., 3] > 0)
+
+
+def _world_callout(position=(0.0, 0.0, 0.0), text="anchor"):
+    return CompiledWorldAnnotation(
+        text=text,
+        position=position,
+        layer=0,
+        cell=None,
+        color=(1.0, 0.0, 0.0),
+        font_size=14,
+        background=(0.0, 0.0, 0.0),
+        padding=3,
+    )
+
+
+def test_world_callouts_project_with_sensor_and_avoid_anchor_overlap(tmp_path):
+    source = Image.new("RGB", (240, 160), "white")
+    camera = Perspective(
+        location=(0, 0, 5),
+        target=(0, 0, 0),
+        up=(0, 1, 0),
+        fov=90,
+        fov_axis="y",
+    )
+    annotations = [_world_callout(), _world_callout(text="second")]
+    result = composite_overlays(
+        source, [], [], world_annotations=annotations, sensor=camera
+    )
+
+    assert np.all(np.asarray(result)[:, :, 3] == 255)
+    assert result.getpixel((120, 80)) == (255, 0, 0, 255)
+    # Distinct labels fit in different locations, neither occluding the anchor.
+    dark = np.all(np.asarray(result)[:, :, :3] < 100, axis=2)
+    assert dark.sum() > 100
+    assert not dark[80, 120]
+    assert np.any(dark[:70, 130:])
+    assert np.any(dark[:70, :110])
+
+    pale = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[
+            replace(annotations[0], color=(1.0, 1.0, 1.0), background=None)
+        ],
+        sensor=camera,
+    )
+    assert np.any(np.asarray(pale)[:, :, :3] < 50)  # contrast stroke on white
+
+    path = tmp_path / "world.png"
+    source.save(path)
+    assert composite_overlay_file(
+        path, [], [], world_annotations=annotations[:1], sensor=camera
+    )
+    with Image.open(path) as encoded:
+        assert encoded.getpixel((120, 80))[:3] == (255, 0, 0)
+    assert not composite_overlay_file(
+        tmp_path / "world.exr",
+        [],
+        [],
+        world_annotations=annotations[:1],
+        sensor=camera,
+    )
+
+
+def test_world_callout_renders_text_pixels_without_panel_or_arrow():
+    source = Image.new("RGB", (240, 160), "white")
+    camera = Perspective(
+        location=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0), fov=90, fov_axis="y"
+    )
+    annotation = replace(
+        _world_callout(text="glyph"),
+        color=(0.0, 0.0, 0.0),
+        background=None,
+        arrow=False,
+    )
+
+    result = composite_overlays(
+        source, [], [], world_annotations=[annotation], sensor=camera
+    )
+
+    assert np.any(np.all(np.asarray(result)[:, :, :3] < 100, axis=2))
+
+
+@pytest.mark.parametrize("position", [(1.0, 0.0, 0.0), (0.0, -1.0, 0.0)])
+def test_matrix_projection_rejects_right_and_bottom_edges(position):
+    projected = _project_world_annotations(
+        [_world_callout(position)],
+        (240, 160),
+        sensor=None,
+        world_to_camera=np.eye(4),
+        projection=np.eye(4),
+    )
+
+    assert projected == []
+
+
+def test_callout_projection_uses_full_film_with_crop_offset():
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), up=(0, 1, 0), scale=4)
+    projected = _project_world_annotations(
+        [_world_callout()],
+        (160, 100),
+        sensor=camera,
+        world_to_camera=None,
+        projection=None,
+        film_size=(240, 160),
+        crop_offset=(20, 10),
+    )
+
+    assert projected[0][1:] == (100.0, 70.0)
+
+
+def test_auto_callout_keeps_other_anchors_outside_its_panel():
+    placement = _place_world_label(
+        (200, 160), (60, 40), (400, 300), [], anchors=[(250, 120)]
+    )
+
+    assert placement is not None
+    left, top, right, bottom = placement
+    assert not (left <= 250 <= right and top <= 120 <= bottom)
+
+
+def test_world_label_expands_beyond_mesh_before_hiding():
+    def geometry_at(x, y):
+        return 100 <= x < 320 and 80 <= y < 240
+
+    placement = _place_world_label((210, 160), (60, 40), (420, 320), [], geometry_at)
+    # Nearby candidates cover the mesh; the expanded upper-right candidate clears it.
+    assert placement == (293, 37, 353, 77)
+
+
+def test_world_label_spacing_and_compiled_order():
+    occupied = []
+    first = _place_world_label((200, 160), (60, 40), (400, 320), occupied)
+    assert first == (220, 100, 280, 140)
+    occupied.append(first)
+    second = _place_world_label((200, 160), (60, 40), (400, 320), occupied)
+    assert second == (120, 100, 180, 140)
+    occupied.append(second)
+    assert _place_world_label((200, 160), (60, 40), (400, 320), occupied) == (
+        220,
+        180,
+        280,
+        220,
+    )
+
+
+def test_world_label_footprint_rejects_geometry_at_panel_corner():
+    # The first panel's centre is clear, but its upper-left footprint hits geometry.
+    placement = _place_world_label(
+        (200, 160),
+        (60, 40),
+        (400, 320),
+        [],
+        lambda x, y: 220 <= x < 223 and 100 <= y < 103,
+    )
+    assert placement == (120, 100, 180, 140)
+
+
+def test_world_label_clamps_borders_without_covering_anchor():
+    assert _place_world_label((395, 5), (60, 40), (400, 320), []) == (315, 6, 375, 46)
+    assert _place_world_label((5, 315), (60, 40), (400, 320), []) == (25, 255, 85, 295)
+
+
+def test_world_label_hides_when_viewport_is_crowded():
+    assert (
+        _place_world_label((200, 160), (60, 40), (400, 320), [(0, 0, 400, 320)]) is None
+    )
+    assert (
+        _place_world_label((200, 160), (60, 40), (400, 320), [], lambda x, y: True)
+        is None
+    )
+    assert _place_world_label((200, 160), (390, 40), (400, 320), []) is None
+
+
+@pytest.mark.parametrize("transparent", [False, True])
+def test_world_callout_avoids_foreground_and_preserves_arrow_color(transparent):
+    source = Image.new("RGBA", (420, 320), (255, 255, 255, 0 if transparent else 255))
+    pixels = np.asarray(source).copy()
+    pixels[80:240, 100:320] = (150, 150, 150, 255)
+    source = Image.fromarray(pixels)
+    mask = np.zeros((320, 420), dtype=bool)
+    mask[80:240, 100:320] = True
+    result = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[_world_callout()],
+        sensor=Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2),
+        geometry_mask=None if transparent else mask,
+    )
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
+    assert np.any(panel)
+    assert not np.any(panel & mask)
+    assert result.getpixel((210, 160)) == (255, 0, 0, 255)
+
+
+def test_offset_label_origin_faces_the_anchor():
+    # (0, -10): bottom edge 10 px above the anchor, horizontally centered.
+    assert _offset_label_origin((200, 150), (60, 26), (0, -10)) == (170, 114)
+    # Rightward offset uses the left edge and centers vertically.
+    assert _offset_label_origin((200, 150), (60, 26), (10, 0)) == (210, 137)
+    # Leftward offset uses the right edge.
+    assert _offset_label_origin((200, 150), (60, 26), (-8, 4)) == (132, 154)
+
+
+def test_world_callout_relative_offset_placement_and_optional_arrow():
+    source = Image.new("RGBA", (400, 300), (255, 255, 255, 255))
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    # Anchor at (0, 0, 0) projects to (200, 150). offset=(0, -10) must sit
+    # the panel above that point instead of covering it.
+    above = CompiledWorldAnnotation(
+        text="OffsetText",
+        position=(0.0, 0.0, 0.0),
+        layer=0,
+        cell=None,
+        color=(1.0, 0.0, 0.0),
+        font_size=14,
+        background=(0.0, 0.0, 0.0),
+        padding=4,
+        offset=(0.0, -10.0),
+        arrow=False,
+    )
+    result = composite_overlays(
+        source, [], [], world_annotations=[above], sensor=camera
+    )
+    assert result.getpixel((200, 150)) == (255, 255, 255, 255)
+    assert result.getpixel((200, 135))[:3] == (35, 35, 35)
+    panel = np.all(
+        (np.asarray(result)[:, :, :3] > 20) & (np.asarray(result)[:, :, :3] < 50),
+        axis=2,
+    )
+    rows = np.where(panel)[0]
+    assert rows.size
+    assert 150 - int(rows.max()) >= 10
+
+    with_arrow = composite_overlays(
+        source, [], [], world_annotations=[replace(above, arrow=True)], sensor=camera
+    )
+    assert with_arrow.getpixel((200, 150)) != (255, 255, 255, 255)
+    assert with_arrow.getpixel((200, 135))[:3] == (35, 35, 35)
+
+
+def test_world_callout_geometry_callback_precedes_mask_and_file_forwards(tmp_path):
+    source = Image.new("RGB", (240, 160), "white")
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    mask = np.ones((160, 240), dtype=bool)
+    hidden = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[_world_callout()],
+        sensor=camera,
+        geometry_mask=mask,
+    )
+    assert hidden.tobytes() == source.convert("RGBA").tobytes()
+    path = tmp_path / "ray-callout.png"
+    source.save(path)
+    assert composite_overlay_file(
+        path,
+        [],
+        [],
+        world_annotations=[_world_callout()],
+        sensor=camera,
+        geometry_mask=mask,
+        geometry_at=lambda x, y: False,
+    )
+    with Image.open(path) as result:
+        assert result.getpixel((120, 80))[:3] == (255, 0, 0)
+
+
+def test_world_callout_uses_empty_right_legend_gutter():
+    source = Image.new("RGBA", (64, 400), (255, 255, 255, 255))
+    legend = CompiledLegend(
+        title="Value",
+        units=None,
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 0.5, 1.0),
+        labels=("0", "0.5", "1"),
+        colors=((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        position="right",
+        width=120,
+        scale=(),
+    )
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    result = composite_overlays(
+        source,
+        [legend],
+        [],
+        world_annotations=[_world_callout()],
+        sensor=camera,
+        geometry_mask=np.ones((400, 64), dtype=bool),
+    )
+
+    assert result.size == (184, 400)
+    pixels = np.asarray(result)
+    red_text = (pixels[..., 0] > 150) & (pixels[..., 1] < 80) & (pixels[..., 2] < 80)
+    assert np.any(red_text[258:, 64:])
+
+
+def test_world_callout_avoids_fixed_annotation_and_legend():
+    source = Image.new("RGB", (400, 320), "white")
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    fixed = CompiledAnnotation(
+        text="fixed",
+        position=(0.55, 0.35),
+        color=(0.0, 0.0, 1.0),
+        font_size=14,
+        anchor="left",
+        background=(0.0, 1.0, 0.0),
+        padding=8,
+    )
+    legend = CompiledLegend(
+        title="Legend",
+        units=None,
+        categories=False,
+        domain=(0.0, 1.0),
+        values=(0.0, 1.0),
+        labels=("0", "1"),
+        colors=((0.0, 0.0, 1.0), (1.0, 0.0, 0.0)),
+        position="left",
+        width=190,
+        scale=(),
+    )
+    result = composite_overlays(
+        source,
+        [legend],
+        [fixed],
+        world_annotations=[_world_callout()],
+        sensor=camera,
+    )
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
+    # The fixed annotation blocks upper-right and the legend blocks upper-left.
+    assert np.any(panel[180:, 220:])
+    assert not np.any(panel[:150])
+
+
+def test_world_callout_wraps_multiline_text_inside_viewport():
+    source = Image.new("RGB", (400, 320), "white")
+    result = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[_world_callout(text="abcdefghij" * 10 + "\nlast")],
+        sensor=Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2),
+    )
+    rgb = np.asarray(result)[:, :, :3]
+    panel = np.all((rgb > 10) & (rgb < 60), axis=2)
+    ys, xs = np.where(panel)
+    assert xs.max() - xs.min() <= 146  # 35% content width plus padding
+    assert ys.max() - ys.min() >= 4 * 14 * 1.25 + 6
+    assert xs.min() >= 6 and xs.max() <= 394
+    assert ys.min() >= 6 and ys.max() <= 314
+
+
+def test_world_callouts_follow_camera_and_reject_clipped_anchors():
+    source = Image.new("RGB", (240, 160), "white")
+    camera = Orthographic(
+        location=(0, 0, 5),
+        target=(0, 0, 0),
+        up=(0, 1, 0),
+        scale=2,
+    )
+    annotations = [
+        _world_callout((0.5, 0, 0)),
+        _world_callout((0, 0.25, 0), "height"),
+        _world_callout((0, 0, 6), "behind"),
+        _world_callout((8, 0, 0), "outside"),
+    ]
+    result = composite_overlays(
+        source, [], [], world_annotations=annotations, sensor=camera
+    )
+    assert result.getpixel((160, 80)) == (255, 0, 0, 255)
+    # A scale of 2 spans 160 vertical pixels; 0.25 up moves 20 pixels.
+    assert result.getpixel((120, 60)) == (255, 0, 0, 255)
+    facing_right = replace(camera, target=(0.5, 0, 0))
+    turned = composite_overlays(
+        source, [], [], world_annotations=annotations[:1], sensor=facing_right
+    )
+    assert turned.getpixel((120, 80)) == (255, 0, 0, 255)
+    assert turned.getpixel((160, 80)) != result.getpixel((160, 80))
+    hidden = composite_overlays(
+        source, [], [], world_annotations=annotations[2:], sensor=camera
+    )
+    assert hidden.tobytes() == source.convert("RGBA").tobytes()
+
+
+def test_world_callouts_use_capture_camera_matrices():
+    source = Image.new("RGB", (240, 160), "white")
+    view = np.eye(4)
+    view[2, 3] = -5
+    projection = np.eye(4)
+    projection[0, 0] = 0.5
+    projection[2, 2] = -0.1
+    camera = Orthographic(location=(0, 0, 5), target=(0, 0, 0), scale=2)
+    result = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[_world_callout((1, 0, 0))],
+        sensor=camera,
+        world_to_camera=view,
+        projection=projection,
+    )
+    assert result.getpixel((180, 80)) == (255, 0, 0, 255)
+    assert result.getpixel((120, 80)) == (255, 255, 255, 255)
+    view[0, 3] = -1
+    shifted = composite_overlays(
+        source,
+        [],
+        [],
+        world_annotations=[_world_callout((1, 0, 0))],
+        world_to_camera=view,
+        projection=projection,
+    )
+    assert shifted.getpixel((120, 80)) == (255, 0, 0, 255)
+
+
 def test_raster_overlay_preserves_transparent_render_background(tmp_path):
     legend = CompiledLegend(
         title="Value",
@@ -360,6 +817,7 @@ def test_observation_manifest_contains_semantic_metadata(playwright_browser):
         hkw.layer(_scalar_mesh())
         .material("Diffuse", hkw.texture.ScalarField("temperature"))
         .annotate("note")
+        .annotate(hkw.WorldAnnotation("world", (0.0, 0.0, 0.0)))
     )
 
     observation = hkw.observe(
@@ -368,3 +826,29 @@ def test_observation_manifest_contains_semantic_metadata(playwright_browser):
 
     assert observation.manifest["legends"][0]["title"] == "temperature"
     assert observation.manifest["annotations"][0]["text"] == "note"
+    assert observation.manifest["world_annotations"][0]["text"] == "world"
+    assert observation.manifest["world_annotations"][0]["layer"] == 0
+
+
+def test_observation_projects_world_callout_only_in_beauty(playwright_browser):
+    layer = hkw.layer(_scalar_mesh()).annotate(
+        hkw.WorldAnnotation(
+            "vertex", (0.25, 0.25, 0.0), color="red", background="black"
+        )
+    )
+    observation = hkw.observe(
+        layer,
+        views=["front"],
+        passes=["beauty", "normal"],
+        resolution=(240, 180),
+    )
+    beauty = observation.snapshot("front", "beauty")
+    normal = observation.snapshot("front", "normal")
+    position = observation.manifest["world_annotations"][0]["position"]
+    clip = beauty.projection @ beauty.world_to_camera @ np.array([*position, 1.0])
+    px = round((clip[0] / clip[3] + 1) * beauty.image.width / 2)
+    py = round((1 - clip[1] / clip[3]) * beauty.image.height / 2)
+
+    assert beauty.image.getpixel((px, py))[:3] == (255, 0, 0)
+    assert normal.image.getpixel((px, py))[:3] != (255, 0, 0)
+    assert observation.manifest["world_annotations"][0]["text"] == "vertex"

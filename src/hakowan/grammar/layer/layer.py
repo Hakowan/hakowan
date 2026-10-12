@@ -46,7 +46,7 @@ from ..scale import (
 )
 from ..texture import ScalarField, TextureLike
 from ...common.color import ColorLike
-from ..overlay import Annotation, Legend
+from ..overlay import Annotation, Legend, WorldAnnotation
 import copy
 
 from dataclasses import dataclass, field
@@ -143,7 +143,7 @@ class Layer:
         channels: list[Channel] | None = None,
         transform: Transform | None = None,
         name: str | None = None,
-        annotations: list[Annotation] | None = None,
+        annotations: list[Annotation | WorldAnnotation] | None = None,
     ):
         """Initialize a layer specification.
 
@@ -155,7 +155,7 @@ class Layer:
             channels: Initial channel specifications.
             transform: Initial transform chain.
             name: Human-readable layer label used by interactive viewers.
-            annotations: Initial screen-space annotations.
+            annotations: Initial screen-space or world-space annotations.
 
         """
         self._spec = LayerSpec()
@@ -373,23 +373,24 @@ class Layer:
 
     def annotate(
         self,
-        annotation: Annotation | str,
+        annotation: Annotation | WorldAnnotation | str,
         *,
         in_place: bool = False,
         **kwargs: Any,
     ) -> "Layer":
-        """Add a screen-space text annotation.
+        """Add a screen-space or world-space text annotation.
 
         A string is shorthand for ``Annotation(text=annotation, **kwargs)``.
-        The returned wrapper follows the same immutable-by-default behavior as
-        the other layer methods.
+        A ``WorldAnnotation`` position uses the layer geometry's local frame
+        after transforms that bake coordinates into mesh vertices.
+        The returned wrapper follows the usual immutable-by-default behavior.
         """
         layer = self.__get_working_layer(in_place)
         if isinstance(annotation, str):
             annotation = Annotation(text=annotation, **kwargs)
         elif kwargs:
             raise TypeError("Keyword options require a string annotation.")
-        elif not isinstance(annotation, Annotation):
+        elif not isinstance(annotation, (Annotation, WorldAnnotation)):
             raise TypeError(f"Unsupported annotation type: {type(annotation)!r}")
         layer._spec.annotations.append(annotation)
         return layer

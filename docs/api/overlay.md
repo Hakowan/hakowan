@@ -6,3 +6,5 @@ backend behavior.
 ::: hakowan.grammar.overlay.Legend
 
 ::: hakowan.grammar.overlay.Annotation
+
+::: hakowan.grammar.overlay.WorldAnnotation

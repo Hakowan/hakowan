@@ -13,7 +13,7 @@ dynamic = ["description", "version"]
 # with no extra install. The heavier Mitsuba and Blender backends are optional
 # extras (see ``[project.optional-dependencies]``).
 dependencies=[
-    "adobe-lagrange>=6.44",
+    "adobe-lagrange>=6.49.0",
     "numpy>=2.0",
     "Pillow>=11.0",
     "PyYAML>=6.0",
@@ -27,7 +27,7 @@ requires-python = ">=3.11"
 [project.optional-dependencies]
 # Optional integrations and rendering backends. WebGL needs no extra. Backends
 # whose dependencies are absent do not appear in ``hakowan.list_backends()``.
-mitsuba = ["mitsuba~=3.8"]
+mitsuba = ["mitsuba~=3.9"]
 blender = ["bpy>=5.1,<6; python_version == '3.13'"]
 observe = ["playwright>=1.49,<2"]
 data = [
@@ -39,7 +39,11 @@ data = [
 docs = [
     "mkdocs-materialx>=10.2,<11",
     "mkdocstrings[python]>=0.24",
+    "dulwich>=0.25,<1",
 ]
+
+[project.scripts]
+hkw = "hakowan.__main__:main"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -113,10 +117,8 @@ select = ["E4", "E7", "E9", "F", "W"]
 [tool.mypy]
 python_version = "3.13"
 files = ["src/hakowan"]
-# Render backends wrap untyped C-extension libraries (mitsuba, drjit, bpy,
-# lagrange, pygltflib, …). Their bundled stubs are absent or invalid (e.g.
-# mitsuba's __init__.pyi has a syntax error), so don't follow into them — treat
-# them as ``Any`` rather than letting a third-party stub error abort analysis.
+# Lagrange ships PEP 561 stubs and is checked normally. Skip optional backend
+# imports whose stubs are absent or invalid (e.g. Mitsuba's malformed stub).
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -129,8 +131,6 @@ module = [
     "bpy.*",
     "mathutils",
     "mathutils.*",
-    "lagrange",
-    "lagrange.*",
     "pygltflib",
     "pygltflib.*",
     "tqdm",
@@ -143,3 +143,7 @@ follow_imports = "skip"
 # because mitsuba ships a stub whose syntax error would otherwise abort mypy.
 follow_imports_for_stubs = true
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["hakowan.__main__", "hakowan.cli.*"]
+check_untyped_defs = true

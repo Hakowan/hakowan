@@ -65,6 +65,5 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-materialx-
-      - run: pip install mkdocs-materialx==10.2.0 mkdocstrings-python==1.16.12
-      - run: pip install .
+      - run: pip install ".[docs]" mkdocs-materialx==10.2.0 mkdocstrings-python==1.16.12
       - run: mkdocs gh-deploy --force

@@ -532,4 +532,5 @@ def _add_baked_points(
         custom_attributes=(custom_attrs or None),
         material_idx=material_idx,
         transform_4x4=transform,
+        point_triangles=n_base_tris,
     )

@@ -7,7 +7,7 @@ from ..dataframe import DataFrame
 from ..mark import Mark
 from ..channel import Channel
 from ..transform import Transform
-from ..overlay import Annotation
+from ..overlay import Annotation, WorldAnnotation
 
 
 @dataclass(kw_only=True, slots=True)
@@ -19,4 +19,4 @@ class LayerSpec:
     channels: list[Channel] = field(default_factory=list)
     transform: Optional[Transform] = None
     name: Optional[str] = None
-    annotations: list[Annotation] = field(default_factory=list)
+    annotations: list[Annotation | WorldAnnotation] = field(default_factory=list)

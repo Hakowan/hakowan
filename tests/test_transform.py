@@ -162,6 +162,122 @@ class TestClipCompiler:
         )
         return mesh
 
+    def test_clip_keeps_trimmed_quad(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]]))
+        mesh.add_triangle(0, 1, 2)
+
+        out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+
+        assert out.num_facets == 1
+        assert out.get_facet_size(0) == 4
+
+    def test_clip_then_vertex_filter_keeps_hybrid_facets(self):
+        mesh = self._make_square()
+        chain = transform.Filter("xcoord", lambda value: value >= 0.5) * transform.Clip(
+            point=[0.5, 0.0, 0.0], normal=[1.0, 0.0, 0.0]
+        )
+        layer = hkw.layer(mesh).transform(chain)
+
+        out = hkw.compiler.compile(layer, preserve_attributes=True)[0].data_frame.mesh
+
+        assert out.num_facets == 2
+        assert sorted(out.get_facet_size(i) for i in range(out.num_facets)) == [3, 4]
+        assert np.allclose(out.attribute("xcoord").data.ravel(), out.vertices[:, 0])
+
+    @pytest.mark.parametrize("with_facets", [False, True])
+    def test_clip_filters_point_mark_vertices(self, with_facets):
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+        )
+        if with_facets:
+            mesh.add_triangle(0, 1, 2)
+        mesh.create_attribute(
+            "id",
+            element=lagrange.AttributeElement.Vertex,
+            usage=lagrange.AttributeUsage.Scalar,
+            initial_values=np.array([10, 20, 30], dtype=np.int32),
+        )
+        layer = (
+            hkw.layer(mesh)
+            .mark("Point")
+            .transform(transform.Clip(point=[0.0, 0.0, 0.0], normal=[1.0, 0.0, 0.0]))
+        )
+
+        out = hkw.compiler.compile(layer, preserve_attributes=True)[0].data_frame.mesh
+
+        assert np.array_equal(out.vertices[:, 0], [0.0, 1.0])
+        assert np.array_equal(out.attribute("id").data, [20, 30])
+        assert mesh.num_vertices == 3
+        assert mesh.num_facets == int(with_facets)
+
+    @pytest.mark.parametrize("kind", ["streamline", "fur"])
+    def test_clip_before_triangle_only_transform_uses_local_triangulation(
+        self, monkeypatch, kind
+    ):
+        import hakowan.compiler.transform as transform_impl
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]]))
+        mesh.add_triangle(0, 1, 2)
+        mesh.create_attribute(
+            "flow",
+            element=lagrange.AttributeElement.Facet,
+            usage=lagrange.AttributeUsage.Vector,
+            initial_values=np.array([[1.0, 0.0, 0.0]]),
+        )
+        received = []
+
+        def capture_triangle_mesh(input_mesh, *args, **kwargs):
+            received.append(input_mesh)
+            assert input_mesh.is_triangle_mesh
+            assert input_mesh.has_attribute("flow")
+            return lagrange.SurfaceMesh()
+
+        compute_name = (
+            "_compute_streamlines" if kind == "streamline" else "_compute_fur"
+        )
+        monkeypatch.setattr(transform_impl, compute_name, capture_triangle_mesh)
+        field_transform = (
+            transform.Streamline(vec_field="flow", n=1)
+            if kind == "streamline"
+            else transform.Fur(vec_field="flow", n=1)
+        )
+        chain = field_transform * transform.Clip(
+            point=[0.5, 0.0, 0.0], normal=[1.0, 0.0, 0.0]
+        )
+        layer = hkw.layer(mesh).transform(chain)
+
+        hkw.compiler.compile(layer)
+
+        assert len(received) == 1
+        assert mesh.get_facet_size(0) == 3
+
+    def test_clip_then_uv_mesh_supports_hybrid_facets_without_source_mutation(self):
+        mesh = self._make_square()
+        mesh.create_attribute(
+            "uv",
+            element=lagrange.AttributeElement.Indexed,
+            usage=lagrange.AttributeUsage.UV,
+            initial_values=mesh.vertices[:, :2].copy(),
+            initial_indices=mesh.facets.copy(),
+        )
+        source_vertices = mesh.vertices.copy()
+        chain = transform.UVMesh(uv="uv") * transform.Clip(
+            point=[0.5, 0.0, 0.0], normal=[1.0, 0.0, 0.0]
+        )
+        layer = hkw.layer(mesh).transform(chain)
+
+        out = hkw.compiler.compile(layer)[0].data_frame.mesh
+
+        assert out.num_facets > 0
+        assert out.vertices.shape[1] == 3
+        assert mesh.is_attribute_indexed("uv")
+        assert np.array_equal(mesh.vertices, source_vertices)
+
     def test_clip_keeps_positive_side(self):
         from hakowan.compiler.transform import _clip_mesh
 
@@ -185,10 +301,9 @@ class TestClipCompiler:
 
         mesh = self._make_square()
         out = _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
-        fid = out.attribute("fid").data.ravel()
-        # Child triangles inherit their parent's facet value (10 from tri 0, 20 from tri 1).
-        assert set(fid.tolist()).issubset({10.0, 20.0})
-        assert out.num_facets == len(fid)
+
+        assert out.num_facets == 2
+        assert set(out.attribute("fid").data.ravel().tolist()) == {10.0, 20.0}
 
     def test_clip_integer_attribute_not_averaged(self):
         from hakowan.compiler.transform import _clip_mesh
@@ -238,6 +353,16 @@ class TestClipCompiler:
         mesh = self._make_square()
         with pytest.raises(ValueError, match="non-zero"):
             _clip_mesh(mesh, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0]))
+
+    def test_clip_rejects_line_facets_clearly(self):
+        from hakowan.compiler.transform import _clip_mesh
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))
+        mesh.add_polygon(np.array([0, 1], dtype=np.uint32))
+
+        with pytest.raises(ValueError, match="not line facets"):
+            _clip_mesh(mesh, np.array([0.5, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]))
 
 
 class TestStreamlineCompiler:

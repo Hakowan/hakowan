@@ -9,7 +9,7 @@ from ..grammar.layer import LayoutOptions
 from ..setup.sensor import Orthographic, Perspective
 
 if TYPE_CHECKING:
-    from .overlay import CompiledAnnotation, CompiledLegend
+    from .overlay import CompiledAnnotation, CompiledLegend, CompiledWorldAnnotation
     from ..setup import Config
 
 
@@ -18,6 +18,7 @@ class Scene:
     views: list[View] = field(default_factory=list)
     legends: list["CompiledLegend"] = field(default_factory=list)
     annotations: list["CompiledAnnotation"] = field(default_factory=list)
+    world_annotations: list["CompiledWorldAnnotation"] = field(default_factory=list)
 
     def __len__(self):
         return self.views.__len__()

@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 import pytest
 import pathlib
@@ -16,6 +17,107 @@ if sys.platform == "win32" and os.environ.get("CI") == "true":
 mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
 
 from hakowan.backends.mitsuba.render import generate_base_config, generate_scene_config
+
+
+def _box_mesh():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [-0.5, -0.5, -0.5],
+                [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [-0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5],
+                [0.5, -0.5, 0.5],
+                [0.5, 0.5, 0.5],
+                [-0.5, 0.5, 0.5],
+            ]
+        )
+    )
+    mesh.add_triangles(
+        np.array(
+            [
+                [4, 5, 6],
+                [4, 6, 7],
+                [0, 2, 1],
+                [0, 3, 2],
+                [0, 4, 7],
+                [0, 7, 3],
+                [1, 2, 6],
+                [1, 6, 5],
+                [3, 7, 6],
+                [3, 6, 2],
+                [0, 1, 5],
+                [0, 5, 4],
+            ],
+            dtype=np.uint32,
+        )
+    )
+    return mesh
+
+
+def _curve_layer(values, *, categories):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [-0.5, 0.0, 0.0],
+                [0.5, 0.0, 0.0],
+                [-0.5, 0.0, 0.4],
+                [0.5, 0.0, 0.4],
+            ],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_polygons(np.array([[0, 1], [2, 3]], dtype=np.uint32))
+    mesh.create_attribute(
+        "path_id",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.asarray(values, dtype=np.float64),
+    )
+    return (
+        hkw.layer(mesh)
+        .mark(hkw.mark.Curve)
+        .channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(
+                    "path_id", categories=categories, legend=False
+                )
+            ),
+            size=0.02,
+        )
+    )
+
+
+def _facet_curve_layer(values, *, categories):
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [[-0.5, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_polygons(np.array([[0, 1], [1, 2]], dtype=np.uint32))
+    mesh.create_attribute(
+        "path_id",
+        element=lagrange.AttributeElement.Facet,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.asarray(values, dtype=np.float64),
+    )
+    return (
+        hkw.layer(mesh)
+        .mark(hkw.mark.Curve)
+        .channel(
+            material=hkw.material.Principled(
+                color=hkw.texture.ScalarField(
+                    "path_id", categories=categories, legend=False
+                )
+            ),
+            size=0.02,
+        )
+    )
 
 
 class TestRender:
@@ -206,6 +308,267 @@ class TestRender:
             assert image.mode == "RGBA"
             assert np.asarray(image)[:, :80, 3].min() == 0
 
+    def test_mitsuba_cropped_film_projects_callouts_to_crop_pixels(self, tmp_path):
+        from PIL import Image
+        from hakowan.common.overlay import _project_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        layer = hkw.layer(_box_mesh()).annotate(
+            hkw.WorldAnnotation("crop", position=(0.0, 0.0, 0.5), arrow=False)
+        )
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.film.crop_offset = np.array([20, 10], dtype=np.uint32)
+        config.film.crop_size = np.array([160, 100], dtype=np.uint32)
+        config.sensor = Orthographic(
+            scale=2.6,
+            location=(0, 0, 4),
+            target=(0, 0, 0),
+            up=(0, 1, 0),
+        )
+        compiled = hkw.prepare_scene(hkw.compile(layer), config)
+        projected = _project_world_annotations(
+            compiled.world_annotations,
+            (160, 100),
+            sensor=config.sensor,
+            world_to_camera=None,
+            projection=None,
+            film_size=(240, 160),
+            crop_offset=(20, 10),
+        )
+        assert projected[0][1:] == pytest.approx((100, 70))
+
+        output = tmp_path / "crop.png"
+        hkw.render(layer, config, filename=output, backend="mitsuba")
+        with Image.open(output) as image:
+            assert image.size == (160, 100)
+
+    def test_mitsuba_occlusion_epsilon_does_not_grow_with_camera_distance(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(
+            np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
+        )
+        mesh.add_triangle(0, 1, 2)
+        layer = hkw.layer(mesh).annotate(
+            hkw.WorldAnnotation("occluded", position=(0.0, 0.0, -0.02))
+        )
+        config = hkw.config()
+        config.film.width = config.film.height = 64
+        config.sensor = Orthographic(
+            location=(0.0, 0.0, 500.0),
+            target=(0.0, 0.0, 0.0),
+            up=(0.0, 1.0, 0.0),
+            scale=2.0,
+            near_clip=0.01,
+            far_clip=1000.0,
+        )
+        scene = hkw.prepare_scene(hkw.compile(layer), config)
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
+
+        assert visible == []
+
+    def test_point_mark_anchor_is_not_occluded_by_its_own_glyph(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertex([0.0, 0.0, 0.0])
+        layer = hkw.layer(mesh, mark=hkw.mark.Point).annotate(
+            hkw.WorldAnnotation("point", position=(0.0, 0.0, 0.0))
+        )
+        config = hkw.config()
+        scene = hkw.prepare_scene(hkw.compile(layer), config)
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
+
+        assert [annotation.text for annotation in visible] == ["point"]
+
+    @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
+    def test_mitsuba_box_callouts_use_camera_first_hit(self, camera_type, tmp_path):
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import (
+            MitsubaBackend,
+            _visible_world_annotations,
+        )
+        from hakowan.common.overlay import _project_world_annotations
+        from hakowan.setup.sensor import Orthographic, Perspective
+
+        mesh = _box_mesh()
+        anchors = {
+            "Front": (0, 0, 0.5),
+            "Right": (0.5, 0, 0),
+            "Top": (0, 0.5, 0),
+            "Back": (0, 0, -0.5),
+            "Left": (-0.5, 0, 0),
+            "Bottom": (0, -0.5, 0),
+            "Near surface": (0, 0, 0.50001),
+        }
+        layer = hkw.layer(mesh)
+        for name, position in anchors.items():
+            layer = layer.annotate(
+                hkw.WorldAnnotation(
+                    name,
+                    position=position,
+                    color="blue" if name in {"Back", "Left", "Bottom"} else "red",
+                    font_size=11,
+                    background=None,
+                )
+            )
+        scene = hkw.compile(layer)
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.sampler.sample_count = 4
+        common = dict(location=(3, 2.4, 4), target=(0, 0, 0), up=(0, 1, 0))
+        config.sensor = (
+            Orthographic(scale=2.6, **common)
+            if camera_type == "orthographic"
+            else Perspective(fov=46, fov_axis="y", **common)
+        )
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(scene)
+        )
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, scene.world_annotations, scene
+        )
+        assert {item.text for item in visible} == {
+            "Front",
+            "Right",
+            "Top",
+            "Near surface",
+        }
+
+        if camera_type == "orthographic":
+            output = tmp_path / "box.png"
+            MitsubaBackend().render(scene, config, filename=output)
+            with Image.open(output) as image:
+                pixels = np.asarray(image.convert("RGB"))
+            assert not np.any(
+                (pixels[..., 2] > 240) & (pixels[..., 0] < 10) & (pixels[..., 1] < 10)
+            )
+            projected = _project_world_annotations(
+                scene.world_annotations,
+                (240, 160),
+                sensor=config.sensor,
+                world_to_camera=None,
+                projection=None,
+            )
+            for annotation, x, y in projected:
+                ix, iy = round(x), round(y)
+                area = pixels[iy - 2 : iy + 3, ix - 2 : ix + 3]
+                red = (area[..., 0] > 230) & (area[..., 1] < 30) & (area[..., 2] < 30)
+                if annotation.text in {"Front", "Right", "Top"}:
+                    assert red.any(), annotation.text
+
+    @pytest.mark.parametrize("camera_type", ["orthographic", "perspective"])
+    def test_mitsuba_box_label_clears_rendered_silhouette(self, camera_type, tmp_path):
+        from PIL import Image
+        from hakowan.backends.mitsuba.render import MitsubaBackend
+        from hakowan.setup.sensor import Orthographic, Perspective
+
+        layer = hkw.layer(_box_mesh()).annotate(
+            hkw.WorldAnnotation(
+                "Front face",
+                position=(0, 0, 0.5),
+                color="black",
+                font_size=14,
+                background="#ff00ff",
+                padding=4,
+            )
+        )
+        config = hkw.config()
+        config.film.width, config.film.height = 320, 240
+        config.sampler.sample_count = 4
+        common = dict(location=(0, 0, 4), target=(0, 0, 0), up=(0, 1, 0))
+        config.sensor = (
+            Orthographic(scale=2.6, **common)
+            if camera_type == "orthographic"
+            else Perspective(fov=46, fov_axis="y", **common)
+        )
+        output = tmp_path / "box-label.png"
+        image = MitsubaBackend().render(hkw.compile(layer), config, filename=output)
+        silhouette = np.asarray(image)[..., 3] > 0.99
+        with Image.open(output) as rendered:
+            pixels = np.asarray(rendered.convert("RGB"))
+        label_background = (
+            (pixels[..., 0] > 240) & (pixels[..., 1] < 15) & (pixels[..., 2] > 240)
+        )
+        assert label_background.any()
+        assert not np.any(label_background & silhouette)
+
+    def test_mitsuba_cube_roof_is_lit_across_sharp_edges(self):
+        from hakowan.setup.sensor import Orthographic
+
+        config = hkw.config()
+        config.film.width, config.film.height = 240, 160
+        config.sampler.sample_count = 4
+        config.sensor = Orthographic(location=(1, 1, 5), scale=2)
+        image = np.asarray(
+            hkw.render(
+                hkw.layer(_box_mesh()).material("Diffuse", "orange"),
+                config,
+                backend="mitsuba",
+            ).image
+        )
+
+        # Both points are on the roof: missing feature-angle normals made its
+        # far half black even though the near half was lit by the environment.
+        assert image[28, 120, 0] > 0.1
+        assert image[37, 120, 0] > 0.1
+
+    def test_mitsuba_callout_can_be_hidden_by_another_shape(self):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.compiler.overlay import CompiledWorldAnnotation
+        from hakowan.setup.sensor import Orthographic
+
+        config = hkw.config()
+        config.film.width, config.film.height = 180, 120
+        config.sensor = Orthographic(
+            location=(0, 0, 5),
+            target=(0, 0, 0),
+            scale=2,
+        )
+        scene_config = generate_base_config(config)
+        scene_config["front"] = {
+            "type": "cube",
+            "to_world": mi.ScalarTransform4f().translate([0, 0, 0.5])
+            @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
+        }
+        scene_config["back"] = {
+            "type": "cube",
+            "to_world": mi.ScalarTransform4f().translate([0, 0, -0.5])
+            @ mi.ScalarTransform4f().scale([0.5, 0.5, 0.1]),
+        }
+        annotations = [
+            CompiledWorldAnnotation(
+                text=name,
+                position=(0, 0, z),
+                layer=layer,
+                cell=None,
+                color=(1, 0, 0),
+                font_size=11,
+                background=None,
+                padding=0,
+            )
+            for name, z, layer in (("front", 0.6, 0), ("back", -0.4, 1))
+        ]
+        visible = _visible_world_annotations(
+            mi.load_dict(scene_config), config.sensor, annotations
+        )
+        assert [item.text for item in visible] == ["front"]
+
     def test_mitsuba_point_scalar_colors_are_decoded_once(self, triangle):
         from hakowan.common.color import srgb_to_linear
 
@@ -283,6 +646,133 @@ class TestRender:
             for key, value in shape.items():
                 if key.startswith("bsdf"):
                     assert value["type"] == "plastic"
+
+    def test_curve_scalar_field_color_groups_constant_paths_and_renders(self, tmp_path):
+        layer = _curve_layer([0, 0, 1, 1], categories=True)
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert len(scene_config) == 2
+        shapes = list(scene_config.values())
+        bsdfs = [shape["bsdf"] for shape in shapes]
+        assert all(shape["type"] == "linearcurve" for shape in shapes)
+        assert all(bsdf["type"] == "principled" for bsdf in bsdfs)
+        colors = {tuple(bsdf["base_color"]["value"]) for bsdf in bsdfs}
+        assert len(colors) == 2
+
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        output = tmp_path / "curve-colors.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+
+    def test_facet_scalar_field_expands_to_curve_vertices(self, tmp_path, caplog):
+        layer = _facet_curve_layer([0, 1], categories=True)
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+
+        caplog.set_level(logging.WARNING, logger="hakowan")
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert "facet-domain material attribute(s) path_id" in caplog.text
+        assert len(scene_config) == 2
+        shapes = list(scene_config.values())
+        colors = {tuple(shape["bsdf"]["base_color"]["value"]) for shape in shapes}
+        assert len(colors) == 2
+
+        output = tmp_path / "facet-curve-colors.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+
+    def test_hair_material_renders_on_edge_derived_curve(self, triangle, tmp_path):
+        layer = (
+            hkw.layer(triangle)
+            .mark(hkw.mark.Curve)
+            .channel(material=hkw.material.Hair(), size=0.02)
+        )
+        scene_config = generate_scene_config(hkw.compiler.compile(layer))
+
+        assert scene_config
+        assert all(shape["bsdf"]["type"] == "hair" for shape in scene_config.values())
+
+        config = hkw.config()
+        config.film.width = config.film.height = 16
+        output = tmp_path / "hair-curve.png"
+        result = hkw.render(layer, config, filename=output, backend="mitsuba")
+        assert result.image is not None
+        assert tuple(result.image.shape[:2]) == (16, 16)
+        assert output.is_file()
+
+    def test_mitsuba_curve_centerline_anchor_is_not_self_occluded(self):
+        from hakowan.backends.mitsuba.render import (
+            _visible_world_annotations,
+            generate_base_config,
+        )
+        from hakowan.setup.sensor import Orthographic
+
+        mi.set_variant("scalar_rgb")
+        mesh = lagrange.SurfaceMesh()
+        mesh.add_vertices(np.array([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))
+        mesh.add_polygons(np.array([[0, 1]], dtype=np.uint32))
+        layer = (
+            hkw.layer(mesh)
+            .mark(hkw.mark.Curve)
+            .channel(material=hkw.material.Diffuse("red"), size=0.1)
+            .annotate(hkw.WorldAnnotation("curve", (0.0, 0.0, 0.0)))
+        )
+        compiled = hkw.compiler.compile(layer)
+        config = hkw.config()
+        config.film.width = config.film.height = 32
+        config.sensor = Orthographic(
+            scale=4.0, location=(0.0, 0.0, 3.0), target=(0.0, 0.0, 0.0)
+        )
+        mi_scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(compiled)
+        )
+
+        visible = _visible_world_annotations(
+            mi_scene, config.sensor, compiled.world_annotations, compiled
+        )
+
+        assert visible == compiled.world_annotations
+
+    @pytest.mark.parametrize(
+        "grouped", [False, True], ids=["uniform", "material_groups"]
+    )
+    def test_mitsuba_curve_anchor_is_occluded_by_other_segment_in_same_layer(
+        self, grouped
+    ):
+        from hakowan.backends.mitsuba.render import _visible_world_annotations
+        from hakowan.setup.sensor import Orthographic
+
+        mi.set_variant("scalar_rgb")
+        layer = _curve_layer([0, 0, 1, 1], categories=True)
+        if not grouped:
+            layer = layer.channel(material=hkw.material.Diffuse("red"))
+        layer = layer.annotate(hkw.WorldAnnotation("rear", (0.0, 0.0, 0.0))).annotate(
+            hkw.WorldAnnotation("front", (0.0, 0.0, 0.4))
+        )
+        compiled = hkw.compiler.compile(layer)
+        config = hkw.config()
+        config.film.width = config.film.height = 32
+        config.sensor = Orthographic(
+            scale=4.0, location=(0.0, 0.0, 3.0), target=(0.0, 0.0, 0.0)
+        )
+        scene = mi.load_dict(
+            generate_base_config(config) | generate_scene_config(compiled)
+        )
+
+        visible = _visible_world_annotations(
+            scene, config.sensor, compiled.world_annotations, compiled
+        )
+
+        assert [annotation.text for annotation in visible] == ["front"]
+
+    def test_curve_scalar_field_color_rejects_values_varying_on_edge(self):
+        layer = _curve_layer([0, 1, 2, 2], categories=False)
+        with pytest.raises(NotImplementedError, match="constant across each mesh edge"):
+            generate_scene_config(hkw.compiler.compile(layer))
 
     def test_point_cloud_with_size(self, triangle):
         mesh = triangle

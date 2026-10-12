@@ -31,25 +31,28 @@ from .assets import copy_three_assets
 
 
 _DEFAULT_THREE_VERSION = "0.170.0"
-_DEFAULT_TITLE = "hakowan"
+_DEFAULT_TITLE = "Hakowan Interactive 3D Visualization"
 
-# Beauty-pass background presets. Each is a soft "studio" radial gradient with a
-# bright spot in the centre falling off towards the edges: ``(center, edge)``
-# colours as (r, g, b) in [0, 1]. Selected via the ``background`` option.
+# Beauty-pass presets: light/dark have soft studio gradients; black/white are flat.
+# Each specifies (center, edge) RGB in [0, 1].
 _BACKGROUND_PRESETS: dict[
     str, tuple[tuple[float, float, float], tuple[float, float, float]]
 ] = {
     "light": ((0.97, 0.97, 0.98), (0.62, 0.63, 0.66)),
     "dark": ((0.30, 0.31, 0.34), (0.05, 0.05, 0.06)),
+    "black": ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+    "white": ((1.0, 1.0, 1.0), (1.0, 1.0, 1.0)),
 }
-_DEFAULT_BACKGROUND: Literal["light", "dark"] = "dark"
+_DEFAULT_BACKGROUND: Literal["auto"] = "auto"
 
 
-def _validate_background(name: Literal["light", "dark"]) -> None:
-    """Raise ``ValueError`` if ``name`` is not a known background preset."""
-    if name not in _BACKGROUND_PRESETS:
+def _validate_background(
+    name: Literal["auto", "light", "dark", "black", "white", "transparent"],
+) -> None:
+    """Raise ``ValueError`` if ``name`` is not a known background mode."""
+    if name not in {"auto", "transparent"} and name not in _BACKGROUND_PRESETS:
         raise ValueError(
-            f"Unknown background {name!r}; choose from {sorted(_BACKGROUND_PRESETS)}."
+            f"Unknown background {name!r}; choose from {sorted([*_BACKGROUND_PRESETS, 'auto', 'transparent'])}."
         )
 
 
@@ -76,7 +79,8 @@ class WebGLBackend(RenderBackend):
         filename: Path | str | None = None,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"]
+        | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         offline: bool = False,
@@ -118,6 +122,7 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
+            world_annotations=_world_annotations(scene),
         )
         out_path.write_bytes(html.encode("utf-8"))
         logger.info(f"WebGL viewer saved to {out_path}")
@@ -129,7 +134,8 @@ class WebGLBackend(RenderBackend):
         config: Config,
         *,
         three_version: str = _DEFAULT_THREE_VERSION,
-        background: Literal["light", "dark"] | None = None,
+        background: Literal["auto", "light", "dark", "black", "white", "transparent"]
+        | None = None,
         title: str = _DEFAULT_TITLE,
         envmap_background: bool | None = None,
         three_module_url: str | None = None,
@@ -141,8 +147,9 @@ class WebGLBackend(RenderBackend):
             scene: Compiled scene to render.
             config: Rendering configuration.
             three_version: Three.js version string to pull from unpkg CDN.
-            background: Background preset — ``"light"`` (default) or ``"dark"``.
-                Both are soft studio radial gradients with a bright centre spot.
+            background: Background mode — system-aware ``"auto"`` (default), ``"dark"``, ``"light"``,
+                solid ``"black"`` or ``"white"``, or ``"transparent"`` (including saved PNGs).
+                Transparent mode hides the environment background, not its lighting.
             title: HTML page title.
             envmap_background: Whether to show the environment map as background.
             three_module_url: Explicit Three.js ES-module URL; defaults to unpkg.
@@ -172,6 +179,7 @@ class WebGLBackend(RenderBackend):
             three_addons_url=three_addons_url,
             legends=[legend.to_dict() for legend in scene.legends],
             annotations=[annotation.to_dict() for annotation in scene.annotations],
+            world_annotations=_world_annotations(scene),
         )
 
     # ------------------------------------------------------------------ #
@@ -204,6 +212,7 @@ class WebGLBackend(RenderBackend):
             # ``None`` leaves nodes untagged) and its layer index (so the viewer
             # can toggle per-layer visibility).
             builder._current_cell = _cell_tag(view)
+            builder._current_point_mark = view.mark is mark_module.Point
             builder._current_layer = index
             if view.mark is mark_module.Surface:
                 _add_surface_view(builder, view)
@@ -242,6 +251,36 @@ def _cell_tag(view) -> str | None:
     if not cell:
         return None
     return "/".join(f"{node_id}.{branch}" for node_id, branch in cell)
+
+
+def _world_annotations(scene: Scene) -> list[dict[str, Any]]:
+    """Attach source-point identities to callouts centered on point glyphs."""
+    result: list[dict[str, Any]] = []
+    world_vertices: dict[int, np.ndarray] = {}
+    for annotation in scene.world_annotations:
+        payload = annotation.to_dict()
+        points: list[dict[str, int]] = []
+        for layer in annotation.layers or (annotation.layer,):
+            view = scene[layer]
+            if view.mark is not mark_module.Point:
+                continue
+            assert view.data_frame is not None
+            if layer not in world_vertices:
+                transform = view.global_transform
+                world_vertices[layer] = (
+                    view.data_frame.mesh.vertices @ transform[:3, :3].T
+                    + transform[:3, 3]
+                )
+            vertices = world_vertices[layer]
+            if vertices.shape[0] == 0:
+                continue
+            distances = np.sum((vertices - annotation.position) ** 2, axis=1)
+            point = int(np.argmin(distances))
+            if distances[point] <= 1e-14:
+                points.append({"layer": layer, "point": point})
+        payload["points"] = points
+        result.append(payload)
+    return result
 
 
 def _resolve_output_path(filename: Path | str | None) -> Path:

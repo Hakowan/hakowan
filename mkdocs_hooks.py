@@ -4,19 +4,27 @@ from __future__ import annotations
 
 import re
 import tempfile
-import urllib.error
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin, urlsplit
-from urllib.request import urlopen
 
 _GALLERY_README = re.compile(
     r'^--8<-- "(?P<url>https://github\.com/Hakowan/hakowan-gallery/raw/main/'
     r'gallery/(?P<recipe>[^/]+)/README\.md)"\s*$',
     re.MULTILINE,
 )
-_GALLERY_REVISION = "6e250d5907d22f491d0c13ec6f469489e74c679c"
+
+_GALLERY_SOURCE_SNIPPET = re.compile(
+    r'^--8<-- "https://github\.com/(?:Hakowan|qnzhou)/hakowan-gallery/raw/main/'
+    r'gallery/(?P<path>[^"]+)"[ \t]*$',
+    re.MULTILINE,
+)
+_GALLERY_REVISION = "2071eecf977bcdf988bc73bdad9e741a812a1b4c"
+_GALLERY_REPOSITORY_URL = "https://github.com/Hakowan/hakowan-gallery.git"
+_GALLERY_CHECKOUT_PATH = Path(tempfile.gettempdir()) / "hakowan-mkdocs-gallery"
+_GALLERY_CHECKOUT_REVISION: str | None = None
 _MAX_GALLERY_FILE_BYTES = 128 * 1024 * 1024
 _MAX_README_BYTES = 2 * 1024 * 1024
+_MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _RAW_MAIN_URL = re.compile(
     r"https://github\.com/(?:Hakowan|qnzhou)/hakowan-gallery/raw/main/"
 )
@@ -30,7 +38,7 @@ _LOCAL_SUFFIXES = frozenset(
     {".html", ".json", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".avif"}
 )
 
-_GALLERY_FILES: dict[PurePosixPath, str] = {}
+_GALLERY_FILES: dict[PurePosixPath, PurePosixPath] = {}
 
 
 def _gallery_asset_path(
@@ -100,10 +108,7 @@ def _local_gallery_target(
         "gallery-demos" if asset_path.suffix.lower() == ".html" else "gallery-assets"
     )
     output_path = PurePosixPath(directory, resolved_recipe, asset_path)
-    _GALLERY_FILES[output_path] = (
-        "https://raw.githubusercontent.com/Hakowan/hakowan-gallery/"
-        f"{_GALLERY_REVISION}/gallery/{resolved_recipe}/{asset_path.as_posix()}"
-    )
+    _GALLERY_FILES[output_path] = PurePosixPath(resolved_recipe, *asset_path.parts)
     fragment = urlsplit(target).fragment
     suffix = f"#{fragment}" if fragment else ""
     return f"{site_path}/{output_path.as_posix()}{suffix}"
@@ -142,29 +147,108 @@ def _resolve_gallery_links(markdown: str, recipe: str | None, site_path: str) ->
     )
 
 
-def _download(url: str, max_bytes: int) -> bytes:
-    """Download one pinned gallery file with a strict size bound."""
+def _ensure_gallery_checkout() -> Path:
+    """Reuse a shallow Dulwich checkout of the pinned gallery revision."""
+    global _GALLERY_CHECKOUT_REVISION
+
     try:
-        with urlopen(url, timeout=120) as response:
-            payload = response.read(max_bytes + 1)
-    except (OSError, urllib.error.URLError) as exc:
-        raise RuntimeError(f"Cannot download gallery file {url}: {exc}") from exc
+        from dulwich import porcelain
+        from dulwich.client import get_transport_and_path
+        from dulwich.repo import Repo
+    except ImportError as exc:
+        raise RuntimeError(
+            "Gallery docs require Dulwich; install the docs extra with "
+            "`pip install '.[docs]'`."
+        ) from exc
+
+    checkout = _GALLERY_CHECKOUT_PATH
+    git_dir = checkout / ".git"
+    if _GALLERY_CHECKOUT_REVISION == _GALLERY_REVISION and git_dir.is_dir():
+        return checkout
+    if checkout.exists() and not git_dir.is_dir() and any(checkout.iterdir()):
+        raise RuntimeError(
+            f"Gallery checkout path exists but is not a Git repository: {checkout}"
+        )
+    checkout.parent.mkdir(parents=True, exist_ok=True)
+    checkout.mkdir(exist_ok=True)
+
+    try:
+        repo = (
+            Repo(str(checkout)) if git_dir.is_dir() else porcelain.init(str(checkout))
+        )
+        revision = _GALLERY_REVISION.encode("ascii")
+        try:
+            current = repo.head()
+        except KeyError:
+            current = None
+
+        if current != revision:
+            if revision not in repo.object_store:
+                client, remote_path = get_transport_and_path(_GALLERY_REPOSITORY_URL)
+                client.fetch(
+                    remote_path,
+                    repo,
+                    determine_wants=lambda _refs, _depth: [revision],
+                    progress=lambda _data: None,
+                    depth=1,
+                )
+            if revision not in repo.object_store:
+                raise RuntimeError(
+                    f"Pinned gallery revision {_GALLERY_REVISION} was not fetched"
+                )
+            porcelain.checkout(repo, revision, force=True)
+            current = repo.head()
+            if current != revision:
+                raise RuntimeError(
+                    f"Gallery checkout has revision {current!r}, "
+                    f"expected {_GALLERY_REVISION}"
+                )
+    except Exception as exc:
+        raise RuntimeError(
+            f"Cannot prepare gallery checkout at revision {_GALLERY_REVISION}: {exc}"
+        ) from exc
+
+    _GALLERY_CHECKOUT_REVISION = _GALLERY_REVISION
+    return checkout
+
+
+def _read_gallery_file(path: Path, max_bytes: int) -> bytes:
+    try:
+        with path.open("rb") as source:
+            payload = source.read(max_bytes + 1)
+    except OSError as exc:
+        raise RuntimeError(f"Cannot read gallery file {path}: {exc}") from exc
     if len(payload) > max_bytes:
-        raise RuntimeError(f"Gallery file exceeds {max_bytes} bytes: {url}")
+        raise RuntimeError(f"Gallery file exceeds {max_bytes} bytes: {path}")
     return payload
 
 
-def _download_to(url: str, destination: Path) -> None:
-    """Atomically write one bounded gallery download to the built site."""
-    payload = _download(url, _MAX_GALLERY_FILE_BYTES)
+def _copy_gallery_file(source: Path, destination: Path, max_bytes: int) -> None:
+    try:
+        size = source.stat().st_size
+    except OSError as exc:
+        raise RuntimeError(f"Cannot read gallery file {source}: {exc}") from exc
+    if size > max_bytes:
+        raise RuntimeError(f"Gallery file exceeds {max_bytes} bytes: {source}")
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(
-            dir=destination.parent, delete=False
-        ) as output:
-            output.write(payload)
-            temporary = Path(output.name)
+        with (
+            source.open("rb") as input_file,
+            tempfile.NamedTemporaryFile(
+                dir=destination.parent, delete=False
+            ) as output_file,
+        ):
+            temporary = Path(output_file.name)
+            copied = 0
+            while chunk := input_file.read(1024 * 1024):
+                copied += len(chunk)
+                if copied > max_bytes:
+                    raise RuntimeError(
+                        f"Gallery file exceeds {max_bytes} bytes: {source}"
+                    )
+                output_file.write(chunk)
         temporary.replace(destination)
     finally:
         if temporary is not None and temporary.exists():
@@ -178,26 +262,47 @@ def on_config(config: dict[str, object]) -> dict[str, object]:
 
 
 def on_page_markdown(markdown: str, config: dict[str, object], **_: object) -> str:
-    """Inline remote gallery READMEs and resolve their repository-relative links."""
+    """Inline gallery content from the pinned local checkout."""
     site_path = urlsplit(str(config["site_url"])).path.rstrip("/")
 
-    def replace(match: re.Match[str]) -> str:
-        source_url = (
-            "https://raw.githubusercontent.com/Hakowan/hakowan-gallery/"
-            f"{_GALLERY_REVISION}/gallery/{match.group('recipe')}/README.md"
-        )
-        remote_markdown = _download(source_url, _MAX_README_BYTES).decode("utf-8")
-        return _resolve_gallery_links(remote_markdown, match.group("recipe"), site_path)
+    def replace_readme(match: re.Match[str]) -> str:
+        recipe = match.group("recipe")
+        if recipe in {"", ".", ".."} or "\\" in recipe:
+            raise RuntimeError(f"Unsafe gallery recipe name: {recipe!r}")
+        checkout = _ensure_gallery_checkout()
+        source = checkout / "gallery" / recipe / "README.md"
+        readme = _read_gallery_file(source, _MAX_README_BYTES).decode("utf-8")
+        return _resolve_gallery_links(readme, recipe, site_path)
 
-    markdown = _GALLERY_README.sub(replace, markdown)
+    markdown = _GALLERY_README.sub(replace_readme, markdown)
+
+    def replace_source(match: re.Match[str]) -> str:
+        relative_path = PurePosixPath(match.group("path"))
+        if (
+            relative_path.is_absolute()
+            or len(relative_path.parts) < 2
+            or ".." in relative_path.parts
+            or "\\" in match.group("path")
+            or relative_path.suffix.lower() != ".py"
+        ):
+            raise RuntimeError(f"Unsafe gallery source path: {match.group('path')!r}")
+        checkout = _ensure_gallery_checkout()
+        source = checkout.joinpath("gallery", *relative_path.parts)
+        return _read_gallery_file(source, _MAX_SOURCE_BYTES).decode("utf-8")
+
+    markdown = _GALLERY_SOURCE_SNIPPET.sub(replace_source, markdown)
     pinned_raw = f"https://github.com/Hakowan/hakowan-gallery/raw/{_GALLERY_REVISION}/"
     markdown = _RAW_MAIN_URL.sub(pinned_raw, markdown)
     return _resolve_gallery_links(markdown, None, site_path)
 
 
 def on_post_build(config: dict[str, object], **_: object) -> None:
-    """Copy referenced gallery demos, images, and JSON into the generated site."""
+    """Copy referenced gallery files from the pinned checkout into the site."""
+    if not _GALLERY_FILES:
+        return
+    checkout = _ensure_gallery_checkout()
     site_dir = Path(str(config["site_dir"]))
-    for output_path, source_url in _GALLERY_FILES.items():
+    for output_path, source_path in _GALLERY_FILES.items():
+        source = checkout.joinpath("gallery", *source_path.parts)
         destination = site_dir.joinpath(*output_path.parts)
-        _download_to(source_url, destination)
+        _copy_gallery_file(source, destination, _MAX_GALLERY_FILE_BYTES)

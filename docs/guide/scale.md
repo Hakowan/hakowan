@@ -60,6 +60,9 @@ to [1, 1, 1].
 s = hkw.scale.Affine(matrix = np.eye(3) * 2)
 ```
 
+For a `d`-channel attribute, the matrix must have shape `d×d`, `d×(d+1)`, or `(d+1)×(d+1)`.
+Other shapes raise `ValueError`.
+
 ## Norm scale
 
 `Norm` scale reduces a vector-valued attribute to its per-element magnitude (a scalar field). Unlike
@@ -73,27 +76,28 @@ s = hkw.scale.Norm()
 
 # Other norms are available via the `order` parameter.
 s = hkw.scale.Norm(order=1)        # Manhattan (L1)
-s = hkw.scale.Norm(order=np.inf)   # max-abs
+s = hkw.scale.Norm(order=float("inf"))   # max-abs
 ```
 
-This is most useful for mapping the *magnitude* of a vector field to another channel, e.g. coloring a
-flow field by its speed or scaling point sizes by displacement magnitude. The
-[`hkw.norm()`](attribute.md#the-norm-shorthand) helper is a convenient shorthand for attaching this
-scale to an attribute:
+Use [`hkw.norm()`](attribute.md#the-norm-shorthand) to attach `Norm` as an
+attribute's leading scale. Any later scales operate on the resulting magnitude.
+The attribute guide shows equivalent attribute construction and mapping examples.
 
-```py
-# These two are equivalent:
-attr = hkw.norm("velocity")
-attr = hkw.attribute("velocity", scale=hkw.scale.Norm())
 
-# Map magnitude into a radius range for the size channel.
-attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max=0.02))
-```
+## Scale shorthand
+
+Where an API accepts `ScaleLike`, a numeric value such as `0.1` is converted to
+`Uniform(factor=0.1)`. In particular, `hkw.norm("velocity", scale=0.1)` applies
+that uniform scale after computing the magnitude. Use an explicit scale object
+for non-uniform transforms.
 
 ## Offset scale
 
-`Offset` scale offsets the current attribute by another attribute. It is useful for showing deformed
-data where the rest position and displacement field are stored in separate attributes.
+`Offset` scale adds another attribute to the current attribute. It is useful for showing deformed
+data where the rest position and displacement field are stored separately. Target and offset
+attributes must both use indexed or both use non-indexed storage; mixed storage raises `ValueError`.
+Indexed offset addition promotes the result dtype when needed, preserving fractional
+values from scaled offsets instead of truncating them to an integer target dtype.
 
 ```py
 s = hkw.scale.Offset(offset=hkw.attribute("displacement"))

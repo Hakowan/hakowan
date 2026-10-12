@@ -536,6 +536,7 @@ class _MaterialMixin:
 
         output = nodes.new(type="ShaderNodeOutputMaterial")
         output.location = (200, 0)
+        mat["_hakowan_callout_occluder"] = float(mat_data.specular_reflectance) > 0.0
         links.new(mix.outputs["Shader"], output.inputs["Surface"])
 
         # Thin dielectric is inherently two-sided

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from html import escape
 from importlib import resources
 from typing import Any
+
+from ...common.overlay import CALLOUT_POLICY
 
 
 def _load_template() -> str:
@@ -40,6 +43,7 @@ def render_html(
     three_addons_url: str | None = None,
     legends: list[dict] | None = None,
     annotations: list[dict] | None = None,
+    world_annotations: list[dict] | None = None,
 ) -> str:
     """Substitute placeholders in the bundled viewer template.
 
@@ -59,7 +63,11 @@ def render_html(
         name: {"center": list(center), "edge": list(edge)}
         for name, (center, edge) in backgrounds.items()
     }
-    r, g, b = backgrounds[background][1]  # selected preset's edge colour
+    if background == "transparent":
+        page_background = "transparent"
+    else:
+        r, g, b = backgrounds["light" if background == "auto" else background][1]
+        page_background = f"rgb({round(r * 255)}, {round(g * 255)}, {round(b * 255)})"
     if three_module_url is None:
         three_module_url = (
             f"https://unpkg.com/three@{three_version}/build/three.module.js"
@@ -73,9 +81,7 @@ def render_html(
         "{{THREE_ADDONS_URL}}": _script_json(three_addons_url),
         "{{BG_PRESETS_JSON}}": _script_json(presets_js),
         "{{BG_MODE}}": _script_json(background),
-        "{{BG_R_255}}": str(int(round(r * 255))),
-        "{{BG_G_255}}": str(int(round(g * 255))),
-        "{{BG_B_255}}": str(int(round(b * 255))),
+        "{{PAGE_BACKGROUND}}": page_background,
         "{{INITIAL_EYE}}": _script_json(initial_view["eye"]),
         "{{INITIAL_TARGET}}": _script_json(initial_view["target"]),
         "{{INITIAL_UP}}": _script_json(initial_view["up"]),
@@ -89,7 +95,10 @@ def render_html(
         "{{ANNOTATIONS_JSON}}": _script_json(
             annotations if annotations is not None else []
         ),
+        "{{WORLD_ANNOTATIONS_JSON}}": _script_json(
+            world_annotations if world_annotations is not None else []
+        ),
+        "{{CALLOUT_POLICY_JSON}}": _script_json(CALLOUT_POLICY),
     }
-    for key, value in replacements.items():
-        template = template.replace(key, value)
-    return template
+    placeholders = re.compile("|".join(re.escape(key) for key in replacements))
+    return placeholders.sub(lambda match: replacements[match.group(0)], template)

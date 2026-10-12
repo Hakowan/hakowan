@@ -68,26 +68,33 @@ and [Legends and annotations](overlay.md) guides for advanced examples.
 
 ## Checkerboard texture
 
-`CheckerBoard` texture maps 3D elements to one of two possible sub-textures based on a checkerboard
-pattern.
+`Checkerboard` texture maps UV coordinates to alternating cells. `size` sets
+the number of cells on each axis (default `8`):
 
 ```py
-t = hkw.texture.CheckBoard(
+t = hkw.texture.Checkerboard(
     uv="uv_attr_name",
     texture1=hkw.texture.Uniform(color=0.2),
     texture2=hkw.texture.Uniform(color=0.8),
+    size=8,
 )
 ```
 
+WebGL can bake checkerboards only when each cell resolves to a uniform color or
+scalar. Nested texture cells are unsupported and render as gray with a warning.
+
 ## Isocontour texture
 
-`Isocontour` texture maps 3D elements to one of two possible sub-textures based on the iso-contour of
-a given scalar field.
+`Isocontour` texture maps a scalar field to contour and non-contour textures.
+`ratio` controls the contour thickness relative to the intervening regions
+(default `0.1`); `num_contours` sets the contour count per unit distance
+(default `8`):
 
 ```py
 t = hkw.texture.Isocontour(
     data="attr_name",
     ratio=0.2,
+    num_contours=8,
     texture1=hkw.texture.Uniform(color=0.2),
     texture2=hkw.texture.Uniform(color=0.8),
 )

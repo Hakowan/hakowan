@@ -15,7 +15,9 @@ from ..setup import Config
 from ..setup.render_pass import aov_path
 from ..common import logger
 from dataclasses import dataclass, field
+from html import escape
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 from typing import Any
 
 # NOTE: Mitsuba is intentionally NOT imported here. Variant selection (which
@@ -35,7 +37,7 @@ class RenderResult:
             string ``"interactive"`` for viewer backends (WebGL). Empty when
             nothing was written to disk (``filename`` was ``None``).
         image: The in-memory rendered image when the backend produces one
-            (Mitsuba); ``None`` otherwise. Use this for notebook display.
+            (Mitsuba, Blender); ``None`` otherwise. Use this for notebook display.
         path: The main output path when written to disk; ``None`` otherwise.
 
     The object is also a :pep:`519` path-like (``__fspath__``), so it can be
@@ -62,6 +64,40 @@ class RenderResult:
                 "(render() was called without a filename)."
             )
         return str(self.path)
+
+    def embed_html(
+        self,
+        *,
+        src: str | None = None,
+        title: str = "Hakowan Interactive 3D Visualization",
+        width: str = "100%",
+        height: int = 500,
+    ) -> str:
+        """Return an iframe snippet for a published WebGL viewer.
+
+        ``src`` must be a relative path or HTTP(S) URL. By default, the
+        published viewer filename is URL-encoded and resolved beside the page.
+        Publish the entire output directory when rendering with ``offline=True``.
+        """
+        if self.backend != "webgl" or self.path is None:
+            raise ValueError("Embedding requires a saved WebGL viewer.")
+        if height <= 0:
+            raise ValueError("Iframe height must be positive.")
+        if src is None:
+            viewer_src = quote(self.path.name, safe="")
+        else:
+            if not src.strip():
+                raise ValueError("Iframe src must not be empty.")
+            scheme = urlsplit(src.strip()).scheme.lower()
+            if scheme and scheme not in {"http", "https"}:
+                raise ValueError("Iframe src must use a relative path or HTTP(S) URL.")
+            viewer_src = src
+        return (
+            f'<iframe src="{escape(viewer_src, quote=True)}" '
+            f'title="{escape(title, quote=True)}" '
+            f'width="{escape(width, quote=True)}" height="{height}" '
+            'loading="lazy" style="border:0;"></iframe>'
+        )
 
 
 def render(
@@ -139,11 +175,11 @@ def render(
 
     raw = backend_impl.render(scene, config, filename, **kwargs)
 
-    # Normalize the backend's primary return into a RenderResult. Mitsuba
-    # returns an in-memory image; file backends (Blender/WebGL) return the path
-    # they actually wrote, or None. Prefer the backend-reported path — the
-    # WebGL backend rewrites the suffix to ``.html``, so its returned path is
-    # the truthful main output, not the user's *filename*.
+    # Normalize the backend's primary return into a RenderResult. Image-
+    # producing backends (Mitsuba/Blender) return an in-memory image; file
+    # backends (WebGL) return the path they actually wrote. Prefer the
+    # backend-reported path when provided — the WebGL backend rewrites the
+    # suffix to ``.html``, so its returned path is the truthful main output.
     image = raw if not isinstance(raw, (str, Path)) else None
     if isinstance(raw, (str, Path)):
         path: Path | None = Path(raw)

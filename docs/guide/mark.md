@@ -5,7 +5,7 @@ Mark defines the type of geometry a visualization should use. Currently mark can
 
 * __Surface__: The surface mark indicates the geometry represents a 3D surface.
 * __Curve__: The curve mark indicates the geometry represents a set of 3D curves.
-* __Point__: The point mark indices the geometry represents a set of 3D points.
+* __Point__: The point mark indicates the geometry represents a set of 3D points.
 
 ![Mark](../images/mark.svg)
 

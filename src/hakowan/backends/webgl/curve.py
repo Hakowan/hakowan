@@ -50,12 +50,14 @@ class _SegmentData:
     """Endpoints (E*2, 3) and per-endpoint metadata.
 
     ``vertex_idx`` and ``sizes`` may be None when not derivable (e.g. facet-
-    based vector field).
+    based vector field). ``facet_idx`` stores one source facet per mesh edge
+    when the curve's color field is facet-based.
     """
 
     endpoints: np.ndarray
     vertex_idx: np.ndarray | None
     sizes: np.ndarray | None
+    facet_idx: np.ndarray | None = None
 
 
 # ---------------------------------------------------------------------- #
@@ -72,6 +74,13 @@ def _extract_mesh_edges(view: View) -> _SegmentData:
 
     endpoints = np.empty((mesh.num_edges * 2, 3), dtype=np.float32)
     vertex_idx = np.empty(mesh.num_edges * 2, dtype=np.uint32)
+    color_name = _find_color_field_name(view)
+    facet_idx = None
+    if (
+        color_name is not None
+        and mesh.attribute(color_name).element_type == lagrange.AttributeElement.Facet
+    ):
+        facet_idx = np.empty(mesh.num_edges, dtype=np.uint32)
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     for i in range(mesh.num_edges):
         v0, v1 = mesh.get_edge_vertices(i)
@@ -79,7 +88,11 @@ def _extract_mesh_edges(view: View) -> _SegmentData:
         endpoints[2 * i + 1] = vertices[v1]
         vertex_idx[2 * i] = v0
         vertex_idx[2 * i + 1] = v1
-    return _SegmentData(endpoints, vertex_idx, None)
+        if facet_idx is not None:
+            # For a line mesh this identifies the line facet. On a surface
+            # edge, use its first incident facet deterministically.
+            facet_idx[i] = mesh.facets_around_edge(i)[0]
+    return _SegmentData(endpoints, vertex_idx, None, facet_idx)
 
 
 # ---------------------------------------------------------------------- #
@@ -327,15 +340,28 @@ def _extract_segments(view: View) -> _SegmentData:
     return _extract_mesh_edges(view)
 
 
-def _segment_colors(view: View, vertex_idx: np.ndarray | None) -> np.ndarray | None:
-    if vertex_idx is None:
-        return None
+def _segment_colors(
+    view: View,
+    vertex_idx: np.ndarray | None,
+    facet_idx: np.ndarray | None,
+) -> np.ndarray | None:
     color_name = _find_color_field_name(view)
     if color_name is None:
         return None
     assert view.data_frame is not None
-    per_vertex = _read_color_attribute(view.data_frame.mesh, color_name)
-    return per_vertex[vertex_idx].astype(np.float32)
+    mesh = view.data_frame.mesh
+    color_attr = mesh.attribute(color_name)
+    if color_attr.element_type == lagrange.AttributeElement.Vertex:
+        if vertex_idx is None:
+            return None
+        colors = _read_color_attribute(mesh, color_name)
+        return colors[vertex_idx].astype(np.float32)
+    if color_attr.element_type == lagrange.AttributeElement.Facet:
+        if facet_idx is None:
+            return None
+        per_facet = _read_color_attribute(mesh, color_name)
+        return np.repeat(per_facet[facet_idx], 2, axis=0).astype(np.float32)
+    return None
 
 
 def add_curve_view(builder: GLTFBuilder, view: View) -> int:
@@ -393,7 +419,7 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         )
 
         colors: np.ndarray | None = None
-        endpoint_colors = _segment_colors(view, data.vertex_idx)
+        endpoint_colors = _segment_colors(view, data.vertex_idx, data.facet_idx)
         if endpoint_colors is not None:
             colors = endpoint_colors[ring_to_endpoint]
             pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
@@ -415,7 +441,7 @@ def add_curve_view(builder: GLTFBuilder, view: View) -> int:
         )
 
     indices = np.arange(data.endpoints.shape[0], dtype=np.uint32)
-    colors = _segment_colors(view, data.vertex_idx)
+    colors = _segment_colors(view, data.vertex_idx, data.facet_idx)
     if colors is not None:
         pbr["baseColorFactor"] = [1.0, 1.0, 1.0, 1.0]
     material_idx = builder.add_material(pbr, double_sided=double_sided)
@@ -552,7 +578,7 @@ def _add_instanced_tubes(
     translations, rotations, scales = _segment_instances(data.endpoints, sizes)
 
     instance_colors: np.ndarray | None = None
-    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    endpoint_colors = _segment_colors(view, data.vertex_idx, data.facet_idx)
     if endpoint_colors is not None:
         # One flat colour per cylinder: average the two endpoint colours (RGB).
         instance_colors = (
@@ -648,7 +674,7 @@ def _add_instanced_arrows(
     translations, rotations, scales = _arrow_instances(base, tip, radius)
 
     instance_colors: np.ndarray | None = None
-    endpoint_colors = _segment_colors(view, data.vertex_idx)
+    endpoint_colors = _segment_colors(view, data.vertex_idx, data.facet_idx)
     if endpoint_colors is not None:
         # All four endpoints share the base vertex's colour; take one per arrow.
         instance_colors = endpoint_colors[0::4, :3].astype(np.float32)

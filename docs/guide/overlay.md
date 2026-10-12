@@ -1,9 +1,7 @@
 # Legends and annotations
 
-Hakowan treats legends and annotations as semantic figure overlays. They are
-part of the layer specification, survive canonical JSON round-trips, appear in
-WebGL viewers and beauty snapshots, and are composited into PNG/JPEG/WebP/TIFF
-outputs from Mitsuba and Blender.
+Add legends and labels to layers to explain the data shown in a visualization.
+They appear in WebGL viewers, snapshots, and supported raster image outputs.
 
 ## Automatic scalar-field legends
 
@@ -19,9 +17,9 @@ layer = hkw.layer(mesh).material(
 )
 ```
 
-The title defaults to the mesh attribute name. Units come from
-`hkw.attribute(..., unit=...)`. The compiler records the effective numeric
-domain after user-supplied attribute scales and before color normalization.
+The title defaults to the mesh attribute name, and units come from
+`hkw.attribute(..., unit=...)`. Legend values reflect the attribute's configured
+scale before the colormap is applied.
 
 Customize the colorbar with `hkw.Legend`:
 
@@ -38,6 +36,9 @@ texture = hkw.texture.ScalarField(
     ),
 )
 ```
+
+Raster outputs overlay the legend when its requested width fits beside the rendered view. If it
+does not fit, the image canvas expands to make room for the full legend panel.
 
 Suppress it explicitly:
 
@@ -106,8 +107,9 @@ layer = (
 )
 ```
 
-`position` is normalized image space with `(0, 0)` at the top-left and `(1, 1)`
-at the bottom-right. Supported anchors are `left`, `center`, and `right`.
+`position` uses normalized image coordinates with `(0, 0)` at the top-left and
+`(1, 1)` at the bottom-right. Both values must be in `[0, 1]`; out-of-range
+positions raise `ValueError`. Supported anchors are `left`, `center`, and `right`.
 
 You can also construct the reusable object directly:
 
@@ -116,26 +118,67 @@ label = hkw.Annotation("Simulation A", position=(0.02, 0.02))
 layer = hkw.layer(mesh, annotations=[label])
 ```
 
-Annotations inherited by multiple child views are deduplicated when the scene is
-compiled.
+Identical inherited screen annotations are deduplicated across the scene and drawn
+once on the shared canvas; they are not repeated in each juxtaposed view.
+
+## World-space callouts
+
+Use `WorldAnnotation` to attach a label to a point in a layer's 3D geometry,
+rather than at a fixed position on the image:
+
+```py
+layer = hkw.layer(mesh).annotate(
+    hkw.WorldAnnotation(
+        "Peak stress",
+        position=(0.4, 0.2, 0.1),
+        color="white",
+        background="black",
+        offset=(0, -10),  # label sits 10 px above the point
+        arrow=False,      # omit the leader; the default is True
+    )
+)
+```
+
+Use the 3D coordinates of the point in the layer's geometry, after any
+geometry-changing transforms. The callout follows the point when layers are
+transformed or arranged into multiple views, while the label stays screen-facing.
+When `arrow` is true (the default), a leader connects the label to the point;
+`arrow=False` omits it.
+
+`offset` is an optional screen-space pixel vector from the point to the nearest
+edge of the label. `+x` is right and `+y` is down; for example,
+`offset=(0, -10)` places the label 10 pixels above the point. With
+`offset=None`, Hakowan places the label automatically. An explicit offset may
+overlap geometry or place the label partly outside the viewport.
+
+Automatic placement looks for available space around the point. If there is no
+room for a readable label, Hakowan may hide it. In WebGL, placement adjusts as
+you move the camera.
+
+Callouts outside the view are not displayed. Mitsuba and WebGL hide callouts whose
+points are obscured by geometry; Blender may show callouts even when their points
+are hidden. In WebGL, a callout centered on a point glyph ignores that glyph's own
+surface, but other glyphs—including those in the same layer—can still occlude it.
+This applies to both instanced and baked point geometry. A free-position callout
+that is not centered on a source point does not exclude any glyph.
+Mitsuba also ignores self-occlusion for anchors inside an edge-derived curve tube,
+but only when the ray hits the segment containing the anchor. Other segments in
+the same layer can occlude it, including segments split into material groups.
 
 ## Backend behavior
 
-| Backend/output | Behavior |
+| Output | Behavior |
 |---|---|
-| WebGL viewer | HTML/CSS legend panels and annotations over the interactive canvas. |
-| `snapshot()` / `observe()` beauty pass | Pillow-composited overlays within the original image bounds. |
-| Mitsuba LDR file | Pillow-composited within the rendered image after rendering. The in-memory Mitsuba tensor remains uncomposited. |
-| Blender LDR file | Pillow-composited within the rendered image after format conversion. |
-| EXR/HDR files | Overlay is skipped with a warning because raster text cannot be represented faithfully. |
-| Diagnostic passes | No overlays; raw depth, normal, and ID dimensions stay aligned. |
+| WebGL viewer | Legends and annotations appear with the interactive scene. |
+| Beauty images and snapshots | Include legends and annotations; expand the canvas when a legend cannot fit beside the view. |
+| Mitsuba `result.image` | Does not include raster overlays. |
+| Blender `result.image` | Includes raster overlays. |
+| EXR/HDR and diagnostic passes | Do not include legends or annotations. |
 
-Raster legends do not change the requested output dimensions. A left or right
-legend is drawn over that edge of the beauty image with an eight-pixel inset.
-The panel uses the same rounded corners and semi-transparent dark background as
-the WebGL legend. Pixels outside that rounded rectangle retain the original
-render, including its alpha values. An explicit light or dark raster background
-override still flattens transparent render pixels before overlays are drawn.
+Raster legends and annotations are drawn over the beauty image when the panels fit.
+If a legend panel exceeds the available width, the output canvas expands to make
+room. Use the `background` option to flatten transparent renders onto a light,
+dark, black, or white background; `"transparent"` preserves alpha, including expanded margins.
 
 ## Observation manifests
 
@@ -147,5 +190,5 @@ observation.manifest["legends"]
 observation.manifest["annotations"]
 ```
 
-This lets an AI associate colors with fields, ranges, units, scale pipelines,
-and category labels without inferring them from pixels.
+Use the observation manifest to retrieve legend and annotation details
+programmatically, without inferring them from rendered pixels.

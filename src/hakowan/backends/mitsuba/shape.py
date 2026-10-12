@@ -8,11 +8,13 @@ from ...compiler.fur import STRAND_RADIUS_ATTR
 from ...grammar.scale import Attribute
 from ...grammar.channel import DEFAULT_COVARIANCE_SIZE, DEFAULT_MARK_SIZE
 from ...grammar.channel.curvestyle import Bend
-from ...grammar.channel.material import Dielectric
+from ...grammar.channel.material import Dielectric, Hair
 from .utils import rotation
 from ...common.color import srgb_to_linear_array
 
-from typing import Any
+from dataclasses import fields, is_dataclass
+from typing import Any, Iterator
+
 import copy
 import lagrange
 import mitsuba as mi
@@ -385,6 +387,81 @@ def extract_edges(view: View):
     return [base, tip, base_size, tip_size]
 
 
+def _freeze_config(value: Any) -> Any:
+    if isinstance(value, dict):
+        return tuple((key, _freeze_config(item)) for key, item in sorted(value.items()))
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_config(item) for item in value)
+    if isinstance(value, np.ndarray):
+        return tuple(_freeze_config(item) for item in value.tolist())
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _contains_mesh_attribute(value: Any) -> bool:
+    if isinstance(value, dict):
+        return value.get("type") == "mesh_attribute" or any(
+            _contains_mesh_attribute(item) for item in value.values()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_mesh_attribute(item) for item in value)
+    return False
+
+
+def _iter_attributes(value: Any) -> Iterator[Attribute]:
+    if isinstance(value, Attribute):
+        yield value
+    elif isinstance(value, dict):
+        for child in value.values():
+            yield from _iter_attributes(child)
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            yield from _iter_attributes(child)
+    elif is_dataclass(value):
+        for field in fields(value):
+            yield from _iter_attributes(getattr(value, field.name))
+
+
+def _material_attribute_domains(
+    view: View, mesh: lagrange.SurfaceMesh
+) -> tuple[set[lagrange.AttributeElement], tuple[str, ...]]:
+    assert view.material_channel is not None
+    domains: set[lagrange.AttributeElement] = set()
+    facet_names: set[str] = set()
+    for attribute in _iter_attributes(view.material_channel):
+        for name in (attribute._internal_name, attribute._internal_color_field):
+            if name is None or not mesh.has_attribute(name):
+                continue
+            element = mesh.attribute(name).element_type
+            domains.add(element)
+            if element == lagrange.AttributeElement.Facet:
+                facet_names.add(attribute.name)
+    return domains, tuple(sorted(facet_names))
+
+
+def _expand_facet_bsdfs_to_curve_vertices(
+    mesh: lagrange.SurfaceMesh,
+    bsdf_config: dict[str, Any],
+    num_edges: int,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Replicate each facet BSDF to the two per-edge curve endpoints.
+
+    Endpoints are conceptually duplicated per curve edge, preserving facet
+    discontinuities at source vertices shared by differently-colored edges.
+    """
+    mesh.initialize_edges()
+    edge_vertex_bsdfs = []
+    for edge_index in range(num_edges):
+        incident_facets = mesh.facets_around_edge(edge_index)
+        if len(incident_facets) == 0:
+            raise RuntimeError(f"Curve edge {edge_index} has no incident facet.")
+        facet_index = int(incident_facets[0])
+        facet_bsdf = bsdf_config[f"bsdf_{facet_index:06}"]
+        edge_vertex_bsdfs.append((facet_bsdf, facet_bsdf))
+    return edge_vertex_bsdfs
+
+
 def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     assert view.data_frame is not None
 
@@ -396,19 +473,13 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
         np.cbrt(np.linalg.det(view.global_transform[:3, :3]))
     )
 
-    # Generate curve file
     if view.vector_field_channel is not None:
         base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size = extract_vector_field(
             view
         )
     else:
-        # Use edges of the mesh.
         base, tip, base_size, tip_size = extract_edges(view)
         ctrl_pts_1 = ctrl_pts_2 = None
-
-    tmp_dir = pathlib.Path(tempfile.gettempdir())
-    filename = tmp_dir / f"{stamp}-view-{index:03}.txt"
-    logger.debug(f"Saving curves to '{str(filename)}'.")
 
     assert len(base) == len(tip)
     assert len(base) == len(base_size)
@@ -416,42 +487,134 @@ def generate_curve_config(view: View, stamp: str, index: int) -> dict:
     if len(base) == 0:
         logger.warning(f"View {index} has no curve segments — skipping.")
         return {}
-    with open(filename, "w") as fout:
-        if ctrl_pts_1 is None or ctrl_pts_2 is None:
-            curve_type = "linearcurve"
-            for p0, p1, s0, s1 in zip(base, tip, base_size, tip_size):
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(
-                    f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n"
-                )
-        else:
-            curve_type = "bsplinecurve"
-            for p0, p1, p2, p3, s0, s3 in zip(
-                base, ctrl_pts_1, ctrl_pts_2, tip, base_size, tip_size
-            ):
-                s1 = 0.75 * s0 + 0.25 * s3
-                s2 = 0.25 * s0 + 0.75 * s3
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n")
-                fout.write(f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n")
-                fout.write(f"{p2[0]} {p2[1]} {p2[2]} {s2 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n")
-                fout.write(
-                    f"{p3[0]} {p3[1]} {p3[2]} {s3 * scale_correction_factor}\n\n"
-                )
 
-    mi_config = {
-        f"view_{index:03}_shape_000000": {
+    mesh = view.data_frame.mesh
+    # Hair is a uniform strand BSDF, not a primitive-expanded material. Other
+    # materials keep the primitive path so vertex/facet attributes are expanded.
+    bsdf_config = generate_bsdf_config(
+        view, is_primitive=not isinstance(view.material_channel, Hair)
+    )
+    if "type" in bsdf_config:
+        if _contains_mesh_attribute(bsdf_config):
+            raise NotImplementedError(
+                "Mitsuba curve marks cannot bind mesh_attribute BSDF textures. "
+                "Use an edge-derived curve with per-vertex BSDF expansion."
+            )
+        edge_groups = [
+            (generate_bsdf_config(view, is_primitive=False), list(range(len(base))))
+        ]
+    else:
+        if view.vector_field_channel is not None:
+            raise NotImplementedError(
+                "Mitsuba curve material textures currently require edge-derived "
+                "curves, not vector-field curves."
+            )
+
+        attribute_domains, facet_attribute_names = _material_attribute_domains(
+            view, mesh
+        )
+        facet_edge_bsdfs = None
+        if lagrange.AttributeElement.Facet in attribute_domains:
+            if lagrange.AttributeElement.Vertex in attribute_domains:
+                raise NotImplementedError(
+                    "Mitsuba curve material textures cannot mix vertex- and "
+                    "facet-domain attributes."
+                )
+            if len(bsdf_config) != mesh.num_facets:
+                raise NotImplementedError(
+                    "Facet-domain curve materials must produce one BSDF per facet."
+                )
+            logger.warning(
+                "Mitsuba curve view %d: expanding facet-domain material attribute(s) "
+                "%s to per-edge vertex values.",
+                index,
+                ", ".join(facet_attribute_names),
+            )
+            facet_edge_bsdfs = _expand_facet_bsdfs_to_curve_vertices(
+                mesh, bsdf_config, len(base)
+            )
+        else:
+            if len(bsdf_config) != mesh.num_vertices:
+                raise NotImplementedError(
+                    "Mitsuba curve material textures currently require vertex-domain "
+                    "attributes."
+                )
+            mesh.initialize_edges()
+
+        groups: dict[Any, tuple[dict[str, Any], list[int]]] = {}
+        for edge_index in range(len(base)):
+            if facet_edge_bsdfs is None:
+                vertex0, vertex1 = mesh.get_edge_vertices(edge_index)
+                bsdf0 = bsdf_config[f"bsdf_{vertex0:06}"]
+                bsdf1 = bsdf_config[f"bsdf_{vertex1:06}"]
+            else:
+                bsdf0, bsdf1 = facet_edge_bsdfs[edge_index]
+            key0 = _freeze_config(bsdf0)
+            if key0 != _freeze_config(bsdf1):
+                raise NotImplementedError(
+                    "Mitsuba curve material textures must be constant across each "
+                    "mesh edge; use a tube mesh for smoothly varying values."
+                )
+            if key0 not in groups:
+                groups[key0] = (bsdf0, [])
+            groups[key0][1].append(edge_index)
+        edge_groups = list(groups.values())
+
+    curve_type = (
+        "linearcurve" if ctrl_pts_1 is None or ctrl_pts_2 is None else "bsplinecurve"
+    )
+    mi_config: dict[str, Any] = {}
+    for group_index, (bsdf, edge_indices) in enumerate(edge_groups):
+        filename = (
+            pathlib.Path(tempfile.gettempdir())
+            / f"{stamp}-view-{index:03}-curve-{group_index:03}.txt"
+        )
+        logger.debug(f"Saving curves to '{str(filename)}'.")
+        with open(filename, "w") as fout:
+            if ctrl_pts_1 is None or ctrl_pts_2 is None:
+                for curve_index in edge_indices:
+                    p0, p1 = base[curve_index], tip[curve_index]
+                    s0, s1 = base_size[curve_index], tip_size[curve_index]
+                    fout.write(
+                        f"{p0[0]} {p0[1]} {p0[2]} {s0 * scale_correction_factor}\n"
+                    )
+                    fout.write(
+                        f"{p1[0]} {p1[1]} {p1[2]} {s1 * scale_correction_factor}\n\n"
+                    )
+            else:
+                for curve_index in edge_indices:
+                    p0 = base[curve_index]
+                    p1 = ctrl_pts_1[curve_index]
+                    p2 = ctrl_pts_2[curve_index]
+                    p3 = tip[curve_index]
+                    s0 = base_size[curve_index]
+                    s3 = tip_size[curve_index]
+                    s1 = 0.75 * s0 + 0.25 * s3
+                    s2 = 0.25 * s0 + 0.75 * s3
+                    for point, size in (
+                        (p0, s0),
+                        (p0, s0),
+                        (p0, s0),
+                        (p0, s0),
+                        (p1, s1),
+                        (p2, s2),
+                        (p3, s3),
+                        (p3, s3),
+                        (p3, s3),
+                        (p3, s3),
+                    ):
+                        fout.write(
+                            f"{point[0]} {point[1]} {point[2]} "
+                            f"{size * scale_correction_factor}\n"
+                        )
+                    fout.write("\n")
+
+        mi_config[f"view_{index:03}_shape_{group_index:06}"] = {
             "type": curve_type,
             "filename": str(filename.resolve()),
-            "bsdf": generate_bsdf_config(view, is_primitive=False),
+            "bsdf": bsdf,
             "to_world": mi.ScalarTransform4f(view.global_transform),  # type: ignore
         }
-    }
     return mi_config
 
 
@@ -506,10 +669,10 @@ def _linearize_color_attributes(mesh: lagrange.SurfaceMesh):
     for cid in color_ids:
         name = mesh.get_attribute_name(cid)
         if mesh.is_attribute_indexed(name):
-            attr = mesh.indexed_attribute(name)
-            element = attr.element_type
-            values = np.array(attr.values.data, dtype=np.float64)  # copy
-            indices = np.array(attr.indices.data)  # copy
+            indexed_attr = mesh.indexed_attribute(name)
+            element = indexed_attr.element_type
+            values = np.array(indexed_attr.values.data, dtype=np.float64)  # copy
+            indices = np.array(indexed_attr.indices.data)  # copy
             values[..., :3] = srgb_to_linear_array(values[..., :3])
             mesh.delete_attribute(name)
             mesh.create_attribute(
@@ -571,10 +734,10 @@ def _expand_secondary_color_attributes(mesh: lagrange.SurfaceMesh):
     for cid in color_ids[1:]:
         name = mesh.get_attribute_name(cid)
         if mesh.is_attribute_indexed(name):
-            attr = mesh.indexed_attribute(name)
-            values = np.array(attr.values.data, dtype=np.float64)
-            indices = np.array(attr.indices.data)
-            element = attr.element_type
+            indexed_attr = mesh.indexed_attribute(name)
+            values = np.array(indexed_attr.values.data, dtype=np.float64)
+            indices = np.array(indexed_attr.indices.data)
+            element = indexed_attr.element_type
             mesh.delete_attribute(name)
             for ch in range(min(values.shape[1], 3)):
                 mesh.create_attribute(
@@ -645,6 +808,15 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
     # resulting per-vertex normals reproduce the original facet / corner / vertex
     # normals (flat shading included) without losing any values.
     normal_ids = mesh.get_matching_attribute_ids(usage=lagrange.AttributeUsage.Normal)
+    clear_computed_edges = not normal_ids and not mesh.has_edges
+    if not normal_ids:
+        # Mitsuba otherwise smooths every shared vertex, even across cube
+        # edges. Match WebGL's default feature-angle normals so hard surfaces
+        # retain their facets while smooth meshes remain smooth.
+        lagrange.compute_normal(mesh)
+        normal_ids = mesh.get_matching_attribute_ids(
+            usage=lagrange.AttributeUsage.Normal
+        )
     use_facet_normal = False
     if len(normal_ids) > 0:
         keep_name = mesh.get_attribute_name(normal_ids[0])
@@ -656,6 +828,10 @@ def generate_surface_config(view: View, stamp: str, index: int) -> dict:
                 mesh, keep_name, lagrange.AttributeElement.Indexed
             )
         mesh = lagrange.unify_index_buffer(mesh, [keep_name])
+    if clear_computed_edges:
+        # Computing feature-angle normals initializes edge adjacency. The PLY
+        # plugin does not need it and warns about its extra "edge" element.
+        mesh.clear_edges()
 
     tmp_dir = pathlib.Path(tempfile.gettempdir())
     filename = tmp_dir / f"{stamp}-view-{index:03}.ply"

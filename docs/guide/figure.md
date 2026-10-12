@@ -191,9 +191,14 @@ Output settings describe semantic intent. Filename, backend, browser executable,
 render device, and performance-specific sample counts remain invocation options.
 
 `background` defaults to `None`: Mitsuba and Blender retain backend alpha in
-formats that support it. Set `"light"` or `"dark"` to flatten transparent pixels
-onto an opaque raster background. WebGL still uses its dark viewer background
-when no override is specified.
+formats that support it. Set `"light"`, `"dark"`, `"black"`, or `"white"` to flatten
+transparent pixels onto an opaque raster background. WebGL follows the system
+light/dark theme by default (`"auto"`); `"black"` makes its initial viewer background solid black
+to match a black raster output. Use `"transparent"` for a transparent WebGL
+viewer and beauty-pass PNGs, including observation snapshots. Environment
+lighting remains active, but WebGL hides the environment background in this mode.
+For raster backends, `"transparent"` preserves rendered alpha just like `None`.
+`"white"` selects solid opaque white in WebGL, distinct from the `"light"` gradient.
 
 ## Precedence
 
@@ -214,27 +219,31 @@ hkw.render(figure, config=preview_config, filename="debug.html")
 Backend keyword arguments override individual backend-facing settings. For
 example, `background="dark"` overrides a figure's light WebGL background.
 
-## Snapshots and observations
+## Observations
 
-`snapshot()` uses the figure camera and output resolution when no explicit
-camera, view, or resolution is supplied:
+`observe()` uses the figure camera for one view labeled `figure` when views
+are omitted. It also inherits the figure's output resolution:
 
 ```py
-snapshot = hkw.snapshot(figure)
+observation = hkw.observe(figure, passes=["beauty"])
+capture = observation.snapshot("figure", "beauty")
 ```
 
 Explicit observation arguments win:
 
 ```py
-snapshot = hkw.snapshot(
+observation = hkw.observe(
     figure,
-    view="right",
+    views=["right"],
+    passes=["beauty"],
     resolution=(512, 512),
     background="dark",
 )
+capture = observation.snapshot("right", "beauty")
 ```
 
-`observe()` continues to use canonical multi-view cameras, but inherits figure
+With explicit views, `observe()` uses canonical view cameras unless a matching
+`cameras={label: camera}` mapping supplies a `CameraState`. It inherits figure
 lighting, environment, resolution, background, and requested passes unless the
 caller supplies replacements.
 

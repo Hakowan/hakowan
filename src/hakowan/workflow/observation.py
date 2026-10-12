@@ -22,7 +22,7 @@ import numpy.typing as npt
 from PIL import Image, ImageDraw
 
 from ..backends import BackendName
-from ..common.overlay import composite_overlays
+from ..common.overlay import _content_viewport, composite_overlays
 from ..compiler import Scene, compile, prepare_scene
 from ..grammar.figure import Figure, OrthographicCamera
 from ..grammar.layer import Layer
@@ -151,7 +151,7 @@ class SceneSummary:
 
 @dataclass(frozen=True, slots=True)
 class Snapshot:
-    """One deterministic camera/pass raster and its machine-readable state."""
+    """Camera/pass raster and state; beauty rasters expose their content viewport."""
 
     image: Image.Image = field(repr=False, compare=False)
     data: npt.NDArray | None = field(default=None, repr=False, compare=False)
@@ -177,6 +177,7 @@ class Snapshot:
     diagnostics: tuple[Diagnostic, ...] = ()
     path: Path | None = None
     data_path: Path | None = None
+    content_viewport: tuple[int, int, int, int] | None = None
 
     def to_manifest(self) -> dict[str, Any]:
         """Return paths, hashes, camera state, matrices, bounds, and diagnostics."""
@@ -192,6 +193,9 @@ class Snapshot:
             else None,
             "data_sha256": _file_sha256(self.data_path),
             "size": list(self.image.size),
+            "content_viewport": list(self.content_viewport)
+            if self.content_viewport is not None
+            else None,
             "camera": self.camera.to_dict(),
             "world_to_camera": self.world_to_camera.tolist(),
             "projection": self.projection.tolist(),
@@ -273,12 +277,14 @@ class Observation:
         )
 
     def pick(self, view: str, pixel: tuple[int, int]) -> PixelHit | None:
-        """Resolve IDs, depth, world position, normal, and attributes at a pixel.
+        """Resolve raw pass data at ``pixel`` in visible beauty-image coordinates.
 
-        The observation must contain depth, element-ID, and layer-ID passes for
-        the requested view. Background pixels return ``None``.
+        If a beauty snapshot is present, ``pixel`` is measured from its top-left;
+        its ``content_viewport`` identifies the camera raster within any expanded
+        legend gutters. Pixels outside that viewport raise ``IndexError``. Without
+        a beauty snapshot, coordinates are measured in the raw pass raster.
+        Background pixels return ``None``.
         """
-        x, y = pixel
         depth_snapshot = self.snapshots.get((view, "depth"))
         element_snapshot = self.snapshots.get((view, "element_id"))
         layer_snapshot = self.snapshots.get((view, "layer_id"))
@@ -286,15 +292,31 @@ class Observation:
             raise ObservationError(
                 "pick() requires depth, element_id, and layer_id passes for the view."
             )
-        width, height = depth_snapshot.image.size
-        if not (0 <= x < width and 0 <= y < height):
-            raise IndexError(f"Pixel {pixel} is outside {width}x{height}.")
         assert depth_snapshot.data is not None
         assert element_snapshot.data is not None
         assert layer_snapshot.data is not None
-        depth = float(depth_snapshot.data[y, x])
-        element_id = int(element_snapshot.data[y, x])
-        layer_id = int(layer_snapshot.data[y, x])
+        height, width = depth_snapshot.data.shape
+        beauty_snapshot = self.snapshots.get((view, "beauty"))
+        content_viewport = (
+            beauty_snapshot.content_viewport if beauty_snapshot is not None else None
+        )
+        viewport_x, viewport_y, viewport_width, viewport_height = (
+            content_viewport if content_viewport is not None else (0, 0, width, height)
+        )
+        x, y = pixel
+        if not (
+            viewport_x <= x < viewport_x + viewport_width
+            and viewport_y <= y < viewport_y + viewport_height
+        ):
+            raise IndexError(
+                f"Pixel {pixel} is outside the camera viewport "
+                f"{viewport_width}x{viewport_height} at "
+                f"({viewport_x}, {viewport_y})."
+            )
+        raw_x, raw_y = x - viewport_x, y - viewport_y
+        depth = float(depth_snapshot.data[raw_y, raw_x])
+        element_id = int(element_snapshot.data[raw_y, raw_x])
+        layer_id = int(layer_snapshot.data[raw_y, raw_x])
         if (
             not np.isfinite(depth)
             or element_id == int(BACKGROUND_ID)
@@ -302,14 +324,14 @@ class Observation:
         ):
             return None
         position = _unproject_pixel(
-            pixel,
+            (raw_x, raw_y),
             (width, height),
             depth,
             depth_snapshot.world_to_camera,
             depth_snapshot.projection,
             mode=depth_snapshot.camera.mode,
         )
-        normal = _normal_at(self.snapshots.get((view, "normal")), pixel)
+        normal = _normal_at(self.snapshots.get((view, "normal")), (raw_x, raw_y))
         attributes = _attributes_at(self._scene, layer_id, element_id)
         return PixelHit(
             view=view,
@@ -512,20 +534,6 @@ def _camera_state_from_figure(camera) -> CameraState:
     )
 
 
-def _camera_state_from_config(config: Config) -> CameraState:
-    sensor = config.sensor
-    return CameraState(
-        eye=_vec3(sensor.location),
-        target=_vec3(sensor.target),
-        up=_vec3(sensor.up),
-        fov=float(getattr(sensor, "fov", 35.0)),
-        near=float(sensor.near_clip),
-        far=float(sensor.far_clip),
-        mode="orthographic" if isinstance(sensor, Orthographic) else "perspective",
-        scale=sensor.scale if isinstance(sensor, Orthographic) else None,
-    )
-
-
 def _sensor_from_camera_state(camera: CameraState):
     """Build the sizing sensor matching the browser capture projection."""
     if camera.mode == "orthographic":
@@ -556,7 +564,7 @@ def _require_playwright():
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
         raise ObservationError(
-            "snapshot()/observe() require Playwright. Install 'hakowan[observe]' "
+            "observe() requires Playwright. Install 'hakowan[observe]' "
             "and run 'playwright install chromium'."
         ) from exc
     return sync_playwright, PlaywrightError
@@ -627,7 +635,7 @@ def _capture_sync(
     *,
     cameras: dict[str, CameraState] | None,
     config: Config | None,
-    background: Literal["light", "dark"],
+    background: Literal["light", "dark", "black", "white", "transparent"],
     up_axis: Literal["y", "z"],
     timeout: float,
 ) -> _CaptureResult:
@@ -732,6 +740,18 @@ def _capture_sync(
                         if needs_geometry
                         else None
                     )
+                    callout_geometry = None
+                    if scene.world_annotations and "beauty" in passes:
+                        # The normal pass has a black background and non-black
+                        # surface normals, so it supplies a silhouette without
+                        # per-pixel CPU raycasts or any dependence on beauty RGB.
+                        normal_url = page.evaluate(
+                            "() => window.__hakowan.capturePng('normal')"
+                        )
+                        normal_pixels = np.asarray(
+                            _decode_png(normal_url).convert("RGB")
+                        )
+                        callout_geometry = np.any(normal_pixels != 0, axis=2)
                     for pass_name in passes:
                         if pass_name in {"element_id", "layer_id"}:
                             data_url = page.evaluate(
@@ -781,14 +801,28 @@ def _capture_sync(
                         else:
                             data = None
                         if pass_name == "beauty" and (
-                            scene.legends or scene.annotations
+                            scene.legends
+                            or scene.annotations
+                            or scene.world_annotations
                         ):
                             image = composite_overlays(
-                                image, scene.legends, scene.annotations, background
+                                image,
+                                scene.legends,
+                                scene.annotations,
+                                background,
+                                world_annotations=scene.world_annotations,
+                                world_to_camera=world_to_camera,
+                                projection=projection,
+                                geometry_mask=callout_geometry,
                             )
                         snapshots[(view, pass_name)] = Snapshot(
                             image=image,
                             data=data,
+                            content_viewport=(
+                                _content_viewport((width, height), scene.legends)
+                                if pass_name == "beauty"
+                                else None
+                            ),
                             view=view,
                             pass_name=pass_name,
                             camera=camera,
@@ -830,8 +864,14 @@ def _capture_context(
     root: Layer | Figure,
     config: Config | None,
     resolution: tuple[int, int] | None,
-    background: Literal["light", "dark"] | None,
-) -> tuple[Layer, Config | None, tuple[int, int], Literal["light", "dark"], bool]:
+    background: Literal["light", "dark", "black", "white", "transparent"] | None,
+) -> tuple[
+    Layer,
+    Config | None,
+    tuple[int, int],
+    Literal["light", "dark", "black", "white", "transparent"],
+    bool,
+]:
     explicit_config = config is not None
     figure = root if isinstance(root, Figure) else None
     runtime_layer = cast(Layer, figure.layer if figure is not None else root)
@@ -845,94 +885,24 @@ def _capture_context(
         else:
             resolution = (512, 512)
     if background is None:
-        if (
+        if explicit_config and config is not None and config.background is not None:
+            background = (
+                "transparent" if config.background == "auto" else config.background
+            )
+        elif (
             figure is not None
             and not explicit_config
             and figure.scene.output is not None
         ):
-            background = figure.scene.output.background or "dark"
+            output_background = figure.scene.output.background
+            background = (
+                "transparent"
+                if output_background is None or output_background == "auto"
+                else output_background
+            )
         else:
-            background = "dark"
+            background = "transparent"
     return runtime_layer, config, resolution, background, explicit_config
-
-
-def snapshot(
-    root: Layer | Figure,
-    *,
-    view: ViewPreset | None = None,
-    pass_name: PassName = "beauty",
-    resolution: tuple[int, int] | None = None,
-    camera: CameraState | None = None,
-    config: Config | None = None,
-    backend: BackendName = "webgl",
-    background: Literal["light", "dark"] | None = None,
-    up_axis: Literal["y", "z"] = "y",
-    filename: str | Path | None = None,
-    timeout: float = 60.0,
-) -> Snapshot:
-    """Capture one deterministic WebGL raster and optional raw pass array.
-
-    A Figure camera is used when neither ``view`` nor ``camera`` is supplied;
-    otherwise named presets frame the compiled scene. Explicit ``config``,
-    ``resolution``, and ``background`` override Figure intent.
-
-    Args:
-        root: Layer or Figure to capture.
-        view: Named camera preset and result label.
-        pass_name: Beauty, albedo, depth, normal, element-ID, or layer-ID pass.
-        resolution: Output width and height in pixels.
-        camera: Explicit camera overriding the named preset.
-        config: Explicit invocation configuration.
-        backend: Capture backend; currently only ``webgl`` is supported.
-        background: Light or dark studio background.
-        up_axis: Coordinate convention used by named camera presets.
-        filename: Optional PNG path; raw pass data is saved beside it as NPY.
-        timeout: Chromium capture timeout in seconds.
-
-    Returns:
-        Snapshot containing the image, raw data, camera, matrices, and metadata.
-
-    """
-    if backend != "webgl":
-        raise NotImplementedError("snapshot() currently supports backend='webgl'.")
-    figure = root if isinstance(root, Figure) else None
-    runtime_layer, resolved_config, resolution, background, explicit_config = (
-        _capture_context(root, config, resolution, background)
-    )
-    label: str = view or "isometric"
-    if camera is None and view is None:
-        if (
-            figure is not None
-            and not explicit_config
-            and figure.scene.camera is not None
-        ):
-            camera = _camera_state_from_figure(figure.scene.camera)
-            label = "figure"
-        elif explicit_config and resolved_config is not None:
-            camera = _camera_state_from_config(resolved_config)
-            label = "config"
-    result = _capture(
-        runtime_layer,
-        [label],
-        [pass_name],
-        resolution,
-        cameras={label: camera} if camera is not None else None,
-        config=resolved_config,
-        up_axis=up_axis,
-        background=background,
-        timeout=timeout,
-    )
-    item = result.snapshots[(label, pass_name)]
-    if filename is not None:
-        path = Path(filename)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        item.image.save(path)
-        if item.data is not None:
-            data_path = path.with_suffix(".npy")
-            np.save(data_path, item.data, allow_pickle=False)
-            object.__setattr__(item, "data_path", data_path)
-        object.__setattr__(item, "path", path)
-    return item
 
 
 def observe(
@@ -944,7 +914,7 @@ def observe(
     cameras: dict[str, CameraState] | None = None,
     config: Config | None = None,
     backend: BackendName = "webgl",
-    background: Literal["light", "dark"] | None = None,
+    background: Literal["light", "dark", "black", "white", "transparent"] | None = None,
     up_axis: Literal["y", "z"] = "y",
     output_dir: str | Path | None = None,
     timeout: float = 60.0,
@@ -963,7 +933,7 @@ def observe(
         cameras: Explicit CameraState overrides keyed by view label.
         config: Explicit invocation configuration.
         backend: Capture backend; currently only ``webgl`` is supported.
-        background: Light or dark studio background.
+        background: Transparent by default; light/dark gradients, solid black/white, or other modes can be selected explicitly.
         up_axis: Coordinate convention used by named camera presets.
         output_dir: Optional directory for PNG, NPY, contact-sheet, and manifest files.
         timeout: Chromium capture timeout in seconds.
@@ -1024,6 +994,9 @@ def observe(
         "legends": [legend.to_dict() for legend in result.scene.legends],
         "annotations": [
             annotation.to_dict() for annotation in result.scene.annotations
+        ],
+        "world_annotations": [
+            annotation.to_dict() for annotation in result.scene.world_annotations
         ],
         "snapshots": [
             result.snapshots[(view, pass_name)].to_manifest()
@@ -1184,5 +1157,4 @@ __all__ = [
     "Snapshot",
     "VIEW_PRESETS",
     "observe",
-    "snapshot",
 ]

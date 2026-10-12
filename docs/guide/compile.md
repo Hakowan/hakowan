@@ -4,6 +4,10 @@ The `compile` function is responsible for converting a layer specification into 
 This function is automatically called by `hkw.render()`, but can also be used directly for
 advanced workflows or debugging.
 
+By default, compilation removes unencoded input attributes from compiled meshes.
+Pass `preserve_attributes=True` to `hkw.compile()` when custom postcompile
+processing needs those attributes retained.
+
 ## Overview
 
 The compilation process transforms the high-level declarative layer specification into a low-level
@@ -59,7 +63,8 @@ If you're building a custom rendering pipeline or integrating Hakowan with other
 import hakowan as hkw
 
 layer = hkw.layer("mesh.obj")
-scene = hkw.compile(layer)
+# Preserve unencoded attributes for custom postcompile processing.
+scene = hkw.compile(layer, preserve_attributes=True)
 
 # Access the compiled mesh data
 for view in scene:
@@ -145,6 +150,7 @@ Each `View` object contains:
 ## Example: Multi-Layer Compilation
 
 ```py
+import lagrange
 import hakowan as hkw
 
 mesh = lagrange.io.load_mesh("shape.obj")

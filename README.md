@@ -21,13 +21,13 @@ and supports three rendering backends:
 pip install hakowan
 
 # Mitsuba backend
-pip install hakowan[mitsuba]
+pip install "hakowan[mitsuba]"
 
 # Blender backend (Python 3.13 required)
-pip install hakowan[blender]
+pip install "hakowan[blender]"
 
 # All backends
-pip install hakowan[mitsuba,blender]
+pip install "hakowan[mitsuba,blender]"
 
 # Add deterministic headless snapshots and multi-view observations
 pip install "hakowan[observe]"
@@ -41,6 +41,25 @@ pip install "hakowan-mcp"
 ```
 
 Note that Hakowan requires Python 3.11 and above (Python 3.13 for the Blender backend).
+
+## Command line
+
+`hkw` requires an action. `render` writes a still image using Mitsuba or Blender,
+preferring Mitsuba when both are available. One of those optional backends must
+be installed; otherwise, `render` reports an error. `view` creates an
+interactive WebGL HTML viewer. `inspect` lists a mesh's attributes, domains,
+and each channel's min/max without selecting a render backend. Run `hkw --help`
+or an action's help for details. `--facet-id` selects Blender for `render` and
+reports an error if Blender is unavailable.
+
+`view` works with the base WebGL install. `render` requires the Mitsuba or
+Blender extra.
+
+```sh
+hkw render mesh.obj
+hkw view mesh.obj
+hkw inspect mesh.obj
+```
 
 To check which backends are available in your environment:
 
@@ -66,6 +85,12 @@ result = hkw.render(layer, filename="viewer.html", backend="webgl")
 # Open viewer.html in any modern browser
 ```
 
+`render()` produces the requested output (an interactive viewer or a
+Mitsuba/Blender image). For AI or programmatic inspection, use `observe()` for
+one or more WebGL views, render passes, and visibility queries. Observation
+captures independently; it does not require a preceding render. See the
+[rendering and viewers guide](https://hakowan.github.io/hakowan/guide/rendering/).
+
 ## Agent integration
 
 Hakowan's provider-neutral agent integration is maintained separately in
@@ -81,7 +106,7 @@ hosts without adding model-provider dependencies to this package.
 ```bibtex
 @software{hakowan,
     title = {Hakowan: A 3D Data Visualization Grammar},
-    version = {0.6.0},
+    version = {0.6.1},
     year = 2026,
 }
 ```

@@ -45,11 +45,16 @@ points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
 points_layer = hkw.layer(points).mark("point")
 ```
 
-Pandas and xarray inputs use `x`, `y`, and optional `z` columns as positions.
-Use `positions=` when the columns have domain-specific names. Other numeric
-columns become vertex attributes, boolean columns are retained as `0`/`1`
-attributes, and unsupported non-numeric columns are ignored. Position tables
-must contain at least one row.
+Tabular position inference recognizes exactly `x`, `y`, `z`, `X`, `Y`, and
+`Z` (all three axes), or the 2D pairs `x`, `y` and `X`, `Y`. When only two
+position columns are present, the generated Z coordinate is zero. Other column
+names are attributes, not inferred positions. The `positions=` argument can
+select 2 or 3 existing column names, but only for pandas and xarray inputs;
+arrays, files, meshes, PyVista/Trimesh objects, and other data types reject
+`positions=`. Other numeric columns become vertex attributes, boolean columns
+are retained as `0`/`1` attributes, and unsupported non-numeric columns are
+ignored. Position tables must contain at least one row.
+
 
 ```py
 table = pandas.DataFrame({
@@ -80,6 +85,9 @@ Use `hkw.inspect()` before building a layer to obtain a JSON-safe summary of the
 geometry and its attributes. This is useful for scripts and agents that must
 choose fields without guessing their names or shapes.
 
+The CLI equivalent is `hkw inspect shape.ply`. It prints one line per attribute,
+with per-channel extrema: scalars for one channel, tuples for multichannel data.
+
 ```py
 summary = hkw.inspect("shape.ply")
 
@@ -94,6 +102,10 @@ payload = summary.to_dict()
 For indexed attributes, `value_count` is the number of unique stored values and
 `element_count` is the number of indices. Numeric summaries include finite and
 non-finite row counts, per-channel bounds, and quartiles.
+
+Before rendering or compiling programmatically, use [`hkw.validate()`](compile.md#validation)
+to check whether the selected fields and backend are supported. For portable
+specifications and small validated edits, see the [canonical specification guide](schema.md#atomic-patches).
 
 
 <!--

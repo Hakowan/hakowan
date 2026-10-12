@@ -14,7 +14,7 @@ from ..grammar.dataframe import DataFrame
 from ..grammar.mark import Mark
 from ..grammar.scale import Attribute, Norm, to_attribute
 from ..grammar.transform import Transform
-from ..grammar.overlay import Annotation
+from ..grammar.overlay import Annotation, WorldAnnotation
 from ..common import logger
 
 from dataclasses import dataclass, field
@@ -30,7 +30,7 @@ class View:
     channels: list[Channel] = field(default_factory=list)
     transform: Transform | None = None
     name: str | None = None
-    annotations: list[Annotation] = field(default_factory=list)
+    annotations: list[Annotation | WorldAnnotation] = field(default_factory=list)
     global_transform: npt.NDArray = field(default_factory=lambda: np.eye(4))
 
     _position_channel: Position | None = None
@@ -142,22 +142,25 @@ class View:
         """
         assert self.data_frame is not None
         mesh = self.data_frame.mesh
-        active_attribute_names = [
-            attr._internal_name for attr in self._active_attributes
+        active_attribute_names: list[str] = [
+            attr._internal_name
+            for attr in self._active_attributes
+            if attr._internal_name is not None
         ]
-        active_attribute_names += [
+        active_attribute_names.extend(
             attr._internal_color_field
             for attr in self._active_attributes
             if attr._internal_color_field is not None
-        ]
+        )
 
         # If input mesh contains normal and normal channel is not set,
         # we will keep the input normal.
         normal_attr_names = [
-            mesh.get_attribute_name(attr_id)
+            name
             for attr_id in mesh.get_matching_attribute_ids(
                 usage=lagrange.AttributeUsage.Normal
             )
+            if (name := mesh.get_attribute_name(attr_id)) is not None
         ]
         if (
             len(normal_attr_names) > 0
@@ -239,6 +242,7 @@ class View:
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
+        position_attr: lagrange.Attribute | lagrange.IndexedAttribute
         if mesh.is_attribute_indexed(attr.name):
             position_attr = mesh.indexed_attribute(attr.name)
         else:
@@ -259,6 +263,7 @@ class View:
         attr = channel.data
         mesh = self.data_frame.mesh
         assert mesh.has_attribute(attr.name)
+        normal_attr: lagrange.Attribute | lagrange.IndexedAttribute
         if mesh.is_attribute_indexed(attr.name):
             normal_attr = mesh.indexed_attribute(attr.name)
         else:
@@ -291,6 +296,7 @@ class View:
                 attr = channel.data
                 mesh = self.data_frame.mesh
                 assert mesh.has_attribute(attr.name)
+                size_attr: lagrange.Attribute | lagrange.IndexedAttribute
                 if mesh.is_attribute_indexed(attr.name):
                     size_attr = mesh.indexed_attribute(attr.name)
                 else:

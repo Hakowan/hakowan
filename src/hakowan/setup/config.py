@@ -46,7 +46,7 @@ class Config:
             live viewer toggle for WebGL); see
             :class:`hakowan.render.RenderResult` for the per-render manifest.
         environment_visible: Show an environment map to the camera when true.
-        background: Optional WebGL/raster light or dark background override.
+        background: Optional WebGL/raster light, dark, black, white, or transparent override.
 
     """
 
@@ -57,11 +57,23 @@ class Config:
     integrator: Integrator = field(default_factory=Path)
     _render_passes: set[str] = field(default_factory=set)
     environment_visible: bool = False
-    background: Literal["light", "dark"] | None = None
+    background: (
+        Literal["auto", "light", "dark", "black", "white", "transparent"] | None
+    ) = None
 
     def __setattr__(self, name, value):
-        if name == "background" and value not in {None, "light", "dark"}:
-            raise ValueError("Config.background must be 'light', 'dark', or None.")
+        if name == "background" and value not in {
+            None,
+            "auto",
+            "light",
+            "dark",
+            "black",
+            "white",
+            "transparent",
+        }:
+            raise ValueError(
+                "Config.background must be 'auto', 'light', 'dark', 'black', 'white', 'transparent', or None."
+            )
         object.__setattr__(self, name, value)
 
     def z_up(self) -> None:

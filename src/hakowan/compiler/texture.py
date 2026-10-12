@@ -250,9 +250,9 @@ def _apply_isocontour(df: DataFrame, tex: Isocontour, uv: Attribute | None = Non
         return [tex.data] + active_attrs_1 + active_attrs_2
 
     if mesh.is_attribute_indexed(attr_name):
-        attr = mesh.indexed_attribute(attr_name)
-        attr_values = attr.values
-        attr_indices = attr.indices.data
+        indexed_attr = mesh.indexed_attribute(attr_name)
+        attr_values = indexed_attr.values
+        attr_indices = indexed_attr.indices.data
         uv_values = generate_uv_values(attr_values)
         mesh.create_attribute(
             uv_name,

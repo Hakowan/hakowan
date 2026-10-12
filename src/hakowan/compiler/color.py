@@ -58,9 +58,9 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
                 ).data
 
         if mesh.is_attribute_indexed(attr_name):
-            attr = mesh.indexed_attribute(attr_name)
-            value_attr = attr.values
-            index_attr = attr.indices
+            indexed_attr = mesh.indexed_attribute(attr_name)
+            value_attr = indexed_attr.values
+            index_attr = indexed_attr.indices
             if categories:
                 unique_values = np.unique(value_attr.data).tolist()
 
@@ -69,7 +69,7 @@ def _apply_colormap_scalar_field(df: DataFrame, tex: ScalarField):
 
             mesh.create_attribute(
                 color_attr_name,
-                element=attr.element_type,
+                element=indexed_attr.element_type,
                 usage=lagrange.AttributeUsage.Color,
                 initial_values=color_data,
                 initial_indices=index_attr.data.copy(),

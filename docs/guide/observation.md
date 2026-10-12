@@ -1,42 +1,18 @@
-# Snapshot and observation
+# Capture and visual inspection
 
-Hakowan can produce deterministic raster evidence for automated inspection,
-vision models, regression checks, and publication workflows. The default path
-uses the existing WebGL scene through headless Chromium.
+Use `observe()` to capture one or more WebGL views with structured evidence
+for AI agents, programmatic checks, or visual inspection. For interactive viewers
+and Mitsuba/Blender presentation images, use the [rendering guide](rendering.md).
 
 ## Mental model
 
 Hakowan separates visualization intent from captured evidence:
 
-```text
-Figure ──capture one view/pass──▶ Snapshot
-   │
-   └──capture several views/passes──▶ Observation
-```
-
-- A [`Figure`](figure.md) is the visualization definition: its layer tree plus
-  camera, lighting, environment, and output intent. It is neither an image nor
-  evidence that the result is visible.
-- A `Snapshot` is one raster for one resolved camera and one render pass. It
-  carries the image together with camera matrices, bounds, optional raw pass
-  data, diagnostics, paths, and hashes.
-- An `Observation` is a collection of snapshots plus scene-level evidence. It
-  adds a contact sheet, scene and layer summaries, a manifest, and queries for
-  picking, visibility, visible attribute ranges, and occlusion.
-
-| Goal | API | Result |
-|---|---|---|
-| Save one user-facing PNG | `snapshot(..., pass_name="beauty")` | One `Snapshot` and PNG |
-| Capture one analytical pass | `snapshot(..., pass_name="depth")` | One `Snapshot`, PNG, and raw NumPy array |
-| Inspect several views or passes | `observe(...)` | One `Observation` containing many snapshots |
-| Build visual evidence for an agent or regression check | `observe(...)` | Contact sheet, manifest, diagnostics, and queryable pass data |
-| Create an interactive browser viewer | `render(..., backend="webgl")` | HTML, not an observation |
-
-Use `snapshot()` when the required camera and pass are already known. Use
-`observe()` when choosing a view, checking visibility, or comparing multiple
-passes is part of the task. Both compile the same `Layer` or `Figure`; neither
-changes the visualization definition.
-
+A [`Figure`](figure.md) defines the visualization, including its layer tree,
+camera, lighting, and output intent. A `Snapshot` captures one view and pass,
+with an image, camera matrices, bounds, optional raw data, diagnostics, paths,
+and hashes. An `Observation` collects snapshots and adds a contact sheet,
+manifest, scene summaries, and picking and visibility queries.
 
 ## Installation
 
@@ -52,28 +28,36 @@ pixi shell -e observe
 playwright install chromium
 ```
 
-Three.js modules are downloaded once into `~/.cache/hakowan/three/` (or
-`HAKOWAN_CACHE_DIR`) and reused, so later captures do not require the CDN.
-
-## One snapshot
+## One capture
 
 ```py
-snapshot = hkw.snapshot(
-    layer,
-    view="isometric",
-    pass_name="beauty",
-    resolution=(768, 768),
-    filename="figure.png",
-)
+import hakowan as hkw
+import numpy as np
 
-snapshot.image             # PIL image
-snapshot.data              # raw pass array, when applicable
-snapshot.camera            # resolved CameraState
-snapshot.world_to_camera   # 4x4 matrix
-snapshot.projection        # 4x4 projection matrix
-snapshot.bounds            # rendered scene bounds
-snapshot.diagnostics       # structured validation diagnostics
+layer = hkw.layer(
+    np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+).mark("point")
+observation = hkw.observe(
+    layer,
+    views=["isometric"],
+    passes=["beauty"],
+    resolution=(768, 768),
+)
+capture = observation.snapshot("isometric", "beauty")
+capture.image.save("figure.png")
+
+capture.image             # PIL image
+capture.data              # raw pass array, when applicable
+capture.camera            # resolved CameraState
+capture.world_to_camera   # 4x4 matrix
+capture.projection        # 4x4 projection matrix
+capture.bounds            # rendered scene bounds
+capture.diagnostics       # structured validation diagnostics
 ```
+
+Beauty snapshots default to a transparent background, preserving alpha around the
+rendered scene. Pass `background="light"`, `"dark"`, `"black"`, or `"white"` to
+choose an opaque background; `"auto"` and `"transparent"` capture with transparency.
 
 Supported deterministic view presets:
 
@@ -83,16 +67,14 @@ Supported deterministic view presets:
 - `isometric`
 
 Set `up_axis="z"` for Z-up datasets. Presets frame the compiled scene's bounding
-sphere with a fixed margin. Supply `camera=CameraState(...)` to override a
-preset explicitly.
+sphere with a fixed margin. Supply `cameras={"front": camera}` with a
+`CameraState` to override a preset explicitly.
 
 ## Render passes
 
-
-Without ID passes, depth and normal arrays are decoded from the GPU pass image;
-depth therefore has 8-bit display quantization. When `element_id` or `layer_id`
-is requested for the same view, Hakowan reuses the pixel-center raycast data for
-full `float32` depth and world normals.
+Request `element_id` or `layer_id` when you need full-precision depth and
+normal data. Without those passes, depth and normals have display-image
+precision.
 
 | Pass | Image | Raw `Snapshot.data` |
 |---|---|---|
@@ -264,51 +246,26 @@ camera = hkw.CameraState(
     far=100.0,
 )
 
-snapshot = hkw.snapshot(layer, camera=camera)
-```
-
-`view` remains the result label when an explicit camera is supplied. In an
-`observe()` call, pass `cameras={"front": camera}` to override selected presets.
-
-Custom camera keys also become artifact name prefixes. They may contain spaces
-and Unicode text, but empty labels, `.`/`..`, path separators, and NUL bytes are
-rejected so `output_dir` remains the artifact boundary. The `timeout=` value
-applies to navigation and every Playwright capture operation.
-
-## Offline WebGL viewers
-
-Interactive HTML normally imports Three.js from a CDN. Produce a portable
-folder bundle instead:
-
-```py
-hkw.render(
+observation = hkw.observe(
     layer,
-    filename="viewer.html",
-    backend="webgl",
-    offline=True,
+    views=["custom"],
+    passes=["beauty"],
+    cameras={"custom": camera},
 )
+snapshot = observation.snapshot("custom", "beauty")
 ```
 
-This writes `viewer.html` and `viewer_assets/`. The first offline build downloads
-the pinned Three.js core, controls, geometry utilities, and environment-map
-loader dependencies into Hakowan's cache and verifies their SHA-256 digests.
-Subsequent bundles are copied from that cache and work without network access.
-Keep the HTML and asset directory together. Because browsers block JavaScript
-modules loaded from `file://`, serve the directory over HTTP:
-
-```sh
-python -m http.server --directory /path/to/output 8000
-```
-
-Then open `http://127.0.0.1:8000/viewer.html`.
+The camera key is used as the view label and in output filenames. Use
+`views=["front"], cameras={"front": camera}` to override a named preset.
+`observe()` does not inherit a camera from `Config`; pass that camera explicitly
+in the `cameras` mapping when you need to preserve it.
 
 ## Determinism and limitations
 
-Hakowan fixes camera framing, viewport size, device pixel ratio, pass behavior,
-random seeds already present in the layer, layer ordering, and output naming.
-WebGL output can still differ across browser/GPU implementations at antialiased
-edges. Raw ID and raycast data are sampled at pixel centers and are preferable
-to false-color PNGs for programmatic comparison.
+Hakowan uses consistent camera framing and output settings for repeatable
+captures. Exact pixels may vary across browser and GPU implementations,
+especially at antialiased edges. Use raw ID, depth, or normal data for
+programmatic comparisons rather than false-color images.
 
 The headless API currently supports `backend="webgl"`. Mitsuba and Blender keep
 their existing render APIs but do not yet implement the `Snapshot` contract.

@@ -74,6 +74,7 @@ MODEL_DESCRIPTIONS = {
     "UniformScaleSpec": "Multiplies every attribute value by one factor.",
     "UniformTextureSpec": "Represents one constant color or scalar texture value.",
     "VectorFieldChannelSpec": "Renders a vector field as curve or arrow geometry.",
+    "WorldAnnotationSpec": "A readable 2D text callout for a local 3D geometry point, with an optional leader.",
 }
 
 
@@ -91,7 +92,7 @@ FIELD_DESCRIPTIONS = {
     "channels": "Unique visual channels and material contributed by this node.",
     "transforms": "Ordered runtime transform chain stored by this node.",
     "name": "Human-readable layer label used by interactive viewers.",
-    "annotations": "Ordered screen-space text annotations contributed by this node.",
+    "annotations": "Ordered screen-space and world-anchored text annotations contributed by this node.",
     "unit": "Optional physical unit associated with the referenced attribute.",
     "legend": "Automatic legend toggle or detailed legend configuration.",
     "title": "Optional display title; null derives it from the attribute name.",
@@ -246,6 +247,22 @@ FIELD_OVERRIDES = {
         "position",
     ): "Normalized image position with origin at the top-left.",
     ("AnnotationSpec", "color"): "Annotation text color.",
+    (
+        "WorldAnnotationSpec",
+        "position",
+    ): "Three finite coordinates in the referenced view's local geometry after mesh-baked transforms, before its global transform and layout fit.",
+    (
+        "WorldAnnotationSpec",
+        "color",
+    ): "World annotation text color, also used for the leader when one is drawn.",
+    (
+        "WorldAnnotationSpec",
+        "offset",
+    ): "Optional screen-space pixel offset (dx, dy) from the projected anchor to the panel edge that faces it. +x is right and +y is down. A zero component centers the panel on that axis, so (0, -10) places the label 10 pixels above the anchor. Null keeps automatic placement; it is not the same as (0, 0).",
+    (
+        "WorldAnnotationSpec",
+        "arrow",
+    ): "Whether to draw an arrow leader connecting the text panel to the 3D anchor. False draws the text alone.",
     ("LegendSpec", "position"): "Side on which the legend panel is placed.",
     (
         "LayoutNodeSpec",
@@ -256,7 +273,7 @@ FIELD_OVERRIDES = {
     (
         "LayerPropertiesSpec",
         "annotations",
-    ): "Ordered screen-space annotations for this node.",
+    ): "Ordered screen-space and world-anchored annotations for this node.",
     (
         "ScalarFieldTextureSpec",
         "legend",
@@ -280,8 +297,9 @@ FIELD_OVERRIDES = {
     ): "Full vertical world-space extent of the orthographic view.",
     ("OutputSettingsSpec", "width"): "Output image width in pixels.",
     ("OutputSettingsSpec", "background"): (
-        "Optional opaque light or dark raster background; null preserves "
-        "backend transparency. WebGL falls back to its dark viewer background."
+        "Light, dark, black, or white opaque background, or transparent to preserve alpha. "
+        "Auto follows the system theme in WebGL; null selects auto in WebGL and preserves raster alpha. "
+        "WebGL transparent beauty backgrounds retain environment lighting."
     ),
     (
         "ClipTransformSpec",

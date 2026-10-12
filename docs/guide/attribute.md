@@ -30,25 +30,21 @@ pressure = hkw.attribute("pressure", unit="Pa", scale=hkw.scale.Log())
 
 ## The `norm()` shorthand
 
-`hkw.norm()` is a convenient shorthand for creating an attribute that represents the per-element
-**magnitude** of a vector field. It builds an `Attribute` carrying a leading [`Norm`](scale.md#norm-scale)
-scale, turning a vector field (e.g. velocity or displacement) into a derived scalar field. The result
-can be used anywhere a scalar attribute is expected, such as the [size channel](channel.md#size-channel)
-(width proportional to magnitude) or a `ScalarField` texture (color by magnitude).
+`hkw.norm()` creates an `Attribute` with a leading [`Norm`](scale.md#norm-scale)
+scale, converting a vector field into a scalar magnitude. Its `unit` metadata
+is preserved for legends and observation manifests. Use the result wherever
+scalar attributes are accepted, such as the [size channel](channel.md#size-channel)
+or a `ScalarField` texture.
 
 ```py
-# These two are equivalent:
+# Equivalent forms:
 attr = hkw.norm("velocity")
 attr = hkw.attribute("velocity", scale=hkw.scale.Norm())
 
-# An optional scale is applied *after* the norm is computed.
-attr = hkw.norm("velocity", scale=hkw.scale.Normalize(range_min=0.005, range_max=0.02))
-
-# The norm order can be customized (default is Euclidean / L2).
-attr = hkw.norm("velocity", order=1)
-
-# Color a surface by the magnitude of a vector field.
-mat = hkw.material.Diffuse(reflectance=hkw.texture.ScalarField(data=hkw.norm("velocity")))
+# Color a surface by vector magnitude.
+mat = hkw.material.Diffuse(
+    reflectance=hkw.texture.ScalarField(data=hkw.norm("velocity"))
+)
 ```
 
 ## Attribute-Like Objects

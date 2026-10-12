@@ -13,7 +13,10 @@ All materials support the following parameters:
 | `two_sided` | `bool` | Whether the material is two-sided. (default: false) |
 | `back_side` | `Material \| None` | An independent material for the back face of each facet. (default: none) |
 
-A material can be specified via the `Layer.channel()` method.
+Channels typed `ScalarTextureLike` accept a numeric value or a scalar-valued
+texture such as `ScalarField`; they reject color-like strings and RGB tuples.
+Use `TextureLike` channels for color values.
+
 ```py
 # Assume `m` is a `Material` object
 l = hkw.layer().channel(material=m)
@@ -46,8 +49,8 @@ Here is a simple example of creating a `Diffuse` material.
 m = hkw.material.Diffuse("ivory")
 ```
 
-Here, we assign a uniform color, "blue", to the `reflectance` channel. To encode actual data, we
-need to assign a [texture](texture.md) to the `reflectance` channel.
+Here, we assign the uniform color `ivory` to `reflectance`. To encode data, assign a
+[scalar-field texture](texture.md#scalar-field-texture) to the `reflectance` channel.
 
 ```py
 m = hkw.material.Diffuse(hkw.texture.ScalarField(data = "attr_name"))
@@ -89,17 +92,17 @@ for more details.
 ![RoughConductor material](../images/spot_rough_conductor_CuO.png){: style="width:170px"}
 
 `RoughConductor` material gives the geometry a matte metallic look and feel. It takes a `material`
-parameter just like `Conductor`. In addition, it also takes a `distribution` parameter and a `alpha`
+parameter just like `Conductor`. In addition, it takes a `distribution` parameter and an `alpha`
 channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `material` | `str` | Material type (see [supported material types](https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_bsdfs.html#conductor-ior-list)) |
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 
 Here is a simple example of using `RoughConductor`.
 
@@ -134,7 +137,7 @@ Hakowan exposes two visual channels in this material:
 | Channel | Type | Description |
 |---------|------|-------------|
 | `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `specular_reflectance` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Scalar specular reflectance (default: 1.0) |
 
 Here is a snippet to create a `Plastic` material:
 
@@ -157,20 +160,20 @@ for more details.
 ![RoughPlastic material](../images/spot_rough_plastic_uv.png){: style="width:200px"}
 ![RoughPlastic material](../images/spot_rough_plastic_tex.png){: style="width:200px"}
 
-Similar to `RoughConductor`, the
-`distribution` parameter controls the microfacet normal distribution, and its valid values are `ggx`
-and `beckmann` (default). The `alpha` parameter control the roughness of the material.
+Similar to `RoughConductor`, the `distribution` parameter controls the microfacet normal distribution;
+Mitsuba 3 supports `beckmann` (the default) and `ggx`; its current microfacet plugins reject
+`phong`. The `alpha` parameter controls the roughness of the material.
 
 | Channel | Type | Description |
 |---------|------|-------------|
 | `diffuse_reflectance` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `specular_reflectance` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Specular reflectance component (default: 1.0) |
+| `specular_reflectance` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Scalar specular reflectance (default: 1.0) |
 
-Addition to the above visual channels, this material also expose the following parameters.
+In addition to these visual channels, `RoughPlastic` exposes uniform parameters:
 
 | Parameter | Type | Description |
 |---------|------|-------------|
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 | `alpha` | `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Here is a snippet to create a `RoughPlastic` material:
@@ -206,8 +209,27 @@ extension. It can be used to approximate almost all other materials.
 | Channel | Type | Description |
 |---------|------|-------------|
 | `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `roughness` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+
+Other `Principled` properties are uniform parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `anisotropic` | `float` | Anisotropy amount from 0 to 1 (default: `0.0`) |
+| `spec_trans` | `float` | Specular transmission from 0 to 1 (default: `0.0`) |
+| `eta` | `float` | Interior index of refraction, greater than 0 (default: `1.5`) |
+| `spec_tint` | `float` | Specular tint toward the base color from 0 to 1 (default: `0.0`) |
+| `sheen` | `float` | Sheen amount from 0 to 1 (default: `0.0`) |
+| `sheen_tint` | `float` | Sheen tint toward the base color from 0 to 1 (default: `0.0`) |
+| `flatness` | `float` | Mix from diffuse reflection to Mitsuba's subsurface approximation; not volumetric scattering (0–1, default: `0.0`) |
+
+Mitsuba implements these seven parameters. Blender currently honors `anisotropic`,
+`spec_trans`, `eta`, and `sheen`, but ignores `spec_tint`, `sheen_tint`, and
+`flatness`. WebGL uses only `color`, `roughness`, and `metallic`; these additional
+parameters do not affect its output.
+
+
 
 As a rule of thumb, `roughness` and `metallic` are effective at encoding binary categorical data,
 but not very effective for quantitative data.
@@ -244,8 +266,8 @@ material, it also supports diffuse transmission.
 | Channel | Type | Description |
 |---------|------|-------------|
 | `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] | Base color of the material (default: 0.5) |
-| `roughness` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
-| `metallic` | [Texture][hakowan.grammar.texture.texture.Texture] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
+| `roughness` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.5) |
+| `metallic` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Metallic value from 0 (not metallic) to 1 (very metallic) (default: 0.0) |
 | `diff_trans` | `float` | Diffuse transmission amount from 0 to 1 (default: 0.0) |
 
 Here is a snippet to create a `ThinPrincipled` material:
@@ -278,7 +300,16 @@ channels and have the following parameters.
 |---------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
+
+IOR preset names are backend-dependent: Mitsuba supports its documented preset table, while
+Blender and WebGL recognize smaller tables with different spellings. Blender silently falls
+back to `1.5` for unknown names; WebGL warns and falls back. Use a numeric IOR for predictable
+cross-backend scenes. WebGL ignores non-default `specular_reflectance`. `ThinDielectric`'s
+`specular_transmittance` is used by WebGL, but not passed through by Mitsuba or Blender.
+
 
 Note that by default, `Dielectric` material does not expose a color channel. Color is specified
 indirectly through the `medium` parameter. Medium describes the material/medium enclosed by the
@@ -308,7 +339,7 @@ material, This material exposes an `alpha` visual channel.
 
 | Channel | Type | Description |
 |---------|------|-------------|
-| `alpha` | [Texture] [hakowan.grammar.texture.texture.Texture] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
+| `alpha` | [ScalarTextureLike][hakowan.grammar.texture.texture.ScalarTextureLike] or `float` | Roughness value from 0 (smooth) to 1 (rough) (default: 0.1) |
 
 Although `alpha` channel is available to encode data, based on our experiments, its effect is
 somewhat limited.
@@ -318,8 +349,10 @@ Here are the parameters of this material.
 |-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
-| `distribution` | `str` | Microfacet normal distribution: `ggx` or `beckmann` (default) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
+| `distribution` | `str` | Mitsuba microfacet distribution: `beckmann` or `ggx` (default: `beckmann`) |
 
 Here is a snippet for creating a `RoughDielectric` material.
 
@@ -340,37 +373,38 @@ expose any visual channels.
 |-----------|------|-------------|
 | `int_ior` | `str` or `float` | Interior index of refraction (default: `bk7`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
 | `ext_ior` | `str` or `float` | Exterior index of refraction (default: `air`, see [supported ior list](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#ior-table-list)) |
-| `medium` | `Medium` | Medium of the enclosed material (default: `None`) |
+| `medium` | `Medium` or `None` | Medium of the enclosed material (default: `None`) |
+| `specular_reflectance` | `float` | Specular reflectance (default: `1.0`) |
+| `specular_transmittance` | `float` | Specular transmittance (default: `1.0`) |
 
-Here is a snippet for creating a `ThinDielectric` material for a glass-like surface:
-
-```py
-m = hkw.material.ThinDielectric(int_ior="glass")
-```
-
-Check out the [Mitsuba
-doc](
-https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#thin-dielectric-material-thindielectric
-)
-for more details.
-
-Here is a snippet for creating a `ThinDielectric` material.
+Here is a cross-backend example for a glass-like thin surface. Use a numeric IOR
+to avoid backend-specific preset names:
 
 ```py
-m = hkw.material.ThinDielectric(int_ior="water")
+m = hkw.material.ThinDielectric(int_ior=1.5)
 ```
+
+See the [Mitsuba ThinDielectric reference](https://mitsuba.readthedocs.io/en/stable/src/generated/plugins_bsdfs.html#thin-dielectric-material-thindielectric)
+for Mitsuba-specific options.
 
 ## Hair material
 
 ![Hair material](../images/spot_hair.png){: style="width:200px"}
 
-`Hair` material from Mitsuba provides a hair-like look and feel. This material is designed to
-specifically work with curve mark. It does not provide any channels for encoding data.
+`Hair` has uniform coloring controls rather than attribute-driven visual channels. It accepts:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| eumelanin | `float` | The amount of dark/black/brown pigments (default: 1.3) |
-| pheomelanin | `float` | The amount of red/yellow pigments (default: 0.2) |
+| `eumelanin` | `float` | Dark/brown pigment concentration (default: `1.3`); ignored when a color or root/tip gradient is set |
+| `pheomelanin` | `float` | Reddish-yellow pigment concentration (default: `0.2`); ignored when a color or gradient is set |
+| `color` | [TextureLike][hakowan.grammar.texture.texture.TextureLike] or `None` | Only direct `ColorLike` values render as uniform RGB/named colors. Texture values, including `Uniform`, fall back to melanin/brown and are unsupported |
+| `root_color` | `ColorLike` or `None` | Root color for a root-to-tip gradient; overrides `color` and melanin when set |
+| `tip_color` | `ColorLike` or `None` | Tip color for a root-to-tip gradient |
+| `color_variation` | `float` | Per-strand brightness jitter from 0 to 1 (default: `0.0`) |
+
+Backend behavior differs: Blender evaluates gradients and variation per strand. Mitsuba averages a
+root/tip gradient into one color and ignores variation. WebGL approximates hair with diffuse shading,
+averages gradients, uses brown for melanin or texture-valued colors, and ignores `color_variation`.
 
 Here is a snippet for creating a `Hair` material.
 
@@ -408,17 +442,6 @@ m = hkw.material.Diffuse(
 )
 ```
 
-## Bump mapped material
+## Bump mapping
 
-A bump map can be applied to any material by setting the `bump_map` texture and `bump_scale`
-parameter. The former parameters defines the raw bump map texture where the latter defines the
-multiplicative factor to scale the bump magnitude.
-
-```py
-m = hkw.material.Diffuse(
-    "salmon",
-    bump_map=hkw.texture.Image("bump_map.png"),
-    bump_scale=0.5,
-)
-```
-See the [Moon example](../examples/moon.md) for an application of bump map.
+For bump-map syntax and backend requirements, see the [Bump map channel](channel.md#bump-map-channel).

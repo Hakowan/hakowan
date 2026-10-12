@@ -12,13 +12,15 @@
 
 - [![Cross-Field Streamlines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/CrossField/results/shark_stream_lines.webp?raw=true)](examples/cross-field.md)
 
-- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
+- [![Geodesics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Geodesics/results/geodesics.webp?raw=true)](examples/geodesics.md)
 
 - [![Incremental Potential Contact](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/IPC/results/ipc_side_10.webp?raw=true)](examples/ipc.md)
 
-- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_top.webp?raw=true)](examples/components.md)
-
 - [![Smoothed Particle Hydrodynamics](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/SPH/results/waterbell_133.webp?raw=true)](examples/sph.md)
+
+- [![UV Seams](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Seams/results/spot_seam.webp?raw=true)](examples/seams.md)
+
+- [![Connected Components](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Components/results/foot_top.webp?raw=true)](examples/components.md)
 
 - [![Surface Skeleton](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Skeleton/results/fertility_skeleton.webp?raw=true)](examples/skeleton.md)
 
@@ -27,6 +29,10 @@
 - [![Scalable Locally Injective Maps](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Slim/results/fig3.webp?raw=true)](examples/slim.md)
 
 - [![Powell-Sabin Splines](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/PowellSabin/results/powell_sabin.webp?raw=true)](examples/powell-sabin.md)
+
+- [![Flowers](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Flowers/results/flowers.webp?raw=true)](examples/flowers.md)
+
+- [![Points](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Points/results/points.webp?raw=true)](examples/points.md)
 
 - [![TetWild Cutaway](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/TetWild/results/bust.webp?raw=true)](examples/tetwild.md)
 
@@ -43,5 +49,7 @@
 - [![Moon](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Moon/results/moon.webp?raw=true)](examples/moon.md)
 
 - [![Face Texture and UV Layout](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Face/results/face.webp?raw=true)](examples/face.md)
+
+- [![Box](https://github.com/Hakowan/hakowan-gallery/blob/main/gallery/Box/results/box.webp?raw=true)](examples/box.md)
 
 </div>

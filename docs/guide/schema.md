@@ -21,8 +21,8 @@ canonical = spec.to_json(canonical=True)
 spec.save("figure.json")
 
 parsed = hkw.load_spec("figure.json")       # FigureSpec only
-layer = hkw.from_spec(parsed)               # FigureSpec/dict -> Layer
-layer = hkw.from_json(text)                 # JSON -> Layer
+runtime = hkw.from_spec(parsed)              # Layer or Figure, depending on scene
+runtime = hkw.from_json(text)                 # JSON -> Layer or Figure
 layer = hkw.load_layer("figure.json")       # file -> Layer, resolves relative paths
 schema = hkw.schema()                       # JSON Schema dict
 ```
@@ -58,9 +58,10 @@ attribute domain, `viridis` colormap, and legend are inferred:
 }
 ```
 
-Do not emit default fields unless a consumer requires fully expanded output.
-Use `hkw.inspect()` or the companion MCP service to discover real attribute
-names before authoring the document; never guess them.
+Use `hkw.inspect()` or the companion [Hakowan MCP service](https://github.com/Hakowan/hakowan-mcp)
+to discover real attribute names before authoring the document; never guess
+them. Use `hkw.validate()` to check an input and `hkw.patch()` or
+`hkw.patch_spec()` for canonical patches; see the API and patch sections below.
 
 ## Atomic patches
 
@@ -204,7 +205,7 @@ A node's `spec` accepts:
 | `channels` | object | At most one value for each visual channel. |
 | `transforms` | array | Transform operations in application order. |
 | `name` | string or `null` | Viewer-facing layer label. |
-| `annotations` | array | Screen-space text annotations contributed by the node. |
+| `annotations` | array | Fixed screen-space or 3D-anchored text annotations contributed by the node. |
 
 Defaults and explicit `null` values are retained in canonical output so two
 canonical documents can be compared byte-for-byte.
@@ -340,9 +341,9 @@ positions additionally accept a number, named/hex color string, or numeric list.
 
 ## Annotations
 
-Each layer property object accepts an `annotations` array. An annotation has
-`text`, normalized screen `position`, `color`, `font_size`, horizontal `anchor`,
-optional `background`, and `padding`.
+Each layer property object accepts an `annotations` array. Untagged annotations
+use a normalized 2D screen `position`, `color`, `font_size`, horizontal `anchor`,
+optional `background`, and `padding`:
 
 ```json
 {
@@ -351,6 +352,27 @@ optional `background`, and `padding`.
   "color": "white",
   "font_size": 18,
   "anchor": "center",
+  "background": "black",
+  "padding": 5
+}
+```
+
+To attach a label to a local 3D geometry point instead, use `kind: "world"` and
+a three-coordinate `position`. The compiled view transform/layout maps the
+point into world space; no screen `anchor` field is used. `offset` is an
+optional `[dx, dy]` pixel vector from the projected anchor to the label panel's
+nearest edge (`+x` is right, `+y` is down); `null` enables automatic placement.
+`arrow` defaults to `true` and draws a leader to the world point; `false` omits it.
+
+```json
+{
+  "kind": "world",
+  "text": "Peak stress",
+  "position": [0.4, 0.2, 0.1],
+  "offset": null,
+  "arrow": true,
+  "color": "white",
+  "font_size": 18,
   "background": "black",
   "padding": 5
 }
