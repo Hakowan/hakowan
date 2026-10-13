@@ -188,7 +188,7 @@ def _ensure_gallery_checkout() -> Path:
                 client.fetch(
                     remote_path,
                     repo,
-                    determine_wants=lambda _refs, _depth: [revision],
+                    determine_wants=lambda _refs, depth=None: [revision],
                     progress=lambda _data: None,
                     depth=1,
                 )
