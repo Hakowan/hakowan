@@ -124,7 +124,7 @@ def _compute_streamlines(
             transported direction snaps to the nearest of the four arms.
         length: Maximum object-space length per half-trace.  ``None`` means no
             limit (trace until mesh boundary).
-        seed: RNG seed used when blue-noise sampling falls back to random.
+        seed: RNG seed used for blue-noise sampling and the random fallback.
         min_length: Discard streamlines shorter than this many sample points.
         max_steps: Hard cap on edge-crossing steps per half-trace.  ``None``
             defaults to half the number of facets.
@@ -162,7 +162,7 @@ def _compute_streamlines(
 
     try:
         sampling = getattr(lagrange, "sampling")
-        _, seed_facet_ids, _ = sampling.blue_noise_sample(mesh, n)
+        _, seed_facet_ids, _ = sampling.blue_noise_sample(mesh, n, seed=seed)
         seed_faces = np.unique(seed_facet_ids).astype(np.int64, copy=False)
     except AttributeError:
         rng = np.random.default_rng(seed)
