@@ -218,7 +218,7 @@ triangulated.
 | `n=50` | Number of sampled seed facets. |
 | `cross_field=True` | Interpret the input as a 4-RoSy field; use `False` for an ordinary vector field. |
 | `length=None` | Maximum object-space length **per half-trace**. `None` traces until a boundary or another termination condition. A complete forward-plus-backward streamline can approach `2 * length`. |
-| `seed=0` | Deterministic seed for sampling fallback. |
+| `seed=0` | Deterministic seed for blue-noise sampling. |
 | `min_length=3` | Minimum retained sample-point count. |
 | `max_steps=None` | Edge-crossing cap per half-trace; `None` uses half the facet count. |
 | `id_attr_name="_hakowan_streamline_id"` | Per-vertex integer attribute identifying each output streamline. |
