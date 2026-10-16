@@ -2509,7 +2509,7 @@ packages:
   requires_dist:
   - adobe-lagrange>=6.49.0
   - numpy>=2.0
-  - pillow>=11.0
+  - pillow>=12.3.0
   - pyyaml>=6.0
   - tqdm>=4.66
   - colorcet>=3.2.1,<4
