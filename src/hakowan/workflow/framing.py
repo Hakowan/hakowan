@@ -53,18 +53,21 @@ def _selected_views(scene: Any, selector: LayerSelector) -> list[Any]:
     return matches
 
 
-def _attribute_values(mesh: lagrange.SurfaceMesh, name: str) -> tuple[Any, np.ndarray]:
+def _attribute_values(mesh: lagrange.SurfaceMesh, name: str) -> tuple[Any, np.ndarray, np.ndarray | None]:
     if not mesh.has_attribute(name):
         raise ValueError(f"Mesh has no attribute {name!r}")
     if mesh.is_attribute_indexed(name):
-        raise ValueError(
-            f"Framing by indexed attribute {name!r} is ambiguous; convert it to a vertex or facet attribute"
-        )
+        indexed = mesh.indexed_attribute(name)
+        values = np.asarray(indexed.values.data)
+        if values.ndim == 1:
+            values = values.reshape(-1, 1)
+        indices = np.asarray(indexed.indices.data)
+        return indexed, values, indices
     attribute = mesh.attribute(name)
     values = np.asarray(attribute.data)
     if values.ndim == 1:
         values = values.reshape(-1, 1)
-    return attribute, values
+    return attribute, values, None
 
 
 def _component_points(
@@ -76,7 +79,7 @@ def _component_points(
     name, requested = selector
     assert view.data_frame is not None
     mesh = view.data_frame.mesh
-    attribute, values = _attribute_values(mesh, name)
+    attribute, values, _ = _attribute_values(mesh, name)
     if values.shape[1] != 1:
         raise ValueError(f"Component attribute {name!r} must be scalar")
     selected = np.isclose(values[:, 0], requested)
@@ -384,24 +387,41 @@ def resolve_camera(
             mesh = view.data_frame.mesh
             if not mesh.has_attribute(attribute):
                 continue
-            source, values = _attribute_values(mesh, attribute)
+            source, values, indices = _attribute_values(mesh, attribute)
             magnitudes = (
                 values[:, 0] if values.shape[1] == 1 else np.linalg.norm(values, axis=1)
             )
-            index = int(
-                np.argmin(magnitudes) if extremum == "min" else np.argmax(magnitudes)
-            )
             world = _world_points(view)
-            if source.element_type == lagrange.AttributeElement.Vertex:
-                position = world[index]
-            elif source.element_type == lagrange.AttributeElement.Facet:
-                ids = np.asarray(mesh.get_facet_vertices(index), dtype=np.int64)
-                position = world[ids].mean(axis=0)
-            else:
-                raise ValueError(
-                    f"Attribute {attribute!r} must be defined on vertices or facets"
+            if indices is not None:
+                # Indexed attribute: values are indexed per corner.
+                corner_values = magnitudes[indices]
+                corner_idx = int(
+                    np.argmin(corner_values)
+                    if extremum == "min"
+                    else np.argmax(corner_values)
                 )
-            candidates.append((float(magnitudes[index]), position))
+                facets = mesh.facets
+                corners_per_facet = facets.shape[1]
+                facet_idx = corner_idx // corners_per_facet
+                corner_within_facet = corner_idx % corners_per_facet
+                vertex_idx = facets[facet_idx, corner_within_facet]
+                position = world[vertex_idx]
+                chosen_magnitude = float(corner_values[corner_idx])
+            else:
+                index = int(
+                    np.argmin(magnitudes) if extremum == "min" else np.argmax(magnitudes)
+                )
+                if source.element_type == lagrange.AttributeElement.Vertex:
+                    position = world[index]
+                elif source.element_type == lagrange.AttributeElement.Facet:
+                    ids = np.asarray(mesh.get_facet_vertices(index), dtype=np.int64)
+                    position = world[ids].mean(axis=0)
+                else:
+                    raise ValueError(
+                        f"Attribute {attribute!r} must be defined on vertices or facets"
+                    )
+                chosen_magnitude = float(magnitudes[index])
+            candidates.append((chosen_magnitude, position))
         if not candidates:
             raise ValueError(f"Selected layers have no attribute {attribute!r}")
         chosen = (
