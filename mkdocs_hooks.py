@@ -18,7 +18,7 @@ _GALLERY_SOURCE_SNIPPET = re.compile(
     r'gallery/(?P<path>[^"]+)"[ \t]*$',
     re.MULTILINE,
 )
-_GALLERY_REVISION = "2071eecf977bcdf988bc73bdad9e741a812a1b4c"
+_GALLERY_REVISION = "cb888f5457759b65a7dd357c4e8093a379c332a7"
 _GALLERY_REPOSITORY_URL = "https://github.com/Hakowan/hakowan-gallery.git"
 _GALLERY_CHECKOUT_PATH = Path(tempfile.gettempdir()) / "hakowan-mkdocs-gallery"
 _GALLERY_CHECKOUT_REVISION: str | None = None
