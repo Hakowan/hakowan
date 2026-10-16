@@ -1,0 +1,110 @@
+{
+  "layout": {
+    "attributes": [],
+    "bounds": [
+      [
+        -1.4659899999999997,
+        -1.999,
+        -3.07211
+      ],
+      [
+        1.5014999999999998,
+        1.98992,
+        3.73414
+      ]
+    ],
+    "corner_count": 10032,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 5016,
+    "source": null,
+    "vertex_count": 8723
+  },
+  "surface": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 17442,
+        "finite_count": 17442,
+        "indexed": false,
+        "maximum": 114,
+        "minimum": 0,
+        "name": "chart",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 5.0,
+          "0.5": 35.0,
+          "0.75": 59.0,
+          "1": 114.0
+        },
+        "usage": "scalar",
+        "value_count": 17442
+      },
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 17442,
+        "finite_count": 17442,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 17442
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 17442,
+        "finite_count": 17442,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 17442
+      }
+    ],
+    "bounds": [
+      [
+        -1.4659899999999997,
+        -1.999,
+        -3.07211
+      ],
+      [
+        1.5014999999999998,
+        1.98992,
+        3.73414
+      ]
+    ],
+    "corner_count": 52326,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 17442,
+    "source": null,
+    "vertex_count": 8723
+  }
+}

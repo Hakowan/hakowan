@@ -1,0 +1,24 @@
+{
+  "sketch": {
+    "attributes": [],
+    "bounds": [
+      [
+        -0.188,
+        -0.246,
+        -0.066
+      ],
+      [
+        0.153,
+        0.217,
+        0.054
+      ]
+    ],
+    "corner_count": 2786,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 1393,
+    "source": null,
+    "vertex_count": 1632
+  }
+}

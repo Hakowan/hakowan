@@ -1,0 +1,465 @@
+{
+  "$schema": "https://hakowan.github.io/hakowan/schema/v1.json",
+  "root": {
+    "children": [
+      {
+        "child": {
+          "child": {
+            "child": {
+              "child": {
+                "child": {
+                  "child": {
+                    "child": {
+                      "child": {
+                        "kind": "layer",
+                        "spec": {
+                          "annotations": [],
+                          "channels": {
+                            "bump_map": null,
+                            "covariance": null,
+                            "material": null,
+                            "normal": null,
+                            "normal_map": null,
+                            "position": null,
+                            "shape": null,
+                            "size": null,
+                            "vector_field": null
+                          },
+                          "data": {
+                            "kind": "mesh_file",
+                            "path": "data/box.msh",
+                            "roi_box": null
+                          },
+                          "mark": null,
+                          "name": null,
+                          "transforms": []
+                        }
+                      },
+                      "kind": "inherit",
+                      "spec": {
+                        "annotations": [],
+                        "channels": {
+                          "bump_map": null,
+                          "covariance": null,
+                          "material": {
+                            "back_side": null,
+                            "kind": "diffuse",
+                            "reflectance": {
+                              "categories": true,
+                              "colormap": "set1",
+                              "data": {
+                                "name": "facet_id",
+                                "scales": [],
+                                "unit": null
+                              },
+                              "domain": null,
+                              "kind": "scalar_field",
+                              "legend": false,
+                              "range": null,
+                              "reverse": false
+                            },
+                            "two_sided": false
+                          },
+                          "normal": null,
+                          "normal_map": null,
+                          "position": null,
+                          "shape": null,
+                          "size": null,
+                          "vector_field": null
+                        },
+                        "data": null,
+                        "mark": null,
+                        "name": null,
+                        "transforms": []
+                      }
+                    },
+                    "kind": "inherit",
+                    "spec": {
+                      "annotations": [
+                        {
+                          "arrow": true,
+                          "background": "black",
+                          "color": "white",
+                          "font_size": 16,
+                          "kind": "world",
+                          "offset": null,
+                          "padding": 4,
+                          "position": [
+                            0.0,
+                            0.5,
+                            0.0
+                          ],
+                          "text": "Top"
+                        }
+                      ],
+                      "channels": {
+                        "bump_map": null,
+                        "covariance": null,
+                        "material": null,
+                        "normal": null,
+                        "normal_map": null,
+                        "position": null,
+                        "shape": null,
+                        "size": null,
+                        "vector_field": null
+                      },
+                      "data": null,
+                      "mark": null,
+                      "name": null,
+                      "transforms": []
+                    }
+                  },
+                  "kind": "inherit",
+                  "spec": {
+                    "annotations": [
+                      {
+                        "arrow": true,
+                        "background": "black",
+                        "color": "white",
+                        "font_size": 16,
+                        "kind": "world",
+                        "offset": null,
+                        "padding": 4,
+                        "position": [
+                          0.0,
+                          -0.5,
+                          0.0
+                        ],
+                        "text": "Bottom"
+                      }
+                    ],
+                    "channels": {
+                      "bump_map": null,
+                      "covariance": null,
+                      "material": null,
+                      "normal": null,
+                      "normal_map": null,
+                      "position": null,
+                      "shape": null,
+                      "size": null,
+                      "vector_field": null
+                    },
+                    "data": null,
+                    "mark": null,
+                    "name": null,
+                    "transforms": []
+                  }
+                },
+                "kind": "inherit",
+                "spec": {
+                  "annotations": [
+                    {
+                      "arrow": true,
+                      "background": "black",
+                      "color": "white",
+                      "font_size": 16,
+                      "kind": "world",
+                      "offset": null,
+                      "padding": 4,
+                      "position": [
+                        -0.5,
+                        0.0,
+                        0.0
+                      ],
+                      "text": "Left"
+                    }
+                  ],
+                  "channels": {
+                    "bump_map": null,
+                    "covariance": null,
+                    "material": null,
+                    "normal": null,
+                    "normal_map": null,
+                    "position": null,
+                    "shape": null,
+                    "size": null,
+                    "vector_field": null
+                  },
+                  "data": null,
+                  "mark": null,
+                  "name": null,
+                  "transforms": []
+                }
+              },
+              "kind": "inherit",
+              "spec": {
+                "annotations": [
+                  {
+                    "arrow": true,
+                    "background": "black",
+                    "color": "white",
+                    "font_size": 16,
+                    "kind": "world",
+                    "offset": null,
+                    "padding": 4,
+                    "position": [
+                      0.5,
+                      0.0,
+                      0.0
+                    ],
+                    "text": "Right"
+                  }
+                ],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": null,
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [
+                {
+                  "arrow": true,
+                  "background": "black",
+                  "color": "white",
+                  "font_size": 16,
+                  "kind": "world",
+                  "offset": null,
+                  "padding": 4,
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.5
+                  ],
+                  "text": "Front"
+                }
+              ],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": null,
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [
+              {
+                "arrow": true,
+                "background": "black",
+                "color": "white",
+                "font_size": 16,
+                "kind": "world",
+                "offset": null,
+                "padding": 4,
+                "position": [
+                  0.0,
+                  0.0,
+                  -0.5
+                ],
+                "text": "Back"
+              }
+            ],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": null,
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": null,
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": "Surface",
+          "transforms": []
+        }
+      },
+      {
+        "child": {
+          "child": {
+            "child": {
+              "kind": "layer",
+              "spec": {
+                "annotations": [],
+                "channels": {
+                  "bump_map": null,
+                  "covariance": null,
+                  "material": null,
+                  "normal": null,
+                  "normal_map": null,
+                  "position": null,
+                  "shape": null,
+                  "size": null,
+                  "vector_field": null
+                },
+                "data": {
+                  "kind": "mesh_file",
+                  "path": "data/box.msh",
+                  "roi_box": null
+                },
+                "mark": null,
+                "name": null,
+                "transforms": []
+              }
+            },
+            "kind": "inherit",
+            "spec": {
+              "annotations": [],
+              "channels": {
+                "bump_map": null,
+                "covariance": null,
+                "material": null,
+                "normal": null,
+                "normal_map": null,
+                "position": null,
+                "shape": null,
+                "size": null,
+                "vector_field": null
+              },
+              "data": null,
+              "mark": "curve",
+              "name": null,
+              "transforms": []
+            }
+          },
+          "kind": "inherit",
+          "spec": {
+            "annotations": [],
+            "channels": {
+              "bump_map": null,
+              "covariance": null,
+              "material": {
+                "back_side": null,
+                "kind": "diffuse",
+                "reflectance": "black",
+                "two_sided": false
+              },
+              "normal": null,
+              "normal_map": null,
+              "position": null,
+              "shape": null,
+              "size": {
+                "data": 0.005,
+                "kind": "size",
+                "space": "scene"
+              },
+              "vector_field": null
+            },
+            "data": null,
+            "mark": null,
+            "name": null,
+            "transforms": []
+          }
+        },
+        "kind": "inherit",
+        "spec": {
+          "annotations": [],
+          "channels": {
+            "bump_map": null,
+            "covariance": null,
+            "material": null,
+            "normal": null,
+            "normal_map": null,
+            "position": null,
+            "shape": null,
+            "size": null,
+            "vector_field": null
+          },
+          "data": null,
+          "mark": null,
+          "name": "Edges",
+          "transforms": []
+        }
+      }
+    ],
+    "kind": "overlay",
+    "spec": {
+      "annotations": [],
+      "channels": {
+        "bump_map": null,
+        "covariance": null,
+        "material": null,
+        "normal": null,
+        "normal_map": null,
+        "position": null,
+        "shape": null,
+        "size": null,
+        "vector_field": null
+      },
+      "data": null,
+      "mark": null,
+      "name": null,
+      "transforms": []
+    }
+  },
+  "scene": {
+    "camera": {
+      "eye": [
+        1.0,
+        1.0,
+        5.0
+      ],
+      "far": 10000.0,
+      "kind": "orthographic",
+      "near": 0.01,
+      "scale": 2.0,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "up": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "environment": null,
+    "lights": null,
+    "output": {
+      "background": null,
+      "height": 800,
+      "passes": [
+        "beauty"
+      ],
+      "sampler_seed": 0,
+      "width": 1024
+    }
+  },
+  "version": "1.1"
+}
