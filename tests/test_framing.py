@@ -143,6 +143,8 @@ def test_attribute_extremum_handles_indexed_attributes():
     )
 
     np.testing.assert_allclose(camera.target, expected)
+
+
 def test_component_selection_fits_only_requested_points():
     mesh = _point_mesh(
         [[-4.0, 0.0, 0.0], [-2.0, 0.0, 0.0], [4.0, 0.0, 0.0]],
