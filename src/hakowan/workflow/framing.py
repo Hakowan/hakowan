@@ -393,18 +393,13 @@ def resolve_camera(
             )
             world = _world_points(view)
             if indices is not None:
-                # Indexed attribute: values are indexed per corner.
                 corner_values = magnitudes[indices]
                 corner_idx = int(
                     np.argmin(corner_values)
                     if extremum == "min"
                     else np.argmax(corner_values)
                 )
-                facets = mesh.facets
-                corners_per_facet = facets.shape[1]
-                facet_idx = corner_idx // corners_per_facet
-                corner_within_facet = corner_idx % corners_per_facet
-                vertex_idx = facets[facet_idx, corner_within_facet]
+                vertex_idx = int(mesh.get_corner_vertex(corner_idx))
                 position = world[vertex_idx]
                 chosen_magnitude = float(corner_values[corner_idx])
             else:
