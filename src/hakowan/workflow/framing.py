@@ -53,7 +53,9 @@ def _selected_views(scene: Any, selector: LayerSelector) -> list[Any]:
     return matches
 
 
-def _attribute_values(mesh: lagrange.SurfaceMesh, name: str) -> tuple[Any, np.ndarray, np.ndarray | None]:
+def _attribute_values(
+    mesh: lagrange.SurfaceMesh, name: str
+) -> tuple[Any, np.ndarray, np.ndarray | None]:
     if not mesh.has_attribute(name):
         raise ValueError(f"Mesh has no attribute {name!r}")
     if mesh.is_attribute_indexed(name):
@@ -404,7 +406,9 @@ def resolve_camera(
                 chosen_magnitude = float(corner_values[corner_idx])
             else:
                 index = int(
-                    np.argmin(magnitudes) if extremum == "min" else np.argmax(magnitudes)
+                    np.argmin(magnitudes)
+                    if extremum == "min"
+                    else np.argmax(magnitudes)
                 )
                 if source.element_type == lagrange.AttributeElement.Vertex:
                     position = world[index]
