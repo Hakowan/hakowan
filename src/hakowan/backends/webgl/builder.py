@@ -7,6 +7,7 @@ it, then serialises everything as a GLB byte string.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -43,6 +44,11 @@ class GLTFBuilder:
 
     _gltf: pygltflib.GLTF2 = field(default_factory=pygltflib.GLTF2)
     _bin: bytearray = field(default_factory=bytearray)
+    # Reuse serialized accessors when identical vertex/index data appears in
+    # multiple views. Entries retain byte offsets, not array copies.
+    _accessor_cache: dict[tuple[Any, ...], list[tuple[int, int, int]]] = field(
+        default_factory=dict
+    )
     _scene_node_indices: list[int] = field(default_factory=list)
     # Juxtaposition cell tag attached to every node created while set. The
     # interactive viewer groups nodes by this tag so each comparison cell can be
@@ -96,6 +102,19 @@ class GLTFBuilder:
         compute_minmax: bool,
     ) -> int:
         data = np_to_bytes(arr)
+        key = (
+            component_type,
+            gltf_type,
+            target,
+            tuple(arr.shape),
+            arr.dtype.str,
+            compute_minmax,
+            hashlib.blake2b(data, digest_size=16).digest(),
+        )
+        for accessor_idx, offset, length in self._accessor_cache.get(key, ()):
+            if memoryview(self._bin)[offset : offset + length] == data:
+                return accessor_idx
+
         view_idx = self._add_buffer_view(data, target)
 
         kwargs: dict[str, Any] = {
@@ -112,7 +131,13 @@ class GLTFBuilder:
                 kwargs["min"] = arr.min(axis=0).astype(float).tolist()
                 kwargs["max"] = arr.max(axis=0).astype(float).tolist()
         self._gltf.accessors.append(pygltflib.Accessor(**kwargs))
-        return len(self._gltf.accessors) - 1
+        accessor_idx = len(self._gltf.accessors) - 1
+        offset = self._gltf.bufferViews[view_idx].byteOffset
+        assert offset is not None
+        self._accessor_cache.setdefault(key, []).append(
+            (accessor_idx, offset, len(data))
+        )
+        return accessor_idx
 
     # ------------------------------------------------------------------ #
     # Image / texture                                                     #

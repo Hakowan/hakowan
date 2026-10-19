@@ -16,9 +16,9 @@ Here is a simple example of generating an interactive WebGL visualization from a
 ```py
 import hakowan as hkw
 
-layer = hkw.layer("mesh.obj")   # Change to your mesh file path
-result = hkw.render(layer)      # Backend-specific rendering
-print(result.path)              # The output visualization file
+layer = hkw.layer("mesh.obj")  # Change to your mesh file path
+result = hkw.render(layer)  # Backend-specific rendering
+print(result.path)  # The output visualization file
 ```
 
 ## Backends
@@ -58,6 +58,11 @@ including different render passes, wireframe, clipping planes, and camera projec
 ```py
 hkw.render(layer, filename="viewer.html", backend="webgl")
 ```
+
+When multiple views use identical vertex and index data, the WebGL exporter shares
+those glTF accessors even when the views have different materials or per-vertex
+colors. This reduces the embedded HTML/GLB payload without merging the views or
+their independent attributes.
 
 Use `background="transparent"` to reveal the embedding page behind the viewer and
 preserve alpha in saved beauty-pass PNGs:
@@ -180,10 +185,10 @@ for faster rendering of simple scenes.
 Every backend returns a `RenderResult`:
 
 ```py
-result.path       # main output path, or None if no filename was given
-result.image      # in-memory image (Mitsuba, Blender); None for WebGL
-result.outputs    # manifest: {"main": ..., "<pass>": <path or "interactive">}
-result.backend    # backend that produced the result
+result.path  # main output path, or None if no filename was given
+result.image  # in-memory image (Mitsuba, Blender); None for WebGL
+result.outputs  # manifest: {"main": ..., "<pass>": <path or "interactive">}
+result.backend  # backend that produced the result
 ```
 
 `result.outputs` includes per-pass sidecars; see [render passes](config.md#render-passes).
@@ -215,4 +220,3 @@ hkw.validate(layer, backend="webgl", strict=True)
 
 Strict validation rejects requested behavior that the selected backend would
 approximate or ignore. Use it before selecting a backend for an automated task.
-
