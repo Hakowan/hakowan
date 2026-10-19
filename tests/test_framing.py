@@ -106,6 +106,45 @@ def test_attribute_extremum_targets_matching_vertex():
     np.testing.assert_allclose(camera.target, expected)
 
 
+def test_attribute_extremum_handles_indexed_attributes():
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(
+        np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [3.0, 0.0, 0.0],
+                [3.0, 1.0, 0.0],
+                [2.0, 1.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+    )
+    mesh.add_triangle(0, 1, 2)
+    mesh.add_polygon(np.array([3, 4, 5, 6], dtype=np.uint32))
+    mesh.create_attribute(
+        "stress",
+        element=lagrange.AttributeElement.Indexed,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([1.0, 2.0, 3.0, 4.0, 9.0, 6.0, 7.0]),
+        initial_indices=np.arange(7, dtype=np.uint32),
+    )
+    layer = hkw.layer(mesh, name="sample")
+    expected = _world_points(hkw.compile(layer, preserve_attributes=True)[0])[4]
+
+    camera = (
+        hkw.figure(layer)
+        .camera(
+            "attribute_extremum", attribute="stress", extremum="max", direction="front"
+        )
+        .scene.camera
+    )
+
+    np.testing.assert_allclose(camera.target, expected)
+
+
 def test_component_selection_fits_only_requested_points():
     mesh = _point_mesh(
         [[-4.0, 0.0, 0.0], [-2.0, 0.0, 0.0], [4.0, 0.0, 0.0]],
