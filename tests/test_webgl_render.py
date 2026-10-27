@@ -564,6 +564,41 @@ class TestEndToEnd:
         assert len(gltf.meshes) == 2
         assert len(gltf.materials) == 2
 
+    def test_multiview_attribute_fields_share_geometry_accessors(self, tmp_path):
+        mesh = _make_icosphere()
+        vertices = np.asarray(mesh.vertices, dtype=np.float64)
+        for name, values in (
+            ("field_x", vertices[:, 0]),
+            ("field_y", vertices[:, 1]),
+        ):
+            mesh.create_attribute(
+                name,
+                element=lagrange.AttributeElement.Vertex,
+                usage=lagrange.AttributeUsage.Scalar,
+                initial_values=values,
+            )
+        views = [
+            hkw.layer(mesh)
+            .mark(hkw.mark.Surface)
+            .channel(
+                material=hkw.material.Diffuse(
+                    reflectance=hkw.texture.ScalarField(data=name)
+                )
+            )
+            for name in ("field_x", "field_y")
+        ]
+        out_path = tmp_path / "shared-geometry.html"
+        hkw.render(views[0] + views[1], filename=str(out_path), backend="webgl")
+
+        glb = _decode_glb_from_html(out_path.read_text())
+        gltf = pygltflib.GLTF2().load_from_bytes(glb)
+        primitives = [mesh.primitives[0] for mesh in gltf.meshes]
+        assert len(primitives) == 2
+        assert primitives[0].attributes.POSITION == primitives[1].attributes.POSITION
+        assert primitives[0].indices == primitives[1].indices
+        assert primitives[0].attributes.NORMAL == primitives[1].attributes.NORMAL
+        assert primitives[0].attributes.COLOR_0 != primitives[1].attributes.COLOR_0
+
     def test_juxtapose_renders_side_by_side(self, tmp_path):
         sphere = _make_icosphere()
         # No manual `.translate`: `|` lays the two layers out side by side.
