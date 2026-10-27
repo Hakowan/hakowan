@@ -30,7 +30,8 @@ class DataFrame:
 DataFrameLike = object
 """Runtime data accepted by :func:`to_dataframe`.
 
-Supported values are mesh paths, Lagrange meshes, Hakowan data frames, numeric
-point arrays, pandas DataFrames, xarray Datasets, PyVista datasets, and Trimesh
-objects. Optional third-party packages are detected without importing them.
+Supported values are mesh paths, Lagrange meshes, explicit ``vertices`` / ``facets``
+mesh mappings, Hakowan data frames, numeric point arrays, pandas DataFrames,
+xarray Datasets, PyVista datasets, and Trimesh objects. Optional third-party
+packages are detected without importing them.
 """

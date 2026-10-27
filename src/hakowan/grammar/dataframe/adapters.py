@@ -105,6 +105,61 @@ def _point_mesh(points: Any, attributes: Mapping[str, Any]) -> lagrange.SurfaceM
     return mesh
 
 
+def _embed_2d_mesh(mesh: lagrange.SurfaceMesh) -> lagrange.SurfaceMesh:
+    """Embed a 2D Lagrange mesh in the XY plane for Hakowan's 3D pipeline."""
+    if mesh.dimension != 2:
+        return mesh
+
+    embedded = lagrange.SurfaceMesh(dimension=3)
+    vertices = np.zeros((mesh.num_vertices, 3), dtype=mesh.vertices.dtype)
+    vertices[:, :2] = mesh.vertices
+    embedded.add_vertices(vertices)
+    if mesh.is_triangle_mesh:
+        embedded.add_triangles(np.ascontiguousarray(mesh.facets, dtype=np.uint32))
+    else:
+        for facet_id in range(mesh.num_facets):
+            embedded.add_polygon(mesh.get_facet_vertices(facet_id))
+    for attribute_id in mesh.get_matching_attribute_ids():
+        name = mesh.get_attribute_name(attribute_id)
+        if name is not None:
+            embedded.create_attribute_from(name, mesh)
+    return embedded
+
+
+def _mesh_mapping(data: Mapping[str, Any]) -> lagrange.SurfaceMesh:
+    """Build a mesh from explicit vertex/facet arrays and optional attributes."""
+    allowed = {"vertices", "facets", "vertex_attributes", "facet_attributes"}
+    missing = {"vertices", "facets"} - data.keys()
+    unknown = data.keys() - allowed
+    if missing:
+        raise ValueError(f"Mesh mapping is missing required keys: {sorted(missing)}")
+    if unknown:
+        raise ValueError(f"Mesh mapping has unsupported keys: {sorted(unknown)}")
+
+    vertices = _positions(data["vertices"], label="mesh vertices")
+    mesh = lagrange.SurfaceMesh()
+    mesh.add_vertices(vertices)
+
+    facets = np.asarray(data["facets"])
+    if facets.size:
+        if not np.issubdtype(facets.dtype, np.integer):
+            raise TypeError("mesh facets must contain integer vertex indices")
+        if np.any(facets < 0) or np.any(facets >= mesh.num_vertices):
+            raise ValueError("mesh facet indices must refer to existing vertices")
+    _add_facets(mesh, facets)
+
+    for key, element, count in (
+        ("vertex_attributes", lagrange.AttributeElement.Vertex, mesh.num_vertices),
+        ("facet_attributes", lagrange.AttributeElement.Facet, mesh.num_facets),
+    ):
+        attributes = data.get(key, {})
+        if not isinstance(attributes, Mapping):
+            raise TypeError(f"{key} must be a mapping of names to values")
+        for name, values in attributes.items():
+            _add_attribute(mesh, str(name), values, element, count)
+    return mesh
+
+
 def _table_mesh(table: Any, positions: PositionColumns) -> lagrange.SurfaceMesh:
     names = _position_names(tuple(table.columns), positions)
     points = np.column_stack([np.asarray(table[name]) for name in names])
@@ -211,15 +266,17 @@ def to_dataframe(
 ) -> DataFrame:
     """Convert supported geometry or tabular data to a Hakowan DataFrame.
 
-    Paths and Lagrange meshes retain topology. Numeric arrays become 2D/3D
-    point clouds. Pandas and xarray inputs use inferred or explicit position
-    columns; numeric fields become vertex attributes. PyVista and Trimesh
-    adapters preserve supported point/vertex and cell/facet attributes without
-    importing optional libraries inside Hakowan.
+    Paths, Lagrange meshes, and mappings with ``vertices`` and ``facets`` retain
+    topology. Two-dimensional Lagrange meshes and mapping vertices are embedded
+    in the XY plane. Numeric arrays become 2D/3D point clouds.
+    Pandas and xarray inputs use inferred or explicit position columns; numeric fields become
+    vertex attributes. PyVista and Trimesh adapters preserve supported
+    point/vertex and cell/facet attributes without importing optional libraries
+    inside Hakowan.
 
     Args:
-        data: Mesh path, Lagrange mesh, point array, table, PyVista dataset,
-            Trimesh object, or existing Hakowan DataFrame.
+        data: Mesh path, Lagrange mesh, mapping of mesh arrays, point array,
+            table, PyVista dataset, Trimesh object, or existing Hakowan DataFrame.
         positions: Two or three position column names for pandas/xarray input.
         roi_box: Optional axis-aligned region of interest.
 
@@ -234,22 +291,29 @@ def to_dataframe(
     if isinstance(data, DataFrame):
         if positions is not None:
             raise TypeError("positions cannot be used with an existing DataFrame")
+        mesh = _embed_2d_mesh(data.mesh)
         if roi_box is None:
-            return data
-        return DataFrame(mesh=data.mesh, roi_box=roi_box, source=data.source)
+            if mesh is data.mesh:
+                return data
+            return DataFrame(mesh=mesh, roi_box=data.roi_box, source=data.source)
+        return DataFrame(mesh=mesh, roi_box=roi_box, source=data.source)
     if isinstance(data, (str, Path)):
         if positions is not None:
             raise TypeError("positions cannot be used with a mesh file")
         source = Path(data)
         return DataFrame(
-            mesh=_mesh_file(source),
+            mesh=_embed_2d_mesh(_mesh_file(source)),
             roi_box=roi_box,
             source=source,
         )
     if isinstance(data, lagrange.SurfaceMesh):
         if positions is not None:
             raise TypeError("positions cannot be used with a SurfaceMesh")
-        return DataFrame(mesh=data, roi_box=roi_box)
+        return DataFrame(mesh=_embed_2d_mesh(data), roi_box=roi_box)
+    if isinstance(data, Mapping):
+        if positions is not None:
+            raise TypeError("positions cannot be used with a mesh mapping")
+        return DataFrame(mesh=_mesh_mapping(data), roi_box=roi_box)
     if isinstance(data, np.ndarray) or (
         isinstance(data, Sequence) and not isinstance(data, (str, bytes, bytearray))
     ):

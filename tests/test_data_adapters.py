@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import lagrange
 import numpy as np
 import pytest
 
@@ -182,6 +183,63 @@ def test_trimesh_preserves_topology_and_attribute_domains():
     assert frame.mesh.num_facets == 1
     assert frame.mesh.has_attribute("value")
     assert frame.mesh.has_attribute("quality")
+
+
+def test_2d_mesh_mapping_preserves_topology_attributes_and_renders(tmp_path):
+    mesh_data = {
+        "vertices": [[0, 0], [2, 0], [2, 1], [0, 1]],
+        "facets": [[0, 1, 2], [0, 2, 3]],
+        "vertex_attributes": {"temperature": [10.0, 20.0, 30.0, 40.0]},
+        "facet_attributes": {"region": [1, 2]},
+    }
+
+    frame = hkw.dataframe.to_dataframe(mesh_data)
+    np.testing.assert_allclose(
+        frame.mesh.vertices, [[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]]
+    )
+    np.testing.assert_array_equal(frame.mesh.facets, [[0, 1, 2], [0, 2, 3]])
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "temperature").reshape(-1), [10, 20, 30, 40]
+    )
+    np.testing.assert_array_equal(_attribute(frame.mesh, "region").reshape(-1), [1, 2])
+
+    result = hkw.render(
+        hkw.layer(mesh_data).mark("surface"),
+        filename=tmp_path / "planar-mesh.html",
+        backend="webgl",
+    )
+    assert result.outputs["main"] == tmp_path / "planar-mesh.html"
+    assert result.outputs["main"].is_file()
+
+
+def test_2d_lagrange_surface_mesh_is_embedded_and_renders(tmp_path):
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    source.create_attribute(
+        "temperature",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([10.0, 20.0, 30.0]),
+    )
+
+    frame = hkw.dataframe.to_dataframe(source)
+
+    assert source.dimension == 2
+    assert frame.mesh.dimension == 3
+    np.testing.assert_allclose(frame.mesh.vertices, [[0, 0, 0], [1, 0, 0], [1, 1, 0]])
+    np.testing.assert_array_equal(frame.mesh.facets, [[0, 1, 2]])
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "temperature").reshape(-1), [10, 20, 30]
+    )
+
+    result = hkw.render(
+        hkw.layer(source).mark("surface"),
+        filename=tmp_path / "lagrange-2d-mesh.html",
+        backend="webgl",
+    )
+    assert result.outputs["main"] == tmp_path / "lagrange-2d-mesh.html"
+    assert result.outputs["main"].is_file()
 
 
 def test_adapter_rejects_ambiguous_or_invalid_positions():
