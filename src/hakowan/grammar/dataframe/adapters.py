@@ -147,16 +147,16 @@ def _copy_mesh_attributes(
                 initial_indices=np.array(attribute.indices.data, copy=True, order="C"),
             )
         else:
-            attribute = source.attribute(name)
-            values = attribute.data
-            if attribute.usage in _EMBEDDABLE_ATTRIBUTE_USAGES:
+            regular_attribute = source.attribute(name)
+            values = regular_attribute.data
+            if regular_attribute.usage in _EMBEDDABLE_ATTRIBUTE_USAGES:
                 values = _embed_2d_attribute_values(values)
             else:
                 values = np.array(values, copy=True, order="C")
             target.create_attribute(
                 name,
-                element=attribute.element_type,
-                usage=attribute.usage,
+                element=regular_attribute.element_type,
+                usage=regular_attribute.usage,
                 initial_values=values,
             )
 
