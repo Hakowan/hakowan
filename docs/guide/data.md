@@ -38,12 +38,17 @@ l1 = hkw.layer(lagrange.io.load_mesh("shape.obj"))
 ```
 
 Two-dimensional `lagrange.SurfaceMesh` inputs are embedded in the XY plane,
-with facets and attributes preserved.
+with facets and attributes preserved. Two-component vector, position, normal,
+tangent, and bitangent attributes are embedded as `(x, y, 0)`; UV attributes
+remain two-dimensional.
 
 For a mesh defined by arrays, pass a mapping containing `vertices` and
 `facets`. Two-column vertices are embedded in the XY plane with Z set to zero;
 faces retain their connectivity. Optional `vertex_attributes` and
 `facet_attributes` mappings attach data to mesh elements:
+
+For two-column vertices, two-component mapped attributes are also padded with
+a zero Z component.
 
 ```py
 mesh_layer = hkw.layer(

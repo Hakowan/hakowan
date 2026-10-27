@@ -14,6 +14,16 @@ from .dataframe import DataFrame
 
 PositionColumns: TypeAlias = str | Sequence[str] | None
 
+_EMBEDDABLE_ATTRIBUTE_USAGES = frozenset(
+    {
+        lagrange.AttributeUsage.Vector,
+        lagrange.AttributeUsage.Position,
+        lagrange.AttributeUsage.Normal,
+        lagrange.AttributeUsage.Tangent,
+        lagrange.AttributeUsage.Bitangent,
+    }
+)
+
 
 def _module_name(value: object) -> str:
     return type(value).__module__.split(".", 1)[0]
@@ -105,6 +115,52 @@ def _point_mesh(points: Any, attributes: Mapping[str, Any]) -> lagrange.SurfaceM
     return mesh
 
 
+def _embed_2d_attribute_values(values: Any) -> np.ndarray:
+    array = np.array(values, copy=True, order="C")
+    if array.ndim != 2 or array.shape[1] != 2:
+        return array
+    result = np.zeros((array.shape[0], 3), dtype=array.dtype)
+    result[:, :2] = array
+    return result
+
+
+def _copy_mesh_attributes(
+    source: lagrange.SurfaceMesh,
+    target: lagrange.SurfaceMesh,
+) -> None:
+    for attribute_id in source.get_matching_attribute_ids():
+        name = source.get_attribute_name(attribute_id)
+        if name is None:
+            continue
+        if source.is_attribute_indexed(name):
+            attribute = source.indexed_attribute(name)
+            values = attribute.values.data
+            if attribute.usage in _EMBEDDABLE_ATTRIBUTE_USAGES:
+                values = _embed_2d_attribute_values(values)
+            else:
+                values = np.array(values, copy=True, order="C")
+            target.create_attribute(
+                name,
+                element=attribute.element_type,
+                usage=attribute.usage,
+                initial_values=values,
+                initial_indices=np.array(attribute.indices.data, copy=True, order="C"),
+            )
+        else:
+            attribute = source.attribute(name)
+            values = attribute.data
+            if attribute.usage in _EMBEDDABLE_ATTRIBUTE_USAGES:
+                values = _embed_2d_attribute_values(values)
+            else:
+                values = np.array(values, copy=True, order="C")
+            target.create_attribute(
+                name,
+                element=attribute.element_type,
+                usage=attribute.usage,
+                initial_values=values,
+            )
+
+
 def _embed_2d_mesh(mesh: lagrange.SurfaceMesh) -> lagrange.SurfaceMesh:
     """Embed a 2D Lagrange mesh in the XY plane for Hakowan's 3D pipeline."""
     if mesh.dimension != 2:
@@ -114,16 +170,51 @@ def _embed_2d_mesh(mesh: lagrange.SurfaceMesh) -> lagrange.SurfaceMesh:
     vertices = np.zeros((mesh.num_vertices, 3), dtype=mesh.vertices.dtype)
     vertices[:, :2] = mesh.vertices
     embedded.add_vertices(vertices)
-    if mesh.is_triangle_mesh:
+    if mesh.num_facets and mesh.is_triangle_mesh:
         embedded.add_triangles(np.ascontiguousarray(mesh.facets, dtype=np.uint32))
-    else:
+    elif mesh.num_facets:
         for facet_id in range(mesh.num_facets):
-            embedded.add_polygon(mesh.get_facet_vertices(facet_id))
-    for attribute_id in mesh.get_matching_attribute_ids():
-        name = mesh.get_attribute_name(attribute_id)
-        if name is not None:
-            embedded.create_attribute_from(name, mesh)
+            facet = np.array(
+                mesh.get_facet_vertices(facet_id),
+                dtype=np.uint32,
+                copy=True,
+                order="C",
+            )
+            embedded.add_polygon(facet)
+    if mesh.has_edges:
+        embedded.initialize_edges()
+    _copy_mesh_attributes(mesh, embedded)
     return embedded
+
+
+def _add_mapping_attribute(
+    mesh: lagrange.SurfaceMesh,
+    name: str,
+    values: Any,
+    element: lagrange.AttributeElement,
+    count: int,
+    *,
+    embed_2d: bool,
+) -> None:
+    array = np.asarray(values)
+    if array.ndim == 0 or array.shape[0] != count:
+        raise ValueError(
+            f"{element} attribute {name!r} must have {count} values; "
+            f"got shape {array.shape}"
+        )
+    if array.ndim > 2:
+        raise ValueError(
+            f"{element} attribute {name!r} must be one- or two-dimensional"
+        )
+    if not (
+        np.issubdtype(array.dtype, np.number) or np.issubdtype(array.dtype, np.bool_)
+    ):
+        raise TypeError(f"{element} attribute {name!r} must be numeric")
+    if array.ndim == 2 and array.shape[1] == 0:
+        raise ValueError(f"{element} attribute {name!r} must have at least one channel")
+    if embed_2d:
+        array = _embed_2d_attribute_values(array)
+    _add_attribute(mesh, name, array, element, count)
 
 
 def _mesh_mapping(data: Mapping[str, Any]) -> lagrange.SurfaceMesh:
@@ -136,12 +227,23 @@ def _mesh_mapping(data: Mapping[str, Any]) -> lagrange.SurfaceMesh:
     if unknown:
         raise ValueError(f"Mesh mapping has unsupported keys: {sorted(unknown)}")
 
-    vertices = _positions(data["vertices"], label="mesh vertices")
+    raw_vertices = np.asarray(data["vertices"])
+    embed_2d = raw_vertices.ndim == 2 and raw_vertices.shape[1] == 2
+    vertices = _positions(raw_vertices, label="mesh vertices")
     mesh = lagrange.SurfaceMesh()
     mesh.add_vertices(vertices)
 
     facets = np.asarray(data["facets"])
-    if facets.size:
+    if facets.size == 0:
+        if facets.ndim > 2 or (facets.ndim == 2 and facets.shape[0] > 0):
+            raise ValueError(
+                f"faces must have shape (m, k), k >= 3; got {facets.shape}"
+            )
+    else:
+        if facets.ndim != 2 or facets.shape[1] < 3:
+            raise ValueError(
+                f"faces must have shape (m, k), k >= 3; got {facets.shape}"
+            )
         if not np.issubdtype(facets.dtype, np.integer):
             raise TypeError("mesh facets must contain integer vertex indices")
         if np.any(facets < 0) or np.any(facets >= mesh.num_vertices):
@@ -156,7 +258,14 @@ def _mesh_mapping(data: Mapping[str, Any]) -> lagrange.SurfaceMesh:
         if not isinstance(attributes, Mapping):
             raise TypeError(f"{key} must be a mapping of names to values")
         for name, values in attributes.items():
-            _add_attribute(mesh, str(name), values, element, count)
+            _add_mapping_attribute(
+                mesh,
+                str(name),
+                values,
+                element,
+                count,
+                embed_2d=embed_2d,
+            )
     return mesh
 
 
@@ -310,6 +419,11 @@ def to_dataframe(
         if positions is not None:
             raise TypeError("positions cannot be used with a SurfaceMesh")
         return DataFrame(mesh=_embed_2d_mesh(data), roi_box=roi_box)
+    module = _module_name(data)
+    if module == "pandas":
+        return DataFrame(mesh=_table_mesh(data, positions), roi_box=roi_box)
+    if module == "xarray":
+        return DataFrame(mesh=_xarray_mesh(data, positions), roi_box=roi_box)
     if isinstance(data, Mapping):
         if positions is not None:
             raise TypeError("positions cannot be used with a mesh mapping")
@@ -321,11 +435,6 @@ def to_dataframe(
             raise TypeError("positions cannot be used with a position array")
         return DataFrame(mesh=_point_mesh(data, {}), roi_box=roi_box)
 
-    module = _module_name(data)
-    if module == "pandas":
-        return DataFrame(mesh=_table_mesh(data, positions), roi_box=roi_box)
-    if module == "xarray":
-        return DataFrame(mesh=_xarray_mesh(data, positions), roi_box=roi_box)
     if module == "pyvista" and hasattr(data, "points"):
         if positions is not None:
             raise TypeError("positions cannot be used with PyVista geometry")
