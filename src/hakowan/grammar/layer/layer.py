@@ -310,9 +310,9 @@ class Layer:
         """Overwrite this layer's data component.
 
         Args:
-            data: Mesh path, SurfaceMesh, point array, pandas DataFrame,
-                xarray Dataset, PyVista dataset, Trimesh object, or existing
-                Hakowan DataFrame.
+            data: Mesh path, SurfaceMesh, explicit ``vertices`` / ``facets``
+                mesh mapping, point array, pandas DataFrame, xarray Dataset,
+                PyVista dataset, Trimesh object, or existing Hakowan DataFrame.
             positions: Position column names for pandas and xarray inputs.
                 Hakowan infers ``x, y, z`` or ``x, y`` when omitted.
             roi_box: Optional region-of-interest bounds.

@@ -37,6 +37,32 @@ l0 = hkw.layer("shape.obj")
 l1 = hkw.layer(lagrange.io.load_mesh("shape.obj"))
 ```
 
+Two-dimensional `lagrange.SurfaceMesh` inputs are embedded in the XY plane,
+with facets and attributes preserved. Two-component vector, position, normal,
+tangent, and bitangent attributes are embedded as `(x, y, 0)`; UV attributes
+remain two-dimensional.
+
+For a mesh defined by arrays, pass a mapping containing `vertices` and
+`facets`. Two-column vertices are embedded in the XY plane with Z set to zero;
+faces retain their connectivity. Optional `vertex_attributes` and
+`facet_attributes` mappings attach data to mesh elements:
+
+For two-column vertices, two-component mapped attributes are also padded with
+a zero Z component.
+
+```py
+mesh_layer = hkw.layer(
+    {
+        "vertices": [[0, 0], [1, 0], [1, 1], [0, 1]],
+        "facets": [[0, 1, 2], [0, 2, 3]],
+        "vertex_attributes": {"temperature": [10, 20, 30, 40]},
+    }
+).mark("surface")
+```
+
+Three-column vertices are also accepted. This representation supports planar
+2D meshes without treating their vertices as a facet-free point cloud.
+
 Numeric arrays with shape `(n, 2)` or `(n, 3)` become point clouds. Two-dimensional
 positions receive a zero Z coordinate:
 
@@ -57,15 +83,15 @@ ignored. Position tables must contain at least one row.
 
 
 ```py
-table = pandas.DataFrame({
-    "east": [0, 1, 0],
-    "north": [0, 0, 1],
-    "height": [0, 0, 0],
-    "temperature": [12.0, 18.0, 25.0],
-})
-points_layer = hkw.layer(
-    table, positions=("east", "north", "height")
-).mark("point")
+table = pandas.DataFrame(
+    {
+        "east": [0, 1, 0],
+        "north": [0, 0, 1],
+        "height": [0, 0, 0],
+        "temperature": [12.0, 18.0, 25.0],
+    }
+)
+points_layer = hkw.layer(table, positions=("east", "north", "height")).mark("point")
 ```
 
 PyVista polygonal datasets and Trimesh meshes preserve their surface topology,

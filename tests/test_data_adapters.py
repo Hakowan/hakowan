@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import lagrange
 import numpy as np
 import pytest
 
@@ -124,6 +125,24 @@ def test_xarray_dataset_adapter_uses_point_dimension():
     )
 
 
+def test_real_xarray_dataset_is_not_dispatched_as_a_mesh_mapping():
+    xarray = pytest.importorskip("xarray")
+    dataset = xarray.Dataset(
+        {"temperature": ("point", [10.0, 20.0, 30.0])},
+        coords={
+            "x": ("point", [0.0, 1.0, 0.0]),
+            "y": ("point", [0.0, 0.0, 1.0]),
+        },
+    )
+
+    frame = hkw.dataframe.to_dataframe(dataset)
+
+    np.testing.assert_allclose(frame.mesh.vertices, [[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "temperature").reshape(-1), [10, 20, 30]
+    )
+
+
 def test_pyvista_polydata_preserves_points_faces_and_attributes():
     pyvista = pytest.importorskip("pyvista")
     source = pyvista.PolyData(
@@ -182,6 +201,233 @@ def test_trimesh_preserves_topology_and_attribute_domains():
     assert frame.mesh.num_facets == 1
     assert frame.mesh.has_attribute("value")
     assert frame.mesh.has_attribute("quality")
+
+
+def test_2d_mesh_mapping_preserves_topology_attributes_and_renders(tmp_path):
+    mesh_data = {
+        "vertices": [[0, 0], [2, 0], [2, 1], [0, 1]],
+        "facets": [[0, 1, 2], [0, 2, 3]],
+        "vertex_attributes": {"temperature": [10.0, 20.0, 30.0, 40.0]},
+        "facet_attributes": {"region": [1, 2]},
+    }
+
+    frame = hkw.dataframe.to_dataframe(mesh_data)
+    np.testing.assert_allclose(
+        frame.mesh.vertices, [[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]]
+    )
+    np.testing.assert_array_equal(frame.mesh.facets, [[0, 1, 2], [0, 2, 3]])
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "temperature").reshape(-1), [10, 20, 30, 40]
+    )
+    np.testing.assert_array_equal(_attribute(frame.mesh, "region").reshape(-1), [1, 2])
+
+    result = hkw.render(
+        hkw.layer(mesh_data).mark("surface"),
+        filename=tmp_path / "planar-mesh.html",
+        backend="webgl",
+    )
+    assert result.outputs["main"] == tmp_path / "planar-mesh.html"
+    assert result.outputs["main"].is_file()
+
+
+def test_2d_lagrange_surface_mesh_is_embedded_and_renders(tmp_path):
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    source.create_attribute(
+        "temperature",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([10.0, 20.0, 30.0]),
+    )
+
+    frame = hkw.dataframe.to_dataframe(source)
+
+    assert source.dimension == 2
+    assert frame.mesh.dimension == 3
+    np.testing.assert_allclose(frame.mesh.vertices, [[0, 0, 0], [1, 0, 0], [1, 1, 0]])
+    np.testing.assert_array_equal(frame.mesh.facets, [[0, 1, 2]])
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "temperature").reshape(-1), [10, 20, 30]
+    )
+
+    result = hkw.render(
+        hkw.layer(source).mark("surface"),
+        filename=tmp_path / "lagrange-2d-mesh.html",
+        backend="webgl",
+    )
+    assert result.outputs["main"] == tmp_path / "lagrange-2d-mesh.html"
+    assert result.outputs["main"].is_file()
+
+
+def test_2d_lagrange_quad_mesh_preserves_polygon_facets():
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]))
+    source.add_quads(np.array([[0, 1, 2, 3]], dtype=np.uint32))
+
+    embedded = hkw.dataframe.to_dataframe(source).mesh
+
+    assert embedded.dimension == 3
+    np.testing.assert_array_equal(embedded.facets, [[0, 1, 2, 3]])
+
+
+def test_2d_facet_free_lagrange_mesh_embeds_as_point_mesh():
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0]]))
+    source.create_attribute(
+        "temperature",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([10.0, 20.0]),
+    )
+
+    embedded = hkw.dataframe.to_dataframe(source).mesh
+
+    assert embedded.dimension == 3
+    assert embedded.num_facets == 0
+    np.testing.assert_allclose(embedded.vertices, [[0, 0, 0], [1, 0, 0]])
+    np.testing.assert_allclose(
+        _attribute(embedded, "temperature").reshape(-1), [10, 20]
+    )
+
+
+def test_2d_lagrange_edge_attributes_are_preserved():
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    source.initialize_edges()
+    edge_values = np.arange(source.num_edges, dtype=np.float64)
+    source.create_attribute(
+        "edge_value",
+        element=lagrange.AttributeElement.Edge,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=edge_values,
+    )
+
+    embedded = hkw.dataframe.to_dataframe(source).mesh
+
+    np.testing.assert_array_equal(embedded.edges, source.edges)
+    np.testing.assert_array_equal(_attribute(embedded, "edge_value"), edge_values)
+
+
+def test_2d_vector_position_attributes_are_embedded_for_compilation():
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    alternate = np.array([[0.0, 0.0], [2.0, 0.0], [0.0, 3.0]])
+    source.create_attribute(
+        "alternate",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Position,
+        initial_values=alternate,
+    )
+
+    scene = hkw.compile(
+        hkw.layer(source)
+        .mark("surface")
+        .channel(position=hkw.channel.Position(data="alternate"))
+    )
+
+    np.testing.assert_allclose(
+        scene[0].data_frame.mesh.vertices,
+        [[0, 0, 0], [2, 0, 0], [0, 3, 0]],
+    )
+
+
+def test_2d_normal_attribute_is_embedded_and_renders(tmp_path):
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    source.create_attribute(
+        "normal2",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Normal,
+        initial_values=np.tile([0.0, 1.0], (3, 1)),
+    )
+
+    frame = hkw.dataframe.to_dataframe(source)
+    np.testing.assert_allclose(
+        _attribute(frame.mesh, "normal2"), np.tile([0.0, 1.0, 0.0], (3, 1))
+    )
+    result = hkw.render(
+        hkw.layer(source).mark("surface"),
+        filename=tmp_path / "2d-normal.html",
+        backend="webgl",
+    )
+    assert result.outputs["main"].is_file()
+
+
+def test_2d_mesh_mapping_embeds_two_component_vertex_attributes():
+    mesh_data = {
+        "vertices": [[0, 0], [1, 0], [0, 1]],
+        "facets": [[0, 1, 2]],
+        "vertex_attributes": {"alternate": [[0, 0], [2, 0], [0, 3]]},
+    }
+
+    scene = hkw.compile(
+        hkw.layer(mesh_data)
+        .mark("surface")
+        .channel(position=hkw.channel.Position(data="alternate"))
+    )
+
+    np.testing.assert_allclose(
+        scene[0].data_frame.mesh.vertices,
+        [[0, 0, 0], [2, 0, 0], [0, 3, 0]],
+    )
+
+
+def test_2d_mesh_embedding_copies_attribute_storage():
+    source = lagrange.SurfaceMesh(dimension=2)
+    source.add_vertices(np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]))
+    source.add_triangles(np.array([[0, 1, 2]], dtype=np.uint32))
+    source.create_attribute(
+        "temperature",
+        element=lagrange.AttributeElement.Vertex,
+        usage=lagrange.AttributeUsage.Scalar,
+        initial_values=np.array([10.0, 20.0, 30.0]),
+    )
+    source.create_attribute(
+        "uv",
+        element=lagrange.AttributeElement.Indexed,
+        usage=lagrange.AttributeUsage.UV,
+        initial_values=np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]),
+        initial_indices=np.array([0, 1, 2], dtype=np.uint32),
+    )
+
+    embedded = hkw.dataframe.to_dataframe(source).mesh
+    source.vertices[0, 0] = 9.0
+    source.attribute("temperature").data[0] = 99.0
+    source.indexed_attribute("uv").values.data[0, 0] = 99.0
+
+    np.testing.assert_allclose(embedded.vertices[0], [0, 0, 0])
+    np.testing.assert_allclose(
+        _attribute(embedded, "temperature").reshape(-1), [10, 20, 30]
+    )
+    np.testing.assert_allclose(
+        embedded.indexed_attribute("uv").values.data,
+        [[0, 0], [1, 0], [0, 1]],
+    )
+
+
+@pytest.mark.parametrize(
+    "mesh_data",
+    [
+        {
+            "vertices": [[0, 0], [1, 0], [0, 1]],
+            "facets": [[0, 1, 2]],
+            "vertex_attributes": {"temperature": [1, 2]},
+        },
+        {
+            "vertices": [[0, 0], [1, 0], [0, 1]],
+            "facets": [[0, 1, 2]],
+            "facet_attributes": {"region": []},
+        },
+        {"vertices": [[0, 0], [1, 0], [0, 1]], "facets": [[]]},
+    ],
+)
+def test_mesh_mapping_rejects_mismatched_attributes_and_empty_facets(mesh_data):
+    with pytest.raises(ValueError):
+        hkw.dataframe.to_dataframe(mesh_data)
 
 
 def test_adapter_rejects_ambiguous_or_invalid_positions():
