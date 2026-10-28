@@ -1,0 +1,46 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "float64",
+        "element": "facet",
+        "element_count": 6,
+        "finite_count": 6,
+        "indexed": false,
+        "maximum": 5.0,
+        "minimum": 0.0,
+        "name": "facet_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 1.25,
+          "0.5": 2.5,
+          "0.75": 3.75,
+          "1": 5.0
+        },
+        "usage": "scalar",
+        "value_count": 6
+      }
+    ],
+    "bounds": [
+      [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      [
+        0.5,
+        0.5,
+        0.5
+      ]
+    ],
+    "corner_count": 24,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 6,
+    "source": "data/box.msh",
+    "vertex_count": 8
+  }
+}

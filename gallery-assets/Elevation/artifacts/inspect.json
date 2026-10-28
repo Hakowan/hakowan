@@ -1,0 +1,24 @@
+{
+  "terrain": {
+    "attributes": [],
+    "bounds": [
+      [
+        0.0,
+        0.0,
+        121.8506851196289
+      ],
+      [
+        3611.0,
+        3611.0,
+        519.12255859375
+      ]
+    ],
+    "corner_count": 52157284,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 13039321,
+    "source": null,
+    "vertex_count": 13046544
+  }
+}

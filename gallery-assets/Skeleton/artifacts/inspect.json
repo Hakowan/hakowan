@@ -1,0 +1,153 @@
+{
+  "skeleton": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 1247,
+        "finite_count": 1247,
+        "indexed": false,
+        "maximum": 466,
+        "minimum": 0,
+        "name": "line_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 154.5,
+          "1": 466.0
+        },
+        "usage": "scalar",
+        "value_count": 1247
+      },
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 1247,
+        "finite_count": 1247,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 1247
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 1247,
+        "finite_count": 1247,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 1247
+      }
+    ],
+    "bounds": [
+      [
+        -0.812266707420349,
+        -0.8290544748306274,
+        -0.7793808579444886
+      ],
+      [
+        0.8448447585105898,
+        0.7158424258232117,
+        0.9528086185455324
+      ]
+    ],
+    "corner_count": 2809,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 1247,
+    "source": null,
+    "vertex_count": 194
+  },
+  "surface": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 35666,
+        "finite_count": 35666,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 35666
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 35666,
+        "finite_count": 35666,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 35666
+      }
+    ],
+    "bounds": [
+      [
+        -0.930837,
+        -0.8562970000000002,
+        -0.883839
+      ],
+      [
+        0.9063490000000002,
+        0.904761,
+        0.9639190000000001
+      ]
+    ],
+    "corner_count": 106998,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 35666,
+    "source": "data/fertility.obj",
+    "vertex_count": 17827
+  }
+}

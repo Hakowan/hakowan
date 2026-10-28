@@ -1,0 +1,24 @@
+{
+  "mesh": {
+    "attributes": [],
+    "bounds": [
+      [
+        821.8031005859375,
+        -1947.2879638671875,
+        17.892045974731445
+      ],
+      [
+        2746.10205078125,
+        -23.942855834960938,
+        50.999935150146484
+      ]
+    ],
+    "corner_count": 297639,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 99213,
+    "source": "data/penny.glb",
+    "vertex_count": 49977
+  }
+}

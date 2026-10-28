@@ -1,0 +1,109 @@
+{
+  "mesh": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "int32",
+        "element": "facet",
+        "element_count": 11253,
+        "finite_count": 11253,
+        "indexed": false,
+        "maximum": -1,
+        "minimum": -1,
+        "name": "material_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": -1.0,
+          "0.25": -1.0,
+          "0.5": -1.0,
+          "0.75": -1.0,
+          "1": -1.0
+        },
+        "usage": "scalar",
+        "value_count": 11253
+      },
+      {
+        "channels": 1,
+        "dtype": "uint32",
+        "element": "facet",
+        "element_count": 11253,
+        "finite_count": 11253,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "object_id",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 11253
+      },
+      {
+        "channels": 2,
+        "dtype": "float64",
+        "element": "indexed",
+        "element_count": 33759,
+        "finite_count": 5691,
+        "indexed": true,
+        "maximum": [
+          0.998198629232413,
+          0.9165525629971248
+        ],
+        "minimum": [
+          -0.942277209675203,
+          -0.97361395359562
+        ],
+        "name": "texcoord",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -0.942277209675203,
+            -0.97361395359562
+          ],
+          "0.25": [
+            -0.14444797296763054,
+            -0.2888513369690986
+          ],
+          "0.5": [
+            0.04288655920279941,
+            -0.09407491697446368
+          ],
+          "0.75": [
+            0.22395662303307254,
+            0.12219169325763252
+          ],
+          "1": [
+            0.998198629232413,
+            0.9165525629971248
+          ]
+        },
+        "usage": "uv",
+        "value_count": 5691
+      }
+    ],
+    "bounds": [
+      [
+        43.171322,
+        0.07978400000000001,
+        -15.378528
+      ],
+      [
+        44.106743,
+        1.0797839999999999,
+        -14.600124
+      ]
+    ],
+    "corner_count": 33759,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 11253,
+    "source": "data/fig3.obj",
+    "vertex_count": 5691
+  }
+}

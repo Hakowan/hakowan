@@ -1,0 +1,46 @@
+{
+  "icosphere": {
+    "attributes": [
+      {
+        "channels": 1,
+        "dtype": "uint8",
+        "element": "facet",
+        "element_count": 80,
+        "finite_count": 80,
+        "indexed": false,
+        "maximum": 0,
+        "minimum": 0,
+        "name": "@semantic_label",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 80
+      }
+    ],
+    "bounds": [
+      [
+        -0.9510570506123908,
+        -0.9999999999990644,
+        -1.0
+      ],
+      [
+        0.9510570506123908,
+        0.9999999999990644,
+        1.0
+      ]
+    ],
+    "corner_count": 240,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 80,
+    "source": "data/icosahedron.ply",
+    "vertex_count": 42
+  }
+}

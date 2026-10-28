@@ -1,0 +1,570 @@
+{
+  "golden_lily_130": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "uint8",
+        "element": "vertex",
+        "element_count": 19777,
+        "finite_count": 19777,
+        "indexed": false,
+        "maximum": [
+          255,
+          255,
+          255
+        ],
+        "minimum": [
+          26,
+          11,
+          10
+        ],
+        "name": "color",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            26.0,
+            11.0,
+            10.0
+          ],
+          "0.25": [
+            181.0,
+            61.0,
+            50.0
+          ],
+          "0.5": [
+            252.0,
+            94.0,
+            78.0
+          ],
+          "0.75": [
+            255.0,
+            131.0,
+            111.0
+          ],
+          "1": [
+            255.0,
+            255.0,
+            255.0
+          ]
+        },
+        "usage": "color",
+        "value_count": 19777
+      },
+      {
+        "channels": 1,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 19777,
+        "finite_count": 19777,
+        "indexed": false,
+        "maximum": 0.0,
+        "minimum": 0.0,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 19777
+      },
+      {
+        "channels": 3,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 19777,
+        "finite_count": 19777,
+        "indexed": false,
+        "maximum": [
+          501.609375,
+          414.1144714355469,
+          1143.5655517578125
+        ],
+        "minimum": [
+          -597.0162353515625,
+          0.045869361609220505,
+          -0.9989440441131592
+        ],
+        "name": "normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -597.0162353515625,
+            0.045869361609220505,
+            -0.9989440441131592
+          ],
+          "0.25": [
+            -549.3756103515625,
+            58.44829559326172,
+            258.2065124511719
+          ],
+          "0.5": [
+            -94.85494232177734,
+            151.65335083007812,
+            312.0504150390625
+          ],
+          "0.75": [
+            454.3345642089844,
+            357.0733337402344,
+            884.4605102539062
+          ],
+          "1": [
+            501.609375,
+            414.1144714355469,
+            1143.5655517578125
+          ]
+        },
+        "usage": "normal",
+        "value_count": 19777
+      }
+    ],
+    "bounds": [
+      [
+        -40.40556716918945,
+        -89.44722747802734,
+        648.0450439453125
+      ],
+      [
+        53.16787338256836,
+        -29.436288833618164,
+        727.4794921875
+      ]
+    ],
+    "corner_count": 0,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 0,
+    "source": "/Users/qzhou/Research/hakowan-gallery/gallery/Flowers/data/golden_lily_130.pcd",
+    "vertex_count": 19777
+  },
+  "lily_127": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "uint8",
+        "element": "vertex",
+        "element_count": 11397,
+        "finite_count": 11397,
+        "indexed": false,
+        "maximum": [
+          194,
+          228,
+          255
+        ],
+        "minimum": [
+          26,
+          26,
+          41
+        ],
+        "name": "color",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            26.0,
+            26.0,
+            41.0
+          ],
+          "0.25": [
+            74.0,
+            61.0,
+            108.0
+          ],
+          "0.5": [
+            90.0,
+            78.0,
+            133.0
+          ],
+          "0.75": [
+            107.0,
+            100.0,
+            165.0
+          ],
+          "1": [
+            194.0,
+            228.0,
+            255.0
+          ]
+        },
+        "usage": "color",
+        "value_count": 11397
+      },
+      {
+        "channels": 1,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 11397,
+        "finite_count": 11397,
+        "indexed": false,
+        "maximum": 0.0,
+        "minimum": 0.0,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 11397
+      },
+      {
+        "channels": 3,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 11397,
+        "finite_count": 11397,
+        "indexed": false,
+        "maximum": [
+          729.6030883789062,
+          500.142578125,
+          1644.498046875
+        ],
+        "minimum": [
+          -787.7899780273438,
+          -0.04975099861621857,
+          -0.9999329447746277
+        ],
+        "name": "normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -787.7899780273438,
+            -0.04975099861621857,
+            -0.9999329447746277
+          ],
+          "0.25": [
+            -759.127685546875,
+            153.2860565185547,
+            428.6671142578125
+          ],
+          "0.5": [
+            -59.23699951171875,
+            350.0916442871094,
+            1214.72509765625
+          ],
+          "0.75": [
+            702.2272338867188,
+            500.0846252441406,
+            1644.4608154296875
+          ],
+          "1": [
+            729.6030883789062,
+            500.142578125,
+            1644.498046875
+          ]
+        },
+        "usage": "normal",
+        "value_count": 11397
+      }
+    ],
+    "bounds": [
+      [
+        -92.70787048339844,
+        -3.945465087890625,
+        807.6585693359375
+      ],
+      [
+        30.892406463623047,
+        47.408447265625,
+        957.7046508789062
+      ]
+    ],
+    "corner_count": 0,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 0,
+    "source": "/Users/qzhou/Research/hakowan-gallery/gallery/Flowers/data/lily_127.pcd",
+    "vertex_count": 11397
+  },
+  "orchid_113": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "uint8",
+        "element": "vertex",
+        "element_count": 10231,
+        "finite_count": 10231,
+        "indexed": false,
+        "maximum": [
+          255,
+          244,
+          255
+        ],
+        "minimum": [
+          45,
+          16,
+          33
+        ],
+        "name": "color",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            45.0,
+            16.0,
+            33.0
+          ],
+          "0.25": [
+            156.0,
+            51.0,
+            89.0
+          ],
+          "0.5": [
+            207.0,
+            68.0,
+            118.0
+          ],
+          "0.75": [
+            249.0,
+            86.0,
+            145.0
+          ],
+          "1": [
+            255.0,
+            244.0,
+            255.0
+          ]
+        },
+        "usage": "color",
+        "value_count": 10231
+      },
+      {
+        "channels": 1,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 10231,
+        "finite_count": 10231,
+        "indexed": false,
+        "maximum": 0.0,
+        "minimum": 0.0,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 10231
+      },
+      {
+        "channels": 3,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 10231,
+        "finite_count": 10231,
+        "indexed": false,
+        "maximum": [
+          585.2066650390625,
+          18.511966705322266,
+          1396.278564453125
+        ],
+        "minimum": [
+          -663.5534057617188,
+          -107.74369049072266,
+          -0.9998939037322998
+        ],
+        "name": "normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -663.5534057617188,
+            -107.74369049072266,
+            -0.9998939037322998
+          ],
+          "0.25": [
+            -624.499267578125,
+            -90.28584289550781,
+            312.5462951660156
+          ],
+          "0.5": [
+            -0.04475168138742447,
+            -32.26093673706055,
+            1010.375244140625
+          ],
+          "0.75": [
+            545.9620361328125,
+            0.03633386641740799,
+            1083.46142578125
+          ],
+          "1": [
+            585.2066650390625,
+            18.511966705322266,
+            1396.278564453125
+          ]
+        },
+        "usage": "normal",
+        "value_count": 10231
+      }
+    ],
+    "bounds": [
+      [
+        -1.9868718385696411,
+        -64.00458526611328,
+        685.8099975585938
+      ],
+      [
+        33.07381820678711,
+        -3.2477571964263916,
+        747.3616333007812
+      ]
+    ],
+    "corner_count": 0,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 0,
+    "source": "/Users/qzhou/Research/hakowan-gallery/gallery/Flowers/data/orchid_113.pcd",
+    "vertex_count": 10231
+  },
+  "water_lily_72": {
+    "attributes": [
+      {
+        "channels": 3,
+        "dtype": "uint8",
+        "element": "vertex",
+        "element_count": 20802,
+        "finite_count": 20802,
+        "indexed": false,
+        "maximum": [
+          255,
+          255,
+          214
+        ],
+        "minimum": [
+          13,
+          8,
+          15
+        ],
+        "name": "color",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            13.0,
+            8.0,
+            15.0
+          ],
+          "0.25": [
+            63.0,
+            48.0,
+            59.0
+          ],
+          "0.5": [
+            93.0,
+            74.0,
+            89.0
+          ],
+          "0.75": [
+            120.0,
+            96.0,
+            111.0
+          ],
+          "1": [
+            255.0,
+            255.0,
+            214.0
+          ]
+        },
+        "usage": "color",
+        "value_count": 20802
+      },
+      {
+        "channels": 1,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 20802,
+        "finite_count": 20802,
+        "indexed": false,
+        "maximum": 0.0,
+        "minimum": 0.0,
+        "name": "curvature",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.0,
+          "0.75": 0.0,
+          "1": 0.0
+        },
+        "usage": "scalar",
+        "value_count": 20802
+      },
+      {
+        "channels": 3,
+        "dtype": "float32",
+        "element": "vertex",
+        "element_count": 20802,
+        "finite_count": 20802,
+        "indexed": false,
+        "maximum": [
+          627.2985229492188,
+          527.094970703125,
+          1357.337646484375
+        ],
+        "minimum": [
+          -634.4061279296875,
+          0.04304391145706177,
+          -0.9990324974060059
+        ],
+        "name": "normal",
+        "nonfinite_count": 0,
+        "quantiles": {
+          "0": [
+            -634.4061279296875,
+            0.04304391145706177,
+            -0.9990324974060059
+          ],
+          "0.25": [
+            -630.9522094726562,
+            94.08544921875,
+            326.42572021484375
+          ],
+          "0.5": [
+            -7.150306701660156,
+            356.55853271484375,
+            1005.434326171875
+          ],
+          "0.75": [
+            623.20361328125,
+            436.41192626953125,
+            1029.5343017578125
+          ],
+          "1": [
+            627.2985229492188,
+            527.094970703125,
+            1357.337646484375
+          ]
+        },
+        "usage": "normal",
+        "value_count": 20802
+      }
+    ],
+    "bounds": [
+      [
+        -28.077919006347656,
+        -93.16537475585938,
+        762.4070434570312
+      ],
+      [
+        72.26433563232422,
+        -29.76836395263672,
+        861.3992919921875
+      ]
+    ],
+    "corner_count": 0,
+    "dimension": 3,
+    "edge_count": null,
+    "edges_initialized": false,
+    "facet_count": 0,
+    "source": "/Users/qzhou/Research/hakowan-gallery/gallery/Flowers/data/water_lily_72.pcd",
+    "vertex_count": 20802
+  }
+}
